@@ -12,118 +12,163 @@
   --bg:#03030a;--bg2:#070712;--surface:#0d0d1f;--border:rgba(255,255,255,.07);
   --border2:rgba(255,255,255,.12);--accent:#5b6ef5;--accent2:#7b89ff;--cyan:#00c2ff;
   --text:#e8e8f2;--muted:#5a5a7a;--muted2:#8888aa;
+  --rose:#fb7185;--amber:#fbbf24;--emerald:#34d399;--violet:#c4b5fd;--orange:#fb923c;--pink:#f472b6;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
 body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");opacity:.6}
-.font-display{font-family:'Plus Jakarta Sans',sans-serif}
-.wrap{max-width:1060px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 22px;position:relative;z-index:1}
 
-.nav{position:sticky;top:0;z-index:30;background:rgba(3,3,10,.72);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border-bottom:1px solid var(--border)}
-.nav-inner{height:62px;display:flex;align-items:center;justify-content:space-between}
+.nav{position:sticky;top:0;z-index:30;background:rgba(3,3,10,.74);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border-bottom:1px solid var(--border)}
+.nav-inner{height:60px;display:flex;align-items:center;justify-content:space-between}
 .logo{display:flex;align-items:center;gap:10px}
-.logo-mark{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#5b6ef5,#00c2ff);box-shadow:0 0 16px rgba(91,110,245,.4)}
+.logo-mark{width:29px;height:29px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#5b6ef5,#00c2ff);box-shadow:0 0 16px rgba(91,110,245,.4)}
 .logo-txt{font-weight:700;font-size:15px;letter-spacing:-.01em}
-.dot-live{width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.2);animation:pg 2s ease-in-out infinite;display:inline-block}
-.dot-pending{width:7px;height:7px;border-radius:50%;background:#fbbf24;box-shadow:0 0 0 3px rgba(251,191,36,.2);animation:pg 1.6s ease-in-out infinite;display:inline-block}
-@keyframes pg{0%,100%{box-shadow:0 0 0 3px rgba(16,185,129,.14)}50%{box-shadow:0 0 0 5px rgba(16,185,129,.26)}}
-
-.btn{font-family:inherit;font-size:14px;font-weight:600;border:none;border-radius:11px;cursor:pointer;transition:all .18s ease}
-.btn-primary{background:linear-gradient(135deg,#5b6ef5,#7b89ff);color:#fff;padding:10px 18px;box-shadow:0 6px 22px rgba(91,110,245,.32)}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(91,110,245,.45)}
-.btn-ghost{background:rgba(255,255,255,.05);border:1px solid var(--border2);color:#fff;padding:10px 16px}
+.btn{font-family:inherit;font-weight:600;border:none;border-radius:11px;cursor:pointer;transition:all .18s ease}
+.btn-primary{background:linear-gradient(135deg,#5b6ef5,#7b89ff);color:#fff;padding:9px 16px;font-size:13.5px;box-shadow:0 6px 22px rgba(91,110,245,.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(91,110,245,.42)}
+.btn-ghost{background:rgba(255,255,255,.05);border:1px solid var(--border2);color:#fff;padding:9px 15px;font-size:13.5px}
 .btn-ghost:hover{background:rgba(255,255,255,.08)}
-.btn-plus{display:inline-flex;align-items:center;gap:8px}
+.btn-plus{display:inline-flex;align-items:center;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dot-pulse{animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-.head{padding:42px 0 22px}
-.eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#a5b4fc;background:rgba(91,110,245,.1);border:1px solid rgba(91,110,245,.25);padding:4px 12px;border-radius:999px;margin-bottom:16px}
-h1{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-.03em;font-size:clamp(1.7rem,4vw,2.4rem);margin:0 0 8px}
-.sub{color:var(--muted2);font-size:15px;margin:0}
-.head-row{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+.head{padding:34px 0 14px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted2);margin-bottom:10px}
+h1{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-.03em;font-size:clamp(1.6rem,4vw,2.1rem);margin:0 0 8px;line-height:1.1}
+.lede{color:var(--muted2);font-size:15px;margin:0}
+.lede b{color:#fff;font-weight:600}
 
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0 8px}
-.stat{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px}
-.stat-label{font-size:12px;color:var(--muted);margin-bottom:6px}
-.stat-num{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.7rem;line-height:1;letter-spacing:-.03em}
+/* timeframe control */
+.tfbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:20px 0 4px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:3px}
+.seg-btn{font-family:inherit;font-size:13px;font-weight:600;color:var(--muted2);background:none;border:none;padding:7px 17px;border-radius:8px;cursor:pointer;transition:all .15s}
+.seg-btn.active{background:rgba(91,110,245,.2);color:#fff}
+.stepper{display:inline-flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:4px}
+.step{width:30px;height:30px;border:none;background:none;color:var(--muted2);cursor:pointer;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.step:hover:not(:disabled){background:rgba(255,255,255,.06);color:#fff}
+.step:disabled{opacity:.28;cursor:default}
+.step-label{font-size:13px;font-weight:600;min-width:128px;text-align:center;color:#e8e8f2}
 
-.feed{padding:8px 0 70px;display:flex;flex-direction:column;gap:16px}
-.cc{background:var(--surface);border:1px solid var(--border);border-radius:18px;overflow:hidden;transition:border-color .25s, transform .25s;animation:slideIn .4s ease}
-@keyframes slideIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-.cc:hover{border-color:rgba(91,110,245,.3)}
-.cc-head{display:flex;align-items:center;gap:13px;padding:16px 18px;border-bottom:1px solid var(--border)}
-.fav{width:40px;height:40px;border-radius:11px;background:#12122a;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;color:#fff}
-.fav img{width:24px;height:24px;border-radius:5px}
-.cc-name{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
-.cc-host{font-size:12px;color:var(--muted)}
-.tag-demo{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted2);background:rgba(255,255,255,.06);border:1px solid var(--border);padding:1px 6px;border-radius:5px}
-.badge{font-size:12px;font-weight:600;padding:4px 11px;border-radius:999px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
-.b-changes{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.22);color:#fbbf24}
-.b-none{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.22);color:#34d399}
-.b-pending{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);color:#fbbf24}
-.x-btn{background:none;border:none;color:var(--muted);cursor:pointer;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:all .15s}
-.x-btn:hover{background:rgba(239,68,68,.1);color:#f87171}
+.summary{display:flex;gap:10px;margin:18px 0 4px;flex-wrap:wrap}
+.sm{flex:1;min-width:130px;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:13px 15px;display:flex;align-items:center;gap:11px}
+.sm-ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sm-n{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.25rem;line-height:1}
+.sm-l{font-size:12px;color:var(--muted2);margin-top:2px}
 
-.cc-body{display:grid;grid-template-columns:180px 1fr;gap:18px;padding:18px}
-@media(max-width:660px){.cc-body{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.head-row{flex-direction:column;align-items:flex-start}}
-.shot{border-radius:12px;border:1px solid var(--border);overflow:hidden;background:#0a0a1a;aspect-ratio:3/4;display:flex;align-items:center;justify-content:center}
-.shot img{width:100%;height:100%;object-fit:cover;object-position:top}
-.shot-ph{font-size:11px;color:var(--muted);text-align:center;padding:14px;line-height:1.6}
-.changes-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:11px}
-.chg{display:flex;gap:11px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
-.chg:last-child{border-bottom:none}
-.chg-sym{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;margin-top:1px}
-.chg-sum{font-size:13.5px;font-weight:500;line-height:1.4}
-.chg-delta{font-size:12px;color:var(--muted);margin-top:2px}
-.chg-delta b{color:#c8c8e0;font-weight:600}
+.feed{padding:10px 0 70px;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:18px;overflow:hidden;transition:border-color .2s,box-shadow .2s;animation:slideIn .35s ease}
+@keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.card.act{border-color:rgba(251,113,133,.28)}
+.card:hover{box-shadow:0 14px 44px rgba(0,0,0,.45)}
+.ctop{display:flex;align-items:center;gap:12px;padding:15px 17px;border-bottom:1px solid var(--border)}
+.fav{width:38px;height:38px;border-radius:11px;background:#13132a;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:#fff}
+.fav img{width:22px;height:22px;border-radius:5px}
+.cname{font-weight:700;font-size:15px;line-height:1.15}
+.chost{font-size:12px;color:var(--muted)}
+.prio{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:999px;white-space:nowrap}
+.prio-act{background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.3);color:#fda4af}
+.prio-watch{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.26);color:#fcd34d}
+.prio-quiet{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.22);color:#6ee7b7}
+.prio-setup{background:rgba(123,137,255,.1);border:1px solid rgba(123,137,255,.28);color:#b7c0ff}
+.time{font-size:12px;color:var(--muted);white-space:nowrap}
+.x-btn{background:none;border:none;color:var(--muted);cursor:pointer;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.x-btn:hover{background:rgba(251,113,133,.12);color:var(--rose)}
+.cbody{padding:16px 17px 17px}
 
-.pending-body{padding:20px 18px;display:flex;gap:14px;align-items:flex-start}
-.pending-ic{width:38px;height:38px;border-radius:11px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.pending-t{font-weight:600;font-size:14px;margin-bottom:4px}
-.pending-d{font-size:13px;color:var(--muted2);line-height:1.55}
-.link-btn{background:none;border:none;color:#a5b4fc;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;padding:6px 0 0;display:inline-flex;align-items:center;gap:5px}
-.link-btn:hover{color:#c7d2fe}
+.takeaway{display:flex;gap:10px;align-items:flex-start;margin-bottom:13px}
+.tk-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0}
+.tk-text{font-size:15px;font-weight:600;line-height:1.45;color:#f3f3fa}
+.move{display:flex;gap:12px;align-items:flex-start;background:linear-gradient(120deg,rgba(91,110,245,.12),rgba(0,194,255,.06));border:1px solid rgba(91,110,245,.22);border-radius:13px;padding:12px 14px;margin-bottom:18px}
+.move-ic{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#5b6ef5,#7b89ff);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.move-l{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#a5b4fc;margin-bottom:3px}
+.move-t{font-size:14px;font-weight:600;line-height:1.45;color:#fff}
 
-.analysis{margin:0 18px 18px;border-radius:14px;padding:17px;background:rgba(91,110,245,.07);border:1px solid rgba(91,110,245,.18);border-left:2px solid var(--accent2)}
-.analysis.example{background:rgba(255,255,255,.025);border-color:var(--border);border-left:2px solid var(--muted)}
-.analysis-head{display:flex;align-items:center;gap:8px;margin-bottom:13px}
-.ai-mark{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#5b6ef5,#7b89ff)}
-.ai-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#a5b4fc}
-.src{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25);color:#fbbf24}
-.afield{margin-bottom:12px}.afield:last-child{margin-bottom:0}
-.afield-l{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
-.afield-v{font-size:13.5px;line-height:1.55;color:#c8c8e0}
-.al-blue{color:#93c5fd}.al-violet{color:#c4b5fd}.al-green{color:#6ee7b7}
+.channels{display:flex;flex-direction:column;gap:8px}
+.chan{border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.013);overflow:hidden}
+.chan-head{display:flex;align-items:center;gap:11px;padding:11px 13px}
+.chan-head.clickable{cursor:pointer}
+.chan-head.clickable:hover{background:rgba(255,255,255,.025)}
+.chan-ic{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.chan-name{font-weight:600;font-size:13.5px;flex:1}
+.chan-status{font-size:12.5px;font-weight:600}
+.chan-status.quiet{color:var(--muted);font-weight:500;display:inline-flex;align-items:center;gap:7px}
+.chev{color:var(--muted);transition:transform .2s;margin-left:1px}
+.chan-head.open .chev{transform:rotate(180deg)}
+.chan-detail{display:none;padding:3px 13px 14px}
+.chan-detail.open{display:block}
+.note{font-size:12.5px;color:var(--muted2);line-height:1.5;margin-top:11px;padding:9px 11px;background:rgba(255,255,255,.025);border-radius:9px;border-left:2px solid rgba(123,137,255,.3)}
 
-.empty{text-align:center;padding:70px 20px}
-.empty-ic{width:64px;height:64px;border-radius:18px;background:rgba(91,110,245,.08);border:1px solid rgba(91,110,245,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
-.empty h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;margin:0 0 8px}
-.empty p{color:var(--muted2);margin:0 0 22px;font-size:14.5px}
+.adstrip{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
+.adstrip::-webkit-scrollbar{height:0}
+.adthumb{width:74px;height:92px;border-radius:9px;flex-shrink:0;position:relative;overflow:hidden;border:1px solid var(--border2);display:flex;align-items:flex-end;padding:7px}
+.adthumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.adthumb::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.04) 30%,rgba(0,0,0,.74));z-index:1}
+.adthumb .hook{font-size:8.5px;font-weight:700;line-height:1.25;position:relative;z-index:2;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.7)}
+.adthumb .plat{position:absolute;top:5px;right:5px;z-index:3;font-size:7.5px;font-weight:700;background:rgba(0,0,0,.6);color:#fff;padding:1px 5px;border-radius:999px}
+.adthumb .nw{position:absolute;top:5px;left:5px;z-index:3;font-size:7.5px;font-weight:700;background:#5b6ef5;color:#fff;padding:1px 5px;border-radius:999px}
+.admore{width:74px;height:92px;border-radius:9px;flex-shrink:0;border:1px dashed rgba(123,137,255,.3);background:rgba(91,110,245,.05);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#a5b4fc;text-decoration:none;font-size:11px;font-weight:700}
+/* ad tactics */
+.atac{margin-top:14px}
+.atac-l{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.pgchip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:5px 9px;border-radius:8px}
+.tnew{font-size:8px;font-weight:800;letter-spacing:.04em;background:#5b6ef5;color:#fff;padding:1px 5px;border-radius:999px;margin-left:4px;text-transform:uppercase}
+.flag{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:12.5px;font-weight:600;color:#fcd34d;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:9px;padding:8px 11px}
+.flag svg{flex-shrink:0}
+.drow{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.drow:last-child{border-bottom:none}
+.drow>svg{flex-shrink:0}
+.dlabel{flex:1;min-width:0;color:#c8c8e0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,SFMono-Regular,monospace;font-size:11.5px}
+.dstyle{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;border:1px solid;white-space:nowrap;flex-shrink:0}
+.d3p{font-size:9.5px;font-weight:800;letter-spacing:.02em;background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.3);color:#fda4af;padding:2px 6px;border-radius:6px;white-space:nowrap;flex-shrink:0}
 
-/* info banner */
-.info{display:flex;gap:12px;align-items:flex-start;background:rgba(0,194,255,.05);border:1px solid rgba(0,194,255,.16);border-radius:14px;padding:14px 16px;margin:0 0 4px}
-.info svg{flex-shrink:0;margin-top:1px}
-.info-t{font-size:13px;color:#c8c8e0;line-height:1.55}
-.info-t b{color:#fff}
-.info-x{margin-left:auto;cursor:pointer;color:var(--muted);background:none;border:none;font-size:18px;line-height:1;padding:0 2px}
+.post{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.post:last-child{border-bottom:none}
+.post-thumb{width:34px;height:44px;border-radius:7px;position:relative;flex-shrink:0;overflow:hidden}
+.post-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.post-thumb::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 38%,rgba(0,0,0,.62));z-index:1}
+.post-plat{position:absolute;bottom:3px;left:0;right:0;text-align:center;z-index:2;font-size:7px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.8)}
+.post-cap{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.post-metric{font-size:12px;color:var(--muted);margin-top:1px}
 
-/* modal */
-.overlay{position:fixed;inset:0;z-index:50;background:rgba(3,3,8,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px;animation:fade .2s ease}
+.detail{display:flex;gap:11px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.detail:last-child{border-bottom:none}
+.detail-ic{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.detail-s{font-size:13.5px;font-weight:500;line-height:1.4}
+.detail-d{font-size:12px;color:var(--muted);margin-top:2px}
+.detail-d b{color:#c8c8e0;font-weight:600}
+
+.mail{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.mail:last-child{border-bottom:none}
+.mail-ic{width:26px;height:26px;border-radius:7px;background:rgba(196,181,253,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mail-subj{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mail-meta{font-size:12px;color:var(--muted);margin-top:1px}
+
+.setup-note{font-size:13px;color:var(--muted2);line-height:1.5;margin-bottom:14px}
+.empty{text-align:center;padding:64px 20px}
+.empty-ic{width:60px;height:60px;border-radius:17px;background:rgba(91,110,245,.08);border:1px solid rgba(91,110,245,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 18px}
+.empty h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;margin:0 0 7px}
+.empty p{color:var(--muted2);margin:0 0 20px;font-size:14px}
+.foot{border-top:1px solid var(--border);padding:18px 0;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(3,3,8,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px;animation:fade .2s ease}
 .overlay.open{display:flex}
 @keyframes fade{from{opacity:0}to{opacity:1}}
-.modal{width:100%;max-width:440px;background:linear-gradient(160deg,#0b0b1c,#0e0e22);border:1px solid rgba(91,110,245,.25);border-radius:20px;padding:26px;box-shadow:0 40px 100px rgba(0,0,0,.7);animation:pop .22s ease}
+.modal{width:100%;max-width:430px;background:linear-gradient(160deg,#0b0b1c,#0e0e22);border:1px solid rgba(91,110,245,.25);border-radius:20px;padding:26px;box-shadow:0 40px 100px rgba(0,0,0,.7);animation:pop .22s ease}
 @keyframes pop{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
 .modal h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;margin:0 0 6px}
 .modal p{color:var(--muted2);font-size:13.5px;margin:0 0 20px}
-.field{margin-bottom:16px}
+.field{margin-bottom:15px}
 .field label{display:block;font-size:12px;font-weight:600;color:var(--muted2);margin-bottom:7px}
 .field input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:11px;padding:12px 14px;color:#fff;font-family:inherit;font-size:14px;outline:none;transition:all .18s}
 .field input:focus{border-color:rgba(91,110,245,.5);box-shadow:0 0 0 3px rgba(91,110,245,.12)}
 .field input::placeholder{color:var(--muted)}
-.field .err{color:#f87171;font-size:12px;margin-top:6px;display:none}
-.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
-
-.footer{border-top:1px solid var(--border);padding:20px 0;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.field .err{color:var(--rose);font-size:12px;margin-top:6px;display:none}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px}
+@media(max-width:560px){.summary{flex-direction:column}.adthumb,.admore{width:66px;height:82px}.tfbar{flex-direction:column;align-items:stretch}.step-label{flex:1}}
 </style>
 </head>
 <body>
@@ -135,7 +180,7 @@ h1{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-.0
       <span class="logo-txt">IntelAI</span>
     </a>
     <button class="btn btn-primary btn-plus" onclick="openModal()">
-      <svg width="15" height="15" fill="none" viewBox="0 0 15 15"><path d="M7.5 2v11M2 7.5h11" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <svg width="14" height="14" fill="none" viewBox="0 0 14 14"><path d="M7 2v10M2 7h10" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/></svg>
       Add Competitor
     </button>
   </div>
@@ -143,237 +188,380 @@ h1{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-.0
 
 <header class="head">
   <div class="wrap">
-    <div class="head-row">
-      <div>
-        <div class="eyebrow"><span class="dot-live"></span> Your Watchlist</div>
-        <h1>Competitors</h1>
-        <p class="sub">Add the brands you want to watch. We track their site, offers, and launches daily.</p>
+    <div class="eyebrow" id="eyebrow">—</div>
+    <h1 id="h1">Here's what your competitors did.</h1>
+    <p class="lede" id="lede">—</p>
+
+    <div class="tfbar">
+      <div class="seg">
+        <button class="seg-btn active" data-tf="day" onclick="setTf('day')">Day</button>
+        <button class="seg-btn" data-tf="week" onclick="setTf('week')">Week</button>
+        <button class="seg-btn" data-tf="month" onclick="setTf('month')">Month</button>
+      </div>
+      <div class="stepper">
+        <button class="step" id="stepPrev" onclick="stepDate(1)" title="Older">
+          <svg width="16" height="16" fill="none" viewBox="0 0 16 16"><path d="M10 3.5L5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="step-label" id="stepLabel">Today</span>
+        <button class="step" id="stepNext" onclick="stepDate(-1)" title="Newer">
+          <svg width="16" height="16" fill="none" viewBox="0 0 16 16"><path d="M6 3.5L10.5 8 6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
     </div>
 
-    <div class="stats">
-      <div class="stat"><div class="stat-label">Competitors</div><div class="stat-num" id="sTotal" style="color:#fff">0</div></div>
-      <div class="stat"><div class="stat-label">Changes today</div><div class="stat-num" id="sChanges" style="color:#fbbf24">0</div></div>
-      <div class="stat"><div class="stat-label">Monitoring starting</div><div class="stat-num" id="sPending" style="color:#67e8f9">0</div></div>
+    <div class="summary">
+      <div class="sm">
+        <div class="sm-ic" style="background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.25)"><svg width="15" height="15" fill="none" viewBox="0 0 15 15"><path d="M7.5 1.5L14 13H1L7.5 1.5z" stroke="#fda4af" stroke-width="1.3" stroke-linejoin="round"/><path d="M7.5 6v3M7.5 11h.01" stroke="#fda4af" stroke-width="1.3" stroke-linecap="round"/></svg></div>
+        <div><div class="sm-n" id="cAct" style="color:#fda4af">0</div><div class="sm-l">Need action</div></div>
+      </div>
+      <div class="sm">
+        <div class="sm-ic" style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.22)"><svg width="15" height="15" fill="none" viewBox="0 0 15 15"><circle cx="7.5" cy="7.5" r="3" stroke="#fcd34d" stroke-width="1.3"/><path d="M1.5 7.5C2.8 4.5 4.9 3 7.5 3s4.7 1.5 6 4.5c-1.3 3-3.4 4.5-6 4.5s-4.7-1.5-6-4.5z" stroke="#fcd34d" stroke-width="1.3"/></svg></div>
+        <div><div class="sm-n" id="cWatch" style="color:#fcd34d">0</div><div class="sm-l">Worth watching</div></div>
+      </div>
+      <div class="sm">
+        <div class="sm-ic" style="background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2)"><svg width="15" height="15" fill="none" viewBox="0 0 15 15"><path d="M2 8l3.5 3.5L13 4" stroke="#6ee7b7" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div><div class="sm-n" id="cQuiet" style="color:#6ee7b7">0</div><div class="sm-l">All quiet</div></div>
+      </div>
     </div>
   </div>
 </header>
 
-<main class="wrap">
-  <div id="infoBanner" class="info">
-    <svg width="18" height="18" fill="none" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7.5" stroke="#67e8f9" stroke-width="1.3"/><path d="M9 8v4M9 5.5h.01" stroke="#67e8f9" stroke-width="1.5" stroke-linecap="round"/></svg>
-    <div class="info-t"><b>This is your live app.</b> Add any competitor and it's saved here instantly — no setup. The sample brands below show what a daily report looks like. Your own competitors begin in “monitoring starting”; live data switches on once the backend is connected (we'll handle that for you).</div>
-    <button class="info-x" onclick="dismissInfo()">&times;</button>
-  </div>
-  <div class="feed" id="feed"></div>
-</main>
+<main class="wrap"><div class="feed" id="feed"></div></main>
+<div class="wrap"><div class="foot"><span>IntelAI · your watchlist</span><span>Demo reports shown — your competitors fill in once monitoring is live.</span></div></div>
 
-<div class="wrap">
-  <div class="footer">
-    <span>IntelAI — competitor watchlist</span>
-    <span><span class="dot-live"></span> Saved automatically in this browser</span>
-  </div>
-</div>
-
-<!-- Add Competitor modal -->
 <div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <h2>Add a competitor</h2>
-    <p>We'll start tracking their website, pricing, offers, and product launches.</p>
-    <div class="field">
-      <label for="fName">Brand name</label>
-      <input id="fName" type="text" placeholder="e.g. The Oodie" autocomplete="off"/>
-      <div class="err" id="errName">Please enter a name.</div>
-    </div>
-    <div class="field">
-      <label for="fUrl">Website</label>
-      <input id="fUrl" type="text" placeholder="e.g. theoodie.com" autocomplete="off"/>
-      <div class="err" id="errUrl">Please enter a valid website.</div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="submitCompetitor()">Add Competitor</button>
-    </div>
+    <p>We'll track their ads, social, website, and email — then tell you what to do about it.</p>
+    <div class="field"><label for="fName">Brand name</label><input id="fName" type="text" placeholder="e.g. The Oodie" autocomplete="off"/><div class="err" id="errName">Please enter a name.</div></div>
+    <div class="field"><label for="fUrl">Website</label><input id="fUrl" type="text" placeholder="e.g. theoodie.com" autocomplete="off"/><div class="err" id="errUrl">Please enter a valid website.</div></div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitCompetitor()">Add Competitor</button></div>
   </div>
 </div>
 
 <script>
-var KEY = 'intelai_competitors_v1';
-var INFO_KEY = 'intelai_info_dismissed';
+var KEY='intelai_competitors_v4';
+var state={tf:'day',day:0};
+var MAXDAY=6;
 
-var TYPE = {
-  price:{sym:'$',color:'#f87171',bg:'rgba(239,68,68,.12)',bd:'rgba(239,68,68,.25)'},
-  product_added:{sym:'+',color:'#34d399',bg:'rgba(16,185,129,.12)',bd:'rgba(16,185,129,.25)'},
-  product_removed:{sym:'−',color:'#f87171',bg:'rgba(239,68,68,.1)',bd:'rgba(239,68,68,.22)'},
-  availability:{sym:'!',color:'#67e8f9',bg:'rgba(0,194,255,.1)',bd:'rgba(0,194,255,.22)'},
-  announcement:{sym:'★',color:'#fbbf24',bg:'rgba(251,191,36,.12)',bd:'rgba(251,191,36,.25)'},
-  title:{sym:'T',color:'#93c5fd',bg:'rgba(96,165,250,.1)',bd:'rgba(96,165,250,.22)'},
-  text:{sym:'¶',color:'#a5b4fc',bg:'rgba(91,110,245,.1)',bd:'rgba(91,110,245,.22)'}
+/* ── channels ── */
+var CHAN_KEYS=['ads','social','website','email'];
+var CHANDEF={
+  ads:{label:'Ads',c:'#7b89ff',bg:'rgba(123,137,255,.12)',icon:'<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M3 6v3l8 3.5v-12L3 6z" stroke="#7b89ff" stroke-width="1.2" stroke-linejoin="round"/><path d="M3 6H2a1 1 0 00-1 1v1a1 1 0 001 1h1" stroke="#7b89ff" stroke-width="1.2"/></svg>'},
+  social:{label:'Organic Social',c:'#f472b6',bg:'rgba(244,114,182,.12)',icon:'<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 12.5S2.2 9.2 2.2 5.7C2.2 4 3.5 3 4.9 3c1 0 1.9.5 2.6 1.4C8.1 3.5 9 3 10.1 3c1.4 0 2.7 1 2.7 2.7 0 3.5-5.3 6.8-5.3 6.8z" stroke="#f472b6" stroke-width="1.2" stroke-linejoin="round"/></svg>'},
+  website:{label:'Website',c:'#67e8f9',bg:'rgba(0,194,255,.1)',icon:'<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="#67e8f9" stroke-width="1.2"/><path d="M1.5 7.5h12M7.5 1.5c1.7 1.7 2.7 3.8 2.7 6s-1 4.3-2.7 6c-1.7-1.7-2.7-3.8-2.7-6s1-4.3 2.7-6z" stroke="#67e8f9" stroke-width="1.2"/></svg>'},
+  email:{label:'Email',c:'#c4b5fd',bg:'rgba(196,181,253,.1)',icon:'<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="3" width="12" height="9" rx="1.4" stroke="#c4b5fd" stroke-width="1.2"/><path d="M2 4l5.5 3.5L13 4" stroke="#c4b5fd" stroke-width="1.2" stroke-linejoin="round"/></svg>'}
 };
-
-var EXAMPLE = {
-  whatChanged:"Example — once live, this is where your daily report appears: new ads, price moves, page changes, and offers detected on this competitor.",
-  whyItMatters:"The AI explains the strategic intent behind each change — a CRO push, a scaling signal, seasonal prep, or margin pressure.",
-  whatToDoNext:"And ends with a concrete recommended action: test an angle, match an offer, or hold and watch."
+var SIG={
+  price:{c:'#fb7185',bg:'rgba(251,113,133,.12)',ic:'<path d="M1.5 4l4 4 2.5-2.5L12.5 10M12.5 10V6.5M12.5 10H9" stroke="#fb7185" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'},
+  offer:{c:'#fbbf24',bg:'rgba(251,191,36,.12)',ic:'<path d="M2 2.5h4.2l5.3 5.3a1 1 0 010 1.4l-3.3 3.3a1 1 0 01-1.4 0L1.5 7.2V3a.5.5 0 01.5-.5z" stroke="#fbbf24" stroke-width="1.2" stroke-linejoin="round"/><circle cx="4.3" cy="4.8" r=".9" fill="#fbbf24"/>'},
+  bundle:{c:'#fb923c',bg:'rgba(251,146,60,.12)',ic:'<path d="M7 1.5l5 2.5v5L7 11.5 2 9V4l5-2.5z" stroke="#fb923c" stroke-width="1.2" stroke-linejoin="round"/><path d="M2 4l5 2.5L12 4M7 6.5v5" stroke="#fb923c" stroke-width="1.2" stroke-linejoin="round"/>'},
+  page:{c:'#67e8f9',bg:'rgba(0,194,255,.1)',ic:'<path d="M3.5 1.5h4l3.5 3.5v8h-7.5v-11z" stroke="#67e8f9" stroke-width="1.2" stroke-linejoin="round"/><path d="M7.5 1.5V5h3.5" stroke="#67e8f9" stroke-width="1.2" stroke-linejoin="round"/>'}
 };
+function sigIcon(t){var s=SIG[t]||SIG.page;return '<svg width="13" height="13" viewBox="0 0 14 14" fill="none">'+s.ic+'</svg>';}
 
-var DEMOS = [
-  {
-    id:'demo-oodie', demo:true, name:'The Oodie', host:'theoodie.com', url:'https://www.theoodie.com',
-    pageCount:2, productCount:142, addedAt:Date.now()-86400000,
-    changes:[
-      {type:'announcement',summary:'Announcement bar changed',before:'Free shipping over $99',after:'30% OFF SITEWIDE — ends tonight'},
-      {type:'price',summary:'Price changed: The Oodie Original',before:'$89',after:'$69'},
-      {type:'product_added',summary:'New product: Winter Comfort 3-Pack Bundle',after:'$179'}
-    ],
-    analysis:{
-      whatChanged:"Swapped a free-shipping banner for a sitewide 30% discount, dropped the Original from $89 to $69, and launched a 3-pack bundle.",
-      whyItMatters:"A coordinated acquisition push, not a one-off sale — discount plus a new bundle signals they're chasing volume and higher AOV ahead of seasonal demand.",
-      whatToDoNext:"Expect their offer aggression to rise this week. Consider a competing bundle so you're not undercut on perceived value."
+var PRIO={
+  act:{label:'Act now',dot:'#fb7185',cls:'prio-act',pulse:true},
+  watch:{label:'Watch',dot:'#fbbf24',cls:'prio-watch',pulse:false},
+  quiet:{label:'Quiet',dot:'#34d399',cls:'prio-quiet',pulse:false},
+  setup:{label:'Setting up',dot:'#7b89ff',cls:'prio-setup',pulse:true}
+};
+var ORDER={act:0,watch:1,setup:2,quiet:3};
+var IMG='https://loremflickr.com/240/300/';
+function qChannels(){return {ads:{active:false},social:{active:false},website:{active:false},email:{active:false}};}
+function quietReport(){return {priority:'quiet',verdict:'No changes detected in this period — every channel was clear.',move:null,channels:qChannels()};}
+
+/* ── demo data, by timeframe ── */
+var DEMOS=[
+{
+  id:'demo-oodie',demo:true,name:'The Oodie',host:'theoodie.com',url:'https://www.theoodie.com',
+  days:[
+    { priority:'act',agoH:2,
+      verdict:'Scaling hard — a 30%-off push, plus they just started whitelisting through creator pages and testing a 3rd-party advertorial funnel.',
+      move:'This is a full scaling playbook. Test an advertorial of your own, and track which creators they’re partnering with before they lock them up.',
+      channels:{
+        ads:{active:true,summary:'7 ads · whitelisting',angle:'8 of them push a “winter comfort” angle — a seasonal acquisition test.',
+          creatives:[{hook:'"Stay warm all winter"',plat:'Meta',grad:'linear-gradient(150deg,#2d0a5e,#5b1fae)',img:IMG+'blanket,cozy,winter?lock=11'},{hook:'"30% OFF — today only"',plat:'Meta',grad:'linear-gradient(150deg,#0a3d1f,#0e7a3a)',img:IMG+'hoodie,cozy?lock=12'},{hook:'"POV: my Oodie 🧸"',plat:'TikTok',grad:'linear-gradient(150deg,#3a0a3a,#7a1f6e)',img:IMG+'blanket,sofa,relax?lock=13'}],
+          pages:[{name:'The Oodie',type:'brand'},{name:'@cozyhome.daily',type:'partner',isNew:true},{name:'@thesnugglelife',type:'partner',isNew:true}],
+          destinations:[{label:'theoodie.com/products/the-oodie',style:'PDP',party:'branded'},{label:'thecomfyedit.com/oodie-review',style:'Advertorial',party:'3rd-party',isNew:true},{label:'theoodie.com/blog/7-reasons-cozy',style:'Listicle',party:'branded',isNew:true}]},
+        social:{active:true,summary:'3 new reels',cadence:'Posting 5×/week, up from 2× last month.',posts:[{plat:'TikTok',cap:'"POV: you finally got your Oodie"',metric:'2.1M views',grad:'linear-gradient(150deg,#3a0a3a,#7a1f6e)',img:'https://loremflickr.com/160/200/home,cozy,blanket?lock=15'},{plat:'Reel',cap:'Cozy morning routine',metric:'182K likes',grad:'linear-gradient(150deg,#7a1f3a,#ae1f5b)',img:'https://loremflickr.com/160/200/coffee,morning,cozy?lock=14'},{plat:'TikTok',cap:'Unboxing the new colors',metric:'540K views',grad:'linear-gradient(150deg,#1a0a3a,#3a1f7a)',img:'https://loremflickr.com/160/200/blanket,fashion?lock=16'}]},
+        website:{active:true,summary:'Price −22%, new bundle',changes:[{t:'price',s:'The Oodie Original',d:'<b>$89</b> &rarr; <b>$69</b> (−22%)'},{t:'offer',s:'Sitewide discount raised',d:'<b>20%</b> &rarr; <b>30%</b> off'},{t:'bundle',s:'New bundle live',d:'Buy 3, Save 40%'},{t:'page',s:'New advertorial landing page',d:'/why-everyones-buying'}]},
+        email:{active:true,summary:'4 campaigns',cadence:'4 sends this week vs. their usual 2 — offer shifted from free shipping to % off.',emails:[{subj:'Last chance — 30% off ends tonight',type:'Promo',day:'Tue'},{subj:'Introducing the Winter Bundle',type:'Launch',day:'Wed'},{subj:'You left something behind…',type:'Cart',day:'Thu'},{subj:'BIG news — 3 days only',type:'Flash',day:'Fri'}]}
+      }
+    },
+    { priority:'watch',
+      verdict:'Quieter day — they prepped the funnel: a new advertorial page went live before any ad push.',
+      move:'The page came before the ads. Expect ad volume to spike next — watch closely tomorrow.',
+      channels:{ads:{active:true,summary:'2 new ads',angle:'Early creative tests for the winter angle.',creatives:[{hook:'"Winter is coming"',plat:'Meta',grad:'linear-gradient(150deg,#2d0a5e,#5b1fae)',img:IMG+'blanket,winter?lock=11'}]},social:{active:false},website:{active:true,summary:'New advertorial page',changes:[{t:'page',s:'New advertorial page detected',d:'/why-everyones-buying (unlinked)'}]},email:{active:false}}
+    },
+    quietReport(),
+    { priority:'watch',
+      verdict:'First sign of a seasonal ramp — 4 new winter-themed creatives went live.',
+      move:'Note the angle and timing for your own seasonal planning.',
+      channels:{ads:{active:true,summary:'4 new ads',angle:'All four lead with a “winter comfort” hook.',creatives:[{hook:'"Cozy season"',plat:'Meta',grad:'linear-gradient(150deg,#2d0a5e,#5b1fae)',img:IMG+'cozy,autumn?lock=11'},{hook:'"Wrap up warm"',plat:'TikTok',grad:'linear-gradient(150deg,#3a0a3a,#7a1f6e)',img:IMG+'blanket,relax?lock=13'}]},social:{active:false},website:{active:false},email:{active:false}}
+    }
+  ],
+  week:{ priority:'act',
+    verdict:'This week shows a clear scaling pattern — 22 ads, discount climbed 20%→30%, a new bundle, and their first creator-whitelisting + advertorial funnel.',
+    move:'They’re scaling for the season. Lock in your own creators now and ship an advertorial before they own the angle.',
+    channels:{
+      ads:{active:true,summary:'22 ads this week',angle:'Funnel shifted mid-week from PDP-only to advertorial + listicle.',creatives:[{hook:'"Stay warm all winter"',plat:'Meta',grad:'linear-gradient(150deg,#2d0a5e,#5b1fae)',img:IMG+'blanket,cozy,winter?lock=11'},{hook:'"30% OFF"',plat:'Meta',grad:'linear-gradient(150deg,#0a3d1f,#0e7a3a)',img:IMG+'hoodie,cozy?lock=12'}],pages:[{name:'The Oodie',type:'brand'},{name:'@cozyhome.daily',type:'partner',isNew:true},{name:'@thesnugglelife',type:'partner',isNew:true},{name:'@dorm.decor',type:'partner',isNew:true}],destinations:[{label:'theoodie.com/products/the-oodie',style:'PDP',party:'branded'},{label:'thecomfyedit.com/oodie-review',style:'Advertorial',party:'3rd-party',isNew:true},{label:'theoodie.com/blog/7-reasons',style:'Listicle',party:'branded',isNew:true}]},
+      social:{active:true,summary:'9 reels · 1 viral',cadence:'Posting up ~150% vs. last week; one reel hit 2.1M views.',posts:[{plat:'TikTok',cap:'"POV: you finally got your Oodie"',metric:'2.1M views',grad:'linear-gradient(150deg,#3a0a3a,#7a1f6e)',img:'https://loremflickr.com/160/200/home,cozy,blanket?lock=15'}]},
+      website:{active:true,summary:'Discount 20%→30%, +1 bundle',changes:[{t:'offer',s:'Discount climbed across the week',d:'<b>20%</b> &rarr; <b>25%</b> &rarr; <b>30%</b>'},{t:'bundle',s:'New 3-pack bundle launched',d:'Buy 3, Save 40%'}]},
+      email:{active:true,summary:'9 campaigns',cadence:'9 sends vs. ~4 typical; offer moved from shipping to % off.',emails:[{subj:'Last chance — 30% off ends tonight',type:'Promo',day:'Fri'},{subj:'Introducing the Winter Bundle',type:'Launch',day:'Wed'}]}
     }
   },
-  {
-    id:'demo-tc', demo:true, name:'True Classic', host:'trueclassic.com', url:'https://www.trueclassic.com',
-    pageCount:2, productCount:88, addedAt:Date.now()-90000000,
-    changes:[
-      {type:'product_added',summary:'New product: Active Performance 5-Pack',after:'$125'},
-      {type:'text',summary:'New trust signals + urgency added',after:'+ 100-day perfect fit guarantee\n+ As seen on: Forbes, GQ\n- Standard shipping 5-7 days'}
-    ],
-    analysis:{
-      whatChanged:"Added a 5-pack at a higher price point and layered in new trust signals (press logos, a 100-day guarantee) plus an urgency shipping offer.",
-      whyItMatters:"Higher-count bundle plus conversion scaffolding usually precedes a paid-traffic scaling push — raising AOV and de-risking the purchase.",
-      whatToDoNext:"Watch their ad volume over the next 7 days. If it climbs, test a similar guarantee block on your own PDP."
+  month:{ priority:'act',
+    verdict:'Over the month, The Oodie moved from steady-state to full seasonal scaling — ad volume up ~3×, a brand-new whitelisting program, and a multi-funnel advertorial strategy.',
+    move:'Treat them as the category pace-setter this quarter. Match their funnel diversity (advertorial + listicle + PDP) or cede the cheap traffic to them.',
+    channels:{
+      ads:{active:true,summary:'180+ ads this month',angle:'Whitelisting scaled from 0 to 5 creator pages; 3rd-party advertorial introduced.',creatives:[{hook:'"Stay warm all winter"',plat:'Meta',grad:'linear-gradient(150deg,#2d0a5e,#5b1fae)',img:IMG+'blanket,cozy,winter?lock=11'},{hook:'"POV: my Oodie"',plat:'TikTok',grad:'linear-gradient(150deg,#3a0a3a,#7a1f6e)',img:IMG+'blanket,sofa,relax?lock=13'}],pages:[{name:'The Oodie',type:'brand'},{name:'5 creator pages',type:'partner',isNew:true}],destinations:[{label:'thecomfyedit.com/oodie-review',style:'Advertorial',party:'3rd-party'},{label:'theoodie.com/blog/7-reasons',style:'Listicle',party:'branded'},{label:'theoodie.com/products/the-oodie',style:'PDP',party:'branded'}]},
+      social:{active:true,summary:'30+ reels',cadence:'Cadence roughly tripled over the month.'},
+      website:{active:true,summary:'3 price tests, 2 bundles',changes:[{t:'offer',s:'Three discount tests',d:'Settling at 30% off'},{t:'bundle',s:'Two new bundles',d:'3-pack and 5-pack'}]},
+      email:{active:true,summary:'30+ campaigns',cadence:'Volume up sharply through the season.'}
     }
   }
+},
+{
+  id:'demo-tc',demo:true,name:'True Classic',host:'trueclassic.com',url:'https://www.trueclassic.com',
+  days:[
+    { priority:'watch',
+      verdict:'Testing a higher-AOV funnel — a new 5-pack and an advertorial warm-up page, but no discounting yet.',
+      move:'Watch their ad volume for 7 days. If it keeps climbing, test a 5-pack of your own.',
+      channels:{
+        ads:{active:true,summary:'9 ads · new funnel',angle:'Mostly a press-credibility angle (“As seen in GQ”).',creatives:[{hook:'"5 tees, one price"',plat:'Meta',grad:'linear-gradient(150deg,#0a2348,#1f5bae)',img:IMG+'tshirt,fashion,men?lock=21'},{hook:'"As seen in GQ"',plat:'Meta',grad:'linear-gradient(150deg,#1a1a3a,#3a3a7a)',img:IMG+'man,style,portrait?lock=22'}],pages:[{name:'True Classic',type:'brand'}],destinations:[{label:'trueclassic.com/products/5-pack',style:'PDP',party:'branded'},{label:'trueclassic.com/why-we-last',style:'Advertorial',party:'branded',isNew:true}]},
+        social:{active:false},
+        website:{active:true,summary:'New 5-pack + advertorial',changes:[{t:'bundle',s:'New 5-pack bundle',d:'Replaces the 3-pack · $125'},{t:'page',s:'New advertorial page',d:'/why-we-last'}]},
+        email:{active:false}
+      }
+    },
+    quietReport(),
+    { priority:'watch',
+      verdict:'Early creative testing — 5 new ads, all leaning on press credibility.',
+      move:'Angle to note: they’re leading with authority, not price.',
+      channels:{ads:{active:true,summary:'5 new ads',angle:'Press-led (“As seen in GQ, Forbes”).',creatives:[{hook:'"As seen in GQ"',plat:'Meta',grad:'linear-gradient(150deg,#1a1a3a,#3a3a7a)',img:IMG+'man,style,portrait?lock=22'}]},social:{active:false},website:{active:false},email:{active:false}}
+    }
+  ],
+  week:{ priority:'watch',
+    verdict:'A steady AOV-building week — 19 ads and a new 5-pack, but still no discounting. They’re prepping infrastructure, not scaling yet.',
+    move:'No urgency, but the 5-pack + advertorial signal a scale-up is coming. Keep them on watch.',
+    channels:{ads:{active:true,summary:'19 ads this week',angle:'Consistent press-credibility angle all week.',creatives:[{hook:'"5 tees, one price"',plat:'Meta',grad:'linear-gradient(150deg,#0a2348,#1f5bae)',img:IMG+'tshirt,fashion,men?lock=21'}],pages:[{name:'True Classic',type:'brand'}],destinations:[{label:'trueclassic.com/products/5-pack',style:'PDP',party:'branded'},{label:'trueclassic.com/why-we-last',style:'Advertorial',party:'branded',isNew:true}]},social:{active:false},website:{active:true,summary:'New 5-pack + advertorial',changes:[{t:'bundle',s:'New 5-pack bundle',d:'$125'},{t:'page',s:'New advertorial page',d:'/why-we-last'}]},email:{active:false}}
+  },
+  month:{ priority:'watch',
+    verdict:'Incremental month — True Classic built funnel infrastructure (advertorial, bigger bundles) without discounting. A scale-up looks likely next quarter.',
+    move:'Pre-empt them: secure your own bundle + advertorial now, while they’re still in testing.',
+    channels:{ads:{active:true,summary:'70+ ads this month',angle:'Authority-led; no discount messaging yet.',creatives:[{hook:'"As seen in GQ"',plat:'Meta',grad:'linear-gradient(150deg,#1a1a3a,#3a3a7a)',img:IMG+'man,style,portrait?lock=22'}],pages:[{name:'True Classic',type:'brand'}],destinations:[{label:'trueclassic.com/why-we-last',style:'Advertorial',party:'branded'}]},social:{active:false},website:{active:true,summary:'Bundle + advertorial added',changes:[{t:'bundle',s:'Moved 3-pack → 5-pack',d:'Higher AOV play'}]},email:{active:false}}
+  }
+},
+{
+  id:'demo-ag1',demo:true,name:'AG1',host:'drinkag1.com',url:'https://www.drinkag1.com',
+  days:[
+    quietReport(),
+    quietReport(),
+    { priority:'watch',
+      verdict:'A rare AG1 move — they raised their subscription price by $10.',
+      move:'Update any competitor price-comparison pages. No urgency beyond that.',
+      channels:{ads:{active:false},social:{active:false},website:{active:true,summary:'Subscription +$10',changes:[{t:'price',s:'Subscription price increased',d:'<b>$79</b> &rarr; <b>$89</b>/mo'}]},email:{active:false}}
+    }
+  ],
+  week:{ priority:'watch',
+    verdict:'One notable move this week — a $10 subscription price increase. Otherwise dormant across every channel.',
+    move:'Refresh your price comparisons. Low threat overall.',
+    channels:{ads:{active:false},social:{active:false},website:{active:true,summary:'Subscription +$10',changes:[{t:'price',s:'Subscription price increased',d:'<b>$79</b> &rarr; <b>$89</b>/mo'}]},email:{active:false}}
+  },
+  month:{ priority:'quiet',
+    verdict:'A disciplined month — AG1 stayed quiet, letting brand and retention carry demand. One price increase, nothing else.',
+    move:'Low threat. A monthly check-in is enough for this one.',
+    channels:{ads:{active:false},social:{active:false},website:{active:true,summary:'1 price change',changes:[{t:'price',s:'Subscription price increased',d:'<b>$79</b> &rarr; <b>$89</b>/mo'}]},email:{active:false}}
+  }
+}
 ];
 
-function load(){
-  try{ var raw=localStorage.getItem(KEY); if(raw) return JSON.parse(raw);}catch(e){}
-  return null;
-}
-function save(list){ try{localStorage.setItem(KEY,JSON.stringify(list));}catch(e){} }
+/* ── storage + migration ── */
+function load(){try{var r=localStorage.getItem(KEY);if(r)return JSON.parse(r);}catch(e){}return null;}
+function save(l){try{localStorage.setItem(KEY,JSON.stringify(l));}catch(e){}}
 function getList(){
-  var list=load();
-  if(list===null){ list=DEMOS.slice(); save(list); }
-  return list;
-}
-
-function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch];});}
-function favUrl(host){return 'https://www.google.com/s2/favicons?domain='+encodeURIComponent(host)+'&sz=64';}
-function monogram(name){var p=String(name||'?').trim().split(/\s+/);return ((p[0]||'?')[0]+((p[1]||'')[0]||'')).toUpperCase();}
-
-function changeRow(ch){
-  var t=TYPE[ch.type]||TYPE.text; var delta='';
-  if(ch.before!==undefined&&ch.after!==undefined) delta='<div class="chg-delta"><b>'+esc(ch.before)+'</b> &rarr; <b>'+esc(ch.after)+'</b></div>';
-  else if(ch.after!==undefined) delta='<div class="chg-delta">'+esc(ch.after).replace(/\n/g,'<br>')+'</div>';
-  return '<div class="chg"><div class="chg-sym" style="background:'+t.bg+';border:1px solid '+t.bd+';color:'+t.color+'">'+t.sym+'</div><div><div class="chg-sum">'+esc(ch.summary)+'</div>'+delta+'</div></div>';
-}
-
-function analysisBlock(a,example){
-  return '<div class="analysis'+(example?' example':'')+'">'
-    +'<div class="analysis-head"><div class="ai-mark"><svg width="11" height="11" fill="none" viewBox="0 0 11 11"><circle cx="5.5" cy="5.5" r="4.5" stroke="#fff" stroke-width="1.2"/><path d="M5.5 3.5v3l1.5 1.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg></div><span class="ai-label">AI Analysis</span>'+(example?'<span class="src">Example</span>':'')+'</div>'
-    +'<div class="afield"><div class="afield-l al-blue">What changed</div><div class="afield-v">'+esc(a.whatChanged)+'</div></div>'
-    +'<div class="afield"><div class="afield-l al-violet">Why it matters</div><div class="afield-v">'+esc(a.whyItMatters)+'</div></div>'
-    +'<div class="afield"><div class="afield-l al-green">What to do next</div><div class="afield-v">'+esc(a.whatToDoNext)+'</div></div>'
-    +'</div>';
-}
-
-function card(comp){
-  var fav='<div class="fav"><img src="'+favUrl(comp.host)+'" alt="" onerror="this.style.display=\'none\';this.parentNode.textContent=\''+monogram(comp.name)+'\'"></div>';
-  var nameLine='<div class="cc-name">'+esc(comp.name)+(comp.demo?' <span class="tag-demo">Demo</span>':'')+'</div><div class="cc-host">'+esc(comp.host)+'</div>';
-  var rm='<button class="x-btn" title="Remove" onclick="removeCompetitor(\''+comp.id+'\')"><svg width="14" height="14" fill="none" viewBox="0 0 14 14"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>';
-
-  if(comp.demo){
-    var badge='<span class="badge b-changes">'+comp.changes.length+' change'+(comp.changes.length>1?'s':'')+'</span>';
-    var shot='<div class="shot"><div class="shot-ph">Screenshot appears<br>on live monitoring</div></div>';
-    var changes=comp.changes.map(changeRow).join('');
-    return '<div class="cc"><div class="cc-head">'+fav+'<div>'+nameLine+'</div><div style="margin-left:auto;display:flex;align-items:center;gap:10px">'+badge+rm+'</div></div>'
-      +'<div class="cc-body">'+shot+'<div><div class="changes-title">Changes detected today</div>'+changes+'</div></div>'
-      +analysisBlock(comp.analysis,false)+'</div>';
+  var l=load();
+  if(l===null){
+    var migrated=[];
+    ['intelai_competitors_v3','intelai_competitors_v2','intelai_competitors_v1'].forEach(function(k){
+      try{JSON.parse(localStorage.getItem(k)||'[]').forEach(function(c){
+        if(c&&c.demo===false&&c.name&&!migrated.some(function(m){return m.host===c.host;})){
+          migrated.push({id:c.id||('c-'+Date.now()+Math.round(Math.random()*1e4)),demo:false,name:c.name,host:c.host,url:c.url,updatedAt:c.addedAt||c.updatedAt||Date.now()});
+        }
+      });}catch(e){}
+    });
+    l=DEMOS.slice().concat(migrated);save(l);
   }
-
-  // user-added → pending
-  var pid='ex-'+comp.id;
-  return '<div class="cc"><div class="cc-head">'+fav+'<div>'+nameLine+'</div><div style="margin-left:auto;display:flex;align-items:center;gap:10px"><span class="badge b-pending"><span class="dot-pending"></span> Monitoring starting</span>'+rm+'</div></div>'
-    +'<div class="pending-body"><div class="pending-ic"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7" stroke="#fbbf24" stroke-width="1.3"/><path d="M9 5.5V9l2.2 1.6" stroke="#fbbf24" stroke-width="1.3" stroke-linecap="round"/></svg></div>'
-    +'<div><div class="pending-t">'+esc(comp.name)+' is on your watchlist.</div><div class="pending-d">We\'re capturing the first baseline of '+esc(comp.host)+'. Your daily intelligence report will appear right here once monitoring is connected.</div>'
-    +'<button class="link-btn" onclick="toggleExample(\''+pid+'\')">See what a report looks like <svg width="11" height="11" fill="none" viewBox="0 0 11 11"><path d="M2.5 4l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>'
-    +'<div id="'+pid+'" style="display:none">'+analysisBlock(EXAMPLE,true)+'</div></div>';
+  return l;
 }
 
-function toggleExample(id){var el=document.getElementById(id);if(el)el.style.display=el.style.display==='none'?'block':'none';}
+/* ── helpers ── */
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function favUrl(h){return 'https://www.google.com/s2/favicons?domain='+encodeURIComponent(h)+'&sz=64';}
+function monogram(n){var p=String(n||'?').trim().split(/\s+/);return((p[0]||'?')[0]+((p[1]||'')[0]||'')).toUpperCase();}
+function adLibrary(name){return 'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q='+encodeURIComponent(name);}
+var DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function dayLabel(off){if(off===0)return'Today';if(off===1)return'Yesterday';var d=new Date();d.setDate(d.getDate()-off);return DAYS[d.getDay()]+', '+MONS[d.getMonth()]+' '+d.getDate();}
+
+function reportFor(c){
+  if(!c.demo)return null;
+  if(state.tf==='week')return c.week||quietReport();
+  if(state.tf==='month')return c.month||quietReport();
+  return (c.days&&c.days[state.day])?c.days[state.day]:quietReport();
+}
+function timeText(r){
+  if(state.tf==='week')return'this week';
+  if(state.tf==='month')return'this month';
+  if(state.day===0)return r.agoH?r.agoH+'h ago':'today';
+  return state.day+'d ago';
+}
+
+function adThumb(a){var img=a.img?'<img src="'+a.img+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">':'';return '<div class="adthumb" style="background:'+a.grad+'">'+img+'<span class="nw">New</span><span class="plat">'+esc(a.plat)+'</span><span class="hook">'+esc(a.hook)+'</span></div>';}
+function detailRow(d){var s=SIG[d.t]||SIG.page;return '<div class="detail"><div class="detail-ic" style="background:'+s.bg+'">'+sigIcon(d.t)+'</div><div><div class="detail-s">'+esc(d.s)+'</div>'+(d.d?'<div class="detail-d">'+d.d+'</div>':'')+'</div></div>';}
+
+function adsTactics(ch){
+  var out='';
+  if(ch.pages&&ch.pages.length){
+    var chips=ch.pages.map(function(p){
+      var partner=p.type==='partner';
+      var ic=partner?'<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><circle cx="5" cy="5" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 12c0-2 1.6-3.2 3.5-3.2S8.5 10 8.5 12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="10" cy="4.6" r="1.5" stroke="currentColor" stroke-width="1.1"/><path d="M9.2 8.5c1.5 0 2.8 1 2.8 2.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>':'<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M2 6.5L7 2l5 4.5M3.5 5.5V12h7V5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      var color=partner?'#fcd34d':'#9a9ab8',bg=partner?'rgba(251,191,36,.1)':'rgba(255,255,255,.04)',bd=partner?'rgba(251,191,36,.26)':'var(--border)';
+      return '<span class="pgchip" style="background:'+bg+';border:1px solid '+bd+';color:'+color+'">'+ic+esc(p.name)+(p.isNew?'<span class="tnew">New</span>':'')+'</span>';
+    }).join('');
+    var partners=ch.pages.filter(function(p){return p.type==='partner';});
+    var flag=partners.length?'<div class="flag"><svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 12.5V2M3 2h7l-1.3 2L10 6H3" stroke="#fcd34d" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Whitelisting detected — now running ads through '+partners.length+' partner page'+(partners.length>1?'s':'')+'.</div>':'';
+    out+='<div class="atac"><div class="atac-l">Pages running these ads</div><div class="chips">'+chips+'</div>'+flag+'</div>';
+  }
+  if(ch.destinations&&ch.destinations.length){
+    var rows=ch.destinations.map(function(d){
+      var sc=d.style==='Advertorial'?'#fbbf24':d.style==='Listicle'?'#67e8f9':'#9a9ab8';
+      var b='<span class="dstyle" style="color:'+sc+';border-color:'+sc+'44">'+esc(d.style)+'</span>';
+      if(d.party==='3rd-party')b+='<span class="d3p">3rd-party</span>';
+      if(d.isNew)b+='<span class="tnew">New</span>';
+      return '<div class="drow"><svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M5.6 8.4a2.4 2.4 0 010-3.4l1.4-1.4a2.4 2.4 0 113.4 3.4L9.3 8" stroke="#7b89ff" stroke-width="1.2" stroke-linecap="round"/><path d="M8.4 5.6a2.4 2.4 0 010 3.4L7 10.4A2.4 2.4 0 113.6 7L4.7 6" stroke="#7b89ff" stroke-width="1.2" stroke-linecap="round"/></svg><span class="dlabel">'+esc(d.label)+'</span>'+b+'</div>';
+    }).join('');
+    out+='<div class="atac"><div class="atac-l">Where the ads send traffic</div>'+rows+'</div>';
+  }
+  return out;
+}
+function adsDetail(ch,c){
+  var more='<a class="admore" href="'+adLibrary(c.name)+'" target="_blank" rel="noopener"><svg width="15" height="15" fill="none" viewBox="0 0 15 15"><path d="M2 7.5h11M9 4l3.5 3.5L9 11" stroke="#a5b4fc" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>See all</a>';
+  var strip=(ch.creatives&&ch.creatives.length)?'<div class="adstrip">'+ch.creatives.map(adThumb).join('')+more+'</div>':'';
+  return strip+(ch.angle?'<div class="note">'+esc(ch.angle)+'</div>':'')+adsTactics(ch);
+}
+function socialDetail(ch){
+  var rows=(ch.posts||[]).map(function(p){var img=p.img?'<img src="'+p.img+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">':'';return '<div class="post"><div class="post-thumb" style="background:'+p.grad+'">'+img+'<span class="post-plat">'+esc(p.plat)+'</span></div><div style="flex:1;min-width:0"><div class="post-cap">'+esc(p.cap)+'</div><div class="post-metric">'+esc(p.metric)+'</div></div></div>';}).join('');
+  return rows+(ch.cadence?'<div class="note">'+esc(ch.cadence)+'</div>':'');
+}
+function websiteDetail(ch){return (ch.changes||[]).map(detailRow).join('');}
+function emailDetail(ch){
+  var rows=(ch.emails||[]).map(function(m){return '<div class="mail"><div class="mail-ic"><svg width="13" height="13" fill="none" viewBox="0 0 15 15"><rect x="1.5" y="3" width="12" height="9" rx="1.4" stroke="#c4b5fd" stroke-width="1.2"/><path d="M2 4l5.5 3.5L13 4" stroke="#c4b5fd" stroke-width="1.2" stroke-linejoin="round"/></svg></div><div style="flex:1;min-width:0"><div class="mail-subj">'+esc(m.subj)+'</div><div class="mail-meta">'+esc(m.type)+' · '+esc(m.day)+'</div></div></div>';}).join('');
+  return rows+(ch.cadence?'<div class="note">'+esc(ch.cadence)+'</div>':'');
+}
+function chanDetail(k,ch,c){if(k==='ads')return adsDetail(ch,c);if(k==='social')return socialDetail(ch);if(k==='website')return websiteDetail(ch);return emailDetail(ch);}
+
+function channelRow(k,ch,c){
+  var def=CHANDEF[k],active=ch&&ch.active,ic='<div class="chan-ic" style="background:'+def.bg+'">'+def.icon+'</div>';
+  if(active){
+    var chev='<svg class="chev" width="12" height="12" fill="none" viewBox="0 0 12 12"><path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    return '<div class="chan"><div class="chan-head clickable" onclick="toggleChan(this)">'+ic+'<div class="chan-name">'+def.label+'</div><span class="chan-status" style="color:'+def.c+'">'+esc(ch.summary)+'</span>'+chev+'</div><div class="chan-detail">'+chanDetail(k,ch,c)+'</div></div>';
+  }
+  var q=c.demo?'<span class="dot" style="background:#5a5a7a"></span>No change':'Starts within 24h';
+  return '<div class="chan"><div class="chan-head">'+ic+'<div class="chan-name">'+def.label+'</div><span class="chan-status quiet">'+q+'</span></div></div>';
+}
+function toggleChan(head){var d=head.parentNode.querySelector('.chan-detail');if(!d)return;head.classList.toggle('open',d.classList.toggle('open'));}
+function moveBlock(t){return '<div class="move"><div class="move-ic"><svg width="15" height="15" fill="none" viewBox="0 0 15 15"><path d="M8 1.5L3 8.5h4l-1 5 5-7H7l1-5z" fill="#fff"/></svg></div><div><div class="move-l">Your move</div><div class="move-t">'+esc(t)+'</div></div></div>';}
+
+function card(c){
+  var fav='<div class="fav"><img src="'+favUrl(c.host)+'" alt="" onerror="this.style.display=\'none\';this.parentNode.textContent=\''+monogram(c.name)+'\'"></div>';
+  if(!c.demo){
+    var p2=PRIO.setup,pill2='<span class="prio '+p2.cls+'"><span class="dot dot-pulse" style="background:'+p2.dot+'"></span>'+p2.label+'</span>';
+    var rm2='<button class="x-btn" title="Remove" onclick="removeCompetitor(\''+c.id+'\')"><svg width="14" height="14" fill="none" viewBox="0 0 14 14"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>';
+    var top2='<div class="ctop">'+fav+'<div style="flex:1;min-width:0"><div class="cname">'+esc(c.name)+'</div><div class="chost">'+esc(c.host)+'</div></div>'+pill2+rm2+'</div>';
+    var setup='<div class="cbody"><div class="setup-note">We’re capturing a baseline of <b style="color:#c8c8e0">'+esc(c.host)+'</b>. Within 24h, all four channels below start filling with their moves — across whichever timeframe you pick.</div><div class="channels">'+CHAN_KEYS.map(function(k){return channelRow(k,null,c);}).join('')+'</div></div>';
+    return '<div class="card">'+top2+setup+'</div>';
+  }
+  var r=reportFor(c),p=PRIO[r.priority]||PRIO.quiet;
+  var pill='<span class="prio '+p.cls+'"><span class="dot'+(p.pulse?' dot-pulse':'')+'" style="background:'+p.dot+'"></span>'+p.label+'</span>';
+  var rm='<button class="x-btn" title="Remove" onclick="removeCompetitor(\''+c.id+'\')"><svg width="14" height="14" fill="none" viewBox="0 0 14 14"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>';
+  var top='<div class="ctop">'+fav+'<div style="flex:1;min-width:0"><div class="cname">'+esc(c.name)+'</div><div class="chost">'+esc(c.host)+'</div></div>'+pill+'<span class="time">'+timeText(r)+'</span>'+rm+'</div>';
+  var body='<div class="cbody">';
+  if(r.verdict)body+='<div class="takeaway"><span class="tk-dot" style="background:'+p.dot+'"></span><span class="tk-text">'+esc(r.verdict)+'</span></div>';
+  if(r.move)body+=moveBlock(r.move);
+  body+='<div class="channels">'+CHAN_KEYS.map(function(k){return channelRow(k,r.channels[k],c);}).join('')+'</div></div>';
+  return '<div class="card'+(r.priority==='act'?' act':'')+'">'+top+body+'</div>';
+}
 
 function render(){
+  // segmented + stepper state
+  document.querySelectorAll('.seg-btn').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-tf')===state.tf);});
+  var prev=document.getElementById('stepPrev'),next=document.getElementById('stepNext');
+  if(state.tf==='day'){
+    document.getElementById('stepLabel').textContent=dayLabel(state.day);
+    prev.disabled=state.day>=MAXDAY; next.disabled=state.day<=0;
+  }else{
+    document.getElementById('stepLabel').textContent=state.tf==='week'?'This week':'This month';
+    prev.disabled=true; next.disabled=true;
+  }
+
   var list=getList();
+  var sorted=list.slice().sort(function(a,b){
+    var ra=a.demo?(reportFor(a).priority):'setup', rb=b.demo?(reportFor(b).priority):'setup';
+    return (ORDER[ra]-ORDER[rb])||0;
+  });
   var feed=document.getElementById('feed');
   if(!list.length){
-    feed.innerHTML='<div class="empty"><div class="empty-ic"><svg width="28" height="28" fill="none" viewBox="0 0 28 28"><circle cx="12" cy="12" r="8" stroke="#7b89ff" stroke-width="1.6"/><path d="M18 18l5 5" stroke="#7b89ff" stroke-width="1.6" stroke-linecap="round"/></svg></div><h3>No competitors yet</h3><p>Add the first brand you want to keep an eye on.</p><button class="btn btn-primary btn-plus" onclick="openModal()" style="display:inline-flex"><svg width="15" height="15" fill="none" viewBox="0 0 15 15"><path d="M7.5 2v11M2 7.5h11" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg> Add Competitor</button></div>';
-  } else {
-    feed.innerHTML=list.map(card).join('');
+    feed.innerHTML='<div class="empty"><div class="empty-ic"><svg width="26" height="26" fill="none" viewBox="0 0 26 26"><circle cx="11" cy="11" r="7.5" stroke="#7b89ff" stroke-width="1.6"/><path d="M16.5 16.5l5 5" stroke="#7b89ff" stroke-width="1.6" stroke-linecap="round"/></svg></div><h3>No competitors yet</h3><p>Add the first brand you want to keep an eye on.</p><button class="btn btn-primary btn-plus" onclick="openModal()" style="display:inline-flex"><svg width="14" height="14" fill="none" viewBox="0 0 14 14"><path d="M7 2v10M2 7h10" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/></svg> Add Competitor</button></div>';
+  }else{ feed.innerHTML=sorted.map(card).join(''); }
+
+  var act=0,watch=0,quiet=0;
+  list.forEach(function(c){if(!c.demo)return;var pr=reportFor(c).priority;if(pr==='act')act++;else if(pr==='watch')watch++;else quiet++;});
+  document.getElementById('cAct').textContent=act;
+  document.getElementById('cWatch').textContent=watch;
+  document.getElementById('cQuiet').textContent=quiet;
+
+  // eyebrow + lede adapt to timeframe
+  var eb=document.getElementById('eyebrow'),h1=document.getElementById('h1'),lede=document.getElementById('lede');
+  var moves=act+watch,n=list.filter(function(c){return c.demo;}).length;
+  if(state.tf==='day'){
+    eb.textContent='Daily report · '+dayLabel(state.day);
+    h1.textContent=state.day===0?"Here's what your competitors did.":"What your competitors did, "+dayLabel(state.day).toLowerCase()+".";
+    lede.innerHTML=moves>0?'<b>'+moves+'</b> of your '+n+' competitors made moves '+(state.day===0?'today':'that day')+'.':'All quiet across your watchlist '+(state.day===0?'today':'that day')+'.';
+  }else if(state.tf==='week'){
+    eb.textContent='Weekly report · last 7 days';
+    h1.textContent='Your competitors, this week.';
+    lede.innerHTML=moves>0?'<b>'+moves+'</b> of your '+n+' competitors were active this week — here’s the pattern.':'A quiet week across your watchlist.';
+  }else{
+    eb.textContent='Monthly report · last 30 days';
+    h1.textContent='Your competitors, this month.';
+    lede.innerHTML=moves>0?'<b>'+moves+'</b> of your '+n+' competitors shifted strategy this month.':'A quiet month across your watchlist.';
   }
-  var changes=list.reduce(function(n,c){return n+(c.changes?c.changes.length:0);},0);
-  var pending=list.filter(function(c){return !c.demo;}).length;
-  document.getElementById('sTotal').textContent=list.length;
-  document.getElementById('sChanges').textContent=changes;
-  document.getElementById('sPending').textContent=pending;
 }
 
-// modal
+function setTf(tf){state.tf=tf;if(tf!=='day')state.day=0;render();}
+function stepDate(delta){if(state.tf!=='day')return;state.day=Math.max(0,Math.min(MAXDAY,state.day+delta));render();}
+
+/* ── modal + CRUD ── */
 function openModal(){document.getElementById('overlay').classList.add('open');setTimeout(function(){document.getElementById('fName').focus();},50);}
-function closeModal(){document.getElementById('overlay').classList.remove('open');clearErrors();document.getElementById('fName').value='';document.getElementById('fUrl').value='';}
-function clearErrors(){document.getElementById('errName').style.display='none';document.getElementById('errUrl').style.display='none';}
-
-function normalizeUrl(v){
-  v=v.trim();
-  if(!v) return null;
-  if(!/^https?:\/\//i.test(v)) v='https://'+v;
-  try{var u=new URL(v); if(!u.hostname.includes('.')) return null; return u;}catch(e){return null;}
-}
-
+function closeModal(){document.getElementById('overlay').classList.remove('open');clearErr();document.getElementById('fName').value='';document.getElementById('fUrl').value='';}
+function clearErr(){document.getElementById('errName').style.display='none';document.getElementById('errUrl').style.display='none';}
+function normalizeUrl(v){v=(v||'').trim();if(!v)return null;if(!/^https?:\/\//i.test(v))v='https://'+v;try{var u=new URL(v);if(!u.hostname.includes('.'))return null;return u;}catch(e){return null;}}
 function submitCompetitor(){
-  clearErrors();
+  clearErr();
   var name=document.getElementById('fName').value.trim();
-  var urlRaw=document.getElementById('fUrl').value;
-  var u=normalizeUrl(urlRaw);
-  var ok=true;
+  var u=normalizeUrl(document.getElementById('fUrl').value);var ok=true;
   if(!name){document.getElementById('errName').style.display='block';ok=false;}
   if(!u){document.getElementById('errUrl').style.display='block';ok=false;}
   if(!ok)return;
   var list=getList();
-  list.unshift({
-    id:'c-'+Date.now(),
-    demo:false,
-    name:name,
-    host:u.hostname.replace(/^www\./,''),
-    url:u.href,
-    pages:[u.href],
-    addedAt:Date.now(),
-    changes:[],
-    analysis:null
-  });
-  save(list);
-  closeModal();
-  render();
+  list.unshift({id:'c-'+Date.now(),demo:false,name:name,host:u.hostname.replace(/^www\./,''),url:u.href,updatedAt:Date.now()});
+  save(list);closeModal();render();
 }
+function removeCompetitor(id){save(getList().filter(function(c){return c.id!==id;}));render();}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();if(e.key==='Enter'&&document.getElementById('overlay').classList.contains('open'))submitCompetitor();});
 
-function removeCompetitor(id){
-  var list=getList().filter(function(c){return c.id!==id;});
-  save(list);
-  render();
-}
-
-function dismissInfo(){document.getElementById('infoBanner').style.display='none';try{localStorage.setItem(INFO_KEY,'1');}catch(e){}}
-
-// keyboard
-document.addEventListener('keydown',function(e){
-  if(e.key==='Escape')closeModal();
-  if(e.key==='Enter'&&document.getElementById('overlay').classList.contains('open'))submitCompetitor();
-});
-
-// init
-try{if(localStorage.getItem(INFO_KEY))document.getElementById('infoBanner').style.display='none';}catch(e){}
 render();
 </script>
-
 </body>
 </html>
