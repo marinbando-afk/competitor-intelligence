@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IntelAI — Your Competitors</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#03030a;--bg2:#070712;--surface:#0d0d1f;--border:rgba(255,255,255,.07);
+  --border2:rgba(255,255,255,.12);--accent:#5b6ef5;--accent2:#7b89ff;--cyan:#00c2ff;
+  --text:#e8e8f2;--muted:#5a5a7a;--muted2:#8888aa;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");opacity:.6}
+.font-display{font-family:'Plus Jakarta Sans',sans-serif}
+.wrap{max-width:1060px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+
+.nav{position:sticky;top:0;z-index:30;background:rgba(3,3,10,.72);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border-bottom:1px solid var(--border)}
+.nav-inner{height:62px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#5b6ef5,#00c2ff);box-shadow:0 0 16px rgba(91,110,245,.4)}
+.logo-txt{font-weight:700;font-size:15px;letter-spacing:-.01em}
+.dot-live{width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.2);animation:pg 2s ease-in-out infinite;display:inline-block}
+.dot-pending{width:7px;height:7px;border-radius:50%;background:#fbbf24;box-shadow:0 0 0 3px rgba(251,191,36,.2);animation:pg 1.6s ease-in-out infinite;display:inline-block}
+@keyframes pg{0%,100%{box-shadow:0 0 0 3px rgba(16,185,129,.14)}50%{box-shadow:0 0 0 5px rgba(16,185,129,.26)}}
+
+.btn{font-family:inherit;font-size:14px;font-weight:600;border:none;border-radius:11px;cursor:pointer;transition:all .18s ease}
+.btn-primary{background:linear-gradient(135deg,#5b6ef5,#7b89ff);color:#fff;padding:10px 18px;box-shadow:0 6px 22px rgba(91,110,245,.32)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(91,110,245,.45)}
+.btn-ghost{background:rgba(255,255,255,.05);border:1px solid var(--border2);color:#fff;padding:10px 16px}
+.btn-ghost:hover{background:rgba(255,255,255,.08)}
+.btn-plus{display:inline-flex;align-items:center;gap:8px}
+
+.head{padding:42px 0 22px}
+.eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#a5b4fc;background:rgba(91,110,245,.1);border:1px solid rgba(91,110,245,.25);padding:4px 12px;border-radius:999px;margin-bottom:16px}
+h1{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-.03em;font-size:clamp(1.7rem,4vw,2.4rem);margin:0 0 8px}
+.sub{color:var(--muted2);font-size:15px;margin:0}
+.head-row{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0 8px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px}
+.stat-label{font-size:12px;color:var(--muted);margin-bottom:6px}
+.stat-num{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.7rem;line-height:1;letter-spacing:-.03em}
+
+.feed{padding:8px 0 70px;display:flex;flex-direction:column;gap:16px}
+.cc{background:var(--surface);border:1px solid var(--border);border-radius:18px;overflow:hidden;transition:border-color .25s, transform .25s;animation:slideIn .4s ease}
+@keyframes slideIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.cc:hover{border-color:rgba(91,110,245,.3)}
+.cc-head{display:flex;align-items:center;gap:13px;padding:16px 18px;border-bottom:1px solid var(--border)}
+.fav{width:40px;height:40px;border-radius:11px;background:#12122a;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;color:#fff}
+.fav img{width:24px;height:24px;border-radius:5px}
+.cc-name{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+.cc-host{font-size:12px;color:var(--muted)}
+.tag-demo{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted2);background:rgba(255,255,255,.06);border:1px solid var(--border);padding:1px 6px;border-radius:5px}
+.badge{font-size:12px;font-weight:600;padding:4px 11px;border-radius:999px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.b-changes{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.22);color:#fbbf24}
+.b-none{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.22);color:#34d399}
+.b-pending{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);color:#fbbf24}
+.x-btn{background:none;border:none;color:var(--muted);cursor:pointer;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.x-btn:hover{background:rgba(239,68,68,.1);color:#f87171}
+
+.cc-body{display:grid;grid-template-columns:180px 1fr;gap:18px;padding:18px}
+@media(max-width:660px){.cc-body{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.head-row{flex-direction:column;align-items:flex-start}}
+.shot{border-radius:12px;border:1px solid var(--border);overflow:hidden;background:#0a0a1a;aspect-ratio:3/4;display:flex;align-items:center;justify-content:center}
+.shot img{width:100%;height:100%;object-fit:cover;object-position:top}
+.shot-ph{font-size:11px;color:var(--muted);text-align:center;padding:14px;line-height:1.6}
+.changes-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:11px}
+.chg{display:flex;gap:11px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.chg:last-child{border-bottom:none}
+.chg-sym{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;margin-top:1px}
+.chg-sum{font-size:13.5px;font-weight:500;line-height:1.4}
+.chg-delta{font-size:12px;color:var(--muted);margin-top:2px}
+.chg-delta b{color:#c8c8e0;font-weight:600}
+
+.pending-body{padding:20px 18px;display:flex;gap:14px;align-items:flex-start}
+.pending-ic{width:38px;height:38px;border-radius:11px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pending-t{font-weight:600;font-size:14px;margin-bottom:4px}
+.pending-d{font-size:13px;color:var(--muted2);line-height:1.55}
+.link-btn{background:none;border:none;color:#a5b4fc;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;padding:6px 0 0;display:inline-flex;align-items:center;gap:5px}
+.link-btn:hover{color:#c7d2fe}
+
+.analysis{margin:0 18px 18px;border-radius:14px;padding:17px;background:rgba(91,110,245,.07);border:1px solid rgba(91,110,245,.18);border-left:2px solid var(--accent2)}
+.analysis.example{background:rgba(255,255,255,.025);border-color:var(--border);border-left:2px solid var(--muted)}
+.analysis-head{display:flex;align-items:center;gap:8px;margin-bottom:13px}
+.ai-mark{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#5b6ef5,#7b89ff)}
+.ai-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#a5b4fc}
+.src{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25);color:#fbbf24}
+.afield{margin-bottom:12px}.afield:last-child{margin-bottom:0}
+.afield-l{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
+.afield-v{font-size:13.5px;line-height:1.55;color:#c8c8e0}
+.al-blue{color:#93c5fd}.al-violet{color:#c4b5fd}.al-green{color:#6ee7b7}
+
+.empty{text-align:center;padding:70px 20px}
+.empty-ic{width:64px;height:64px;border-radius:18px;background:rgba(91,110,245,.08);border:1px solid rgba(91,110,245,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+.empty h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;margin:0 0 8px}
+.empty p{color:var(--muted2);margin:0 0 22px;font-size:14.5px}
+
+/* info banner */
+.info{display:flex;gap:12px;align-items:flex-start;background:rgba(0,194,255,.05);border:1px solid rgba(0,194,255,.16);border-radius:14px;padding:14px 16px;margin:0 0 4px}
+.info svg{flex-shrink:0;margin-top:1px}
+.info-t{font-size:13px;color:#c8c8e0;line-height:1.55}
+.info-t b{color:#fff}
+.info-x{margin-left:auto;cursor:pointer;color:var(--muted);background:none;border:none;font-size:18px;line-height:1;padding:0 2px}
+
+/* modal */
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(3,3,8,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px;animation:fade .2s ease}
+.overlay.open{display:flex}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.modal{width:100%;max-width:440px;background:linear-gradient(160deg,#0b0b1c,#0e0e22);border:1px solid rgba(91,110,245,.25);border-radius:20px;padding:26px;box-shadow:0 40px 100px rgba(0,0,0,.7);animation:pop .22s ease}
+@keyframes pop{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+.modal h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;margin:0 0 6px}
+.modal p{color:var(--muted2);font-size:13.5px;margin:0 0 20px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--muted2);margin-bottom:7px}
+.field input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:11px;padding:12px 14px;color:#fff;font-family:inherit;font-size:14px;outline:none;transition:all .18s}
+.field input:focus{border-color:rgba(91,110,245,.5);box-shadow:0 0 0 3px rgba(91,110,245,.12)}
+.field input::placeholder{color:var(--muted)}
+.field .err{color:#f87171;font-size:12px;margin-top:6px;display:none}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+
+.footer{border-top:1px solid var(--border);padding:20px 0;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap nav-inner">
+    <div class="logo">
+      <div class="logo-mark"><svg width="14" height="14" fill="none" viewBox="0 0 14 14"><circle cx="7" cy="7" r="2.5" fill="#fff"/><circle cx="7" cy="7" r="6" stroke="#fff" stroke-width="1.2" stroke-dasharray="2 2"/></svg></div>
+      <span class="logo-txt">IntelAI</span>
+    </div>
+    <button class="btn btn-primary btn-plus" onclick="openModal()">
+      <svg width="15" height="15" fill="none" viewBox="0 0 15 15"><path d="M7.5 2v11M2 7.5h11" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Add Competitor
+    </button>
+  </div>
+</nav>
+
+<header class="head">
+  <div class="wrap">
+    <div class="head-row">
+      <div>
+        <div class="eyebrow"><span class="dot-live"></span> Your Watchlist</div>
+        <h1>Competitors</h1>
+        <p class="sub">Add the brands you want to watch. We track their site, offers, and launches daily.</p>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Competitors</div><div class="stat-num" id="sTotal" style="color:#fff">0</div></div>
+      <div class="stat"><div class="stat-label">Changes today</div><div class="stat-num" id="sChanges" style="color:#fbbf24">0</div></div>
+      <div class="stat"><div class="stat-label">Monitoring starting</div><div class="stat-num" id="sPending" style="color:#67e8f9">0</div></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="infoBanner" class="info">
+    <svg width="18" height="18" fill="none" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7.5" stroke="#67e8f9" stroke-width="1.3"/><path d="M9 8v4M9 5.5h.01" stroke="#67e8f9" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <div class="info-t"><b>This is your live app.</b> Add any competitor and it's saved here instantly — no setup. The sample brands below show what a daily report looks like. Your own competitors begin in “monitoring starting”; live data switches on once the backend is connected (we'll handle that for you).</div>
+    <button class="info-x" onclick="dismissInfo()">&times;</button>
+  </div>
+  <div class="feed" id="feed"></div>
+</main>
+
+<div class="wrap">
+  <div class="footer">
+    <span>IntelAI — competitor watchlist</span>
+    <span><span class="dot-live"></span> Saved automatically in this browser</span>
+  </div>
+</div>
+
+<!-- Add Competitor modal -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h2>Add a competitor</h2>
+    <p>We'll start tracking their website, pricing, offers, and product launches.</p>
+    <div class="field">
+      <label for="fName">Brand name</label>
+      <input id="fName" type="text" placeholder="e.g. The Oodie" autocomplete="off"/>
+      <div class="err" id="errName">Please enter a name.</div>
+    </div>
+    <div class="field">
+      <label for="fUrl">Website</label>
+      <input id="fUrl" type="text" placeholder="e.g. theoodie.com" autocomplete="off"/>
+      <div class="err" id="errUrl">Please enter a valid website.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitCompetitor()">Add Competitor</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var KEY = 'intelai_competitors_v1';
+var INFO_KEY = 'intelai_info_dismissed';
+
+var TYPE = {
+  price:{sym:'$',color:'#f87171',bg:'rgba(239,68,68,.12)',bd:'rgba(239,68,68,.25)'},
+  product_added:{sym:'+',color:'#34d399',bg:'rgba(16,185,129,.12)',bd:'rgba(16,185,129,.25)'},
+  product_removed:{sym:'−',color:'#f87171',bg:'rgba(239,68,68,.1)',bd:'rgba(239,68,68,.22)'},
+  availability:{sym:'!',color:'#67e8f9',bg:'rgba(0,194,255,.1)',bd:'rgba(0,194,255,.22)'},
+  announcement:{sym:'★',color:'#fbbf24',bg:'rgba(251,191,36,.12)',bd:'rgba(251,191,36,.25)'},
+  title:{sym:'T',color:'#93c5fd',bg:'rgba(96,165,250,.1)',bd:'rgba(96,165,250,.22)'},
+  text:{sym:'¶',color:'#a5b4fc',bg:'rgba(91,110,245,.1)',bd:'rgba(91,110,245,.22)'}
+};
+
+var EXAMPLE = {
+  whatChanged:"Example — once live, this is where your daily report appears: new ads, price moves, page changes, and offers detected on this competitor.",
+  whyItMatters:"The AI explains the strategic intent behind each change — a CRO push, a scaling signal, seasonal prep, or margin pressure.",
+  whatToDoNext:"And ends with a concrete recommended action: test an angle, match an offer, or hold and watch."
+};
+
+var DEMOS = [
+  {
+    id:'demo-oodie', demo:true, name:'The Oodie', host:'theoodie.com', url:'https://www.theoodie.com',
+    pageCount:2, productCount:142, addedAt:Date.now()-86400000,
+    changes:[
+      {type:'announcement',summary:'Announcement bar changed',before:'Free shipping over $99',after:'30% OFF SITEWIDE — ends tonight'},
+      {type:'price',summary:'Price changed: The Oodie Original',before:'$89',after:'$69'},
+      {type:'product_added',summary:'New product: Winter Comfort 3-Pack Bundle',after:'$179'}
+    ],
+    analysis:{
+      whatChanged:"Swapped a free-shipping banner for a sitewide 30% discount, dropped the Original from $89 to $69, and launched a 3-pack bundle.",
+      whyItMatters:"A coordinated acquisition push, not a one-off sale — discount plus a new bundle signals they're chasing volume and higher AOV ahead of seasonal demand.",
+      whatToDoNext:"Expect their offer aggression to rise this week. Consider a competing bundle so you're not undercut on perceived value."
+    }
+  },
+  {
+    id:'demo-tc', demo:true, name:'True Classic', host:'trueclassic.com', url:'https://www.trueclassic.com',
+    pageCount:2, productCount:88, addedAt:Date.now()-90000000,
+    changes:[
+      {type:'product_added',summary:'New product: Active Performance 5-Pack',after:'$125'},
+      {type:'text',summary:'New trust signals + urgency added',after:'+ 100-day perfect fit guarantee\n+ As seen on: Forbes, GQ\n- Standard shipping 5-7 days'}
+    ],
+    analysis:{
+      whatChanged:"Added a 5-pack at a higher price point and layered in new trust signals (press logos, a 100-day guarantee) plus an urgency shipping offer.",
+      whyItMatters:"Higher-count bundle plus conversion scaffolding usually precedes a paid-traffic scaling push — raising AOV and de-risking the purchase.",
+      whatToDoNext:"Watch their ad volume over the next 7 days. If it climbs, test a similar guarantee block on your own PDP."
+    }
+  }
+];
+
+function load(){
+  try{ var raw=localStorage.getItem(KEY); if(raw) return JSON.parse(raw);}catch(e){}
+  return null;
+}
+function save(list){ try{localStorage.setItem(KEY,JSON.stringify(list));}catch(e){} }
+function getList(){
+  var list=load();
+  if(list===null){ list=DEMOS.slice(); save(list); }
+  return list;
+}
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch];});}
+function favUrl(host){return 'https://www.google.com/s2/favicons?domain='+encodeURIComponent(host)+'&sz=64';}
+function monogram(name){var p=String(name||'?').trim().split(/\s+/);return ((p[0]||'?')[0]+((p[1]||'')[0]||'')).toUpperCase();}
+
+function changeRow(ch){
+  var t=TYPE[ch.type]||TYPE.text; var delta='';
+  if(ch.before!==undefined&&ch.after!==undefined) delta='<div class="chg-delta"><b>'+esc(ch.before)+'</b> &rarr; <b>'+esc(ch.after)+'</b></div>';
+  else if(ch.after!==undefined) delta='<div class="chg-delta">'+esc(ch.after).replace(/\n/g,'<br>')+'</div>';
+  return '<div class="chg"><div class="chg-sym" style="background:'+t.bg+';border:1px solid '+t.bd+';color:'+t.color+'">'+t.sym+'</div><div><div class="chg-sum">'+esc(ch.summary)+'</div>'+delta+'</div></div>';
+}
+
+function analysisBlock(a,example){
+  return '<div class="analysis'+(example?' example':'')+'">'
+    +'<div class="analysis-head"><div class="ai-mark"><svg width="11" height="11" fill="none" viewBox="0 0 11 11"><circle cx="5.5" cy="5.5" r="4.5" stroke="#fff" stroke-width="1.2"/><path d="M5.5 3.5v3l1.5 1.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg></div><span class="ai-label">AI Analysis</span>'+(example?'<span class="src">Example</span>':'')+'</div>'
+    +'<div class="afield"><div class="afield-l al-blue">What changed</div><div class="afield-v">'+esc(a.whatChanged)+'</div></div>'
+    +'<div class="afield"><div class="afield-l al-violet">Why it matters</div><div class="afield-v">'+esc(a.whyItMatters)+'</div></div>'
+    +'<div class="afield"><div class="afield-l al-green">What to do next</div><div class="afield-v">'+esc(a.whatToDoNext)+'</div></div>'
+    +'</div>';
+}
+
+function card(comp){
+  var fav='<div class="fav"><img src="'+favUrl(comp.host)+'" alt="" onerror="this.style.display=\'none\';this.parentNode.textContent=\''+monogram(comp.name)+'\'"></div>';
+  var nameLine='<div class="cc-name">'+esc(comp.name)+(comp.demo?' <span class="tag-demo">Demo</span>':'')+'</div><div class="cc-host">'+esc(comp.host)+'</div>';
+  var rm='<button class="x-btn" title="Remove" onclick="removeCompetitor(\''+comp.id+'\')"><svg width="14" height="14" fill="none" viewBox="0 0 14 14"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>';
+
+  if(comp.demo){
+    var badge='<span class="badge b-changes">'+comp.changes.length+' change'+(comp.changes.length>1?'s':'')+'</span>';
+    var shot='<div class="shot"><div class="shot-ph">Screenshot appears<br>on live monitoring</div></div>';
+    var changes=comp.changes.map(changeRow).join('');
+    return '<div class="cc"><div class="cc-head">'+fav+'<div>'+nameLine+'</div><div style="margin-left:auto;display:flex;align-items:center;gap:10px">'+badge+rm+'</div></div>'
+      +'<div class="cc-body">'+shot+'<div><div class="changes-title">Changes detected today</div>'+changes+'</div></div>'
+      +analysisBlock(comp.analysis,false)+'</div>';
+  }
+
+  // user-added → pending
+  var pid='ex-'+comp.id;
+  return '<div class="cc"><div class="cc-head">'+fav+'<div>'+nameLine+'</div><div style="margin-left:auto;display:flex;align-items:center;gap:10px"><span class="badge b-pending"><span class="dot-pending"></span> Monitoring starting</span>'+rm+'</div></div>'
+    +'<div class="pending-body"><div class="pending-ic"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7" stroke="#fbbf24" stroke-width="1.3"/><path d="M9 5.5V9l2.2 1.6" stroke="#fbbf24" stroke-width="1.3" stroke-linecap="round"/></svg></div>'
+    +'<div><div class="pending-t">'+esc(comp.name)+' is on your watchlist.</div><div class="pending-d">We\'re capturing the first baseline of '+esc(comp.host)+'. Your daily intelligence report will appear right here once monitoring is connected.</div>'
+    +'<button class="link-btn" onclick="toggleExample(\''+pid+'\')">See what a report looks like <svg width="11" height="11" fill="none" viewBox="0 0 11 11"><path d="M2.5 4l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>'
+    +'<div id="'+pid+'" style="display:none">'+analysisBlock(EXAMPLE,true)+'</div></div>';
+}
+
+function toggleExample(id){var el=document.getElementById(id);if(el)el.style.display=el.style.display==='none'?'block':'none';}
+
+function render(){
+  var list=getList();
+  var feed=document.getElementById('feed');
+  if(!list.length){
+    feed.innerHTML='<div class="empty"><div class="empty-ic"><svg width="28" height="28" fill="none" viewBox="0 0 28 28"><circle cx="12" cy="12" r="8" stroke="#7b89ff" stroke-width="1.6"/><path d="M18 18l5 5" stroke="#7b89ff" stroke-width="1.6" stroke-linecap="round"/></svg></div><h3>No competitors yet</h3><p>Add the first brand you want to keep an eye on.</p><button class="btn btn-primary btn-plus" onclick="openModal()" style="display:inline-flex"><svg width="15" height="15" fill="none" viewBox="0 0 15 15"><path d="M7.5 2v11M2 7.5h11" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg> Add Competitor</button></div>';
+  } else {
+    feed.innerHTML=list.map(card).join('');
+  }
+  var changes=list.reduce(function(n,c){return n+(c.changes?c.changes.length:0);},0);
+  var pending=list.filter(function(c){return !c.demo;}).length;
+  document.getElementById('sTotal').textContent=list.length;
+  document.getElementById('sChanges').textContent=changes;
+  document.getElementById('sPending').textContent=pending;
+}
+
+// modal
+function openModal(){document.getElementById('overlay').classList.add('open');setTimeout(function(){document.getElementById('fName').focus();},50);}
+function closeModal(){document.getElementById('overlay').classList.remove('open');clearErrors();document.getElementById('fName').value='';document.getElementById('fUrl').value='';}
+function clearErrors(){document.getElementById('errName').style.display='none';document.getElementById('errUrl').style.display='none';}
+
+function normalizeUrl(v){
+  v=v.trim();
+  if(!v) return null;
+  if(!/^https?:\/\//i.test(v)) v='https://'+v;
+  try{var u=new URL(v); if(!u.hostname.includes('.')) return null; return u;}catch(e){return null;}
+}
+
+function submitCompetitor(){
+  clearErrors();
+  var name=document.getElementById('fName').value.trim();
+  var urlRaw=document.getElementById('fUrl').value;
+  var u=normalizeUrl(urlRaw);
+  var ok=true;
+  if(!name){document.getElementById('errName').style.display='block';ok=false;}
+  if(!u){document.getElementById('errUrl').style.display='block';ok=false;}
+  if(!ok)return;
+  var list=getList();
+  list.unshift({
+    id:'c-'+Date.now(),
+    demo:false,
+    name:name,
+    host:u.hostname.replace(/^www\./,''),
+    url:u.href,
+    pages:[u.href],
+    addedAt:Date.now(),
+    changes:[],
+    analysis:null
+  });
+  save(list);
+  closeModal();
+  render();
+}
+
+function removeCompetitor(id){
+  var list=getList().filter(function(c){return c.id!==id;});
+  save(list);
+  render();
+}
+
+function dismissInfo(){document.getElementById('infoBanner').style.display='none';try{localStorage.setItem(INFO_KEY,'1');}catch(e){}}
+
+// keyboard
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape')closeModal();
+  if(e.key==='Enter'&&document.getElementById('overlay').classList.contains('open'))submitCompetitor();
+});
+
+// init
+try{if(localStorage.getItem(INFO_KEY))document.getElementById('infoBanner').style.display='none';}catch(e){}
+render();
+</script>
+
+</body>
+</html>
