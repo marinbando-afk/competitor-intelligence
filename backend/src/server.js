@@ -13,6 +13,7 @@ import express from 'express';
 import cors from 'cors';
 import { initSchema, pool } from './db.js';
 import { signup, login, requireAuth } from './auth.js';
+import { fetchAds } from './ads.js';
 
 const app = express();
 app.use(express.json());
@@ -23,6 +24,16 @@ const allowed = (process.env.ALLOWED_ORIGIN || '*').split(',').map((s) => s.trim
 app.use(cors({ origin: allowed.includes('*') ? true : allowed }));
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+
+// Ads intelligence — a competitor's live ads from the Meta Ad Library (via Apify).
+//   GET /api/ads?brand=The%20Oodie&country=AU  -> { count, ads: [{ text, image, page, started, link }] }
+app.get('/api/ads', async (req, res) => {
+  try {
+    res.json(await fetchAds(req.query.brand, req.query.country));
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
 
 app.post('/api/signup', async (req, res) => {
   try {
