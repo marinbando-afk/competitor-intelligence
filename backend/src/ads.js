@@ -51,34 +51,68 @@ export async function fetchAds(brand, country) {
     e.status = 502; throw e;
   }
   const items = await res.json();
-  const data = normalize(Array.isArray(items) ? items : []);
+  const data = normalize(Array.isArray(items) ? items : [], brand, country);
   cache.set(key, { at: Date.now(), data });
   return data;
 }
 
-function get(o, path) { return path.split('.').reduce((a, k) => (a == null ? a : a[k]), o); }
-function pick(o, keys) { for (const k of keys) { const v = get(o, k); if (v) return v; } return ''; }
+function isTpl(s) { return !s || /\{\{[^}]*\}\}/.test(String(s)); }      // e.g. "{{product.brand}}"
+function clean(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
+function cardMedia(c) { return c.original_image_url || c.resized_image_url || c.video_preview_image_url || ''; }
 
-// Map an actor's items to a clean shape. Field names vary by actor, so we probe several.
-function normalize(items) {
+// Map the Facebook Ad Library actor's items to a clean, display-ready shape.
+// Many eComm ads are dynamic catalog ads whose body is a "{{product.brand}}"
+// template — the real copy and creative then live in the per-product `cards` array.
+function normalize(items, brand, country) {
   const ads = items.map((it) => {
     const snap = it.snapshot || {};
+    const cards = Array.isArray(snap.cards) ? snap.cards : [];
+    const imgs = Array.isArray(snap.images) ? snap.images : [];
+    const vids = Array.isArray(snap.videos) ? snap.videos : [];
+
+    // Body copy — skip {{templates}}, borrow real copy from the first usable card.
+    let text = isTpl(snap.body && snap.body.text) ? '' : clean(snap.body && snap.body.text);
+    if (!text) { const c = cards.find((c) => !isTpl(c.body)); if (c) text = clean(c.body); }
+    let title = isTpl(snap.title) ? '' : clean(snap.title);
+    if (!title) { const c = cards.find((c) => !isTpl(c.title)); if (c) title = clean(c.title); }
+    if (!text) text = title;
+
+    // Creative thumbnail — images, then video poster, then card media.
+    let image =
+      (imgs[0] && (imgs[0].original_image_url || imgs[0].resized_image_url)) ||
+      (vids[0] && vids[0].video_preview_image_url) || '';
+    if (!image) { const c = cards.find((c) => cardMedia(c)); if (c) image = cardMedia(c); }
+
+    const platforms = Array.isArray(it.publisher_platform)
+      ? it.publisher_platform
+      : (it.publisher_platform ? [it.publisher_platform] : []);
+
     return {
-      text:
-        pick(it, ['adText', 'body', 'primaryText', 'snapshot.body.text', 'ad_creative_body']) ||
-        (snap.body && snap.body.text) || '',
-      image:
-        pick(it, ['imageUrl', 'image', 'thumbnailUrl']) ||
-        (snap.images && snap.images[0] && (snap.images[0].original_image_url || snap.images[0].resized_image_url)) ||
-        (snap.videos && snap.videos[0] && snap.videos[0].video_preview_image_url) || '',
-      page: pick(it, ['pageName', 'page_name', 'snapshot.page_name', 'advertiserName']) || '',
-      platform: String(pick(it, ['publisherPlatform', 'platforms']) || 'Meta'),
-      started: pick(it, ['startDate', 'ad_delivery_start_time', 'startedRunning', 'adDeliveryStartTime']) || '',
-      link:
-        pick(it, ['url', 'adLibraryUrl']) ||
-        (it.adArchiveID ? 'https://www.facebook.com/ads/library/?id=' + it.adArchiveID : '') ||
-        (it.ad_archive_id ? 'https://www.facebook.com/ads/library/?id=' + it.ad_archive_id : ''),
+      id: String(it.ad_archive_id || it.ad_id || ''),
+      text,
+      title,
+      image,
+      hasVideo: vids.length > 0 || cards.some((c) => c.video_sd_url || c.video_hd_url),
+      page: it.page_name || snap.page_name || brand,
+      platforms,
+      format: snap.display_format || (cards.length > 1 ? 'CAROUSEL' : 'IMAGE'),
+      cta: snap.cta_text || '',
+      landing: snap.link_url || (cards[0] && cards[0].link_url) || '',
+      started: String(it.start_date_formatted || it.start_date || '').split(' ')[0],
+      active: it.is_active !== false,
+      link: it.ad_library_url || (it.ad_archive_id ? 'https://www.facebook.com/ads/library/?id=' + it.ad_archive_id : ''),
     };
   }).filter((a) => a.text || a.image);
-  return { count: items.length, ads: ads.slice(0, 12) };
+
+  const platforms = [...new Set(ads.flatMap((a) => a.platforms))];
+  const newest = ads.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '';
+  return {
+    brand,
+    country,
+    count: items.length,
+    active: ads.filter((a) => a.active).length,
+    platforms,
+    newest,
+    ads: ads.slice(0, 16),
+  };
 }
