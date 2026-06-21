@@ -121,6 +121,14 @@ button{font-family:inherit;cursor:pointer}
 .adthumb .go span{width:28px;height:28px;border-radius:50%;background:var(--sage);display:flex;align-items:center;justify-content:center}
 .adlink{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);text-decoration:none;margin-top:15px}
 .adlink:hover{color:var(--quiet)}
+.adsbox{margin-bottom:2px}
+.adsload{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--muted);font-style:italic;font-family:'Fraunces',serif;padding:4px 0 14px}
+.spin{width:13px;height:13px;border-radius:50%;border:2px solid var(--line2);border-top-color:var(--sage);animation:sp .7s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+.adssum{font-size:12.5px;color:var(--muted);margin-bottom:13px;padding-bottom:11px;border-bottom:1px solid var(--line)}
+.adssum b{color:var(--text);font-weight:600}
+.adsempty{font-size:13.5px;color:var(--faint);font-style:italic;font-family:'Fraunces',serif;padding:4px 0 12px}
+.adthumb .nw.vid{background:rgba(0,0,0,.62);color:#fff;letter-spacing:0}
 .drow{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
 .drow:last-child{border-bottom:none}
 .dmark{font-size:15px;font-weight:600;width:16px;flex-shrink:0;margin-top:1px;font-family:'Fraunces',serif}
@@ -204,6 +212,7 @@ button{font-family:inherit;cursor:pointer}
 
 <script>
 var KEY='intelai_v5';
+var API='https://competitor-intelligence-production-2629.up.railway.app';
 var BOTANICAL='<svg class="botanical" viewBox="0 0 120 180" fill="none" stroke="#8cb8a6" stroke-width="1.3" stroke-linecap="round"><path d="M60 178C58 130 56 92 66 56 74 28 86 14 96 6"/><path d="M64 120C50 118 42 108 44 94 58 96 66 106 64 120Z"/><path d="M67 96C82 94 90 83 88 69 73 71 65 82 67 96Z"/><path d="M70 74C57 72 50 62 52 49 65 51 72 61 70 74Z"/><path d="M74 54C88 52 95 42 93 29 80 31 73 41 74 54Z"/><path d="M80 34C70 32 64 24 66 13 76 15 81 23 80 34Z"/></svg>';
 
 var CH=[{k:'ads',label:'Ads'},{k:'social',label:'Organic Social'},{k:'website',label:'Website'},{k:'email',label:'Email'}];
@@ -213,7 +222,7 @@ var ORD={act:0,watch:1,setup:2,quiet:3};
 /* The Oodie + Ancestral Cosmetics — seeded with REAL data captured from their live stores. */
 var DEMOS=[
   {
-    id:'oodie',demo:true,live:true,name:'The Oodie',host:'theoodie.com',url:'https://www.theoodie.com',
+    id:'oodie',demo:true,live:true,name:'The Oodie',host:'theoodie.com',url:'https://www.theoodie.com',country:'AU',
     priority:'act',captured:'21 Jun 2026',base:{products:26,onSale:18},
     oneLiner:'Deep EOFY sale — Originals 40% off',
     verdict:'Deep into an End-of-Financial-Year discount blitz — Oodie Originals are 40% off ($59, down from $99), with a sitewide sale spanning the Care Bears, Tamagotchi and Cloud ranges, plus fresh licensed collabs.',
@@ -285,15 +294,41 @@ function railRow(c){
     +'<span class="row-stat '+p+'"><span class="stat-dot bg-'+p+'"></span>'+PRIO[p].l+'</span></span></button>';
 }
 
+var PLAT={FACEBOOK:'Facebook',INSTAGRAM:'Instagram',AUDIENCE_NETWORK:'Audience',MESSENGER:'Messenger',THREADS:'Threads'};
+function prettyPlat(p){return PLAT[p]||p;}
+function fmtDate(s){var p=String(s||'').split('-');if(p.length!==3)return s||'';var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return parseInt(p[2],10)+' '+mo[(parseInt(p[1],10)||1)-1];}
+function isRecent(s){var t=Date.parse((s||'')+'T00:00:00');return !isNaN(t)&&(Date.now()-t)<18*864e5;}
 function adThumb(a){
+  var plat=(a.platforms&&a.platforms[0])?prettyPlat(a.platforms[0]):'Meta';
+  var hook=esc(String(a.text||a.title||'').slice(0,80));
+  var tag=isRecent(a.started)?'<span class="nw">New</span>':(a.hasVideo?'<span class="nw vid">▶</span>':'');
+  var img=a.image?'<img src="'+esc(a.image)+'" loading="lazy" onerror="this.style.display=\'none\'">':'';
   var go='<span class="go"><span><svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M5 9l4.2-4.2M5.5 4.8H9.2V8.5" stroke="#0b1311" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
-  return '<a class="adthumb" href="'+(a.link||'#')+'" target="_blank" rel="noopener"><img src="'+a.img+'" loading="lazy" onerror="this.style.display=\'none\'"><span class="nw">New</span><span class="pl">'+esc(a.pl)+'</span><span class="hk">'+esc(a.hk)+'</span>'+go+'</a>';
+  return '<a class="adthumb" href="'+esc(a.link||'#')+'" target="_blank" rel="noopener">'+img+tag+'<span class="pl">'+esc(plat)+'</span><span class="hk">'+hook+'</span>'+go+'</a>';
+}
+function adsHTML(d){
+  if(!d||d.error||!d.ads||!d.ads.length)return '<div class="adsempty">No active ads found in the Meta Ad Library right now.</div>';
+  var plats=(d.platforms||[]).map(prettyPlat).join(' · ');
+  var sum='<div class="adssum"><b>'+d.active+' active ad'+(d.active===1?'':'s')+'</b>'+(d.newest?' · newest '+fmtDate(d.newest):'')+(plats?' · '+plats:'')+'</div>';
+  return sum+'<div class="adstrip">'+d.ads.map(adThumb).join('')+'</div>';
+}
+function loadAds(box){
+  var brand=box.getAttribute('data-brand'),country=box.getAttribute('data-country')||'ALL';
+  fetch(API+'/api/ads?brand='+encodeURIComponent(brand)+'&country='+encodeURIComponent(country))
+    .then(function(r){return r.json();})
+    .then(function(d){
+      box.innerHTML=adsHTML(d);
+      if(d&&d.ads&&d.ads.length){var s=box.closest('.chan').querySelector('.chan-sum');if(s)s.innerHTML='<b style="color:var(--text);font-weight:600">'+d.active+'</b> active ad'+(d.active===1?'':'s')+' · <span class="flag">Meta Ad Library</span>';}
+    })
+    .catch(function(){box.innerHTML='<div class="adsempty">Couldn’t reach the ad service just now — try again in a moment.</div>';});
 }
 function chanDetail(k,ch,c){
   if(k==='ads'){
-    var strip=(ch.creatives&&ch.creatives.length)?'<div class="adstrip">'+ch.creatives.map(adThumb).join('')+'</div>':'';
-    return strip+(ch.angle?'<div class="note">'+ch.angle+'</div>':'')
-      +'<a class="adlink" href="https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q='+encodeURIComponent(c.name)+'" target="_blank" rel="noopener">Open Meta Ad Library <svg width="11" height="11" fill="none" viewBox="0 0 11 11"><path d="M1 5.5h8M5.5 2l3.5 3.5L5.5 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>';
+    var ctry=c.country||'ALL';
+    var box='<div class="adsbox" id="ads-'+esc(c.id)+'" data-brand="'+esc(c.name)+'" data-country="'+esc(ctry)+'"><div class="adsload"><span class="spin"></span>Pulling live ads from the Meta Ad Library…</div></div>';
+    var note=ch.angle?'<div class="note">'+ch.angle+'</div>':'';
+    var lib='https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country='+encodeURIComponent(ctry)+'&q='+encodeURIComponent(c.name);
+    return box+note+'<a class="adlink" href="'+lib+'" target="_blank" rel="noopener">Open full Meta Ad Library <svg width="11" height="11" fill="none" viewBox="0 0 11 11"><path d="M1 5.5h8M5.5 2l3.5 3.5L5.5 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>';
   }
   if(k==='social'){
     return ch.posts.map(function(p){return '<div class="post"><span class="pthumb"><img src="'+p.img+'" loading="lazy" onerror="this.style.display=\'none\'"></span><div style="flex:1;min-width:0"><div class="pcap">'+esc(p.cap)+'</div><div class="pmet">'+esc(p.pl)+' · '+esc(p.met)+'</div></div></div>';}).join('')
@@ -311,7 +346,9 @@ function chanDetail(k,ch,c){
 }
 function channel(k,c){
   var def=CH.find(function(x){return x.k===k;});
-  var ch=c.channels[k];
+  var ch=(c.channels&&c.channels[k])||null;
+  // Ads are live for ANY brand via the Meta Ad Library API — always offer them.
+  if(k==='ads'&&!ch)ch={active:true,summary:'<span class="flag">Live — Meta Ad Library</span>'};
   var on=ch&&ch.active;
   var inactive=c.live?'available with full monitoring':(c.demo?'no change':'begins within 24 hours');
   var right=on?'<span class="chan-sum">'+ch.summary+'</span><svg class="chev" width="13" height="13" fill="none" viewBox="0 0 13 13"><path d="M3.5 5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
@@ -320,7 +357,13 @@ function channel(k,c){
   var body=on?'<div class="chan-body">'+chanDetail(k,ch,c)+'</div>':'';
   return '<div class="chan'+(on?' on':'')+'">'+head+body+'</div>';
 }
-function tog(btn){btn.parentNode.classList.toggle('open');}
+function tog(btn){
+  var chan=btn.parentNode;chan.classList.toggle('open');
+  if(chan.classList.contains('open')){
+    var box=chan.querySelector('.adsbox');
+    if(box&&!box.dataset.loaded){box.dataset.loaded='1';loadAds(box);}
+  }
+}
 
 /* ── best-effort live refresh (graceful: keeps captured data if it can't fetch) ── */
 function summarize(products){
