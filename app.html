@@ -73,6 +73,10 @@ button{font-family:inherit;cursor:pointer}
 .rep-meta{font-size:11.5px;font-weight:500;letter-spacing:.06em;color:var(--faint);margin-top:8px;text-transform:uppercase}
 .rep-status{margin-left:auto;text-align:right;flex-shrink:0}
 .rep-status .s{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:7px}
+.live{display:inline-flex;align-items:center;gap:5px;color:var(--quiet)}
+.livedot{width:6px;height:6px;border-radius:50%;background:var(--quiet);box-shadow:0 0 0 3px rgba(140,184,166,.18);animation:lp 2.2s ease-in-out infinite}
+@keyframes lp{0%,100%{opacity:1}50%{opacity:.4}}
+.lr{color:var(--faint)}
 
 .assess{margin-bottom:34px;position:relative;z-index:1}
 .assess .lbl{display:block;margin-bottom:14px;color:var(--sage-d)}
@@ -101,6 +105,7 @@ button{font-family:inherit;cursor:pointer}
 .chan.open .chan-body{display:block}
 @media(max-width:560px){.chan-body{padding-left:0}.chan-name{width:92px}.botanical{display:none}}
 
+.wstats{font-size:12.5px;color:var(--muted);margin-bottom:15px;padding-bottom:12px;border-bottom:1px solid var(--line);text-transform:none;letter-spacing:0}
 .note{font-size:14px;color:var(--muted);line-height:1.62;margin-top:14px;font-style:italic;font-family:'Fraunces',serif}
 .adstrip{display:flex;gap:9px;overflow-x:auto;padding-bottom:3px}
 .adstrip::-webkit-scrollbar{height:0}
@@ -198,75 +203,53 @@ button{font-family:inherit;cursor:pointer}
 </div>
 
 <script>
-var KEY='intelai_v4';
-var IMG='https://loremflickr.com/240/300/';
-var OODIE_AD='https://www.facebook.com/ads/library/?id=1515064270024459';
+var KEY='intelai_v5';
 var BOTANICAL='<svg class="botanical" viewBox="0 0 120 180" fill="none" stroke="#8cb8a6" stroke-width="1.3" stroke-linecap="round"><path d="M60 178C58 130 56 92 66 56 74 28 86 14 96 6"/><path d="M64 120C50 118 42 108 44 94 58 96 66 106 64 120Z"/><path d="M67 96C82 94 90 83 88 69 73 71 65 82 67 96Z"/><path d="M70 74C57 72 50 62 52 49 65 51 72 61 70 74Z"/><path d="M74 54C88 52 95 42 93 29 80 31 73 41 74 54Z"/><path d="M80 34C70 32 64 24 66 13 76 15 81 23 80 34Z"/></svg>';
 
 var CH=[{k:'ads',label:'Ads'},{k:'social',label:'Organic Social'},{k:'website',label:'Website'},{k:'email',label:'Email'}];
 var PRIO={act:{l:'Act now'},watch:{l:'Watch'},quiet:{l:'Quiet'},setup:{l:'Setting up'}};
 var ORD={act:0,watch:1,setup:2,quiet:3};
 
+/* The Oodie + Ancestral Cosmetics — seeded with REAL data captured from their live stores. */
 var DEMOS=[
   {
-    id:'oodie',demo:true,name:'The Oodie',host:'theoodie.com',url:'https://www.theoodie.com',
-    priority:'act',updatedAt:Date.now()-2*36e5,
-    oneLiner:'50% EOFY blitz + $59 blanket hook',
-    verdict:'Running an aggressive End-of-Financial-Year blitz — up to 50% off, with blankets dropped to $59 as a low-entry hook — while pushing licensed nostalgia collabs for newness.',
-    move:'Expect heavy price and ad pressure through June 30. Don’t reflex-match the discount — counter with a bundle or free-gift to defend margin, and watch whether the collab SKUs stay full price.',
+    id:'oodie',demo:true,live:true,name:'The Oodie',host:'theoodie.com',url:'https://www.theoodie.com',
+    priority:'act',captured:'21 Jun 2026',base:{products:26,onSale:18},
+    oneLiner:'Deep EOFY sale — Originals 40% off',
+    verdict:'Deep into an End-of-Financial-Year discount blitz — Oodie Originals are 40% off ($59, down from $99), with a sitewide sale spanning the Care Bears, Tamagotchi and Cloud ranges, plus fresh licensed collabs.',
+    move:'They’re buying volume at the expense of margin. Expect heavy price and ad pressure through June 30 — don’t blanket-match 40%. Counter with a bundle or free-gift to defend AOV, and watch whether the sale outlasts EOFY.',
     channels:{
-      ads:{active:true,summary:'<b>7 new ads</b> · <span class="flag">whitelisting detected</span>',angle:'Eight push a “winter comfort” angle and are now running through two creator pages — a seasonal acquisition test, scaled via whitelisting.',creatives:[
-        {hk:'"Stay warm all winter"',pl:'Meta',img:IMG+'blanket,cozy,winter?lock=11',link:OODIE_AD},
-        {hk:'"30% OFF — today only"',pl:'Meta',img:IMG+'hoodie,cozy?lock=12',link:OODIE_AD},
-        {hk:'"POV: my Oodie 🧸"',pl:'TikTok',img:IMG+'blanket,sofa,relax?lock=13',link:OODIE_AD}
-      ]},
-      social:{active:true,summary:'<b>3 new reels</b> · 2.1M views',cadence:'Posting five times a week, up from twice last month.',posts:[
-        {pl:'TikTok',cap:'"POV: you finally got your Oodie"',met:'2.1M views',img:IMG+'home,cozy,blanket?lock=15'},
-        {pl:'Reel',cap:'Cozy morning routine',met:'182K likes',img:IMG+'coffee,morning,cozy?lock=14'},
-        {pl:'TikTok',cap:'Unboxing the new colours',met:'540K views',img:IMG+'blanket,fashion?lock=16'}
-      ]},
-      website:{active:true,summary:'<b>Up to 50% off</b> · blankets $59',changes:[
-        {m:'up',s:'EOFY sale launched',d:'Sitewide <b>up to 50% off</b> — End of Financial Year'},
-        {m:'up',s:'Blankets repriced',d:'Now <b>from $59</b> as a low-entry hook'},
-        {m:'new',s:'New licensed collab live',d:'Care Bears™ + Tamagotchi™ ranges'}
-      ]},
-      email:{active:true,summary:'<b>4 sends</b> this week',cadence:'Four sends versus their usual two — main offer shifted from free shipping to a percentage discount.',emails:[
-        {sub:'EOFY: up to 50% off ends soon',t:'Promo — Tue'},
-        {sub:'New: the Care Bears collection',t:'Launch — Wed'},
-        {sub:'You left something behind…',t:'Cart — Thu'}
-      ]}
-    }
-  },
-  {
-    id:'tc',demo:true,name:'True Classic',host:'trueclassic.com',url:'https://www.trueclassic.com',
-    priority:'watch',updatedAt:Date.now()-5*36e5,
-    oneLiner:'Quietly testing a higher-AOV funnel',
-    verdict:'Quietly testing a higher-AOV funnel — a new 5-pack bundle and an advertorial warm-up page — without touching their core pricing yet.',
-    move:'Watch their ad volume over the next seven days. If it keeps climbing behind the advertorial, test a 5-pack of your own before they own the “value bundle” position.',
-    channels:{
-      ads:{active:true,summary:'<b>9 new ads</b>',angle:'Mostly a press-credibility angle (“As seen in GQ”) — building trust before scaling spend.',creatives:[
-        {hk:'"5 tees, one price"',pl:'Meta',img:IMG+'tshirt,fashion,men?lock=21'},
-        {hk:'"As seen in GQ"',pl:'Meta',img:IMG+'man,style,portrait?lock=22'}
-      ]},
+      ads:{active:true,summary:'<span class="flag">Live in Meta Ad Library</span>',angle:'Open their live ad library to see exactly which creatives and offers are running behind this sale.'},
       social:{active:false},
-      website:{active:true,summary:'New 5-pack + advertorial',changes:[
-        {m:'new',s:'New 5-pack bundle',d:'Replaces the 3-pack · <b>$125</b>'},
-        {m:'new',s:'New advertorial page',d:'/why-we-last — warm-up funnel'}
+      website:{active:true,summary:'<b>Up to 50% off</b> · Originals $59',stats:'26 products · $47–$119 · ~18 of 26 currently on sale',changes:[
+        {m:'up',s:'Sitewide EOFY sale live',d:'Up to <b>50% off</b> — End of Financial Year'},
+        {m:'up',s:'Oodie Originals discounted',d:'<b>$59</b>, down from $99 — <b>40% off</b>'},
+        {m:'new',s:'Newest drops',d:'Splatter Oodie + Tamagotchi Collection (Jun 2)'}
       ]},
       email:{active:false}
     }
   },
   {
-    id:'ag1',demo:true,name:'AG1',host:'drinkag1.com',url:'https://www.drinkag1.com',
-    priority:'quiet',updatedAt:Date.now()-6*36e5,
-    oneLiner:'No moves — all channels steady',
-    verdict:'No meaningful moves across any channel today. Ads, social, website and email all hold steady against their baseline — nothing here needs you.',
-    move:null,
-    channels:{ads:{active:false},social:{active:false},website:{active:false},email:{active:false}}
+    id:'ancestral',demo:true,live:true,name:'Ancestral Cosmetics',host:'ancestralcosmetics.com',url:'https://ancestralcosmetics.com',
+    priority:'watch',captured:'21 Jun 2026',base:{products:25,onSale:4},
+    oneLiner:'Premium, no-discount — bundle & gift led',
+    verdict:'Holding a premium, no-discount posture — no sale event, just modest multi-pack savings. Growth is engineered through a deep bundle ladder (Essentials £80 → Ultimate £156) and a “free lip balm over £80” gift that lifts basket size while protecting margin.',
+    move:'They don’t discount — they free-gift and bundle, so you won’t beat them on price. Compete on a sharper story or a tighter segment, and watch whether the new Velvet Dust line expands into a full range.',
+    channels:{
+      ads:{active:true,summary:'<span class="flag">Live in Meta Ad Library</span>',angle:'Open their live ad library — their ads lean on heritage, grass-fed Irish tallow, and ingredient provenance.'},
+      social:{active:false},
+      website:{active:true,summary:'<b>No sale</b> · bundle &amp; gift led',stats:'25 products · £9–£156 · no sale event (multi-pack savings only)',changes:[
+        {m:'new',s:'Free-gift offer running',d:'“Spend £80, get a free lip balm” — lifts AOV, protects margin'},
+        {m:'new',s:'Deep bundle ladder',d:'Essentials £80 → Ultimate £156 · 10+ sets'},
+        {m:'new',s:'Newest line',d:'Velvet Dust range — deodorant, body cream, bundle'}
+      ]},
+      email:{active:false}
+    }
   }
 ];
 
 var state={sel:null};
+var liveCache={};
 
 function load(){try{var r=localStorage.getItem(KEY);if(r)return JSON.parse(r);}catch(e){}return null;}
 function save(l){try{localStorage.setItem(KEY,JSON.stringify(l));}catch(e){}}
@@ -274,7 +257,7 @@ function getList(){
   var l=load();
   if(l===null){
     var mig=[];
-    ['intelai_competitors_v3','intelai_competitors_v2','intelai_competitors_v1'].forEach(function(k){
+    ['intelai_v4','intelai_competitors_v3','intelai_competitors_v2','intelai_competitors_v1'].forEach(function(k){
       try{JSON.parse(localStorage.getItem(k)||'[]').forEach(function(c){
         if(c&&c.demo===false&&c.name&&!mig.some(function(m){return m.host===c.host;}))
           mig.push({id:c.id||('c-'+Date.now()+Math.round(Math.random()*1e4)),demo:false,name:c.name,host:c.host,url:c.url,updatedAt:c.addedAt||c.updatedAt||Date.now()});
@@ -294,9 +277,10 @@ function badge(c){return '<img src="'+fav(c.host)+'" onerror="this.style.display
 
 function railRow(c){
   var p=c.demo?c.priority:'setup';
+  var t=c.live?'<span style="color:var(--quiet)">LIVE</span>':ago(c.updatedAt||Date.now());
   return '<button class="row'+(c.id===state.sel?' sel':'')+'" onclick="select(\''+c.id+'\')">'
     +'<span class="badge">'+badge(c)+'</span>'
-    +'<span class="row-main"><span class="row-top"><span class="row-name">'+esc(c.name)+'</span><span class="row-time">'+ago(c.updatedAt||Date.now())+'</span></span>'
+    +'<span class="row-main"><span class="row-top"><span class="row-name">'+esc(c.name)+'</span><span class="row-time">'+t+'</span></span>'
     +'<span class="row-sub">'+esc(c.demo?c.oneLiner:'Baseline capturing…')+'</span>'
     +'<span class="row-stat '+p+'"><span class="stat-dot bg-'+p+'"></span>'+PRIO[p].l+'</span></span></button>';
 }
@@ -307,16 +291,17 @@ function adThumb(a){
 }
 function chanDetail(k,ch,c){
   if(k==='ads'){
-    return '<div class="adstrip">'+ch.creatives.map(adThumb).join('')+'</div>'
-      +(ch.angle?'<div class="note">'+ch.angle+'</div>':'')
-      +'<a class="adlink" href="https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q='+encodeURIComponent(c.name)+'" target="_blank" rel="noopener">See all live ads <svg width="11" height="11" fill="none" viewBox="0 0 11 11"><path d="M1 5.5h8M5.5 2l3.5 3.5L5.5 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>';
+    var strip=(ch.creatives&&ch.creatives.length)?'<div class="adstrip">'+ch.creatives.map(adThumb).join('')+'</div>':'';
+    return strip+(ch.angle?'<div class="note">'+ch.angle+'</div>':'')
+      +'<a class="adlink" href="https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q='+encodeURIComponent(c.name)+'" target="_blank" rel="noopener">Open Meta Ad Library <svg width="11" height="11" fill="none" viewBox="0 0 11 11"><path d="M1 5.5h8M5.5 2l3.5 3.5L5.5 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>';
   }
   if(k==='social'){
     return ch.posts.map(function(p){return '<div class="post"><span class="pthumb"><img src="'+p.img+'" loading="lazy" onerror="this.style.display=\'none\'"></span><div style="flex:1;min-width:0"><div class="pcap">'+esc(p.cap)+'</div><div class="pmet">'+esc(p.pl)+' · '+esc(p.met)+'</div></div></div>';}).join('')
       +(ch.cadence?'<div class="note">'+esc(ch.cadence)+'</div>':'');
   }
   if(k==='website'){
-    return ch.changes.map(function(d){return '<div class="drow"><span class="dmark '+d.m+'">'+(d.m==='up'?'↑':d.m==='new'?'+':'!')+'</span><div><div class="ds">'+esc(d.s)+'</div><div class="dd">'+d.d+'</div></div></div>';}).join('');
+    var st=ch.stats?'<div class="wstats">'+esc(ch.stats)+'</div>':'';
+    return st+ch.changes.map(function(d){return '<div class="drow"><span class="dmark '+d.m+'">'+(d.m==='up'?'↑':d.m==='new'?'+':'!')+'</span><div><div class="ds">'+esc(d.s)+'</div><div class="dd">'+d.d+'</div></div></div>';}).join('');
   }
   if(k==='email'){
     return ch.emails.map(function(m){return '<div class="mailr"><span class="mic">@</span><div style="flex:1;min-width:0"><div class="pcap">'+esc(m.sub)+'</div><div class="pmet">'+esc(m.t)+'</div></div></div>';}).join('')
@@ -328,19 +313,64 @@ function channel(k,c){
   var def=CH.find(function(x){return x.k===k;});
   var ch=c.channels[k];
   var on=ch&&ch.active;
+  var inactive=c.live?'available with full monitoring':(c.demo?'no change':'begins within 24 hours');
   var right=on?'<span class="chan-sum">'+ch.summary+'</span><svg class="chev" width="13" height="13" fill="none" viewBox="0 0 13 13"><path d="M3.5 5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-    :'<span class="chan-sum q">'+(c.demo?'no change':'begins within 24 hours')+'</span>';
+    :'<span class="chan-sum q">'+inactive+'</span>';
   var head='<button class="chan-head"'+(on?' onclick="tog(this)"':'')+'><span class="chan-name">'+def.label+'</span>'+right+'</button>';
   var body=on?'<div class="chan-body">'+chanDetail(k,ch,c)+'</div>':'';
   return '<div class="chan'+(on?' on':'')+'">'+head+body+'</div>';
 }
 function tog(btn){btn.parentNode.classList.toggle('open');}
 
+/* ── best-effort live refresh (graceful: keeps captured data if it can't fetch) ── */
+function summarize(products){
+  var min=Infinity,max=0,onSale=0;
+  products.forEach(function(p){(p.variants||[]).forEach(function(v){
+    var price=parseFloat(v.price); if(!isNaN(price)){if(price<min)min=price;if(price>max)max=price;}
+    var cap=parseFloat(v.compare_at_price); if(!isNaN(cap)&&cap>price)onSale++;
+  });});
+  return {products:products.length,onSale:onSale,min:(min===Infinity?0:min),max:max};
+}
+function tryFetch(u){
+  return new Promise(function(res){
+    var done=false,to=setTimeout(function(){if(!done){done=true;res(null);}},9000);
+    fetch(u).then(function(r){return (r&&r.ok)?r.json():null;}).then(function(j){
+      if(done)return;done=true;clearTimeout(to);res((j&&j.products&&j.products.length)?j.products:null);
+    }).catch(function(){if(done)return;done=true;clearTimeout(to);res(null);});
+  });
+}
+function refreshLive(c){
+  var path=c.host+'/products.json?limit=250';
+  var urls=['https://'+path,'https://corsproxy.io/?url='+encodeURIComponent('https://'+path),'https://api.allorigins.win/raw?url='+encodeURIComponent('https://'+path)];
+  return urls.reduce(function(chain,u){return chain.then(function(prev){return prev?prev:tryFetch(u);});},Promise.resolve(null))
+    .then(function(products){return products?summarize(products):null;});
+}
+function applyLive(c,s){
+  var el=document.getElementById('lr-'+c.id);
+  if(!el||!s)return;
+  var diff='';
+  if(c.base&&typeof s.onSale==='number'){
+    var d=s.onSale-c.base.onSale;
+    if(d>=2)diff=' · ↑'+d+' more on sale';
+    else if(d<=-2)diff=' · ↓'+Math.abs(d)+' fewer on sale';
+  }
+  el.innerHTML=' · <span style="color:var(--quiet)">re-checked live just now'+diff+'</span>';
+}
+function ensureLive(c){
+  if(!c||!c.live)return;
+  if(liveCache.hasOwnProperty(c.id)){applyLive(c,liveCache[c.id]);return;}
+  refreshLive(c).then(function(s){liveCache[c.id]=s;applyLive(c,s);});
+}
+
 function report(c){
   var p=c.demo?c.priority:'setup';
   var back='<button class="back-btn" onclick="back()"><svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Watchlist</button>';
+  var meta;
+  if(c.live){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Live data · captured '+esc(c.captured)+'</span><span class="lr" id="lr-'+c.id+'"></span>';}
+  else if(c.demo){meta=esc(c.host)+' · scanned '+ago(c.updatedAt)+' ago';}
+  else{meta=esc(c.host);}
   var head=back+BOTANICAL+'<div class="rep-head"><span class="rep-badge">'+badge(c)+'</span>'
-    +'<div><div class="rep-name">'+esc(c.name)+'</div><div class="rep-meta">'+esc(c.host)+(c.demo?' · scanned '+ago(c.updatedAt)+' ago':'')+'</div></div>'
+    +'<div><div class="rep-name">'+esc(c.name)+'</div><div class="rep-meta">'+meta+'</div></div>'
     +'<div class="rep-status"><span class="s '+p+'"><span class="stat-dot bg-'+p+'"></span>'+PRIO[p].l+'</span></div></div>';
 
   if(!c.demo){
@@ -365,7 +395,9 @@ function render(){
   }
   if(!state.sel||!list.some(function(c){return c.id===state.sel;}))state.sel=list[0].id;
   document.getElementById('railList').innerHTML=list.map(railRow).join('');
-  document.getElementById('detail').innerHTML=report(list.find(function(c){return c.id===state.sel;}));
+  var cur=list.find(function(c){return c.id===state.sel;});
+  document.getElementById('detail').innerHTML=report(cur);
+  ensureLive(cur);
   setDate();
 }
 function setDate(){var d=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];document.getElementById('topDate').textContent=days[d.getDay()]+' '+String(d.getDate()).padStart(2,'0')+' '+mo[d.getMonth()]+' '+d.getFullYear();}
