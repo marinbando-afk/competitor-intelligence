@@ -93,9 +93,10 @@ app.delete('/api/competitors/:id', requireAuth, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-initSchema()
-  .then(() => app.listen(PORT, () => console.log(`✓ API listening on :${PORT}`)))
-  .catch((err) => {
-    console.error('DB init failed:', err.message);
-    process.exit(1);
-  });
+function start() { app.listen(PORT, () => console.log('✓ API listening on :' + PORT)); }
+// Start the server no matter what — if the DB isn't wired yet, accounts are
+// disabled but the ads endpoint still works.
+initSchema().then(start).catch((err) => {
+  console.warn('DB not ready — accounts disabled, ads still work:', err.message);
+  start();
+});
