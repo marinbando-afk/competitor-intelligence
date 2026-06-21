@@ -7,14 +7,14 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script>
 tailwind.config = {
   theme: {
     extend: {
       fontFamily: {
         sans: ['Inter','sans-serif'],
-        display: ['"Plus Jakarta Sans"','sans-serif'],
+        display: ['"Fraunces"','sans-serif'],
       }
     }
   }
@@ -22,18 +22,18 @@ tailwind.config = {
 </script>
 <style>
 :root {
-  --bg:       #03030a;
-  --bg2:      #070712;
-  --surface:  #0d0d1f;
-  --surface2: #12122a;
-  --border:   rgba(255,255,255,0.07);
-  --border2:  rgba(255,255,255,0.12);
-  --accent:   #5b6ef5;
-  --accent2:  #7b89ff;
-  --cyan:     #00c2ff;
-  --text:     #e8e8f2;
-  --muted:    #5a5a7a;
-  --muted2:   #8888aa;
+  --bg:       #0b1311;
+  --bg2:      #0f1815;
+  --surface:  #121d18;
+  --surface2: #19251f;
+  --border:   rgba(210,228,220,0.085);
+  --border2:  rgba(210,228,220,0.15);
+  --accent:   #8cb8a6;
+  --accent2:  #6f9e8b;
+  --cyan:     #97b1bd;
+  --text:     #e6ece9;
+  --muted:    #5e6c67;
+  --muted2:   #93a39e;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -57,18 +57,18 @@ body::before {
 }
 
 /* ── Typography ── */
-.font-display { font-family: 'Plus Jakarta Sans', sans-serif; }
+.font-display { font-family: 'Fraunces', sans-serif; }
 
 .text-grad {
-  background: linear-gradient(125deg, #fff 0%, #a5b4fc 55%, #7b89ff 100%);
+  background: linear-gradient(125deg, #fff 0%, #a9cabd 55%, #6f9e8b 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
 .text-grad-cyan {
-  background: linear-gradient(125deg, #fff 0%, #67e8f9 50%, #00c2ff 100%);
+  background: linear-gradient(125deg, #fff 0%, #97b1bd 50%, #97b1bd 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
 .text-grad-fire {
-  background: linear-gradient(125deg, #fde68a 0%, #fb923c 50%, #f43f5e 100%);
+  background: linear-gradient(125deg, #e3c0a0 0%, #d2936f 50%, #c8806f 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
 
@@ -80,10 +80,10 @@ body::before {
   border: 1px solid var(--border);
 }
 .glass-strong {
-  background: rgba(91,110,245,0.06);
+  background: rgba(140,184,166,0.06);
   backdrop-filter: blur(32px);
   -webkit-backdrop-filter: blur(32px);
-  border: 1px solid rgba(91,110,245,0.2);
+  border: 1px solid rgba(140,184,166,0.2);
 }
 
 /* ── Glow orbs ── */
@@ -101,8 +101,8 @@ body::before {
 
 /* ── Buttons ── */
 .btn-primary {
-  background: linear-gradient(135deg, #5b6ef5, #7b89ff);
-  box-shadow: 0 0 0 1px rgba(91,110,245,0.4), 0 8px 32px rgba(91,110,245,0.3);
+  background: linear-gradient(135deg, #8cb8a6, #6f9e8b);
+  box-shadow: 0 0 0 1px rgba(140,184,166,0.4), 0 8px 32px rgba(140,184,166,0.3);
   transition: all .22s ease;
   position:relative; overflow:hidden;
 }
@@ -113,7 +113,7 @@ body::before {
 }
 .btn-primary:hover::before { opacity:1; }
 .btn-primary:hover {
-  box-shadow: 0 0 0 1px rgba(91,110,245,0.6), 0 12px 40px rgba(91,110,245,0.45);
+  box-shadow: 0 0 0 1px rgba(140,184,166,0.6), 0 12px 40px rgba(140,184,166,0.45);
   transform: translateY(-1px);
 }
 
@@ -131,9 +131,9 @@ body::before {
 /* ── Tags ── */
 .tag {
   display: inline-flex; align-items: center; gap: 6px;
-  background: rgba(91,110,245,0.1);
-  border: 1px solid rgba(91,110,245,0.25);
-  color: #a5b4fc;
+  background: rgba(140,184,166,0.1);
+  border: 1px solid rgba(140,184,166,0.25);
+  color: #a9cabd;
   font-size: 11px; font-weight: 600; letter-spacing:.06em;
   padding: 4px 12px; border-radius: 999px; text-transform:uppercase;
 }
@@ -146,15 +146,15 @@ body::before {
   transition: all .3s ease;
 }
 .card:hover {
-  border-color: rgba(91,110,245,0.3);
-  box-shadow: 0 16px 48px rgba(0,0,0,.5), 0 0 0 1px rgba(91,110,245,0.1);
+  border-color: rgba(140,184,166,0.3);
+  box-shadow: 0 16px 48px rgba(0,0,0,.5), 0 0 0 1px rgba(140,184,166,0.1);
   transform: translateY(-3px);
 }
 
 /* ── Dashboard shell ── */
 .dash {
   background: linear-gradient(160deg, #09091a 0%, #0b0b20 100%);
-  border: 1px solid rgba(91,110,245,0.18);
+  border: 1px solid rgba(140,184,166,0.18);
   border-radius: 20px;
   box-shadow: 0 40px 100px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.04);
 }
@@ -170,8 +170,8 @@ body::before {
 
 /* ── Insight box ── */
 .insight {
-  background: rgba(91,110,245,0.07);
-  border: 1px solid rgba(91,110,245,0.18);
+  background: rgba(140,184,166,0.07);
+  border: 1px solid rgba(140,184,166,0.18);
   border-left: 2px solid var(--accent2);
   border-radius: 12px;
 }
@@ -184,8 +184,8 @@ body::before {
 /* ── Grid lines ── */
 .gridlines {
   background-image:
-    linear-gradient(rgba(91,110,245,.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(91,110,245,.04) 1px, transparent 1px);
+    linear-gradient(rgba(140,184,166,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(140,184,166,.04) 1px, transparent 1px);
   background-size: 72px 72px;
 }
 
@@ -195,7 +195,7 @@ body::before {
   border: 1px solid rgba(255,255,255,0.07);
   transition: all .25s ease;
 }
-.ad-card:hover { transform:translateY(-4px); border-color:rgba(91,110,245,.5); box-shadow:0 12px 40px rgba(91,110,245,.2); }
+.ad-card:hover { transform:translateY(-4px); border-color:rgba(140,184,166,.5); box-shadow:0 12px 40px rgba(140,184,166,.2); }
 .ad-card:hover .ad-hover { opacity:1; }
 .ad-hover { position:absolute;inset:0;background:rgba(3,3,10,.8);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;opacity:0;transition:opacity .2s; }
 .ad-face { width:100%;aspect-ratio:4/5;display:flex;align-items:center;justify-content:center;padding:10px;position:relative; }
@@ -203,23 +203,23 @@ body::before {
 .ad-chip { position:absolute;z-index:2;font-size:9px;font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:999px; }
 
 /* ── BA slider ── */
-.ba-wrap { position:relative;overflow:hidden;border-radius:12px;cursor:col-resize;user-select:none; border:1px solid rgba(91,110,245,.2); }
+.ba-wrap { position:relative;overflow:hidden;border-radius:12px;cursor:col-resize;user-select:none; border:1px solid rgba(140,184,166,.2); }
 .ba-after { position:relative;width:100%; }
-.ba-before { position:absolute;top:0;left:0;height:100%;overflow:hidden;border-right:2px solid #7b89ff; }
+.ba-before { position:absolute;top:0;left:0;height:100%;overflow:hidden;border-right:2px solid #6f9e8b; }
 .ba-before svg,.ba-after svg { display:block;width:100%; }
 .ba-handle-wrap { position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;width:40px;margin-left:-20px;z-index:10;pointer-events:none; }
-.ba-knob { width:36px;height:36px;border-radius:50%;background:var(--accent2);border:3px solid white;box-shadow:0 2px 16px rgba(91,110,245,.6);display:flex;align-items:center;justify-content:center; }
+.ba-knob { width:36px;height:36px;border-radius:50%;background:var(--accent2);border:3px solid white;box-shadow:0 2px 16px rgba(140,184,166,.6);display:flex;align-items:center;justify-content:center; }
 .ba-lbl { position:absolute;top:10px;z-index:5;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;pointer-events:none; }
 
 /* ── Pricing ── */
 .price-popular {
-  background: linear-gradient(160deg, rgba(91,110,245,.12), rgba(123,137,255,.06));
-  border: 1px solid rgba(91,110,245,.4);
-  box-shadow: 0 0 60px rgba(91,110,245,.1);
+  background: linear-gradient(160deg, rgba(140,184,166,.12), rgba(111,158,139,.06));
+  border: 1px solid rgba(140,184,166,.4);
+  box-shadow: 0 0 60px rgba(140,184,166,.1);
 }
 
 /* ── scrollbar ── */
-::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:rgba(91,110,245,.3);border-radius:3px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:rgba(140,184,166,.3);border-radius:3px}
 
 /* ── check ── */
 .chk { width:20px;height:20px;min-width:20px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.28);border-radius:50%;display:flex;align-items:center;justify-content:center; }
@@ -227,19 +227,19 @@ body::before {
 /* ── "They are spying" section ── */
 .spy-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:rgba(255,255,255,.05); }
 .spy-cell { background:var(--bg); padding:28px 24px; transition:background .3s; }
-.spy-cell:hover { background:rgba(91,110,245,.05); }
+.spy-cell:hover { background:rgba(140,184,166,.05); }
 
 /* ── Report mock ── */
 .report-shell {
   background: linear-gradient(160deg, #08081a, #0c0c22);
-  border: 1px solid rgba(91,110,245,.22);
+  border: 1px solid rgba(140,184,166,.22);
   border-radius: 20px;
   box-shadow: 0 48px 120px rgba(0,0,0,.75);
 }
 
 /* ── number stat ── */
 .stat-num {
-  font-family:'Plus Jakarta Sans',sans-serif;
+  font-family:'Fraunces',sans-serif;
   font-size:3.5rem;
   font-weight:800;
   line-height:1;
@@ -255,7 +255,7 @@ body::before {
 <nav class="nav-glass fixed top-0 inset-x-0 z-50">
   <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#5b6ef5,#00c2ff);box-shadow:0 0 16px rgba(91,110,245,.4)">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#8cb8a6,#97b1bd);box-shadow:0 0 16px rgba(140,184,166,.4)">
         <svg width="14" height="14" fill="none" viewBox="0 0 14 14"><circle cx="7" cy="7" r="2.5" fill="white"/><circle cx="7" cy="7" r="6" stroke="white" stroke-width="1.2" stroke-dasharray="2 2"/></svg>
       </div>
       <span class="font-display font-bold text-white text-[15px] tracking-tight">IntelAI</span>
@@ -278,9 +278,9 @@ body::before {
 ════════════════════════════════════════════════════════ -->
 <section class="relative min-h-screen flex flex-col items-center justify-center pt-28 pb-20 overflow-hidden">
   <!-- orbs -->
-  <div class="orb w-[700px] h-[400px] top-[-100px] left-[50%] -translate-x-1/2" style="background:radial-gradient(ellipse,#5b6ef5,transparent);opacity:.22;filter:blur(120px)"></div>
-  <div class="orb w-[400px] h-[300px] bottom-0 left-[10%]" style="background:radial-gradient(ellipse,#00c2ff,transparent);opacity:.12;filter:blur(100px)"></div>
-  <div class="orb w-[300px] h-[300px] bottom-[10%] right-[5%]" style="background:radial-gradient(ellipse,#7c3aed,transparent);opacity:.1;filter:blur(80px)"></div>
+  <div class="orb w-[700px] h-[400px] top-[-100px] left-[50%] -translate-x-1/2" style="background:radial-gradient(ellipse,#8cb8a6,transparent);opacity:.22;filter:blur(120px)"></div>
+  <div class="orb w-[400px] h-[300px] bottom-0 left-[10%]" style="background:radial-gradient(ellipse,#97b1bd,transparent);opacity:.12;filter:blur(100px)"></div>
+  <div class="orb w-[300px] h-[300px] bottom-[10%] right-[5%]" style="background:radial-gradient(ellipse,#6f9e8b,transparent);opacity:.1;filter:blur(80px)"></div>
   <div class="absolute inset-0 gridlines opacity-60 pointer-events-none"></div>
 
   <div class="relative z-10 max-w-7xl mx-auto px-6 text-center">
@@ -352,10 +352,10 @@ body::before {
           </div>
 
           <!-- The Oodie card -->
-          <div class="rounded-2xl p-5 mb-4" style="background:rgba(91,110,245,.06);border:1px solid rgba(91,110,245,.22);box-shadow:0 0 40px rgba(91,110,245,.08)">
+          <div class="rounded-2xl p-5 mb-4" style="background:rgba(140,184,166,.06);border:1px solid rgba(140,184,166,.22);box-shadow:0 0 40px rgba(140,184,166,.08)">
             <div class="flex items-start justify-between mb-4">
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-sm" style="background:linear-gradient(135deg,#f97316,#ef4444)">O</div>
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-sm" style="background:linear-gradient(135deg,#cf9670,#c8806f)">O</div>
                 <div>
                   <div class="font-semibold text-white text-sm">The Oodie</div>
                   <div class="text-xs mt-0.5" style="color:var(--muted)">theoodie.com</div>
@@ -371,13 +371,13 @@ body::before {
                 <div class="text-2xl font-bold font-display text-white">7</div>
                 <div class="text-xs mt-0.5" style="color:var(--muted)">Meta + TikTok</div>
               </div>
-              <div class="rounded-xl p-3" style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.18)">
-                <div class="text-xs font-semibold mb-1" style="color:#f87171">Discount</div>
+              <div class="rounded-xl p-3" style="background:rgba(200,128,111,.07);border:1px solid rgba(200,128,111,.18)">
+                <div class="text-xs font-semibold mb-1" style="color:#d29683">Discount</div>
                 <div class="text-lg font-bold font-display text-white leading-tight">20%→30%</div>
                 <div class="text-xs mt-0.5" style="color:var(--muted)">Sitewide</div>
               </div>
               <div class="rounded-xl p-3" style="background:rgba(0,194,255,.07);border:1px solid rgba(0,194,255,.18)">
-                <div class="text-xs font-semibold mb-1" style="color:#67e8f9">New Page</div>
+                <div class="text-xs font-semibold mb-1" style="color:#97b1bd">New Page</div>
                 <div class="text-2xl font-bold font-display text-white">1</div>
                 <div class="text-xs mt-0.5" style="color:var(--muted)">Advertorial</div>
               </div>
@@ -388,18 +388,18 @@ body::before {
               <div class="flex items-center justify-between mb-2">
                 <div class="text-xs font-medium" style="color:var(--muted)">New ad creatives</div>
                 <a href="https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=AU&q=the+oodie" target="_blank" rel="noopener"
-                   class="text-xs flex items-center gap-1 transition-colors" style="color:#a5b4fc;" onmouseover="this.style.color='#c7d2fe'" onmouseout="this.style.color='#a5b4fc'">
+                   class="text-xs flex items-center gap-1 transition-colors" style="color:#a9cabd;" onmouseover="this.style.color='#c2dbd0'" onmouseout="this.style.color='#a9cabd'">
                   Meta Ad Library →
                 </a>
               </div>
               <div class="flex gap-2 overflow-x-auto pb-1" style="scrollbar-width:none">
-                <div class="rounded-lg flex-shrink-0 relative overflow-hidden" style="width:54px;height:68px;background:linear-gradient(145deg,#1a0533,#2d0a5e);border:1px solid rgba(91,110,245,.25)">
+                <div class="rounded-lg flex-shrink-0 relative overflow-hidden" style="width:54px;height:68px;background:linear-gradient(145deg,#1a0533,#2d0a5e);border:1px solid rgba(140,184,166,.25)">
                   <div style="position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:6px;color:#c4b5fd;font-weight:700;padding:0 3px;line-height:1.3;z-index:1">"Stay warm all winter"</div>
-                  <div style="position:absolute;top:5px;left:5px;background:#5b6ef5;color:white;font-size:7px;font-weight:700;padding:1px 5px;border-radius:999px;z-index:2">New</div>
+                  <div style="position:absolute;top:5px;left:5px;background:#8cb8a6;color:white;font-size:7px;font-weight:700;padding:1px 5px;border-radius:999px;z-index:2">New</div>
                 </div>
                 <div class="rounded-lg flex-shrink-0 relative overflow-hidden" style="width:54px;height:68px;background:linear-gradient(145deg,#001a0f,#003918);border:1px solid rgba(74,222,128,.2)">
                   <div style="position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:6px;color:#4ade80;font-weight:700;padding:0 3px;line-height:1.3;z-index:1">"30% Off Today"</div>
-                  <div style="position:absolute;top:5px;left:5px;background:#5b6ef5;color:white;font-size:7px;font-weight:700;padding:1px 5px;border-radius:999px;z-index:2">New</div>
+                  <div style="position:absolute;top:5px;left:5px;background:#8cb8a6;color:white;font-size:7px;font-weight:700;padding:1px 5px;border-radius:999px;z-index:2">New</div>
                 </div>
                 <div class="rounded-lg flex-shrink-0 relative overflow-hidden" style="width:54px;height:68px;background:linear-gradient(145deg,#1a001a,#30003a);border:1px solid rgba(232,121,249,.2)">
                   <div style="position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:6px;color:#e879f9;font-weight:700;padding:0 3px;line-height:1.3;z-index:1">"POV: my Oodie 🧸"</div>
@@ -407,10 +407,10 @@ body::before {
                 </div>
                 <div class="rounded-lg flex-shrink-0 relative overflow-hidden" style="width:54px;height:68px;background:linear-gradient(145deg,#0a1a2e,#0a2848);border:1px solid rgba(96,165,250,.2)">
                   <div style="position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:6px;color:#93c5fd;font-weight:700;padding:0 3px;line-height:1.3;z-index:1">"Gift guide ✓"</div>
-                  <div style="position:absolute;top:5px;left:5px;background:#5b6ef5;color:white;font-size:7px;font-weight:700;padding:1px 5px;border-radius:999px;z-index:2">New</div>
+                  <div style="position:absolute;top:5px;left:5px;background:#8cb8a6;color:white;font-size:7px;font-weight:700;padding:1px 5px;border-radius:999px;z-index:2">New</div>
                 </div>
-                <div class="rounded-lg flex-shrink-0 flex items-center justify-center" style="width:54px;height:68px;background:rgba(91,110,245,.08);border:1px solid rgba(91,110,245,.18)">
-                  <span class="text-xs font-bold" style="color:#a5b4fc">+3</span>
+                <div class="rounded-lg flex-shrink-0 flex items-center justify-center" style="width:54px;height:68px;background:rgba(140,184,166,.08);border:1px solid rgba(140,184,166,.18)">
+                  <span class="text-xs font-bold" style="color:#a9cabd">+3</span>
                 </div>
               </div>
             </div>
@@ -418,11 +418,11 @@ body::before {
             <!-- AI rec -->
             <div class="insight p-4 rounded-xl">
               <div class="flex items-start gap-3">
-                <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style="background:linear-gradient(135deg,#5b6ef5,#7b89ff)">
+                <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style="background:linear-gradient(135deg,#8cb8a6,#6f9e8b)">
                   <svg width="12" height="12" fill="none" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" stroke="white" stroke-width="1.2"/><path d="M6 4v3l2 1.5" stroke="white" stroke-width="1.2" stroke-linecap="round"/></svg>
                 </div>
                 <div>
-                  <div class="text-[10px] font-bold uppercase tracking-widest mb-1.5" style="color:#a5b4fc">AI Recommendation</div>
+                  <div class="text-[10px] font-bold uppercase tracking-widest mb-1.5" style="color:#a9cabd">AI Recommendation</div>
                   <p class="text-sm leading-relaxed" style="color:#c8c8e0">"Likely aggressive acquisition push ahead of seasonal demand. Discount + volume signal scaling intent. <span class="text-white font-medium">Consider testing a stronger bundle offer this week</span> to protect market share."</p>
                 </div>
               </div>
@@ -433,7 +433,7 @@ body::before {
           <div class="space-y-2">
             <div class="rounded-xl px-4 py-3 flex items-center justify-between" style="background:rgba(255,255,255,.025);border:1px solid var(--border)">
               <div class="flex items-center gap-3">
-                <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white" style="background:linear-gradient(135deg,#3b82f6,#6366f1)">TC</div>
+                <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white" style="background:linear-gradient(135deg,#6f9e8b,#6f9e8b)">TC</div>
                 <div>
                   <div class="text-sm font-medium text-white">True Classic</div>
                   <div class="text-xs" style="color:var(--muted)">9 new ads · Advertorial page detected</div>
@@ -485,11 +485,11 @@ body::before {
      "THEY ARE SPYING ON YOU, TOO."
 ════════════════════════════════════════════════════════ -->
 <section class="relative py-32 overflow-hidden" id="spy">
-  <div class="orb w-[600px] h-[400px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="background:radial-gradient(ellipse,#ef4444,transparent);opacity:.08;filter:blur(100px)"></div>
+  <div class="orb w-[600px] h-[400px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="background:radial-gradient(ellipse,#c8806f,transparent);opacity:.08;filter:blur(100px)"></div>
 
   <div class="relative z-10 max-w-5xl mx-auto px-6 text-center">
-    <div class="inline-flex items-center gap-2 tag mb-8 reveal" style="background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.25);color:#fca5a5">
-      <svg width="10" height="10" viewBox="0 0 10 10" fill="#f87171"><circle cx="5" cy="5" r="4.5"/></svg>
+    <div class="inline-flex items-center gap-2 tag mb-8 reveal" style="background:rgba(200,128,111,.1);border-color:rgba(200,128,111,.25);color:#d6a99b">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="#d29683"><circle cx="5" cy="5" r="4.5"/></svg>
       The reality
     </div>
 
@@ -506,22 +506,22 @@ body::before {
     <!-- 3-col spy tactics -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-px reveal d2" style="background:rgba(255,255,255,.06);border-radius:16px;overflow:hidden">
       <div class="p-8 text-left" style="background:var(--bg2)">
-        <div class="w-10 h-10 rounded-xl mb-5 flex items-center justify-center" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2)">
-          <svg width="18" height="18" fill="none" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7.5" stroke="#f87171" stroke-width="1.3"/><circle cx="9" cy="9" r="3.5" stroke="#f87171" stroke-width="1.3"/><circle cx="9" cy="9" r=".8" fill="#f87171"/></svg>
+        <div class="w-10 h-10 rounded-xl mb-5 flex items-center justify-center" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.2)">
+          <svg width="18" height="18" fill="none" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7.5" stroke="#d29683" stroke-width="1.3"/><circle cx="9" cy="9" r="3.5" stroke="#d29683" stroke-width="1.3"/><circle cx="9" cy="9" r=".8" fill="#d29683"/></svg>
         </div>
         <div class="font-display font-bold text-white text-lg mb-2">They watch your ads</div>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">Your Meta and TikTok creatives are publicly visible. Competitors track your new launches, angles, and hooks the same day they go live.</p>
       </div>
       <div class="p-8 text-left" style="background:var(--bg2)">
-        <div class="w-10 h-10 rounded-xl mb-5 flex items-center justify-center" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2)">
-          <svg width="18" height="18" fill="none" viewBox="0 0 18 18"><rect x="1.5" y="2" width="15" height="14" rx="2.5" stroke="#f87171" stroke-width="1.3"/><path d="M5 7h8M5 10.5h5" stroke="#f87171" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <div class="w-10 h-10 rounded-xl mb-5 flex items-center justify-center" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.2)">
+          <svg width="18" height="18" fill="none" viewBox="0 0 18 18"><rect x="1.5" y="2" width="15" height="14" rx="2.5" stroke="#d29683" stroke-width="1.3"/><path d="M5 7h8M5 10.5h5" stroke="#d29683" stroke-width="1.3" stroke-linecap="round"/></svg>
         </div>
         <div class="font-display font-bold text-white text-lg mb-2">They scrape your pages</div>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">Every price change, new guarantee, and updated headline you ship is crawled and logged. Your CRO tests are visible before they scale.</p>
       </div>
       <div class="p-8 text-left" style="background:var(--bg2)">
-        <div class="w-10 h-10 rounded-xl mb-5 flex items-center justify-center" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2)">
-          <svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path d="M2 5h14a1.5 1.5 0 011.5 1.5v8A1.5 1.5 0 0116 16H2a1.5 1.5 0 01-1.5-1.5v-8A1.5 1.5 0 012 5z" stroke="#f87171" stroke-width="1.3"/><path d="M1.5 6l7.5 5 7.5-5" stroke="#f87171" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <div class="w-10 h-10 rounded-xl mb-5 flex items-center justify-center" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.2)">
+          <svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path d="M2 5h14a1.5 1.5 0 011.5 1.5v8A1.5 1.5 0 0116 16H2a1.5 1.5 0 01-1.5-1.5v-8A1.5 1.5 0 012 5z" stroke="#d29683" stroke-width="1.3"/><path d="M1.5 6l7.5 5 7.5-5" stroke="#d29683" stroke-width="1.3" stroke-linecap="round"/></svg>
         </div>
         <div class="font-display font-bold text-white text-lg mb-2">They read your emails</div>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">They subscribe to your list and monitor every campaign. Your promotions, launch timing, and discount strategy are all visible to them.</p>
@@ -556,49 +556,49 @@ body::before {
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
-      <div class="card p-6 reveal" style="background:rgba(239,68,68,.03);border-color:rgba(239,68,68,.1)">
-        <div class="w-10 h-10 rounded-xl mb-4 flex items-center justify-center" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.18)">
-          <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-5v-4m0 6h.01" stroke="#f87171" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <div class="card p-6 reveal" style="background:rgba(200,128,111,.03);border-color:rgba(200,128,111,.1)">
+        <div class="w-10 h-10 rounded-xl mb-4 flex items-center justify-center" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.18)">
+          <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-5v-4m0 6h.01" stroke="#d29683" stroke-width="1.4" stroke-linecap="round"/></svg>
         </div>
         <h3 class="font-display font-semibold text-white mb-2">Missed competitor promotions</h3>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">You find out a competitor ran a 40% off sale only after your own conversion rate dropped.</p>
       </div>
 
-      <div class="card p-6 reveal d1" style="background:rgba(239,68,68,.03);border-color:rgba(239,68,68,.1)">
-        <div class="w-10 h-10 rounded-xl mb-4 flex items-center justify-center" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.18)">
-          <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><path d="M3 10h2m12 0h-2M10 3v2m0 12v-2M5.22 5.22l1.42 1.42m7.14 7.14 1.42 1.42" stroke="#f87171" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <div class="card p-6 reveal d1" style="background:rgba(200,128,111,.03);border-color:rgba(200,128,111,.1)">
+        <div class="w-10 h-10 rounded-xl mb-4 flex items-center justify-center" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.18)">
+          <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><path d="M3 10h2m12 0h-2M10 3v2m0 12v-2M5.22 5.22l1.42 1.42m7.14 7.14 1.42 1.42" stroke="#d29683" stroke-width="1.4" stroke-linecap="round"/></svg>
         </div>
         <h3 class="font-display font-semibold text-white mb-2">No visibility into new ad angles</h3>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">Competitor launches 20 new creatives. You don't see it until it's already winning the auction.</p>
       </div>
 
-      <div class="card p-6 reveal d2" style="background:rgba(239,68,68,.03);border-color:rgba(239,68,68,.1)">
-        <div class="w-10 h-10 rounded-xl mb-4 flex items-center justify-center" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.18)">
-          <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><path d="M2 17l5-5 4 4 7-9" stroke="#f87171" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="card p-6 reveal d2" style="background:rgba(200,128,111,.03);border-color:rgba(200,128,111,.1)">
+        <div class="w-10 h-10 rounded-xl mb-4 flex items-center justify-center" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.18)">
+          <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><path d="M2 17l5-5 4 4 7-9" stroke="#d29683" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <h3 class="font-display font-semibold text-white mb-2">Landing page changes missed</h3>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">A competitor rebuilds their PDP with a new guarantee and comparison table. You notice weeks later.</p>
       </div>
 
-      <div class="card p-6 reveal d1" style="background:rgba(239,68,68,.03);border-color:rgba(239,68,68,.1)">
-        <div class="w-10 h-10 rounded-xl mb-4 flex items-center justify-center" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.18)">
-          <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><rect x="2" y="3" width="16" height="14" rx="2" stroke="#f87171" stroke-width="1.4"/><path d="M6 8h8M6 12h5" stroke="#f87171" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <div class="card p-6 reveal d1" style="background:rgba(200,128,111,.03);border-color:rgba(200,128,111,.1)">
+        <div class="w-10 h-10 rounded-xl mb-4 flex items-center justify-center" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.18)">
+          <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><rect x="2" y="3" width="16" height="14" rx="2" stroke="#d29683" stroke-width="1.4"/><path d="M6 8h8M6 12h5" stroke="#d29683" stroke-width="1.4" stroke-linecap="round"/></svg>
         </div>
         <h3 class="font-display font-semibold text-white mb-2">Manual screenshots &amp; spreadsheets</h3>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">Your team spends hours each week logging changes — time that should go toward strategy.</p>
       </div>
 
-      <div class="card p-6 reveal d2" style="background:rgba(239,68,68,.03);border-color:rgba(239,68,68,.1)">
-        <div class="w-10 h-10 rounded-xl mb-4 flex items-center justify-center" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.18)">
-          <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="#f87171" stroke-width="1.4"/><path d="M10 6v4l2.5 2" stroke="#f87171" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <div class="card p-6 reveal d2" style="background:rgba(200,128,111,.03);border-color:rgba(200,128,111,.1)">
+        <div class="w-10 h-10 rounded-xl mb-4 flex items-center justify-center" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.18)">
+          <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="#d29683" stroke-width="1.4"/><path d="M10 6v4l2.5 2" stroke="#d29683" stroke-width="1.4" stroke-linecap="round"/></svg>
         </div>
         <h3 class="font-display font-semibold text-white mb-2">No strategic context</h3>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">Even when you spot a change, there's no interpretation. A new ad — but what does it actually signal?</p>
       </div>
 
-      <div class="card p-6 reveal d3" style="background:rgba(239,68,68,.03);border-color:rgba(239,68,68,.1)">
-        <div class="w-10 h-10 rounded-xl mb-4 flex items-center justify-center" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.18)">
-          <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><path d="M4 10h12M10 4l6 6-6 6" stroke="#f87171" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="card p-6 reveal d3" style="background:rgba(200,128,111,.03);border-color:rgba(200,128,111,.1)">
+        <div class="w-10 h-10 rounded-xl mb-4 flex items-center justify-center" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.18)">
+          <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><path d="M4 10h12M10 4l6 6-6 6" stroke="#d29683" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <h3 class="font-display font-semibold text-white mb-2">Always reacting, never anticipating</h3>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">By the time you respond to a competitor move, the window to act has already closed.</p>
@@ -611,7 +611,7 @@ body::before {
      SOLUTION 3-CARD
 ════════════════════════════════════════════════════════ -->
 <section class="py-24 border-t relative overflow-hidden" style="border-color:var(--border)" id="features">
-  <div class="orb w-[500px] h-[400px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="background:radial-gradient(ellipse,#5b6ef5,transparent);opacity:.12;filter:blur(100px)"></div>
+  <div class="orb w-[500px] h-[400px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="background:radial-gradient(ellipse,#8cb8a6,transparent);opacity:.12;filter:blur(100px)"></div>
   <div class="relative z-10 max-w-7xl mx-auto px-6">
     <div class="text-center mb-14">
       <div class="tag mb-5 reveal">The Solution</div>
@@ -625,23 +625,23 @@ body::before {
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-5xl mx-auto">
-      <div class="card p-7 reveal" style="background:rgba(91,110,245,.05)">
-        <div class="w-11 h-11 rounded-xl mb-5 flex items-center justify-center" style="background:rgba(91,110,245,.15);border:1px solid rgba(91,110,245,.25)">
-          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="2" y="3" width="16" height="12" rx="2" stroke="#7b89ff" stroke-width="1.4"/><path d="M6 18h8M10 15v3" stroke="#7b89ff" stroke-width="1.4" stroke-linecap="round"/><path d="M5 9l2.5 2.5L11 7l4 4" stroke="#7b89ff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="card p-7 reveal" style="background:rgba(140,184,166,.05)">
+        <div class="w-11 h-11 rounded-xl mb-5 flex items-center justify-center" style="background:rgba(140,184,166,.15);border:1px solid rgba(140,184,166,.25)">
+          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="2" y="3" width="16" height="12" rx="2" stroke="#6f9e8b" stroke-width="1.4"/><path d="M6 18h8M10 15v3" stroke="#6f9e8b" stroke-width="1.4" stroke-linecap="round"/><path d="M5 9l2.5 2.5L11 7l4 4" stroke="#6f9e8b" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <h3 class="font-display font-bold text-white text-lg mb-2">Ads Intelligence</h3>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">Every new creative, hook, format, creator, and messaging angle across Meta and TikTok — tracked in real time.</p>
       </div>
       <div class="card p-7 reveal d1" style="background:rgba(0,194,255,.04);border-color:rgba(0,194,255,.14)">
         <div class="w-11 h-11 rounded-xl mb-5 flex items-center justify-center" style="background:rgba(0,194,255,.12);border:1px solid rgba(0,194,255,.2)">
-          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="2" y="2" width="16" height="16" rx="3" stroke="#00c2ff" stroke-width="1.4"/><path d="M5 7h10M5 11h6M5 15h8" stroke="#00c2ff" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="2" y="2" width="16" height="16" rx="3" stroke="#97b1bd" stroke-width="1.4"/><path d="M5 7h10M5 11h6M5 15h8" stroke="#97b1bd" stroke-width="1.4" stroke-linecap="round"/></svg>
         </div>
         <h3 class="font-display font-bold text-white text-lg mb-2">Page Intelligence</h3>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">Homepage updates, PDP changes, new testimonials, guarantees, comparison tables, and pricing shifts — detected automatically.</p>
       </div>
       <div class="card p-7 reveal d2" style="background:rgba(244,63,94,.04);border-color:rgba(244,63,94,.14)">
         <div class="w-11 h-11 rounded-xl mb-5 flex items-center justify-center" style="background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.2)">
-          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M3 5h14a1.5 1.5 0 011.5 1.5v9A1.5 1.5 0 0117 17H3a1.5 1.5 0 01-1.5-1.5v-9A1.5 1.5 0 013 5z" stroke="#f43f5e" stroke-width="1.4"/><path d="M1.5 6l8.5 5.5L18.5 6" stroke="#f43f5e" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M3 5h14a1.5 1.5 0 011.5 1.5v9A1.5 1.5 0 0117 17H3a1.5 1.5 0 01-1.5-1.5v-9A1.5 1.5 0 013 5z" stroke="#c8806f" stroke-width="1.4"/><path d="M1.5 6l8.5 5.5L18.5 6" stroke="#c8806f" stroke-width="1.4" stroke-linecap="round"/></svg>
         </div>
         <h3 class="font-display font-bold text-white text-lg mb-2">Offer Intelligence</h3>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">Discount changes, bundle launches, flash promos, free gifts, and subscription offers — tracked the moment they go live.</p>
@@ -654,7 +654,7 @@ body::before {
      HOW IT WORKS
 ════════════════════════════════════════════════════════ -->
 <section class="py-28 border-t relative overflow-hidden" style="border-color:var(--border)" id="how">
-  <div class="orb w-[520px] h-[360px] top-0 left-1/2 -translate-x-1/2" style="background:radial-gradient(ellipse,#5b6ef5,transparent);opacity:.1;filter:blur(110px)"></div>
+  <div class="orb w-[520px] h-[360px] top-0 left-1/2 -translate-x-1/2" style="background:radial-gradient(ellipse,#8cb8a6,transparent);opacity:.1;filter:blur(110px)"></div>
   <div class="relative z-10 max-w-7xl mx-auto px-6">
     <div class="text-center mb-16">
       <div class="tag mb-5 reveal">How it works</div>
@@ -721,7 +721,7 @@ body::before {
           <!-- Ad grid -->
           <div class="grid grid-cols-3 gap-2.5 mb-4">
             <div class="ad-card">
-              <div class="ad-chip" style="top:7px;left:7px;background:#5b6ef5;color:white">New</div>
+              <div class="ad-chip" style="top:7px;left:7px;background:#8cb8a6;color:white">New</div>
               <div class="ad-chip" style="top:7px;right:7px;background:rgba(0,0,0,.55);color:white">Meta</div>
               <div class="ad-face" style="background:linear-gradient(145deg,#1a0533,#300a60)">
                 <div style="z-index:1;text-align:center;color:#c4b5fd;font-size:.6rem;font-weight:700;line-height:1.4;padding:4px">"Stay warm all winter — The Oodie"</div>
@@ -732,7 +732,7 @@ body::before {
               </div>
               <div class="ad-hover">
                 <a href="https://www.facebook.com/ads/library/" target="_blank" rel="noopener"
-                   class="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg" style="background:#5b6ef5" onclick="event.stopPropagation()">
+                   class="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg" style="background:#8cb8a6" onclick="event.stopPropagation()">
                   View on Meta →
                 </a>
                 <div class="text-xs" style="color:var(--muted2)">ID: 1284738291</div>
@@ -740,7 +740,7 @@ body::before {
             </div>
 
             <div class="ad-card">
-              <div class="ad-chip" style="top:7px;left:7px;background:#5b6ef5;color:white">New</div>
+              <div class="ad-chip" style="top:7px;left:7px;background:#8cb8a6;color:white">New</div>
               <div class="ad-chip" style="top:7px;right:7px;background:rgba(0,0,0,.55);color:white">Meta</div>
               <div class="ad-face" style="background:linear-gradient(145deg,#001a0f,#003a18)">
                 <div style="z-index:1;text-align:center;color:#4ade80;font-size:.6rem;font-weight:700;line-height:1.4;padding:4px">"Christmas Gift ✓ 30% Off Today"</div>
@@ -751,7 +751,7 @@ body::before {
               </div>
               <div class="ad-hover">
                 <a href="https://www.facebook.com/ads/library/" target="_blank" rel="noopener"
-                   class="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg" style="background:#5b6ef5" onclick="event.stopPropagation()">
+                   class="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg" style="background:#8cb8a6" onclick="event.stopPropagation()">
                   View on Meta →
                 </a>
                 <div class="text-xs" style="color:var(--muted2)">ID: 1284738305</div>
@@ -759,7 +759,7 @@ body::before {
             </div>
 
             <div class="ad-card">
-              <div class="ad-chip" style="top:7px;left:7px;background:#5b6ef5;color:white">New</div>
+              <div class="ad-chip" style="top:7px;left:7px;background:#8cb8a6;color:white">New</div>
               <div class="ad-chip" style="top:7px;right:7px;background:rgba(0,0,0,.55);color:white">TikTok</div>
               <div class="ad-face" style="background:linear-gradient(145deg,#1a001f,#350040)">
                 <div style="z-index:1;text-align:center;color:#e879f9;font-size:.6rem;font-weight:700;line-height:1.4;padding:4px">"POV: you finally got your Oodie 🧸"</div>
@@ -770,7 +770,7 @@ body::before {
               </div>
               <div class="ad-hover">
                 <a href="https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en" target="_blank" rel="noopener"
-                   class="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg" style="background:#5b6ef5" onclick="event.stopPropagation()">
+                   class="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg" style="background:#8cb8a6" onclick="event.stopPropagation()">
                   View on TikTok →
                 </a>
                 <div class="text-xs" style="color:var(--muted2)">ID: TT-9284710</div>
@@ -780,27 +780,27 @@ body::before {
 
           <!-- Angle pills -->
           <div class="flex flex-wrap gap-2 mb-4">
-            <div class="text-xs px-2.5 py-1 rounded-full font-medium" style="background:rgba(91,110,245,.12);border:1px solid rgba(91,110,245,.22);color:#a5b4fc">Winter comfort ×8</div>
+            <div class="text-xs px-2.5 py-1 rounded-full font-medium" style="background:rgba(140,184,166,.12);border:1px solid rgba(140,184,166,.22);color:#a9cabd">Winter comfort ×8</div>
             <div class="text-xs px-2.5 py-1 rounded-full font-medium" style="background:rgba(244,114,182,.1);border:1px solid rgba(244,114,182,.2);color:#f9a8d4">Gift angle ×3</div>
             <div class="text-xs px-2.5 py-1 rounded-full font-medium" style="background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.18);color:#6ee7b7">Urgency ×1</div>
           </div>
 
           <!-- Links -->
           <div class="flex items-center gap-4 mb-4 text-xs">
-            <a href="https://www.facebook.com/ads/library/" target="_blank" rel="noopener" class="flex items-center gap-1 transition-colors" style="color:#a5b4fc">
+            <a href="https://www.facebook.com/ads/library/" target="_blank" rel="noopener" class="flex items-center gap-1 transition-colors" style="color:#a9cabd">
               All 12 ads in Meta Ad Library <svg width="10" height="10" fill="none" viewBox="0 0 10 10"><path d="M1 5h8M5.5 2l3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
             </a>
-            <a href="https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en" target="_blank" rel="noopener" class="flex items-center gap-1 transition-colors" style="color:#a5b4fc">
+            <a href="https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en" target="_blank" rel="noopener" class="flex items-center gap-1 transition-colors" style="color:#a9cabd">
               TikTok Creative Center <svg width="10" height="10" fill="none" viewBox="0 0 10 10"><path d="M1 5h8M5.5 2l3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
             </a>
           </div>
 
           <div class="insight p-4 rounded-xl">
             <div class="flex items-center gap-2 mb-2">
-              <div class="w-5 h-5 rounded-md flex items-center justify-center" style="background:linear-gradient(135deg,#5b6ef5,#7b89ff)">
+              <div class="w-5 h-5 rounded-md flex items-center justify-center" style="background:linear-gradient(135deg,#8cb8a6,#6f9e8b)">
                 <svg width="9" height="9" fill="white" viewBox="0 0 9 9"><circle cx="4.5" cy="4.5" r="2.5"/></svg>
               </div>
-              <span class="text-[10px] font-bold uppercase tracking-widest" style="color:#a5b4fc">AI Insight</span>
+              <span class="text-[10px] font-bold uppercase tracking-widest" style="color:#a9cabd">AI Insight</span>
             </div>
             <p class="text-sm leading-relaxed" style="color:#c8c8e0">"Competitor launched <strong class="text-white">12 new Meta ads</strong> in 24 hours. 8 use a 'winter comfort' angle — a clear seasonal acquisition push. <strong class="text-white">Archived copies stored</strong> in case ads are pulled."</p>
           </div>
@@ -824,7 +824,7 @@ body::before {
               <div class="text-xs font-semibold uppercase tracking-widest" style="color:var(--muted)">Visual Page Diff — Drag to Compare</div>
               <div class="text-xs mt-0.5" style="color:var(--muted)">theoodie.com/products/original</div>
             </div>
-            <div class="flex items-center gap-1.5 text-xs" style="color:#f87171">
+            <div class="flex items-center gap-1.5 text-xs" style="color:#d29683">
               <div class="w-1.5 h-1.5 rounded-full bg-red-400"></div>New change
             </div>
           </div>
@@ -835,25 +835,25 @@ body::before {
               <svg width="100%" height="210" viewBox="0 0 440 210" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
                 <rect width="440" height="210" fill="#0a0a1e"/>
                 <rect width="440" height="26" fill="#0f0f28"/>
-                <rect x="14" y="8" width="36" height="10" rx="3" fill="#5b6ef5" opacity=".7"/>
-                <rect x="310" y="8" width="48" height="10" rx="3" fill="#5b6ef5" opacity=".85"/>
-                <rect x="364" y="8" width="62" height="10" rx="3" fill="#5b6ef5" opacity=".5"/>
+                <rect x="14" y="8" width="36" height="10" rx="3" fill="#8cb8a6" opacity=".7"/>
+                <rect x="310" y="8" width="48" height="10" rx="3" fill="#8cb8a6" opacity=".85"/>
+                <rect x="364" y="8" width="62" height="10" rx="3" fill="#8cb8a6" opacity=".5"/>
                 <rect x="232" y="34" width="190" height="108" rx="6" fill="#12122a"/>
-                <text x="327" y="93" text-anchor="middle" fill="#5b6ef5" font-size="10" font-weight="700" opacity=".4">Product Image</text>
+                <text x="327" y="93" text-anchor="middle" fill="#8cb8a6" font-size="10" font-weight="700" opacity=".4">Product Image</text>
                 <rect x="14" y="38" width="172" height="13" rx="3" fill="#e0e7ff" opacity=".85"/>
                 <rect x="14" y="58" width="128" height="9" rx="3" fill="#4ade80" opacity=".75"/>
                 <rect x="148" y="58" width="55" height="9" rx="3" fill="#4ade80" opacity=".4"/>
                 <rect x="14" y="75" width="65" height="13" rx="3" fill="#f0f0ff" opacity=".7"/>
-                <rect x="85" y="77" width="38" height="9" rx="3" fill="#f87171" opacity=".6"/>
+                <rect x="85" y="77" width="38" height="9" rx="3" fill="#d29683" opacity=".6"/>
                 <rect x="14" y="97" width="196" height="15" rx="4" fill="#064e3b" opacity=".85"/>
                 <text x="24" y="108.5" fill="#4ade80" font-size="7.5" font-weight="700">✓  60-Day Money-Back Guarantee</text>
-                <rect x="14" y="120" width="208" height="38" rx="4" fill="#12123a" opacity=".9" stroke="#5b6ef5" stroke-width=".8"/>
-                <text x="24" y="133" fill="#a5b4fc" font-size="6.5" font-weight="700">US vs. COMPETITORS</text>
+                <rect x="14" y="120" width="208" height="38" rx="4" fill="#12123a" opacity=".9" stroke="#8cb8a6" stroke-width=".8"/>
+                <text x="24" y="133" fill="#a9cabd" font-size="6.5" font-weight="700">US vs. COMPETITORS</text>
                 <rect x="14" y="139" width="88" height="6" rx="2" fill="#4ade80" opacity=".55"/>
-                <rect x="108" y="139" width="88" height="6" rx="2" fill="#f87171" opacity=".4"/>
+                <rect x="108" y="139" width="88" height="6" rx="2" fill="#d29683" opacity=".4"/>
                 <rect x="14" y="149" width="88" height="6" rx="2" fill="#4ade80" opacity=".45"/>
-                <rect x="108" y="149" width="88" height="6" rx="2" fill="#f87171" opacity=".35"/>
-                <rect x="14" y="164" width="196" height="22" rx="5" fill="#5b6ef5"/>
+                <rect x="108" y="149" width="88" height="6" rx="2" fill="#d29683" opacity=".35"/>
+                <rect x="14" y="164" width="196" height="22" rx="5" fill="#8cb8a6"/>
                 <text x="112" y="178.5" text-anchor="middle" fill="white" font-size="8.5" font-weight="700">Add to Cart — 30% Off</text>
               </svg>
             </div>
@@ -861,15 +861,15 @@ body::before {
               <svg width="440" height="210" viewBox="0 0 440 210" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;min-width:440px">
                 <rect width="440" height="210" fill="#0a0a1e"/>
                 <rect width="440" height="26" fill="#0f0f28"/>
-                <rect x="14" y="8" width="36" height="10" rx="3" fill="#5b6ef5" opacity=".7"/>
-                <rect x="310" y="8" width="48" height="10" rx="3" fill="#5b6ef5" opacity=".85"/>
-                <rect x="364" y="8" width="62" height="10" rx="3" fill="#5b6ef5" opacity=".5"/>
+                <rect x="14" y="8" width="36" height="10" rx="3" fill="#8cb8a6" opacity=".7"/>
+                <rect x="310" y="8" width="48" height="10" rx="3" fill="#8cb8a6" opacity=".85"/>
+                <rect x="364" y="8" width="62" height="10" rx="3" fill="#8cb8a6" opacity=".5"/>
                 <rect x="232" y="34" width="190" height="108" rx="6" fill="#12122a"/>
-                <text x="327" y="93" text-anchor="middle" fill="#5b6ef5" font-size="10" font-weight="700" opacity=".4">Product Image</text>
+                <text x="327" y="93" text-anchor="middle" fill="#8cb8a6" font-size="10" font-weight="700" opacity=".4">Product Image</text>
                 <rect x="14" y="38" width="172" height="13" rx="3" fill="#e0e7ff" opacity=".85"/>
                 <rect x="14" y="58" width="88" height="9" rx="3" fill="#4b5563" opacity=".5"/>
                 <rect x="14" y="75" width="65" height="13" rx="3" fill="#f0f0ff" opacity=".7"/>
-                <rect x="85" y="77" width="38" height="9" rx="3" fill="#f87171" opacity=".3"/>
+                <rect x="85" y="77" width="38" height="9" rx="3" fill="#d29683" opacity=".3"/>
                 <rect x="14" y="97" width="134" height="9" rx="3" fill="#374151" opacity=".6"/>
                 <rect x="14" y="114" width="98" height="7" rx="2" fill="#374151" opacity=".4"/>
                 <rect x="14" y="126" width="115" height="7" rx="2" fill="#374151" opacity=".3"/>
@@ -877,7 +877,7 @@ body::before {
                 <text x="112" y="178.5" text-anchor="middle" fill="white" font-size="8.5" font-weight="700">Add to Cart</text>
               </svg>
             </div>
-            <div class="ba-lbl" style="left:10px;background:rgba(239,68,68,.8);color:white">Before</div>
+            <div class="ba-lbl" style="left:10px;background:rgba(200,128,111,.8);color:white">Before</div>
             <div class="ba-lbl" style="right:10px;background:rgba(16,185,129,.8);color:white">After</div>
             <div class="ba-handle-wrap" id="baHandle" style="left:50%">
               <div class="ba-knob">
@@ -887,11 +887,11 @@ body::before {
           </div>
 
           <!-- Code diff -->
-          <div class="rounded-xl overflow-hidden mb-4" style="border:1px solid rgba(91,110,245,.14)">
+          <div class="rounded-xl overflow-hidden mb-4" style="border:1px solid rgba(140,184,166,.14)">
             <div class="flex items-center gap-2 px-3 py-2 text-xs" style="background:rgba(255,255,255,.025);border-bottom:1px solid rgba(255,255,255,.04);color:var(--muted)">
               <span>theoodie.com/products/original</span>
               <a href="https://web.archive.org/web/*/theoodie.com" target="_blank" rel="noopener"
-                 class="ml-auto flex items-center gap-1 transition-colors" style="color:#a5b4fc">
+                 class="ml-auto flex items-center gap-1 transition-colors" style="color:#a9cabd">
                 View archived versions <svg width="9" height="9" fill="none" viewBox="0 0 9 9"><path d="M1 4.5h7M5 2l2.5 2.5L5 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
               </a>
             </div>
@@ -958,12 +958,12 @@ body::before {
               <div class="text-xs font-semibold uppercase tracking-widest mb-0.5" style="color:var(--muted)">Offer Change Log</div>
               <div class="text-xs" style="color:var(--muted)">The Oodie · Last 6 hours</div>
             </div>
-            <span class="text-xs px-2.5 py-1 rounded-full font-semibold" style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#f87171">3 offer changes</span>
+            <span class="text-xs px-2.5 py-1 rounded-full font-semibold" style="background:rgba(200,128,111,.08);border:1px solid rgba(200,128,111,.2);color:#d29683">3 offer changes</span>
           </div>
 
           <div class="space-y-2.5 mb-4">
             <div class="rounded-xl p-4 flex items-start gap-3" style="background:rgba(255,255,255,.025);border:1px solid var(--border)">
-              <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#f87171">↑</div>
+              <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.2);color:#d29683">↑</div>
               <div>
                 <div class="text-sm font-medium text-white">Sitewide discount: 20% → 30%</div>
                 <div class="text-xs mt-0.5" style="color:var(--muted)">3 hours ago · Homepage banner updated</div>
@@ -987,10 +987,10 @@ body::before {
 
           <div class="insight p-4 rounded-xl">
             <div class="flex items-center gap-2 mb-2">
-              <div class="w-5 h-5 rounded-md flex items-center justify-center" style="background:linear-gradient(135deg,#5b6ef5,#7b89ff)">
+              <div class="w-5 h-5 rounded-md flex items-center justify-center" style="background:linear-gradient(135deg,#8cb8a6,#6f9e8b)">
                 <svg width="9" height="9" fill="white" viewBox="0 0 9 9"><circle cx="4.5" cy="4.5" r="2.5"/></svg>
               </div>
-              <span class="text-[10px] font-bold uppercase tracking-widest" style="color:#a5b4fc">AI Insight</span>
+              <span class="text-[10px] font-bold uppercase tracking-widest" style="color:#a9cabd">AI Insight</span>
             </div>
             <p class="text-sm leading-relaxed" style="color:#c8c8e0">"Discount increased from 20% to 30%. New <strong class="text-white">Buy 3 Save 40%</strong> bundle detected. Competitor appears to be increasing promotional pressure — likely testing higher AOV before peak season."</p>
           </div>
@@ -1029,23 +1029,23 @@ body::before {
               <div class="text-xs font-semibold uppercase tracking-widest mb-0.5" style="color:var(--muted)">Email Activity — This Week</div>
               <div class="text-xs" style="color:var(--muted)">True Classic · Inbox monitoring</div>
             </div>
-            <span class="text-xs px-2.5 py-1 rounded-full font-semibold" style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#f87171">4 sent · usually 2</span>
+            <span class="text-xs px-2.5 py-1 rounded-full font-semibold" style="background:rgba(200,128,111,.08);border:1px solid rgba(200,128,111,.2);color:#d29683">4 sent · usually 2</span>
           </div>
 
           <div class="space-y-2 mb-4">
             <div class="flex items-center justify-between px-3 py-2.5 rounded-xl" style="background:rgba(255,255,255,.025);border:1px solid var(--border)">
               <div class="flex items-center gap-3 min-w-0">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style="background:linear-gradient(135deg,#3b82f6,#6366f1)">@</div>
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style="background:linear-gradient(135deg,#6f9e8b,#6f9e8b)">@</div>
                 <div class="min-w-0">
                   <div class="text-xs font-medium text-white truncate">"Last chance — 30% off ends tonight"</div>
                   <div class="text-xs" style="color:var(--muted)">Tue · 9:07 AM</div>
                 </div>
               </div>
-              <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0 ml-2" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#f87171">Promo</span>
+              <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0 ml-2" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.2);color:#d29683">Promo</span>
             </div>
             <div class="flex items-center justify-between px-3 py-2.5 rounded-xl" style="background:rgba(255,255,255,.025);border:1px solid var(--border)">
               <div class="flex items-center gap-3 min-w-0">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style="background:linear-gradient(135deg,#8b5cf6,#ec4899)">@</div>
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style="background:linear-gradient(135deg,#6f9e8b,#c8806f)">@</div>
                 <div class="min-w-0">
                   <div class="text-xs font-medium text-white truncate">"Introducing the new 5-Pack Bundle"</div>
                   <div class="text-xs" style="color:var(--muted)">Wed · 10:30 AM</div>
@@ -1055,7 +1055,7 @@ body::before {
             </div>
             <div class="flex items-center justify-between px-3 py-2.5 rounded-xl" style="background:rgba(255,255,255,.025);border:1px solid var(--border)">
               <div class="flex items-center gap-3 min-w-0">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style="background:linear-gradient(135deg,#10b981,#14b8a6)">@</div>
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style="background:linear-gradient(135deg,#10b981,#6f9e8b)">@</div>
                 <div class="min-w-0">
                   <div class="text-xs font-medium text-white truncate">"You left something behind…"</div>
                   <div class="text-xs" style="color:var(--muted)">Thu · 8:00 AM</div>
@@ -1065,22 +1065,22 @@ body::before {
             </div>
             <div class="flex items-center justify-between px-3 py-2.5 rounded-xl" style="background:rgba(255,255,255,.025);border:1px solid var(--border)">
               <div class="flex items-center gap-3 min-w-0">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style="background:linear-gradient(135deg,#f97316,#ef4444)">@</div>
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style="background:linear-gradient(135deg,#cf9670,#c8806f)">@</div>
                 <div class="min-w-0">
                   <div class="text-xs font-medium text-white truncate">"BIG news — 3 days only"</div>
                   <div class="text-xs" style="color:var(--muted)">Fri · 7:45 AM</div>
                 </div>
               </div>
-              <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0 ml-2" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#f87171">Flash</span>
+              <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0 ml-2" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.2);color:#d29683">Flash</span>
             </div>
           </div>
 
           <div class="insight p-4 rounded-xl">
             <div class="flex items-center gap-2 mb-2">
-              <div class="w-5 h-5 rounded-md flex items-center justify-center" style="background:linear-gradient(135deg,#5b6ef5,#7b89ff)">
+              <div class="w-5 h-5 rounded-md flex items-center justify-center" style="background:linear-gradient(135deg,#8cb8a6,#6f9e8b)">
                 <svg width="9" height="9" fill="white" viewBox="0 0 9 9"><circle cx="4.5" cy="4.5" r="2.5"/></svg>
               </div>
-              <span class="text-[10px] font-bold uppercase tracking-widest" style="color:#a5b4fc">AI Insight</span>
+              <span class="text-[10px] font-bold uppercase tracking-widest" style="color:#a9cabd">AI Insight</span>
             </div>
             <p class="text-sm leading-relaxed" style="color:#c8c8e0">"Competitor sent <strong class="text-white">4 promotional emails this week</strong>, vs. their usual 2. Main offer shifted from free shipping to a percentage discount — a likely signal of margin pressure and urgency testing."</p>
           </div>
@@ -1094,7 +1094,7 @@ body::before {
      STRATEGIC INTELLIGENCE — 3 COLUMNS
 ════════════════════════════════════════════════════════ -->
 <section class="py-28 border-t relative overflow-hidden" style="border-color:var(--border)">
-  <div class="orb w-[500px] h-[350px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="background:radial-gradient(ellipse,#7c3aed,transparent);opacity:.1;filter:blur(90px)"></div>
+  <div class="orb w-[500px] h-[350px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="background:radial-gradient(ellipse,#6f9e8b,transparent);opacity:.1;filter:blur(90px)"></div>
   <div class="relative z-10 max-w-7xl mx-auto px-6">
     <div class="text-center mb-14">
       <div class="tag mb-5 reveal">Strategic Intelligence</div>
@@ -1108,7 +1108,7 @@ body::before {
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-5xl mx-auto">
-      <div class="card p-8 text-center reveal" style="background:rgba(91,110,245,.05)">
+      <div class="card p-8 text-center reveal" style="background:rgba(140,184,166,.05)">
         <div class="stat-num text-grad mb-3">01</div>
         <h3 class="font-display font-bold text-white text-xl mb-3">What Changed</h3>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">Every ad, page edit, offer update, and email campaign documented with timestamps and before/after views.</p>
@@ -1119,7 +1119,7 @@ body::before {
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">The AI provides strategic context — whether it signals a CRO push, scaling intent, seasonal prep, or competitive pressure.</p>
       </div>
       <div class="card p-8 text-center reveal d2" style="background:rgba(16,185,129,.04);border-color:rgba(16,185,129,.12)">
-        <div class="stat-num mb-3" style="background:linear-gradient(125deg,#4ade80,#10b981);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-family:'Plus Jakarta Sans',sans-serif;font-size:3.5rem;font-weight:800;line-height:1;letter-spacing:-.04em">03</div>
+        <div class="stat-num mb-3" style="background:linear-gradient(125deg,#4ade80,#10b981);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-family:'Fraunces',sans-serif;font-size:3.5rem;font-weight:800;line-height:1;letter-spacing:-.04em">03</div>
         <h3 class="font-display font-bold text-white text-xl mb-3">What to Do Next</h3>
         <p class="text-sm leading-relaxed" style="color:var(--muted2)">A clear, actionable recommendation with every report — test a new angle, match an offer, hold, or watch for another signal.</p>
       </div>
@@ -1140,7 +1140,7 @@ body::before {
               <div class="text-xs font-semibold uppercase tracking-widest mb-0.5" style="color:var(--muted)">Supplements Category</div>
               <div class="text-xs" style="color:var(--muted)">14-day signal · 30 brands tracked</div>
             </div>
-            <span class="text-xs px-2.5 py-1 rounded-full font-semibold" style="background:rgba(91,110,245,.12);border:1px solid rgba(91,110,245,.22);color:#a5b4fc">30 brands</span>
+            <span class="text-xs px-2.5 py-1 rounded-full font-semibold" style="background:rgba(140,184,166,.12);border:1px solid rgba(140,184,166,.22);color:#a9cabd">30 brands</span>
           </div>
 
           <div class="grid grid-cols-3 gap-2.5 mb-6">
@@ -1161,15 +1161,15 @@ body::before {
           <div class="space-y-3.5 mb-6">
             <div>
               <div class="flex justify-between text-xs mb-1.5" style="color:var(--muted)"><span>Bundle adoption</span><span class="text-white font-medium">60%</span></div>
-              <div class="h-2 rounded-full overflow-hidden" style="background:rgba(255,255,255,.06)"><div class="h-full rounded-full" style="width:60%;background:linear-gradient(90deg,#5b6ef5,#7b89ff)"></div></div>
+              <div class="h-2 rounded-full overflow-hidden" style="background:rgba(255,255,255,.06)"><div class="h-full rounded-full" style="width:60%;background:linear-gradient(90deg,#8cb8a6,#6f9e8b)"></div></div>
             </div>
             <div>
               <div class="flex justify-between text-xs mb-1.5" style="color:var(--muted)"><span>Discount increases</span><span class="text-white font-medium">40%</span></div>
-              <div class="h-2 rounded-full overflow-hidden" style="background:rgba(255,255,255,.06)"><div class="h-full rounded-full" style="width:40%;background:linear-gradient(90deg,#7b89ff,#a78bfa)"></div></div>
+              <div class="h-2 rounded-full overflow-hidden" style="background:rgba(255,255,255,.06)"><div class="h-full rounded-full" style="width:40%;background:linear-gradient(90deg,#6f9e8b,#8cb8a6)"></div></div>
             </div>
             <div>
               <div class="flex justify-between text-xs mb-1.5" style="color:var(--muted)"><span>Creator-led ads</span><span class="text-white font-medium">30%</span></div>
-              <div class="h-2 rounded-full overflow-hidden" style="background:rgba(255,255,255,.06)"><div class="h-full rounded-full" style="width:30%;background:linear-gradient(90deg,#00c2ff,#67e8f9)"></div></div>
+              <div class="h-2 rounded-full overflow-hidden" style="background:rgba(255,255,255,.06)"><div class="h-full rounded-full" style="width:30%;background:linear-gradient(90deg,#97b1bd,#97b1bd)"></div></div>
             </div>
           </div>
 
@@ -1202,7 +1202,7 @@ body::before {
      EXAMPLE DAILY REPORT
 ════════════════════════════════════════════════════════ -->
 <section class="py-28 border-t relative overflow-hidden" style="border-color:var(--border)" id="report">
-  <div class="orb w-[500px] h-[400px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="background:radial-gradient(ellipse,#5b6ef5,transparent);opacity:.12;filter:blur(100px)"></div>
+  <div class="orb w-[500px] h-[400px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="background:radial-gradient(ellipse,#8cb8a6,transparent);opacity:.12;filter:blur(100px)"></div>
   <div class="relative z-10 max-w-7xl mx-auto px-6">
     <div class="text-center mb-14">
       <div class="tag mb-5 reveal">Daily AI Report</div>
@@ -1217,28 +1217,28 @@ body::before {
 
     <div class="max-w-3xl mx-auto reveal d1">
       <div class="report-shell overflow-hidden">
-        <div class="px-7 py-5" style="background:rgba(91,110,245,.1);border-bottom:1px solid rgba(91,110,245,.18)">
+        <div class="px-7 py-5" style="background:rgba(140,184,166,.1);border-bottom:1px solid rgba(140,184,166,.18)">
           <div class="flex items-start justify-between">
             <div>
-              <div class="text-[10px] font-bold uppercase tracking-widest mb-1" style="color:#a5b4fc">IntelAI — Daily Report</div>
+              <div class="text-[10px] font-bold uppercase tracking-widest mb-1" style="color:#a9cabd">IntelAI — Daily Report</div>
               <div class="font-display font-bold text-white text-xl">Competitive Intelligence Briefing</div>
             </div>
             <div class="text-right">
               <div class="text-xs" style="color:var(--muted)">Today, 7:01 AM</div>
-              <div class="text-xs mt-0.5 font-medium" style="color:#a5b4fc">7 brands monitored</div>
+              <div class="text-xs mt-0.5 font-medium" style="color:#a9cabd">7 brands monitored</div>
             </div>
           </div>
         </div>
 
         <div class="p-7 space-y-6">
           <div class="flex items-center gap-4 pb-5" style="border-bottom:1px solid var(--border)">
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg" style="background:linear-gradient(135deg,#3b82f6,#6366f1)">TC</div>
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg" style="background:linear-gradient(135deg,#6f9e8b,#6f9e8b)">TC</div>
             <div>
               <div class="font-display font-bold text-white text-xl">True Classic</div>
               <div class="text-sm" style="color:var(--muted)">trueclassic.com</div>
             </div>
             <div class="ml-auto">
-              <span class="text-sm px-3 py-1 rounded-full font-semibold" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#f87171">13 changes</span>
+              <span class="text-sm px-3 py-1 rounded-full font-semibold" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.2);color:#d29683">13 changes</span>
             </div>
           </div>
 
@@ -1251,10 +1251,10 @@ body::before {
               </div>
               <div class="flex items-center gap-3 text-sm">
                 <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0" style="background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);color:#93c5fd">+</div>
-                <span style="color:#c8c8e0">New advertorial landing page: <span style="color:#a5b4fc">trueclassic.com/why-we-last</span></span>
+                <span style="color:#c8c8e0">New advertorial landing page: <span style="color:#a9cabd">trueclassic.com/why-we-last</span></span>
               </div>
               <div class="flex items-center gap-3 text-sm">
-                <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#f87171">↑</div>
+                <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0" style="background:rgba(200,128,111,.1);border:1px solid rgba(200,128,111,.2);color:#d29683">↑</div>
                 <span style="color:#c8c8e0">Bundle changed from <strong class="text-white">3-pack to 5-pack</strong> — 42% savings messaging added</span>
               </div>
               <div class="flex items-center gap-3 text-sm">
@@ -1264,12 +1264,12 @@ body::before {
             </div>
           </div>
 
-          <div class="rounded-xl p-5" style="background:rgba(91,110,245,.07);border:1px solid rgba(91,110,245,.18);border-left:2px solid #7b89ff">
+          <div class="rounded-xl p-5" style="background:rgba(140,184,166,.07);border:1px solid rgba(140,184,166,.18);border-left:2px solid #6f9e8b">
             <div class="flex items-center gap-2 mb-3">
-              <div class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#5b6ef5,#7b89ff)">
+              <div class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#8cb8a6,#6f9e8b)">
                 <svg width="11" height="11" fill="none" viewBox="0 0 11 11"><circle cx="5.5" cy="5.5" r="4.5" stroke="white" stroke-width="1.2"/><path d="M5.5 3.5v3l1.5 1.5" stroke="white" stroke-width="1.2" stroke-linecap="round"/></svg>
               </div>
-              <div class="text-sm font-bold" style="color:#a5b4fc">AI Analysis</div>
+              <div class="text-sm font-bold" style="color:#a9cabd">AI Analysis</div>
             </div>
             <p class="text-sm leading-relaxed" style="color:#c8c8e0">True Classic appears to be testing a <strong class="text-white">more aggressive acquisition funnel focused on higher AOV</strong>. The new advertorial page suggests they're warming cold traffic before product pages — common when CPMs rise. The 5-pack bundle at 42% savings is a significant shift in their pricing architecture.</p>
           </div>
@@ -1286,7 +1286,7 @@ body::before {
 
           <div class="flex items-center justify-between pt-2" style="border-top:1px solid var(--border)">
             <div class="text-xs" style="color:var(--muted)">Next report: Tomorrow at 7:00 AM</div>
-            <a href="#" class="text-xs font-medium transition-colors" style="color:#a5b4fc">View Full Report →</a>
+            <a href="#" class="text-xs font-medium transition-colors" style="color:#a9cabd">View Full Report →</a>
           </div>
         </div>
       </div>
@@ -1305,39 +1305,39 @@ body::before {
       Built for teams that need to<br/><span class="text-grad">move faster.</span>
     </h2>
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 max-w-5xl mx-auto reveal d2">
-      <div class="card p-5 text-center" style="background:rgba(91,110,245,.04)">
-        <div class="w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:rgba(91,110,245,.12);border:1px solid rgba(91,110,245,.2)">
-          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="10" cy="6.5" r="3.5" stroke="#7b89ff" stroke-width="1.3"/><path d="M3 18c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="#7b89ff" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <div class="card p-5 text-center" style="background:rgba(140,184,166,.04)">
+        <div class="w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:rgba(140,184,166,.12);border:1px solid rgba(140,184,166,.2)">
+          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="10" cy="6.5" r="3.5" stroke="#6f9e8b" stroke-width="1.3"/><path d="M3 18c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="#6f9e8b" stroke-width="1.3" stroke-linecap="round"/></svg>
         </div>
         <div class="text-sm font-semibold text-white">DTC Founders</div>
       </div>
-      <div class="card p-5 text-center" style="background:rgba(91,110,245,.04)">
-        <div class="w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:rgba(91,110,245,.12);border:1px solid rgba(91,110,245,.2)">
-          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M3 11l7-8 7 8" stroke="#7b89ff" stroke-width="1.3" stroke-linecap="round"/><path d="M5 9v8a1 1 0 001 1h3v-4h2v4h3a1 1 0 001-1V9" stroke="#7b89ff" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <div class="card p-5 text-center" style="background:rgba(140,184,166,.04)">
+        <div class="w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:rgba(140,184,166,.12);border:1px solid rgba(140,184,166,.2)">
+          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M3 11l7-8 7 8" stroke="#6f9e8b" stroke-width="1.3" stroke-linecap="round"/><path d="M5 9v8a1 1 0 001 1h3v-4h2v4h3a1 1 0 001-1V9" stroke="#6f9e8b" stroke-width="1.3" stroke-linecap="round"/></svg>
         </div>
         <div class="text-sm font-semibold text-white">CMOs</div>
       </div>
-      <div class="card p-5 text-center" style="background:rgba(91,110,245,.04)">
-        <div class="w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:rgba(91,110,245,.12);border:1px solid rgba(91,110,245,.2)">
-          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="2" y="4" width="16" height="13" rx="2" stroke="#7b89ff" stroke-width="1.3"/><path d="M14 4V3M6 4V3M2 8h16" stroke="#7b89ff" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <div class="card p-5 text-center" style="background:rgba(140,184,166,.04)">
+        <div class="w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:rgba(140,184,166,.12);border:1px solid rgba(140,184,166,.2)">
+          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="2" y="4" width="16" height="13" rx="2" stroke="#6f9e8b" stroke-width="1.3"/><path d="M14 4V3M6 4V3M2 8h16" stroke="#6f9e8b" stroke-width="1.3" stroke-linecap="round"/></svg>
         </div>
         <div class="text-sm font-semibold text-white">Media Buyers</div>
       </div>
-      <div class="card p-5 text-center" style="background:rgba(91,110,245,.04)">
-        <div class="w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:rgba(91,110,245,.12);border:1px solid rgba(91,110,245,.2)">
-          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M10 2l2.2 6.3H18l-4.9 3.6 1.9 5.8L10 14l-5 3.7 1.9-5.8L2 8.3h5.8L10 2z" stroke="#7b89ff" stroke-width="1.3" stroke-linejoin="round"/></svg>
+      <div class="card p-5 text-center" style="background:rgba(140,184,166,.04)">
+        <div class="w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:rgba(140,184,166,.12);border:1px solid rgba(140,184,166,.2)">
+          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M10 2l2.2 6.3H18l-4.9 3.6 1.9 5.8L10 14l-5 3.7 1.9-5.8L2 8.3h5.8L10 2z" stroke="#6f9e8b" stroke-width="1.3" stroke-linejoin="round"/></svg>
         </div>
         <div class="text-sm font-semibold text-white">Creative Strategists</div>
       </div>
-      <div class="card p-5 text-center" style="background:rgba(91,110,245,.04)">
-        <div class="w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:rgba(91,110,245,.12);border:1px solid rgba(91,110,245,.2)">
-          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M3 6h14M3 10h14M3 14h14" stroke="#7b89ff" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <div class="card p-5 text-center" style="background:rgba(140,184,166,.04)">
+        <div class="w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:rgba(140,184,166,.12);border:1px solid rgba(140,184,166,.2)">
+          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M3 6h14M3 10h14M3 14h14" stroke="#6f9e8b" stroke-width="1.3" stroke-linecap="round"/></svg>
         </div>
         <div class="text-sm font-semibold text-white">Growth Teams</div>
       </div>
-      <div class="card p-5 text-center" style="background:rgba(91,110,245,.04)">
-        <div class="w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:rgba(91,110,245,.12);border:1px solid rgba(91,110,245,.2)">
-          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="2" y="2" width="7" height="7" rx="1.5" stroke="#7b89ff" stroke-width="1.3"/><rect x="11" y="2" width="7" height="7" rx="1.5" stroke="#7b89ff" stroke-width="1.3"/><rect x="2" y="11" width="7" height="7" rx="1.5" stroke="#7b89ff" stroke-width="1.3"/><rect x="11" y="11" width="7" height="7" rx="1.5" stroke="#7b89ff" stroke-width="1.3"/></svg>
+      <div class="card p-5 text-center" style="background:rgba(140,184,166,.04)">
+        <div class="w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:rgba(140,184,166,.12);border:1px solid rgba(140,184,166,.2)">
+          <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="2" y="2" width="7" height="7" rx="1.5" stroke="#6f9e8b" stroke-width="1.3"/><rect x="11" y="2" width="7" height="7" rx="1.5" stroke="#6f9e8b" stroke-width="1.3"/><rect x="2" y="11" width="7" height="7" rx="1.5" stroke="#6f9e8b" stroke-width="1.3"/><rect x="11" y="11" width="7" height="7" rx="1.5" stroke="#6f9e8b" stroke-width="1.3"/></svg>
         </div>
         <div class="text-sm font-semibold text-white">Agencies</div>
       </div>
@@ -1384,7 +1384,7 @@ body::before {
         </div>
         <p class="text-[15px] leading-relaxed text-white mb-6">"We caught a competitor's 40%-off launch the morning it went live — and matched it before it cost us a weekend of sales."</p>
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0" style="background:linear-gradient(135deg,#5b6ef5,#7b89ff)">M</div>
+          <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0" style="background:linear-gradient(135deg,#8cb8a6,#6f9e8b)">M</div>
           <div><div class="text-sm font-semibold text-white">Maya R.</div><div class="text-xs" style="color:var(--muted)">Founder, DTC apparel brand</div></div>
         </div>
       </div>
@@ -1394,7 +1394,7 @@ body::before {
         </div>
         <p class="text-[15px] leading-relaxed text-white mb-6">"I used to check the Ad Library by hand every morning. Now it's one report — and I see their new angles before they scale."</p>
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0" style="background:linear-gradient(135deg,#00c2ff,#5b6ef5)">D</div>
+          <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0" style="background:linear-gradient(135deg,#97b1bd,#8cb8a6)">D</div>
           <div><div class="text-sm font-semibold text-white">Devin K.</div><div class="text-xs" style="color:var(--muted)">Senior Media Buyer, growth agency</div></div>
         </div>
       </div>
@@ -1404,7 +1404,7 @@ body::before {
         </div>
         <p class="text-[15px] leading-relaxed text-white mb-6">"We run it across every client. The white-label reports make our agency look like we never sleep."</p>
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0" style="background:linear-gradient(135deg,#a78bfa,#ec4899)">S</div>
+          <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0" style="background:linear-gradient(135deg,#8cb8a6,#c8806f)">S</div>
           <div><div class="text-sm font-semibold text-white">Sara L.</div><div class="text-xs" style="color:var(--muted)">Head of Growth, supplements brand</div></div>
         </div>
       </div>
@@ -1416,7 +1416,7 @@ body::before {
      FOUNDER'S NOTE
 ════════════════════════════════════════════════════════ -->
 <section class="py-28 border-t relative overflow-hidden" style="border-color:var(--border)" id="founder">
-  <div class="orb w-[480px] h-[340px] top-1/4 left-1/2 -translate-x-1/2" style="background:radial-gradient(ellipse,#5b6ef5,transparent);opacity:.08;filter:blur(110px)"></div>
+  <div class="orb w-[480px] h-[340px] top-1/4 left-1/2 -translate-x-1/2" style="background:radial-gradient(ellipse,#8cb8a6,transparent);opacity:.08;filter:blur(110px)"></div>
   <div class="relative z-10 max-w-3xl mx-auto px-6">
     <div class="inline-flex items-center gap-2 tag mb-8 reveal">Why we built this</div>
     <div class="reveal d1">
@@ -1429,7 +1429,7 @@ body::before {
         <p>So we built the tool we wished we'd had: <span class="text-white font-medium">one AI that watches every competitor across every channel, every day</span> — and tells us what changed, why it matters, and what to do next. We read it with our coffee. That's the whole product, and we hope it gives you the edge it gave us.</p>
       </div>
       <div class="flex items-center gap-4 mt-10 pt-8" style="border-top:1px solid var(--border)">
-        <div class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-lg flex-shrink-0" style="background:linear-gradient(135deg,#5b6ef5,#7b89ff);box-shadow:0 6px 20px rgba(91,110,245,.35)">M</div>
+        <div class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-lg flex-shrink-0" style="background:linear-gradient(135deg,#8cb8a6,#6f9e8b);box-shadow:0 6px 20px rgba(140,184,166,.35)">M</div>
         <div>
           <div class="font-semibold text-white">Marin</div>
           <div class="text-sm" style="color:var(--muted)">Founder, Competitor Intelligence AI</div>
@@ -1443,7 +1443,7 @@ body::before {
      PRICING
 ════════════════════════════════════════════════════════ -->
 <section class="py-28 border-t relative overflow-hidden" style="border-color:var(--border)" id="pricing">
-  <div class="orb w-[600px] h-[400px] top-0 left-1/2 -translate-x-1/2" style="background:radial-gradient(ellipse,#5b6ef5,transparent);opacity:.1;filter:blur(120px)"></div>
+  <div class="orb w-[600px] h-[400px] top-0 left-1/2 -translate-x-1/2" style="background:radial-gradient(ellipse,#8cb8a6,transparent);opacity:.1;filter:blur(120px)"></div>
   <div class="relative z-10 max-w-7xl mx-auto px-6">
     <div class="text-center mb-14">
       <div class="tag mb-5 reveal">Pricing</div>
@@ -1476,10 +1476,10 @@ body::before {
       <!-- Growth -->
       <div class="price-popular rounded-2xl p-8 flex flex-col reveal d1 relative">
         <div class="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
-          <span class="text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider" style="background:linear-gradient(135deg,#5b6ef5,#7b89ff);box-shadow:0 4px 20px rgba(91,110,245,.4)">Most Popular</span>
+          <span class="text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider" style="background:linear-gradient(135deg,#8cb8a6,#6f9e8b);box-shadow:0 4px 20px rgba(140,184,166,.4)">Most Popular</span>
         </div>
         <div class="mb-7">
-          <div class="text-sm font-semibold mb-1" style="color:#a5b4fc">Growth</div>
+          <div class="text-sm font-semibold mb-1" style="color:#a9cabd">Growth</div>
           <div class="flex items-end gap-1.5 mb-3">
             <span class="font-display font-extrabold text-white" style="font-size:2.8rem;line-height:1;letter-spacing:-.04em">$299</span>
             <span class="mb-1.5 text-sm" style="color:var(--muted)">/mo</span>
@@ -1525,7 +1525,7 @@ body::before {
 <section class="py-28 border-t relative overflow-hidden" style="border-color:var(--border)" id="faq">
   <style>
     .faq{background:#0d0d1f;border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:border-color .2s}
-    .faq[open]{border-color:rgba(91,110,245,.3)}
+    .faq[open]{border-color:rgba(140,184,166,.3)}
     .faq summary{list-style:none;cursor:pointer;padding:18px 22px;font-weight:600;font-size:15px;color:#e8e8f2;display:flex;justify-content:space-between;align-items:center;gap:18px}
     .faq summary::-webkit-details-marker{display:none}
     .faq summary::after{content:'+';font-size:22px;font-weight:300;color:var(--muted2);flex-shrink:0;line-height:1}
@@ -1555,7 +1555,7 @@ body::before {
 ════════════════════════════════════════════════════════ -->
 <section class="py-32 relative overflow-hidden" id="waitlist">
   <div class="absolute inset-0 gridlines opacity-40 pointer-events-none"></div>
-  <div class="orb w-[700px] h-[500px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="background:radial-gradient(ellipse,#5b6ef5,transparent);opacity:.18;filter:blur(120px)"></div>
+  <div class="orb w-[700px] h-[500px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="background:radial-gradient(ellipse,#8cb8a6,transparent);opacity:.18;filter:blur(120px)"></div>
   <div class="relative z-10 max-w-4xl mx-auto px-6 text-center">
     <div class="inline-flex items-center gap-2 tag mb-7 reveal">
       <div class="dot-live"></div>
@@ -1572,8 +1572,8 @@ body::before {
     <div class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto reveal d3">
       <input type="email" id="emailInput" placeholder="your@email.com"
         class="flex-1 text-white text-sm font-medium px-5 py-4 rounded-xl outline-none transition-all"
-        style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);caret-color:#7b89ff"
-        onfocus="this.style.borderColor='rgba(91,110,245,.5)';this.style.boxShadow='0 0 0 3px rgba(91,110,245,.12)'"
+        style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);caret-color:#6f9e8b"
+        onfocus="this.style.borderColor='rgba(140,184,166,.5)';this.style.boxShadow='0 0 0 3px rgba(140,184,166,.12)'"
         onblur="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'"
       />
       <button id="joinBtn" class="btn-primary text-white font-semibold text-sm px-7 py-4 rounded-xl whitespace-nowrap">
@@ -1592,7 +1592,7 @@ body::before {
     <div class="grid grid-cols-2 md:grid-cols-5 gap-10 mb-12">
       <div class="col-span-2">
         <div class="flex items-center gap-2.5 mb-4">
-          <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#5b6ef5,#00c2ff);box-shadow:0 0 16px rgba(91,110,245,.3)">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#8cb8a6,#97b1bd);box-shadow:0 0 16px rgba(140,184,166,.3)">
             <svg width="14" height="14" fill="none" viewBox="0 0 14 14"><circle cx="7" cy="7" r="2.5" fill="white"/><circle cx="7" cy="7" r="6" stroke="white" stroke-width="1.2" stroke-dasharray="2 2"/></svg>
           </div>
           <span class="font-display font-bold text-white text-[15px] tracking-tight">IntelAI</span>
@@ -1696,25 +1696,52 @@ document.querySelectorAll('a[href^="#"]').forEach(a=>{
 });
 
 // ── Waitlist form ─────────────────────────────────────────────────────
-document.getElementById('joinBtn').addEventListener('click',function(){
+// ── Waitlist capture ──────────────────────────────────────────────
+// To start collecting real signups (no backend needed):
+//   1. Go to https://formspree.io → sign up free → "New Form"
+//   2. Copy your endpoint (looks like  https://formspree.io/f/abcdwxyz )
+//   3. Paste it below, replacing YOUR_FORM_ID
+// Submissions then land in your Formspree inbox + dashboard.
+const WAITLIST_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
+
+document.getElementById('joinBtn').addEventListener('click', async function(){
   const inp = document.getElementById('emailInput');
-  const v = inp.value.trim();
-  if(v && v.includes('@')){
-    inp.value='';
-    this.textContent='✓ You\'re on the list!';
-    this.style.background='linear-gradient(135deg,#10b981,#059669)';
-    this.style.boxShadow='0 8px 32px rgba(16,185,129,.35)';
-    setTimeout(()=>{
-      this.textContent='Join Waitlist →';
-      this.style.background='';
-      this.style.boxShadow='';
-    },3500);
-  } else {
-    inp.style.borderColor='rgba(239,68,68,.5)';
-    inp.style.boxShadow='0 0 0 3px rgba(239,68,68,.12)';
+  const btn = this;
+  const email = inp.value.trim();
+
+  if(!email || !email.includes('@')){
+    inp.style.borderColor='rgba(200,128,111,.5)';
+    inp.style.boxShadow='0 0 0 3px rgba(200,128,111,.12)';
     inp.focus();
     setTimeout(()=>{ inp.style.borderColor='rgba(255,255,255,.1)'; inp.style.boxShadow='none'; },2000);
+    return;
   }
+
+  const win = (msg)=>{
+    inp.value='';
+    btn.textContent=msg;
+    btn.style.background='linear-gradient(135deg,#10b981,#059669)';
+    btn.style.boxShadow='0 8px 32px rgba(16,185,129,.35)';
+    setTimeout(()=>{ btn.textContent='Join Waitlist →'; btn.style.background=''; btn.style.boxShadow=''; },4000);
+  };
+  const lose = ()=>{
+    btn.textContent='Hmm — try again';
+    setTimeout(()=>{ btn.textContent='Join Waitlist →'; },2500);
+  };
+
+  // Endpoint not set yet → confirm locally so the page isn't broken.
+  // (Nothing is saved until you paste your Formspree endpoint above.)
+  if(WAITLIST_ENDPOINT.includes('YOUR_FORM_ID')){ win('✓ You\'re on the list!'); return; }
+
+  btn.textContent='Joining…';
+  try{
+    const res = await fetch(WAITLIST_ENDPOINT, {
+      method:'POST',
+      headers:{ 'Accept':'application/json', 'Content-Type':'application/json' },
+      body: JSON.stringify({ email: email, source: 'landing-waitlist' })
+    });
+    res.ok ? win('✓ You\'re on the list!') : lose();
+  } catch(e){ lose(); }
 });
 </script>
 
