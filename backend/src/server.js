@@ -15,7 +15,7 @@ import { initSchema, pool } from './db.js';
 import { signup, login, requireAuth } from './auth.js';
 import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
-import { startScheduler } from './refresh.js';
+import { startScheduler, warmStatus } from './refresh.js';
 
 const app = express();
 app.use(express.json());
@@ -25,7 +25,7 @@ app.use(express.json());
 const allowed = (process.env.ALLOWED_ORIGIN || '*').split(',').map((s) => s.trim());
 app.use(cors({ origin: allowed.includes('*') ? true : allowed }));
 
-app.get('/api/health', (req, res) => res.json({ ok: true }));
+app.get('/api/health', (req, res) => res.json({ ok: true, ...warmStatus() }));
 
 // Ads intelligence — a competitor's live ads from the Meta Ad Library (via Apify).
 //   GET /api/ads?brand=The%20Oodie&country=AU  -> { count, ads: [{ text, image, page, started, link }] }

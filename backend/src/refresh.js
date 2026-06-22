@@ -18,6 +18,9 @@ export const TRACKED = [
 const PLATFORMS = [['instagram', 'ig'], ['tiktok', 'tt'], ['facebook', 'fb']];
 
 let running = false;
+let lastWarm = null, lastResult = null;
+
+export function warmStatus() { return { warmedAt: lastWarm, last: lastResult, running, tracked: TRACKED.length }; }
 
 export async function refreshAll(force) {
   if (running) { console.log('refresh already in progress — skipping'); return { skipped: true }; }
@@ -36,6 +39,8 @@ export async function refreshAll(force) {
   } finally {
     running = false;
   }
+  lastWarm = Date.now();
+  lastResult = { ok, fail };
   console.log('✓ pre-warm done: ' + ok + ' ok, ' + fail + ' failed in ' + Math.round((Date.now() - t0) / 1000) + 's');
   return { ok, fail };
 }
