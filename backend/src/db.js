@@ -34,5 +34,20 @@ export async function initSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS idx_competitors_user ON competitors(user_id);
+    CREATE TABLE IF NOT EXISTS emails (
+      id            SERIAL PRIMARY KEY,
+      message_id    TEXT,
+      sender_email  TEXT,
+      sender_domain TEXT,
+      from_name     TEXT,
+      subject       TEXT,
+      preview       TEXT,
+      html          TEXT,
+      offer         TEXT,
+      received_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS idx_emails_domain ON emails(sender_domain, received_at DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_emails_msgid ON emails(message_id);
   `);
 }

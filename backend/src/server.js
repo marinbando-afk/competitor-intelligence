@@ -16,9 +16,12 @@ import { signup, login, requireAuth } from './auth.js';
 import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
 import { startScheduler, warmStatus } from './refresh.js';
+import { storeInbound, getEmails } from './email.js';
 
 const app = express();
-app.use(express.json());
+// Emails can be large; also accept form-encoded posts from inbound-email services.
+app.use(express.json({ limit: '3mb' }));
+app.use(express.urlencoded({ extended: true, limit: '3mb' }));
 
 // Only your site(s) may call the API. Set ALLOWED_ORIGIN in Railway, e.g.
 //   https://marinbando-afk.github.io
@@ -43,6 +46,28 @@ app.get('/api/ads', async (req, res) => {
 app.get('/api/social', async (req, res) => {
   try {
     res.json(await fetchSocial(req.query.platform, req.query.handle, req.query.host));
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
+// Email intelligence (seeded inbox).
+//   POST /api/inbound-email  — the inbound service posts each received email here.
+//   GET  /api/emails?host=theoodie.com  -> { emails, summary }
+app.post('/api/inbound-email', async (req, res) => {
+  if (process.env.INBOUND_KEY && req.query.key !== process.env.INBOUND_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    res.json(await storeInbound(req.body));
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
+app.get('/api/emails', async (req, res) => {
+  try {
+    res.json(await getEmails(req.query.host));
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }
