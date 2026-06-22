@@ -107,18 +107,21 @@ button{font-family:inherit;cursor:pointer}
 
 .wstats{font-size:12.5px;color:var(--muted);margin-bottom:15px;padding-bottom:12px;border-bottom:1px solid var(--line);text-transform:none;letter-spacing:0}
 .note{font-size:14px;color:var(--muted);line-height:1.62;margin-top:14px;font-style:italic;font-family:'Fraunces',serif}
-.adstrip{display:flex;gap:9px;overflow-x:auto;padding-bottom:3px}
-.adstrip::-webkit-scrollbar{height:0}
-.adthumb{width:86px;height:106px;border-radius:6px;flex-shrink:0;position:relative;overflow:hidden;border:1px solid var(--line2);display:flex;align-items:flex-end;padding:8px;text-decoration:none;transition:transform .16s}
-.adthumb:hover{transform:translateY(-3px)}
-.adthumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
-.adthumb::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 38%,rgba(12,16,9,.82));z-index:1}
-.adthumb .hk{position:relative;z-index:2;font-size:9px;font-weight:600;color:#fff;line-height:1.3;text-shadow:0 1px 3px rgba(0,0,0,.9)}
-.adthumb .nw{position:absolute;top:6px;left:6px;z-index:3;font-size:8px;font-weight:600;letter-spacing:.06em;background:var(--sage);color:#0b1311;padding:1px 6px;border-radius:20px;text-transform:uppercase}
-.adthumb .pl{position:absolute;top:6px;right:6px;z-index:3;font-size:8px;font-weight:500;background:rgba(0,0,0,.55);color:#fff;padding:1px 6px;border-radius:20px}
-.adthumb .go{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;opacity:0;background:rgba(12,16,9,.5);transition:opacity .16s}
+.adstrip{display:flex;gap:13px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x proximity}
+.adstrip::-webkit-scrollbar{height:7px}
+.adstrip::-webkit-scrollbar-thumb{background:rgba(168,190,125,.18);border-radius:5px}
+.adthumb{width:188px;flex-shrink:0;border-radius:12px;overflow:hidden;border:1px solid var(--line2);background:var(--panel2);text-decoration:none;display:block;scroll-snap-align:start;transition:transform .16s,border-color .16s,box-shadow .16s}
+.adthumb:hover{transform:translateY(-3px);border-color:var(--sage-d);box-shadow:0 14px 30px rgba(0,0,0,.34)}
+.adthumb .media{position:relative;width:100%;height:212px;background:var(--raised);overflow:hidden}
+.adthumb .media img{width:100%;height:100%;object-fit:cover;display:block}
+.adthumb .media.noimg::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 38%,rgba(140,184,166,.14),transparent 70%)}
+.adthumb .nw{position:absolute;top:10px;left:10px;z-index:3;font-size:9px;font-weight:600;letter-spacing:.05em;background:var(--sage);color:#0b1311;padding:2px 8px;border-radius:20px;text-transform:uppercase}
+.adthumb .nw.vid,.adthumb .nw.alt{background:rgba(0,0,0,.62);color:#fff;letter-spacing:.02em}
+.adthumb .pl{position:absolute;top:10px;right:10px;z-index:3;font-size:10px;font-weight:600;background:rgba(0,0,0,.6);color:#fff;padding:3px 9px;border-radius:20px;backdrop-filter:blur(4px)}
+.adthumb .cap{padding:11px 13px 13px;font-size:12.5px;line-height:1.46;color:var(--text);height:74px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+.adthumb .go{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;opacity:0;background:rgba(12,16,9,.4);transition:opacity .16s}
 .adthumb:hover .go{opacity:1}
-.adthumb .go span{width:28px;height:28px;border-radius:50%;background:var(--sage);display:flex;align-items:center;justify-content:center}
+.adthumb .go span{width:36px;height:36px;border-radius:50%;background:var(--sage);display:flex;align-items:center;justify-content:center}
 .adlink{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);text-decoration:none;margin-top:15px}
 .adlink:hover{color:var(--quiet)}
 .adsbox{margin-bottom:2px}
@@ -128,14 +131,11 @@ button{font-family:inherit;cursor:pointer}
 .adssum{font-size:12.5px;color:var(--muted);margin-bottom:13px;padding-bottom:11px;border-bottom:1px solid var(--line)}
 .adssum b{color:var(--text);font-weight:600}
 .adsempty{font-size:13.5px;color:var(--faint);font-style:italic;font-family:'Fraunces',serif;padding:4px 0 12px}
-.adthumb .nw.vid{background:rgba(0,0,0,.62);color:#fff;letter-spacing:0}
 .soc{margin-bottom:22px}
 .soc:last-child{margin-bottom:2px}
 .soc-h{display:flex;align-items:baseline;gap:10px;margin-bottom:11px;flex-wrap:wrap}
 .soc-p{font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--text)}
 .soc-m{font-size:11.5px;color:var(--muted)}
-.adthumb.soc-t.noimg{background:var(--raised)}
-.adthumb.soc-t.noimg::after{background:linear-gradient(180deg,rgba(18,29,24,.15),rgba(12,16,9,.72))}
 .drow{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
 .drow:last-child{border-bottom:none}
 .dmark{font-size:15px;font-weight:600;width:16px;flex-shrink:0;margin-top:1px;font-family:'Fraunces',serif}
@@ -307,13 +307,17 @@ var PLAT={FACEBOOK:'Facebook',INSTAGRAM:'Instagram',AUDIENCE_NETWORK:'Audience',
 function prettyPlat(p){return PLAT[p]||p;}
 function fmtDate(s){var p=String(s||'').split('-');if(p.length!==3)return s||'';var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return parseInt(p[2],10)+' '+mo[(parseInt(p[1],10)||1)-1];}
 function isRecent(s){var t=Date.parse((s||'')+'T00:00:00');return !isNaN(t)&&(Date.now()-t)<18*864e5;}
+function postCard(o){
+  var img=o.image?'<img src="'+esc(o.image)+'" loading="lazy" onerror="this.style.display=\'none\';this.parentNode.classList.add(\'noimg\')">':'';
+  var go='<span class="go"><span><svg width="15" height="15" fill="none" viewBox="0 0 14 14"><path d="M5 9l4.2-4.2M5.5 4.8H9.2V8.5" stroke="#0b1311" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
+  return '<a class="adthumb" href="'+esc(o.link||'#')+'" target="_blank" rel="noopener">'
+    +'<span class="media'+(o.image?'':' noimg')+'">'+img+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+go+'</span>'
+    +'<span class="cap">'+esc(o.cap||'')+'</span></a>';
+}
 function adThumb(a){
   var plat=(a.platforms&&a.platforms[0])?prettyPlat(a.platforms[0]):'Meta';
-  var hook=esc(String(a.text||a.title||'').slice(0,80));
-  var tag=isRecent(a.started)?'<span class="nw">New</span>':(a.hasVideo?'<span class="nw vid">▶</span>':'');
-  var img=a.image?'<img src="'+esc(a.image)+'" loading="lazy" onerror="this.style.display=\'none\'">':'';
-  var go='<span class="go"><span><svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M5 9l4.2-4.2M5.5 4.8H9.2V8.5" stroke="#0b1311" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
-  return '<a class="adthumb" href="'+esc(a.link||'#')+'" target="_blank" rel="noopener">'+img+tag+'<span class="pl">'+esc(plat)+'</span><span class="hk">'+hook+'</span>'+go+'</a>';
+  var tl=isRecent(a.started)?'<span class="nw">New</span>':(a.hasVideo?'<span class="nw vid">▶ Video</span>':'');
+  return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,cap:String(a.text||a.title||'')});
 }
 function adsHTML(d){
   if(!d||d.error||!d.ads||!d.ads.length)return '<div class="adsempty">No active ads found in the Meta Ad Library right now.</div>';
@@ -333,11 +337,9 @@ function loadAds(box){
 }
 function fmtNum(n){n=+n||0;return n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,'')+'M':(n>=1e3?(n/1e3).toFixed(1).replace(/\.0$/,'')+'k':''+n);}
 function socThumb(p){
-  var img=p.image?'<img src="'+API+'/api/img?u='+encodeURIComponent(p.image)+'" loading="lazy" onerror="this.style.display=\'none\'">':'';
   var metric=p.views!=null?fmtNum(p.views)+' views':(p.likes!=null?fmtNum(p.likes)+' likes':'');
-  var hook=esc(String(p.text||'').slice(0,80));
-  var go='<span class="go"><span><svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M5 9l4.2-4.2M5.5 4.8H9.2V8.5" stroke="#0b1311" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
-  return '<a class="adthumb soc-t'+(img?'':' noimg')+'" href="'+esc(p.url||'#')+'" target="_blank" rel="noopener">'+img+(metric?'<span class="pl">'+esc(metric)+'</span>':'')+'<span class="hk">'+hook+'</span>'+go+'</a>';
+  var tl=p.kind?'<span class="nw alt">'+esc(p.kind)+'</span>':'';
+  return postCard({link:p.url,image:p.image?API+'/api/img?u='+encodeURIComponent(p.image):'',tl:tl,tr:metric,cap:String(p.text||'')});
 }
 function renderSoc(el,d){
   var body=el.querySelector('.soc-body'),met=el.querySelector('.soc-m');
