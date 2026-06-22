@@ -10,7 +10,7 @@
 //   APIFY_FB_ACTOR  (default apify~facebook-posts-scraper)
 
 const TOKEN = process.env.APIFY_TOKEN;
-const TTL = 6 * 60 * 60 * 1000; // 6h cache (scrapes are slow + cost credits)
+const TTL = 26 * 60 * 60 * 1000; // 26h — daily 5am pre-warm keeps posts hot so users never wait
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 
 const cache = new Map();
@@ -136,7 +136,7 @@ function summarize(platform, posts) {
   };
 }
 
-export async function fetchSocial(platform, handle, host) {
+export async function fetchSocial(platform, handle, host, force) {
   if (!TOKEN) { const e = new Error('Social provider not configured — set APIFY_TOKEN in Railway.'); e.status = 503; throw e; }
   platform = String(platform || '').toLowerCase();
   if (!ACTORS[platform]) { const e = new Error('Unknown platform.'); e.status = 400; throw e; }
@@ -148,7 +148,7 @@ export async function fetchSocial(platform, handle, host) {
 
   const key = platform + '|' + handle.toLowerCase();
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL) return { ...hit.data, cached: true };
+  if (!force && hit && Date.now() - hit.at < TTL) return { ...hit.data, cached: true };
 
   const items = await runActor(ACTORS[platform], INPUT[platform](handle));
   const posts = NORM[platform](items).slice(0, 9);

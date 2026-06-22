@@ -7,10 +7,10 @@
 
 const TOKEN = process.env.APIFY_TOKEN;
 const ACTOR = process.env.APIFY_ADS_ACTOR || 'curious_coder~facebook-ads-library-scraper';
-const TTL = 6 * 60 * 60 * 1000; // cache 6h so we don't re-scrape (and re-pay) on every view
+const TTL = 26 * 60 * 60 * 1000; // 26h — a daily 5am pre-warm keeps this hot so users never wait
 const cache = new Map();
 
-export async function fetchAds(brand, country) {
+export async function fetchAds(brand, country, force) {
   brand = String(brand || '').trim();
   country = String(country || 'ALL').trim().toUpperCase();
   if (!brand) { const e = new Error('Missing brand.'); e.status = 400; throw e; }
@@ -18,7 +18,7 @@ export async function fetchAds(brand, country) {
 
   const key = brand.toLowerCase() + '|' + country;
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL) return { ...hit.data, cached: true };
+  if (!force && hit && Date.now() - hit.at < TTL) return { ...hit.data, cached: true };
 
   const searchUrl =
     'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' +

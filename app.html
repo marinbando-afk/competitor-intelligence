@@ -131,6 +131,8 @@ button{font-family:inherit;cursor:pointer}
 .adssum{font-size:12.5px;color:var(--muted);margin-bottom:13px;padding-bottom:11px;border-bottom:1px solid var(--line)}
 .adssum b{color:var(--text);font-weight:600}
 .adsempty{font-size:13.5px;color:var(--faint);font-style:italic;font-family:'Fraunces',serif;padding:4px 0 12px}
+.rtry{color:var(--sage);font-style:normal;font-weight:600;text-decoration:underline;cursor:pointer}
+.rtry:hover{color:var(--quiet)}
 .soc{margin-bottom:22px}
 .soc:last-child{margin-bottom:2px}
 .soc-h{display:flex;align-items:baseline;gap:10px;margin-bottom:11px;flex-wrap:wrap}
@@ -343,8 +345,12 @@ function socThumb(p){
 }
 function renderSoc(el,d){
   var body=el.querySelector('.soc-body'),met=el.querySelector('.soc-m');
-  if(!d||d.error||!d.posts||!d.posts.length){
-    if(met)met.textContent=(d&&d.handle)?'@'+d.handle+' · no recent posts':'not connected';
+  if(d&&d.error){
+    if(met)met.textContent='taking a moment…';
+    if(body)body.innerHTML='<div class="adsempty">This scraper is a little slow — <a href="#" class="rtry" onclick="retrySoc(this);return false;">try again</a>.</div>';return;
+  }
+  if(!d||!d.posts||!d.posts.length){
+    if(met)met.textContent=(d&&d.handle)?'@'+d.handle+' · no recent posts':'no public profile found';
     if(body)body.innerHTML='<div class="adsempty">No recent posts found.</div>';return;
   }
   var s=d.summary||{};
@@ -352,14 +358,18 @@ function renderSoc(el,d){
   if(met)met.innerHTML='@'+esc(d.handle)+' · '+d.posts.length+' recent'+top;
   if(body)body.innerHTML='<div class="adstrip">'+d.posts.map(socThumb).join('')+'</div>';
 }
-function loadSocial(wrap){
-  Array.prototype.forEach.call(wrap.querySelectorAll('.soc'),function(el){
-    var platform=el.getAttribute('data-platform'),handle=el.getAttribute('data-handle'),host=el.getAttribute('data-host');
-    if(!handle&&!host){renderSoc(el,{posts:[]});return;}
-    var qs='platform='+encodeURIComponent(platform)+(handle?'&handle='+encodeURIComponent(handle):'')+(host?'&host='+encodeURIComponent(host):'');
-    fetch(API+'/api/social?'+qs).then(function(r){return r.json();}).then(function(d){renderSoc(el,d);})
-      .catch(function(){var b=el.querySelector('.soc-body');if(b)b.innerHTML='<div class="adsempty">Couldn’t load — try again shortly.</div>';});
-  });
+function loadOneSoc(el){
+  var platform=el.getAttribute('data-platform'),handle=el.getAttribute('data-handle'),host=el.getAttribute('data-host');
+  if(!handle&&!host){renderSoc(el,{posts:[]});return;}
+  var qs='platform='+encodeURIComponent(platform)+(handle?'&handle='+encodeURIComponent(handle):'')+(host?'&host='+encodeURIComponent(host):'');
+  fetch(API+'/api/social?'+qs).then(function(r){return r.json();}).then(function(d){renderSoc(el,d);})
+    .catch(function(){renderSoc(el,{error:'network'});});
+}
+function loadSocial(wrap){Array.prototype.forEach.call(wrap.querySelectorAll('.soc'),loadOneSoc);}
+function retrySoc(a){
+  var el=a.closest('.soc');if(!el)return;
+  var b=el.querySelector('.soc-body');if(b)b.innerHTML='<div class="adsload"><span class="spin"></span>Retrying…</div>';
+  loadOneSoc(el);
 }
 function chanDetail(k,ch,c){
   if(k==='ads'){

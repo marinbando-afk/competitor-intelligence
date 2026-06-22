@@ -15,6 +15,7 @@ import { initSchema, pool } from './db.js';
 import { signup, login, requireAuth } from './auth.js';
 import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
+import { startScheduler } from './refresh.js';
 
 const app = express();
 app.use(express.json());
@@ -125,7 +126,7 @@ app.delete('/api/competitors/:id', requireAuth, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-function start() { app.listen(PORT, () => console.log('✓ API listening on :' + PORT)); }
+function start() { app.listen(PORT, () => { console.log('✓ API listening on :' + PORT); startScheduler(); }); }
 // Start the server no matter what — if the DB isn't wired yet, accounts are
 // disabled but the ads endpoint still works.
 initSchema().then(start).catch((err) => {
