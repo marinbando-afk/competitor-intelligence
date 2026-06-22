@@ -14,6 +14,7 @@ import cors from 'cors';
 import { initSchema, pool } from './db.js';
 import { signup, login, requireAuth } from './auth.js';
 import { fetchAds } from './ads.js';
+import { fetchSocial } from './social.js';
 
 const app = express();
 app.use(express.json());
@@ -34,6 +35,37 @@ app.get('/api/ads', async (req, res) => {
     res.status(e.status || 500).json({ error: e.message });
   }
 });
+
+// Organic social — a competitor's recent posts on one platform (via Apify).
+//   GET /api/social?platform=instagram&handle=the_oodie
+//   GET /api/social?platform=tiktok&host=theoodie.com   (handle auto-resolved)
+app.get('/api/social', async (req, res) => {
+  try {
+    res.json(await fetchSocial(req.query.platform, req.query.handle, req.query.host));
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
+// Image proxy — streams social CDN thumbnails so hotlink/expiry never breaks them
+// in the browser. Locked to known social CDNs so it can't be abused as an open proxy.
+const IMG_HOSTS = /(^|\.)(cdninstagram\.com|fbcdn\.net|tiktokcdn\.com|tiktokcdn-us\.com|ibyteimg\.com|akamaized\.net)$/i;
+app.get('/api/img', async (req, res) => {
+  try {
+    const u = String(req.query.u || '');
+    let host;
+    try { host = new URL(u).hostname; } catch { return res.status(400).end(); }
+    if (!/^https:$/.test(new URL(u).protocol) || !IMG_HOSTS.test(host)) return res.status(400).end();
+    const r = await fetch(u, { headers: { 'User-Agent': UA_IMG, Accept: 'image/avif,image/webp,image/*,*/*' } });
+    if (!r.ok) return res.status(502).end();
+    res.set('Content-Type', r.headers.get('content-type') || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.end(Buffer.from(await r.arrayBuffer()));
+  } catch (e) {
+    res.status(500).end();
+  }
+});
+const UA_IMG = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 
 app.post('/api/signup', async (req, res) => {
   try {
