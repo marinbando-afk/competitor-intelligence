@@ -129,6 +129,13 @@ button{font-family:inherit;cursor:pointer}
 .adssum b{color:var(--text);font-weight:600}
 .adsempty{font-size:13.5px;color:var(--faint);font-style:italic;font-family:'Fraunces',serif;padding:4px 0 12px}
 .adthumb .nw.vid{background:rgba(0,0,0,.62);color:#fff;letter-spacing:0}
+.soc{margin-bottom:22px}
+.soc:last-child{margin-bottom:2px}
+.soc-h{display:flex;align-items:baseline;gap:10px;margin-bottom:11px;flex-wrap:wrap}
+.soc-p{font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--text)}
+.soc-m{font-size:11.5px;color:var(--muted)}
+.adthumb.soc-t.noimg{background:var(--raised)}
+.adthumb.soc-t.noimg::after{background:linear-gradient(180deg,rgba(18,29,24,.15),rgba(12,16,9,.72))}
 .drow{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
 .drow:last-child{border-bottom:none}
 .dmark{font-size:15px;font-weight:600;width:16px;flex-shrink:0;margin-top:1px;font-family:'Fraunces',serif}
@@ -223,13 +230,14 @@ var ORD={act:0,watch:1,setup:2,quiet:3};
 var DEMOS=[
   {
     id:'oodie',demo:true,live:true,name:'The Oodie',host:'theoodie.com',url:'https://www.theoodie.com',country:'AU',
+    handles:{ig:'the_oodie',tt:'the_oodie',fb:'theofficialoodie'},
     priority:'act',captured:'21 Jun 2026',base:{products:26,onSale:18},
     oneLiner:'Deep EOFY sale — Originals 40% off',
     verdict:'Deep into an End-of-Financial-Year discount blitz — Oodie Originals are 40% off ($59, down from $99), with a sitewide sale spanning the Care Bears, Tamagotchi and Cloud ranges, plus fresh licensed collabs.',
     move:'They’re buying volume at the expense of margin. Expect heavy price and ad pressure through June 30 — don’t blanket-match 40%. Counter with a bundle or free-gift to defend AOV, and watch whether the sale outlasts EOFY.',
     channels:{
       ads:{active:true,summary:'<span class="flag">Live in Meta Ad Library</span>',angle:'Open their live ad library to see exactly which creatives and offers are running behind this sale.'},
-      social:{active:false},
+      social:{active:true,angle:'How their sale themes play out organically — Care Bears, Wiggles and licensed collabs — and which posts actually land.'},
       website:{active:true,summary:'<b>Up to 50% off</b> · Originals $59',stats:'26 products · $47–$119 · ~18 of 26 currently on sale',changes:[
         {m:'up',s:'Sitewide EOFY sale live',d:'Up to <b>50% off</b> — End of Financial Year'},
         {m:'up',s:'Oodie Originals discounted',d:'<b>$59</b>, down from $99 — <b>40% off</b>'},
@@ -240,13 +248,14 @@ var DEMOS=[
   },
   {
     id:'ancestral',demo:true,live:true,name:'Ancestral Cosmetics',host:'ancestralcosmetics.com',url:'https://ancestralcosmetics.com',
+    handles:{ig:'ancestralskin',tt:'ancestralskin',fb:'ancestralskin'},
     priority:'watch',captured:'21 Jun 2026',base:{products:25,onSale:4},
     oneLiner:'Premium, no-discount — bundle & gift led',
     verdict:'Holding a premium, no-discount posture — no sale event, just modest multi-pack savings. Growth is engineered through a deep bundle ladder (Essentials £80 → Ultimate £156) and a “free lip balm over £80” gift that lifts basket size while protecting margin.',
     move:'They don’t discount — they free-gift and bundle, so you won’t beat them on price. Compete on a sharper story or a tighter segment, and watch whether the new Velvet Dust line expands into a full range.',
     channels:{
       ads:{active:true,summary:'<span class="flag">Live in Meta Ad Library</span>',angle:'Open their live ad library — their ads lean on heritage, grass-fed Irish tallow, and ingredient provenance.'},
-      social:{active:false},
+      social:{active:true,angle:'Heritage and ingredient-provenance storytelling — tallow, grass-fed Irish sourcing — and which posts resonate.'},
       website:{active:true,summary:'<b>No sale</b> · bundle &amp; gift led',stats:'25 products · £9–£156 · no sale event (multi-pack savings only)',changes:[
         {m:'new',s:'Free-gift offer running',d:'“Spend £80, get a free lip balm” — lifts AOV, protects margin'},
         {m:'new',s:'Deep bundle ladder',d:'Essentials £80 → Ultimate £156 · 10+ sets'},
@@ -322,6 +331,34 @@ function loadAds(box){
     })
     .catch(function(){box.innerHTML='<div class="adsempty">Couldn’t reach the ad service just now — try again in a moment.</div>';});
 }
+function fmtNum(n){n=+n||0;return n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,'')+'M':(n>=1e3?(n/1e3).toFixed(1).replace(/\.0$/,'')+'k':''+n);}
+function socThumb(p){
+  var img=p.image?'<img src="'+API+'/api/img?u='+encodeURIComponent(p.image)+'" loading="lazy" onerror="this.style.display=\'none\'">':'';
+  var metric=p.views!=null?fmtNum(p.views)+' views':(p.likes!=null?fmtNum(p.likes)+' likes':'');
+  var hook=esc(String(p.text||'').slice(0,80));
+  var go='<span class="go"><span><svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M5 9l4.2-4.2M5.5 4.8H9.2V8.5" stroke="#0b1311" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
+  return '<a class="adthumb soc-t'+(img?'':' noimg')+'" href="'+esc(p.url||'#')+'" target="_blank" rel="noopener">'+img+(metric?'<span class="pl">'+esc(metric)+'</span>':'')+'<span class="hk">'+hook+'</span>'+go+'</a>';
+}
+function renderSoc(el,d){
+  var body=el.querySelector('.soc-body'),met=el.querySelector('.soc-m');
+  if(!d||d.error||!d.posts||!d.posts.length){
+    if(met)met.textContent=(d&&d.handle)?'@'+d.handle+' · no recent posts':'not connected';
+    if(body)body.innerHTML='<div class="adsempty">No recent posts found.</div>';return;
+  }
+  var s=d.summary||{};
+  var top=s.topValue?' · top '+fmtNum(s.topValue)+' '+(s.metric==='views'?'views':'likes'):'';
+  if(met)met.innerHTML='@'+esc(d.handle)+' · '+d.posts.length+' recent'+top;
+  if(body)body.innerHTML='<div class="adstrip">'+d.posts.map(socThumb).join('')+'</div>';
+}
+function loadSocial(wrap){
+  Array.prototype.forEach.call(wrap.querySelectorAll('.soc'),function(el){
+    var platform=el.getAttribute('data-platform'),handle=el.getAttribute('data-handle'),host=el.getAttribute('data-host');
+    if(!handle&&!host){renderSoc(el,{posts:[]});return;}
+    var qs='platform='+encodeURIComponent(platform)+(handle?'&handle='+encodeURIComponent(handle):'')+(host?'&host='+encodeURIComponent(host):'');
+    fetch(API+'/api/social?'+qs).then(function(r){return r.json();}).then(function(d){renderSoc(el,d);})
+      .catch(function(){var b=el.querySelector('.soc-body');if(b)b.innerHTML='<div class="adsempty">Couldn’t load — try again shortly.</div>';});
+  });
+}
 function chanDetail(k,ch,c){
   if(k==='ads'){
     var ctry=c.country||'ALL';
@@ -331,8 +368,15 @@ function chanDetail(k,ch,c){
     return box+note+'<a class="adlink" href="'+lib+'" target="_blank" rel="noopener">Open full Meta Ad Library <svg width="11" height="11" fill="none" viewBox="0 0 11 11"><path d="M1 5.5h8M5.5 2l3.5 3.5L5.5 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>';
   }
   if(k==='social'){
-    return ch.posts.map(function(p){return '<div class="post"><span class="pthumb"><img src="'+p.img+'" loading="lazy" onerror="this.style.display=\'none\'"></span><div style="flex:1;min-width:0"><div class="pcap">'+esc(p.cap)+'</div><div class="pmet">'+esc(p.pl)+' · '+esc(p.met)+'</div></div></div>';}).join('')
-      +(ch.cadence?'<div class="note">'+esc(ch.cadence)+'</div>':'');
+    var hs=c.handles||{};
+    var subs=[['instagram','Instagram',hs.ig],['tiktok','TikTok',hs.tt],['facebook','Facebook',hs.fb]];
+    var inner=subs.map(function(s){
+      return '<div class="soc" data-platform="'+s[0]+'" data-handle="'+esc(s[2]||'')+'" data-host="'+esc(c.host||'')+'">'
+        +'<div class="soc-h"><span class="soc-p">'+s[1]+'</span><span class="soc-m">…</span></div>'
+        +'<div class="soc-body"><div class="adsload"><span class="spin"></span>Checking '+s[1]+'…</div></div></div>';
+    }).join('');
+    return (ch.angle?'<div class="note" style="margin-top:0;margin-bottom:18px">'+ch.angle+'</div>':'')
+      +'<div class="socwrap" id="soc-'+esc(c.id)+'">'+inner+'</div>';
   }
   if(k==='website'){
     var st=ch.stats?'<div class="wstats">'+esc(ch.stats)+'</div>':'';
@@ -347,8 +391,9 @@ function chanDetail(k,ch,c){
 function channel(k,c){
   var def=CH.find(function(x){return x.k===k;});
   var ch=(c.channels&&c.channels[k])||null;
-  // Ads are live for ANY brand via the Meta Ad Library API — always offer them.
+  // Ads + Organic Social are live for ANY brand via the API — always offer them.
   if(k==='ads'&&!ch)ch={active:true,summary:'<span class="flag">Live — Meta Ad Library</span>'};
+  if(k==='social'&&(!ch||!ch.summary))ch={active:true,angle:(ch&&ch.angle)||'',summary:'<span class="flag">Live — IG · TikTok · Facebook</span>'};
   var on=ch&&ch.active;
   var inactive=c.live?'available with full monitoring':(c.demo?'no change':'begins within 24 hours');
   var right=on?'<span class="chan-sum">'+ch.summary+'</span><svg class="chev" width="13" height="13" fill="none" viewBox="0 0 13 13"><path d="M3.5 5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
@@ -362,6 +407,8 @@ function tog(btn){
   if(chan.classList.contains('open')){
     var box=chan.querySelector('.adsbox');
     if(box&&!box.dataset.loaded){box.dataset.loaded='1';loadAds(box);}
+    var soc=chan.querySelector('.socwrap');
+    if(soc&&!soc.dataset.loaded){soc.dataset.loaded='1';loadSocial(soc);}
   }
 }
 
