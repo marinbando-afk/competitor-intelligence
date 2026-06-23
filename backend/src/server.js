@@ -18,6 +18,7 @@ import { fetchSocial } from './social.js';
 import { startScheduler, warmStatus } from './refresh.js';
 import { storeInbound, getEmails, recentEmails } from './email.js';
 import { chat } from './chat.js';
+import { snapshotDays, snapshotForDay } from './snapshots.js';
 
 const app = express();
 // Emails can be large; also accept form-encoded posts from inbound-email services.
@@ -88,6 +89,22 @@ app.post('/api/chat', async (req, res) => {
     res.json(await chat(req.body));
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
+// History — the days we have snapshots for, and one day's full snapshot.
+app.get('/api/history', async (req, res) => {
+  try {
+    res.json({ days: await snapshotDays(req.query.host) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/api/snapshot', async (req, res) => {
+  try {
+    res.json({ day: req.query.day, channels: await snapshotForDay(req.query.host, req.query.day) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

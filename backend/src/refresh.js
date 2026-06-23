@@ -8,6 +8,7 @@
 
 import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
+import { getEmails } from './email.js';
 import { saveSnapshot } from './snapshots.js';
 
 // Brands kept permanently warm (mirrors the app's seeded demos).
@@ -36,6 +37,7 @@ export async function refreshAll(force) {
         try { const s = await fetchSocial(pf, b.handles && b.handles[hk], b.host, force); ok++; if (s && s.posts && s.posts.length) await saveSnapshot(b.host, pf, s); }
         catch (e) { fail++; console.warn('warm ' + pf + ' ' + b.name + ':', e.message); }
       }
+      try { const em = await getEmails(b.host); if (em && em.storage) await saveSnapshot(b.host, 'email', em); } catch (e) { /* email snapshot best-effort */ }
     }
   } finally {
     running = false;
