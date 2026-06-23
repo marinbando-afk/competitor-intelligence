@@ -9,6 +9,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
+import { latestSnapshot } from './snapshots.js';
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
 
@@ -23,9 +24,10 @@ const dayOf = (s) => String(s || '').split('T')[0].split(' ')[0];
 async function assembleContext({ name, host, country, handles }) {
   const out = [];
   try {
-    const a = await fetchAds(name, country, false, true);
+    let a = await latestSnapshot(host, 'ads');               // persisted daily snapshot (complete)
+    if (!a || !a.ads || !a.ads.length) a = await fetchAds(name, country, false, true); // fallback: warm cache
     if (a && a.ads && a.ads.length) {
-      out.push(`META ADS (${country}): ${a.active} active across ${(a.platforms || []).join(', ')}; newest ${a.newest}.`);
+      out.push(`META ADS (${a.country || country}): ${a.active} active across ${(a.platforms || []).join(', ')}; newest ${a.newest}.`);
       a.ads.slice(0, 10).forEach((ad) => out.push(`  • ad ${ad.started}: ${oneLine(ad.text).slice(0, 170)}${ad.cta ? ` [CTA ${ad.cta}]` : ''}`));
     }
   } catch (e) { /* skip channel on error */ }
@@ -34,7 +36,8 @@ async function assembleContext({ name, host, country, handles }) {
     const h = handles && handles[key];
     if (!h && !host) continue;
     try {
-      const s = await fetchSocial(pf, h, host, false, true);
+      let s = await latestSnapshot(host, pf);                // persisted daily snapshot (complete)
+      if (!s || !s.posts || !s.posts.length) s = await fetchSocial(pf, h, host, false, true); // fallback: warm cache
       if (s && s.posts && s.posts.length) {
         const sm = s.summary || {};
         out.push(`${label} @${s.handle}: ${s.posts.length} recent posts; top ${sm.topValue || '?'} ${sm.metric || ''}.`);

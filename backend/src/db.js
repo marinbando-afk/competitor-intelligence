@@ -49,5 +49,15 @@ export async function initSchema() {
     );
     CREATE INDEX IF NOT EXISTS idx_emails_domain ON emails(sender_domain, received_at DESC);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_emails_msgid ON emails(message_id);
+    CREATE TABLE IF NOT EXISTS snapshots (
+      id         SERIAL PRIMARY KEY,
+      host       TEXT NOT NULL,
+      channel    TEXT NOT NULL,
+      day        DATE NOT NULL DEFAULT CURRENT_DATE,
+      data       JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_snap_unique ON snapshots(host, channel, day);
+    CREATE INDEX IF NOT EXISTS idx_snap_host ON snapshots(host, channel, day DESC);
   `);
 }

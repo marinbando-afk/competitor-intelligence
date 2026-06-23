@@ -8,6 +8,7 @@
 
 import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
+import { saveSnapshot } from './snapshots.js';
 
 // Brands kept permanently warm (mirrors the app's seeded demos).
 export const TRACKED = [
@@ -29,10 +30,10 @@ export async function refreshAll(force) {
   let ok = 0, fail = 0;
   try {
     for (const b of TRACKED) {
-      try { await fetchAds(b.name, b.country, force); ok++; }
+      try { const a = await fetchAds(b.name, b.country, force); ok++; if (a && a.ads && a.ads.length) await saveSnapshot(b.host, 'ads', a); }
       catch (e) { fail++; console.warn('warm ads ' + b.name + ':', e.message); }
       for (const [pf, hk] of PLATFORMS) {
-        try { await fetchSocial(pf, b.handles && b.handles[hk], b.host, force); ok++; }
+        try { const s = await fetchSocial(pf, b.handles && b.handles[hk], b.host, force); ok++; if (s && s.posts && s.posts.length) await saveSnapshot(b.host, pf, s); }
         catch (e) { fail++; console.warn('warm ' + pf + ' ' + b.name + ':', e.message); }
       }
     }
