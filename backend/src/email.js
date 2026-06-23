@@ -103,3 +103,16 @@ export async function getEmails(host) {
   } : null;
   return { host, root, storage: true, emails, summary };
 }
+
+// Monitoring: the most recent captured emails across every sender (any brand).
+export async function recentEmails() {
+  if (!process.env.DATABASE_URL) return { storage: false, emails: [] };
+  const r = await pool.query(
+    `SELECT sender_domain, from_name, subject, offer, received_at
+     FROM emails ORDER BY received_at DESC LIMIT 15`);
+  return {
+    storage: true,
+    count: r.rowCount,
+    emails: r.rows.map((e) => ({ domain: e.sender_domain, from: e.from_name, subject: e.subject, offer: e.offer || '', date: e.received_at })),
+  };
+}
