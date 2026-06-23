@@ -17,6 +17,7 @@ import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
 import { startScheduler, warmStatus } from './refresh.js';
 import { storeInbound, getEmails, recentEmails } from './email.js';
+import { chat } from './chat.js';
 
 const app = express();
 // Emails can be large; also accept form-encoded posts from inbound-email services.
@@ -76,6 +77,15 @@ app.get('/api/emails', async (req, res) => {
 app.get('/api/emails-recent', async (req, res) => {
   try {
     res.json(await recentEmails());
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
+// AI chat — answer a question grounded in a competitor's captured data.
+app.post('/api/chat', async (req, res) => {
+  try {
+    res.json(await chat(req.body));
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }

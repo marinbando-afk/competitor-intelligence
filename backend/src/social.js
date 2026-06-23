@@ -136,7 +136,7 @@ function summarize(platform, posts) {
   };
 }
 
-export async function fetchSocial(platform, handle, host, force) {
+export async function fetchSocial(platform, handle, host, force, cacheOnly) {
   if (!TOKEN) { const e = new Error('Social provider not configured — set APIFY_TOKEN in Railway.'); e.status = 503; throw e; }
   platform = String(platform || '').toLowerCase();
   if (!ACTORS[platform]) { const e = new Error('Unknown platform.'); e.status = 400; throw e; }
@@ -149,6 +149,8 @@ export async function fetchSocial(platform, handle, host, force) {
   const key = platform + '|' + handle.toLowerCase();
   const hit = cache.get(key);
   if (!force && hit && Date.now() - hit.at < TTL) return { ...hit.data, cached: true };
+  // cacheOnly: never trigger a live scrape (used by the chat) — return empty on a miss.
+  if (cacheOnly) return { platform, handle, posts: [], summary: null, cacheMiss: true };
 
   const items = await runActor(ACTORS[platform], INPUT[platform](handle));
   const posts = NORM[platform](items).slice(0, 9);
