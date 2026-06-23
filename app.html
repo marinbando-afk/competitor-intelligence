@@ -212,6 +212,32 @@ button{font-family:inherit;cursor:pointer}
 .fld input:focus{border-color:var(--sage);box-shadow:0 0 0 3px var(--sage-soft)}
 .fld .er{color:var(--act);font-size:12px;margin-top:6px;display:none}
 .m-act{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+/* ── AI chat ── */
+.chatfab{position:fixed;bottom:22px;right:22px;z-index:40;display:inline-flex;align-items:center;gap:8px;background:var(--sage);color:#0b1311;border:none;border-radius:24px;padding:12px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 12px 30px rgba(0,0,0,.42);transition:.15s}
+.chatfab:hover{background:var(--quiet);transform:translateY(-2px)}
+.chatpanel{position:fixed;top:0;right:0;bottom:0;width:412px;max-width:93vw;z-index:60;background:var(--panel);border-left:1px solid var(--line2);box-shadow:-24px 0 70px rgba(0,0,0,.5);display:flex;flex-direction:column;transform:translateX(101%);transition:transform .26s cubic-bezier(.4,0,.2,1)}
+.chatpanel.open{transform:translateX(0)}
+.chat-h{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line2);flex-shrink:0}
+.chat-t{font-family:'Fraunces',serif;font-weight:600;font-size:18px}
+.chat-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.chat-x{background:none;border:none;color:var(--muted);font-size:15px;cursor:pointer;padding:4px}
+.chat-x:hover{color:var(--text)}
+.chat-msgs{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px}
+.cmsg{max-width:88%;padding:11px 14px;border-radius:13px;font-size:13.5px;line-height:1.52;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere}
+.cmsg.user{align-self:flex-end;background:var(--raised);border:1px solid var(--line2);border-bottom-right-radius:4px}
+.cmsg.ai{align-self:flex-start;background:var(--sage-soft);border:1px solid var(--sage-d);border-bottom-left-radius:4px}
+.cmsg.sys{align-self:stretch;max-width:none;background:none;border:none;color:var(--faint);font-style:italic;font-family:'Fraunces',serif;font-size:13px;text-align:center;padding:8px 6px}
+.ctyping{align-self:flex-start;color:var(--muted);font-size:13px;font-style:italic;display:inline-flex;gap:9px;align-items:center}
+.chat-foot{border-top:1px solid var(--line2);padding:12px 16px 16px;flex-shrink:0}
+.chat-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+.cchip{font-size:11.5px;color:var(--sage);background:none;border:1px solid var(--line2);border-radius:16px;padding:6px 11px;cursor:pointer;transition:.15s;text-align:left}
+.cchip:hover{border-color:var(--sage-d);background:var(--sage-soft)}
+.chat-inwrap{display:flex;gap:8px;align-items:center}
+.chat-in{flex:1;background:var(--bg);border:1px solid var(--line2);border-radius:22px;padding:11px 16px;color:var(--text);font-family:inherit;font-size:13.5px;outline:none}
+.chat-in:focus{border-color:var(--sage)}
+.chat-send{flex-shrink:0;width:38px;height:38px;border-radius:50%;background:var(--sage);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+.chat-send:hover{background:var(--quiet)}
+@media(max-width:560px){.chatfab span{display:none}.chatfab{padding:14px;border-radius:50%}}
 
 @media(max-width:880px){
   .rail{width:100%}
@@ -252,6 +278,24 @@ button{font-family:inherit;cursor:pointer}
     <div class="fld"><label for="fN">Brand name</label><input id="fN" type="text" placeholder="e.g. The Oodie" autocomplete="off"/><div class="er" id="eN">Please enter a name.</div></div>
     <div class="fld"><label for="fU">Website</label><input id="fU" type="text" placeholder="e.g. theoodie.com" autocomplete="off"/><div class="er" id="eU">Please enter a valid website.</div></div>
     <div class="m-act"><button class="btn btn-g" onclick="closeModal()">Cancel</button><button class="btn btn-p" onclick="submitComp()">Add to Watchlist</button></div>
+  </div>
+</div>
+
+<button class="chatfab" id="chatFab" onclick="openChat()" title="Ask the AI about this competitor">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.2l1.7 4.6 4.6 1.7-4.6 1.7L8 13.8 6.3 9.2 1.7 7.5l4.6-1.7L8 1.2Z" fill="#0b1311"/></svg><span>Ask AI</span>
+</button>
+<div class="chatpanel" id="chatPanel" aria-hidden="true">
+  <div class="chat-h">
+    <div><div class="chat-t">Ask IntelAI</div><div class="chat-sub" id="chatSub">about this competitor</div></div>
+    <button class="chat-x" onclick="closeChat()" title="Close">✕</button>
+  </div>
+  <div class="chat-msgs" id="chatMsgs"></div>
+  <div class="chat-foot">
+    <div class="chat-chips" id="chatChips"></div>
+    <div class="chat-inwrap">
+      <input id="chatInput" class="chat-in" type="text" autocomplete="off" placeholder="Ask about their ads, offers, emails…" onkeydown="if(event.key==='Enter')sendChat()"/>
+      <button class="chat-send" onclick="sendChat()" title="Send"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h10M8 4l4 4-4 4" stroke="#0b1311" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
   </div>
 </div>
 
@@ -609,6 +653,7 @@ function render(){
   document.getElementById('detail').innerHTML=report(cur);
   ensureLive(cur);
   setDate();
+  syncChat(cur);
 }
 function setDate(){var d=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];document.getElementById('topDate').textContent=days[d.getDay()]+' '+String(d.getDate()).padStart(2,'0')+' '+mo[d.getMonth()]+' '+d.getFullYear();}
 function select(id){state.sel=id;document.getElementById('app').dataset.view='detail';render();document.getElementById('detail').scrollTop=0;}
@@ -625,7 +670,39 @@ function submitComp(){
   var l=getList();l.unshift({id:'c-'+Date.now(),demo:false,name:n,host:u.hostname.replace(/^www\./,''),url:u.href,updatedAt:Date.now()});
   save(l);state.sel=l[0].id;closeModal();document.getElementById('app').dataset.view='detail';render();
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
+
+/* ── AI chat (answers grounded in the captured data) ── */
+var chatThreads={};
+var CHAT_CHIPS=['When did they launch their current sale?','What offer are they pushing hardest?','How often do they email — and about what?','What angle do their top posts use?'];
+function currentComp(){var l=getList();return l.find(function(c){return c.id===state.sel;})||l[0];}
+function chatCtx(c){var p=[];if(c.oneLiner)p.push(c.oneLiner);if(c.verdict)p.push(c.verdict);var w=c.channels&&c.channels.website;if(w){if(w.stats)p.push('Website: '+w.stats);if(w.changes)w.changes.forEach(function(d){p.push('• '+d.s+': '+String(d.d).replace(/<[^>]+>/g,''));});}return p.join(' · ');}
+function openChat(){var c=currentComp();if(!c)return;document.getElementById('chatSub').textContent='about '+c.name;document.getElementById('chatPanel').classList.add('open');renderChat(c);setTimeout(function(){document.getElementById('chatInput').focus();},150);}
+function closeChat(){var p=document.getElementById('chatPanel');if(p)p.classList.remove('open');}
+function syncChat(c){var p=document.getElementById('chatPanel');if(c&&p&&p.classList.contains('open')){document.getElementById('chatSub').textContent='about '+c.name;renderChat(c);}}
+function renderChat(c){
+  var box=document.getElementById('chatMsgs'),thread=chatThreads[c.id]||[];
+  box.innerHTML='';
+  if(!thread.length){var s=document.createElement('div');s.className='cmsg sys';s.textContent='Ask me anything about '+c.name+' — I answer from their real ads, posts and emails we’ve captured.';box.appendChild(s);}
+  else{thread.forEach(function(m){var d=document.createElement('div');d.className='cmsg '+(m.role==='assistant'?'ai':'user');d.textContent=m.content;box.appendChild(d);});}
+  document.getElementById('chatChips').innerHTML=thread.length?'':CHAT_CHIPS.map(function(q){return '<button class="cchip" onclick="askChip(this)">'+esc(q)+'</button>';}).join('');
+  box.scrollTop=box.scrollHeight;
+}
+function askChip(b){document.getElementById('chatInput').value=b.textContent;sendChat();}
+function sendChat(){
+  var c=currentComp();if(!c)return;
+  var inp=document.getElementById('chatInput'),q=(inp.value||'').trim();if(!q)return;
+  inp.value='';document.getElementById('chatChips').innerHTML='';
+  var box=document.getElementById('chatMsgs'),sys=box.querySelector('.cmsg.sys');if(sys)sys.remove();
+  var um=document.createElement('div');um.className='cmsg user';um.textContent=q;box.appendChild(um);
+  var thread=chatThreads[c.id]||(chatThreads[c.id]=[]),hist=thread.slice();thread.push({role:'user',content:q});
+  var typ=document.createElement('div');typ.className='ctyping';typ.innerHTML='<span class="spin"></span> IntelAI is reading the data…';box.appendChild(typ);box.scrollTop=box.scrollHeight;
+  fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:c.name,host:c.host||'',country:c.country||'ALL',handles:c.handles||{},context:chatCtx(c),question:q,messages:hist})})
+    .then(function(r){return r.json();}).then(function(d){
+      typ.remove();var am=document.createElement('div');am.className='cmsg ai';am.textContent=(d&&d.error)?('⚠ '+d.error):((d&&d.answer)||'(no answer)');box.appendChild(am);box.scrollTop=box.scrollHeight;
+      if(d&&!d.error&&d.answer)thread.push({role:'assistant',content:d.answer});
+    }).catch(function(){typ.remove();var am=document.createElement('div');am.className='cmsg ai';am.textContent='Couldn’t reach the AI just now — try again in a moment.';box.appendChild(am);box.scrollTop=box.scrollHeight;});
+}
 
 render();
 </script>
