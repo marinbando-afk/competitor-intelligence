@@ -8,6 +8,9 @@
 
 import { pool } from './db.js';
 
+// The monitored inbox users subscribe to competitors' newsletters with.
+const INBOX = process.env.INBOX_ADDRESS || 'b76eccaaa8ce3a2923a9@cloudmailin.net';
+
 function clean(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
 function extractEmail(s) { const m = String(s || '').match(/[\w.+-]+@[\w-]+\.[\w.-]+/); return m ? m[0].toLowerCase() : ''; }
 function displayName(s) { const m = String(s || '').match(/^\s*"?([^"<]+?)"?\s*</); return m ? m[1].trim() : ''; }
@@ -82,7 +85,7 @@ function cadencePerWeek(dates) {
 
 export async function getEmails(host) {
   const root = rootDomain(String(host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, ''));
-  if (!process.env.DATABASE_URL) return { host, root, storage: false, emails: [], summary: null };
+  if (!process.env.DATABASE_URL) return { host, root, inbox: INBOX, storage: false, emails: [], summary: null };
   if (!root) { const e = new Error('Missing host.'); e.status = 400; throw e; }
   const r = await pool.query(
     `SELECT from_name, sender_email, subject, preview, offer, received_at
@@ -101,7 +104,7 @@ export async function getEmails(host) {
     latest: emails[0].date,
     offers: offers.slice(0, 6),
   } : null;
-  return { host, root, storage: true, emails, summary };
+  return { host, root, inbox: INBOX, storage: true, emails, summary };
 }
 
 // Monitoring: the most recent captured emails across every sender (any brand).
