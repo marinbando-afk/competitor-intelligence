@@ -231,6 +231,8 @@ button{font-family:inherit;cursor:pointer}
 .m-act{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
 /* ── AI chat ── */
 .chatfab{position:fixed;bottom:22px;right:22px;z-index:40;display:inline-flex;align-items:center;gap:8px;background:var(--sage);color:#0b1311;border:none;border-radius:24px;padding:12px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 12px 30px rgba(0,0,0,.42);transition:.15s}
+.datefloat{position:fixed;right:22px;bottom:74px;z-index:39}
+.datefloat .datenav{background:var(--panel);box-shadow:0 12px 28px rgba(0,0,0,.55)}
 .chatfab:hover{background:var(--quiet);transform:translateY(-2px)}
 .chatpanel{position:fixed;top:0;right:0;bottom:0;width:412px;max-width:93vw;z-index:60;background:var(--panel);border-left:1px solid var(--line2);box-shadow:-24px 0 70px rgba(0,0,0,.5);display:flex;flex-direction:column;transform:translateX(101%);transition:transform .26s cubic-bezier(.4,0,.2,1)}
 .chatpanel.open{transform:translateX(0)}
@@ -312,6 +314,7 @@ button{font-family:inherit;cursor:pointer}
 <button class="chatfab" id="chatFab" onclick="openChat()" title="Ask the AI about this competitor">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.2l1.7 4.6 4.6 1.7-4.6 1.7L8 13.8 6.3 9.2 1.7 7.5l4.6-1.7L8 1.2Z" fill="#0b1311"/></svg><span>Ask AI</span>
 </button>
+<div class="datefloat" id="dateFloat"></div>
 <div class="chatpanel" id="chatPanel" aria-hidden="true">
   <div class="chat-h">
     <div><div class="chat-t">Ask IntelAI</div><div class="chat-sub" id="chatSub">about this competitor</div></div>
@@ -444,7 +447,12 @@ function adsHTML(d){
 }
 function loadAds(box){
   var brand=box.getAttribute('data-brand'),country=box.getAttribute('data-country')||'ALL';
-  if(state.day){box.innerHTML=adsHTML((viewSnap&&viewSnap.ads)||{ads:[],active:0,platforms:[]});return;}
+  if(state.day){
+    var sa=(viewSnap&&viewSnap.ads)||{ads:[]};
+    var fa=(sa.ads||[]).filter(function(a){return String(a.started||'').slice(0,10)===state.day;});
+    box.innerHTML=fa.length?adsHTML({ads:fa,active:fa.length,platforms:sa.platforms||[],newest:state.day,country:sa.country}):'<div class="adsempty">No new ads detected on this date.</div>';
+    return;
+  }
   fetch(API+'/api/ads?brand='+encodeURIComponent(brand)+'&country='+encodeURIComponent(country))
     .then(function(r){return r.json();})
     .then(function(d){
@@ -454,6 +462,7 @@ function loadAds(box){
     .catch(function(){box.innerHTML='<div class="adsempty">Couldn’t reach the ad service just now — try again in a moment.</div>';});
 }
 function fmtNum(n){n=+n||0;return n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,'')+'M':(n>=1e3?(n/1e3).toFixed(1).replace(/\.0$/,'')+'k':''+n);}
+function socSummary(posts){if(!posts.length)return null;var hv=posts.some(function(p){return p.views!=null;}),metric=hv?'views':'likes';var top=posts.reduce(function(m,p){var v=(metric==='views'?p.views:p.likes)||0;return v>m?v:m;},0);return {count:posts.length,metric:metric,topValue:top};}
 function socThumb(p){
   var st=[];
   if(p.views!=null&&p.views>=0)st.push(statIcon('view',fmtNum(p.views)));
@@ -479,7 +488,13 @@ function renderSoc(el,d){
 }
 function loadOneSoc(el){
   var platform=el.getAttribute('data-platform'),handle=el.getAttribute('data-handle'),host=el.getAttribute('data-host');
-  if(state.day){renderSoc(el,(viewSnap&&viewSnap[platform])||{posts:[]});return;}
+  if(state.day){
+    var ss=(viewSnap&&viewSnap[platform])||{posts:[]};
+    var fp=(ss.posts||[]).filter(function(p){return String(p.date||'').slice(0,10)===state.day;});
+    if(fp.length){renderSoc(el,{handle:ss.handle,posts:fp,summary:socSummary(fp)});}
+    else{var m=el.querySelector('.soc-m'),b=el.querySelector('.soc-body');if(m)m.textContent=(ss.handle?'@'+ss.handle+' · ':'')+'no posts this date';if(b)b.innerHTML='<div class="adsempty">No posts published on this date.</div>';}
+    return;
+  }
   if(!handle&&!host){renderSoc(el,{posts:[]});return;}
   var qs='platform='+encodeURIComponent(platform)+(handle?'&handle='+encodeURIComponent(handle):'')+(host?'&host='+encodeURIComponent(host):'');
   fetch(API+'/api/social?'+qs).then(function(r){return r.json();}).then(function(d){renderSoc(el,d);})
@@ -680,17 +695,18 @@ function ensureHist(c){
   histDays[c.host]=[];
   fetch(API+'/api/history?host='+encodeURIComponent(c.host||'')).then(function(r){return r.json();}).then(function(d){
     histDays[c.host]=(d.days||[]).map(function(x){return String(x).slice(0,10);});
-    if(state.sel===c.id){var w=document.getElementById('dateNavWrap');if(w)w.innerHTML=dateNav(c);}
+    if(state.sel===c.id)refreshDateFloat();
   }).catch(function(){});
 }
+function refreshDateFloat(){var c=currentComp(),f=document.getElementById('dateFloat');if(f)f.innerHTML=c?dateNav(c):'';}
 function goDay(day){
   var c=currentComp();if(!c)return;state.day=day;viewSnap=null;
-  document.getElementById('detail').innerHTML=report(c);
+  document.getElementById('detail').innerHTML=report(c);refreshDateFloat();
   fetch(API+'/api/snapshot?host='+encodeURIComponent(c.host||'')+'&day='+encodeURIComponent(day)).then(function(r){return r.json();}).then(function(d){
-    viewSnap=d.channels||{};if(state.sel===c.id&&state.day===day)document.getElementById('detail').innerHTML=report(c);
-  }).catch(function(){viewSnap={};if(state.sel===c.id)document.getElementById('detail').innerHTML=report(c);});
+    viewSnap=d.channels||{};if(state.sel===c.id&&state.day===day){document.getElementById('detail').innerHTML=report(c);refreshDateFloat();}
+  }).catch(function(){viewSnap={};if(state.sel===c.id){document.getElementById('detail').innerHTML=report(c);refreshDateFloat();}});
 }
-function goToday(){state.day=null;viewSnap=null;var c=currentComp();if(c)document.getElementById('detail').innerHTML=report(c);}
+function goToday(){state.day=null;viewSnap=null;var c=currentComp();if(c){document.getElementById('detail').innerHTML=report(c);refreshDateFloat();}}
 function report(c){
   var p=c.demo?c.priority:'setup';
   var back='<button class="back-btn" onclick="back()"><svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Watchlist</button>';
@@ -701,7 +717,7 @@ function report(c){
   else{meta=esc(c.host);}
   var head=back+BOTANICAL+'<div class="rep-head"><span class="rep-badge">'+badge(c)+'</span>'
     +'<div><div class="rep-name">'+esc(c.name)+'</div><div class="rep-meta">'+meta+'</div></div>'
-    +'<div class="rep-status"><div id="dateNavWrap">'+dateNav(c)+'</div><span class="s '+p+'"><span class="stat-dot bg-'+p+'"></span>'+PRIO[p].l+'</span></div></div>';
+    +'<div class="rep-status"><span class="s '+p+'"><span class="stat-dot bg-'+p+'"></span>'+PRIO[p].l+'</span></div></div>';
 
   if(!c.demo){
     return '<div class="report">'+head
@@ -729,6 +745,7 @@ function render(){
   document.getElementById('detail').innerHTML=report(cur);
   ensureLive(cur);
   ensureHist(cur);
+  refreshDateFloat();
   setDate();
   syncChat(cur);
 }
