@@ -413,7 +413,7 @@ function postCard(o){
   var img=o.image?'<img src="'+esc(o.image)+'" loading="lazy" onerror="this.style.display=\'none\';this.parentNode.classList.add(\'noimg\')">':'';
   var go='<span class="go"><span><svg width="15" height="15" fill="none" viewBox="0 0 14 14"><path d="M5 9l4.2-4.2M5.5 4.8H9.2V8.5" stroke="#0b1311" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
   return '<a class="adthumb" href="'+esc(o.link||'#')+'" target="_blank" rel="noopener">'
-    +'<span class="media'+(o.image?'':' noimg')+'">'+img+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+(o.stats||'')+go+'</span>'
+    +'<span class="media'+(o.image?'':' noimg')+'">'+img+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+(o.stats?'<span class="cstats">'+o.stats+'</span>':'')+go+'</span>'
     +'<span class="cap">'+esc(o.cap||'')+'</span></a>';
 }
 var STAT_ICONS={
