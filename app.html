@@ -84,7 +84,7 @@ button{font-family:inherit;cursor:pointer}
 .rep-badge img{width:30px;height:30px;border-radius:50%}
 .rep-name{font-family:'Fraunces',serif;font-weight:600;font-size:28px;letter-spacing:-.01em;line-height:1.08;margin-top:2px}
 .rep-meta{font-size:11.5px;font-weight:500;letter-spacing:.06em;color:var(--faint);margin-top:8px;text-transform:uppercase}
-.rep-status{margin-left:auto;text-align:right;flex-shrink:0}
+.rep-status{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0}
 .rep-status .s{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:7px}
 .live{display:inline-flex;align-items:center;gap:5px;color:var(--quiet)}
 .livedot{width:6px;height:6px;border-radius:50%;background:var(--quiet);box-shadow:0 0 0 3px rgba(140,184,166,.18);animation:lp 2.2s ease-in-out infinite}
@@ -238,17 +238,14 @@ button{font-family:inherit;cursor:pointer}
 .chat-send{flex-shrink:0;width:38px;height:38px;border-radius:50%;background:var(--sage);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
 .chat-send:hover{background:var(--quiet)}
 @media(max-width:560px){.chatfab span{display:none}.chatfab{padding:14px;border-radius:50%}}
-/* ── date navigator ── */
-.datebar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 28px;padding:8px 12px;border:1px solid var(--line2);border-radius:11px;background:var(--panel2);max-width:760px}
-.report.hist .datebar{border-color:var(--sage-d);background:var(--sage-soft)}
-.dcal{font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
-.dnav{width:27px;height:27px;border-radius:7px;border:1px solid var(--line2);background:none;color:var(--text);font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
-.dnav:hover:not(:disabled){border-color:var(--sage-d);background:var(--sage-soft)}
-.dnav:disabled{opacity:.32;cursor:default}
-.dlabel{font-size:13px;font-weight:600;color:var(--text);min-width:120px;text-align:center}
-.dtoday{font-size:11.5px;font-weight:600;color:var(--sage);background:none;border:1px solid var(--sage-d);border-radius:16px;padding:5px 12px;cursor:pointer;transition:.15s}
-.dtoday:hover{background:var(--sage-soft)}
-.dhint{font-size:11.5px;color:var(--faint);font-style:italic}
+/* ── date navigator (compact, top-right) ── */
+.datenav{display:inline-flex;align-items:center;gap:3px;border:1px solid var(--line2);border-radius:9px;padding:2px;background:var(--panel2);margin-bottom:9px}
+.datenav.hist{border-color:var(--sage-d);background:var(--sage-soft)}
+.datenav .dnav{width:24px;height:24px;border-radius:6px;border:none;background:none;color:var(--text);font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.12s}
+.datenav .dnav:hover:not(:disabled){background:var(--sage-soft)}
+.datenav .dnav:disabled{opacity:.3;cursor:default}
+.datenav .dlabel{font-size:12px;font-weight:600;color:var(--text);min-width:50px;text-align:center}
+.snaplbl{color:var(--gold);font-weight:500}
 
 @media(max-width:880px){
   .rail{width:100%}
@@ -633,23 +630,26 @@ function ensureLive(c){
 
 /* ── day-by-day history ── */
 function fmtFullDay(s){var p=String(s).split('-');if(p.length!==3)return s;var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],d=new Date(+p[0],+p[1]-1,+p[2]);return days[d.getDay()]+' '+(+p[2])+' '+mo[+p[1]-1]+' '+p[0];}
-function dateBar(c){
-  var days=histDays[c.host];if(days===undefined)return '';
-  var today=new Date().toISOString().slice(0,10),past=days.filter(function(d){return d<today;}),tl=[null].concat(past),live=!state.day,idx=live?0:Math.max(0,past.indexOf(state.day)+1);
+function fmtShortDay(s){var p=String(s).split('-');if(p.length!==3)return s;var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return (+p[2])+' '+mo[+p[1]-1];}
+function dateNav(c){
+  var days=histDays[c.host];if(days===undefined||!(c.demo||c.live))return '';
+  var today=new Date().toISOString().slice(0,10),past=days.filter(function(d){return d<today;});
+  if(!past.length&&!state.day)return '';                       // no history yet → hide the control entirely
+  var tl=[null].concat(past),live=!state.day,idx=live?0:Math.max(0,past.indexOf(state.day)+1);
   var older=(idx+1<tl.length)?tl[idx+1]:null,canNewer=idx>0,newer=canNewer?tl[idx-1]:null;
-  var label=live?'Today · live':fmtFullDay(state.day);
-  var L='<button class="dnav"'+(older?' onclick="goDay(\''+older+'\')"':' disabled')+' title="Older snapshot">‹</button>';
-  var R='<button class="dnav"'+(canNewer?(' onclick="'+(newer?'goDay(\''+newer+'\')':'goToday()')+'"'):' disabled')+' title="Newer">›</button>';
-  var T=live?'':'<button class="dtoday" onclick="goToday()">↩ Today</button>';
-  var hint=(!past.length&&live)?'<span class="dhint">History builds daily — step back tomorrow</span>':'';
-  return '<div class="datebar"><span class="dcal">📅 Viewing</span>'+L+'<span class="dlabel">'+esc(label)+'</span>'+R+T+hint+'</div>';
+  var label=live?'Today':fmtShortDay(state.day);
+  return '<div class="datenav'+(live?'':' hist')+'">'
+    +'<button class="dnav"'+(older?' onclick="goDay(\''+older+'\')"':' disabled')+' title="Previous day">‹</button>'
+    +'<span class="dlabel"'+(live?'':' onclick="goToday()" style="cursor:pointer" title="Back to today"')+'>'+esc(label)+'</span>'
+    +'<button class="dnav"'+(canNewer?(' onclick="'+(newer?'goDay(\''+newer+'\')':'goToday()')+'"'):' disabled')+' title="Next day">›</button>'
+    +'</div>';
 }
 function ensureHist(c){
   if(!c||!(c.demo||c.live)||histDays[c.host]!==undefined)return;
   histDays[c.host]=[];
   fetch(API+'/api/history?host='+encodeURIComponent(c.host||'')).then(function(r){return r.json();}).then(function(d){
     histDays[c.host]=(d.days||[]).map(function(x){return String(x).slice(0,10);});
-    if(state.sel===c.id){var w=document.getElementById('dateBarWrap');if(w)w.innerHTML=dateBar(c);}
+    if(state.sel===c.id){var w=document.getElementById('dateNavWrap');if(w)w.innerHTML=dateNav(c);}
   }).catch(function(){});
 }
 function goDay(day){
@@ -664,12 +664,13 @@ function report(c){
   var p=c.demo?c.priority:'setup';
   var back='<button class="back-btn" onclick="back()"><svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Watchlist</button>';
   var meta;
-  if(c.live){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Live data · captured '+esc(c.captured)+'</span><span class="lr" id="lr-'+c.id+'"></span>';}
+  if(state.day){meta=esc(c.host)+' · <span class="snaplbl">📅 viewing '+esc(fmtFullDay(state.day))+'</span>';}
+  else if(c.live){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Live</span><span class="lr" id="lr-'+c.id+'"></span>';}
   else if(c.demo){meta=esc(c.host)+' · scanned '+ago(c.updatedAt)+' ago';}
   else{meta=esc(c.host);}
   var head=back+BOTANICAL+'<div class="rep-head"><span class="rep-badge">'+badge(c)+'</span>'
     +'<div><div class="rep-name">'+esc(c.name)+'</div><div class="rep-meta">'+meta+'</div></div>'
-    +'<div class="rep-status"><span class="s '+p+'"><span class="stat-dot bg-'+p+'"></span>'+PRIO[p].l+'</span></div></div>';
+    +'<div class="rep-status"><div id="dateNavWrap">'+dateNav(c)+'</div><span class="s '+p+'"><span class="stat-dot bg-'+p+'"></span>'+PRIO[p].l+'</span></div></div>';
 
   if(!c.demo){
     return '<div class="report">'+head
@@ -679,7 +680,6 @@ function report(c){
 
   var move=c.move?'<div class="move"><span class="lbl">Recommended action</span><p class="move-t">'+esc(c.move)+'</p></div>':'';
   return '<div class="report'+(state.day?' hist':'')+'">'+head
-    +'<div id="dateBarWrap">'+dateBar(c)+'</div>'
     +'<div class="assess"><span class="lbl">Assessment</span><p class="verdict">'+esc(c.verdict)+'</p></div>'
     +move
     +'<span class="lbl sec-l">Channel activity</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
