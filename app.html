@@ -598,7 +598,7 @@ function chanDetail(k,ch,c){
       +'<div class="socwrap" id="soc-'+esc(c.id)+'">'+inner+'</div>';
   }
   if(k==='website'){
-    var shot=c.url?'<a class="wshot" href="'+esc(c.url)+'" target="_blank" rel="noopener"><img src="https://s.wordpress.com/mshots/v1/'+encodeURIComponent(c.url)+'?w=1100" loading="lazy" alt="" onerror="var w=this.closest(\'.wshot\');if(w)w.style.display=\'none\'"><span class="wshot-go">Open site ↗</span></a>':'';
+    var shot=c.url?'<a class="wshot" href="'+esc(c.url)+'" target="_blank" rel="noopener"><img src="'+API+'/api/shot?url='+encodeURIComponent(c.url)+'" loading="lazy" alt="" onerror="var w=this.closest(\'.wshot\');if(w)w.style.display=\'none\'"><span class="wshot-go">Open site ↗</span></a>':'';
     var st=ch.stats?'<div class="wstats">'+esc(ch.stats)+'</div>':'';
     return shot+st+ch.changes.map(function(d){return '<div class="drow"><span class="dmark '+d.m+'">'+(d.m==='up'?'↑':d.m==='new'?'+':'!')+'</span><div><div class="ds">'+esc(d.s)+'</div><div class="dd">'+d.d+'</div></div></div>';}).join('');
   }

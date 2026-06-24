@@ -128,6 +128,31 @@ app.get('/api/img', async (req, res) => {
 });
 const UA_IMG = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 
+// Website screenshot proxy. With SCREENSHOTONE_KEY set, uses ScreenshotOne with
+// cookie/consent banners + ad/chat widgets auto-blocked. Falls back to WordPress
+// mShots (no key, but bakes in any popup) so the screenshot always works.
+app.get('/api/shot', async (req, res) => {
+  try {
+    const u = String(req.query.url || '');
+    if (!/^https?:\/\//i.test(u)) return res.status(400).end();
+    const key = process.env.SCREENSHOTONE_KEY;
+    const target = key
+      ? 'https://api.screenshotone.com/take?access_key=' + encodeURIComponent(key) +
+        '&url=' + encodeURIComponent(u) +
+        '&format=jpg&image_quality=82&viewport_width=1280&viewport_height=860' +
+        '&block_cookie_banners=true&block_banners_by_heuristics=true&block_ads=true&block_chats=true' +
+        '&cache=true&cache_ttl=86400'
+      : 'https://s.wordpress.com/mshots/v1/' + encodeURIComponent(u) + '?w=1100';
+    const r = await fetch(target, { headers: { 'User-Agent': UA_IMG } });
+    if (!r.ok) return res.status(502).end();
+    res.set('Content-Type', r.headers.get('content-type') || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.end(Buffer.from(await r.arrayBuffer()));
+  } catch (e) {
+    res.status(500).end();
+  }
+});
+
 app.post('/api/signup', async (req, res) => {
   try {
     const { email, password } = req.body || {};
