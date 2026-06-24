@@ -83,12 +83,28 @@ function cadencePerWeek(dates) {
   return Math.round((dates.length / days) * 7 * 10) / 10;
 }
 
+// Pull the content images (the "screenshot") out of a marketing email's HTML,
+// skipping tracking pixels and spacers.
+function emailImages(html) {
+  if (!html) return [];
+  const out = [];
+  const re = /<img[^>]+src\s*=\s*["']([^"']+)["']/gi;
+  let m;
+  while ((m = re.exec(html)) && out.length < 4) {
+    const u = m[1].trim();
+    if (!/^https:\/\//i.test(u)) continue;
+    if (/(pixel|beacon|\/open\b|\/o\/|spacer|width=1\b|height=1\b|1x1|\btrk\b|track\.)/i.test(u)) continue;
+    if (out.indexOf(u) < 0) out.push(u);
+  }
+  return out;
+}
+
 export async function getEmails(host) {
   const root = rootDomain(String(host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, ''));
   if (!process.env.DATABASE_URL) return { host, root, inbox: INBOX, storage: false, emails: [], summary: null };
   if (!root) { const e = new Error('Missing host.'); e.status = 400; throw e; }
   const r = await pool.query(
-    `SELECT from_name, sender_email, subject, preview, offer, received_at
+    `SELECT from_name, sender_email, subject, preview, offer, received_at, html
      FROM emails WHERE sender_domain = $1 ORDER BY received_at DESC LIMIT 16`, [root]);
   const emails = r.rows.map((e) => ({
     from: e.from_name || e.sender_email,
@@ -96,6 +112,7 @@ export async function getEmails(host) {
     preview: e.preview,
     offer: e.offer || '',
     date: e.received_at,
+    images: emailImages(e.html),
   }));
   const offers = [...new Set(emails.map((e) => e.offer).filter(Boolean))];
   const summary = emails.length ? {

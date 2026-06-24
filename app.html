@@ -135,6 +135,17 @@ button{font-family:inherit;cursor:pointer}
 .adthumb .go{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;opacity:0;background:rgba(12,16,9,.4);transition:opacity .16s}
 .adthumb:hover .go{opacity:1}
 .adthumb .go span{width:36px;height:36px;border-radius:50%;background:var(--sage);display:flex;align-items:center;justify-content:center}
+.adthumb .cstats{position:absolute;left:8px;bottom:8px;z-index:3;display:flex;gap:6px}
+.cstat{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:#fff;background:rgba(0,0,0,.62);padding:2px 7px;border-radius:11px;backdrop-filter:blur(3px)}
+.cstat svg{width:10px;height:10px;fill:#fff;display:block}
+.wshot{display:block;position:relative;border-radius:11px;overflow:hidden;border:1px solid var(--line2);margin-bottom:16px;max-width:600px;background:var(--raised);transition:border-color .15s}
+.wshot:hover{border-color:var(--sage-d)}
+.wshot img{width:100%;display:block;min-height:140px}
+.wshot-go{position:absolute;right:10px;bottom:10px;font-size:11px;font-weight:600;background:rgba(0,0,0,.6);color:#fff;padding:4px 11px;border-radius:14px;backdrop-filter:blur(4px)}
+.eml-shots{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+.eml-shots a{display:block;border-radius:7px;overflow:hidden;border:1px solid var(--line2);transition:transform .15s}
+.eml-shots a:hover{transform:translateY(-2px)}
+.eml-shots img{height:92px;width:auto;max-width:160px;object-fit:cover;display:block;background:var(--raised)}
 .adlink{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);text-decoration:none;margin-top:15px}
 .adlink:hover{color:var(--quiet)}
 .adsbox{margin-bottom:2px}
@@ -402,9 +413,15 @@ function postCard(o){
   var img=o.image?'<img src="'+esc(o.image)+'" loading="lazy" onerror="this.style.display=\'none\';this.parentNode.classList.add(\'noimg\')">':'';
   var go='<span class="go"><span><svg width="15" height="15" fill="none" viewBox="0 0 14 14"><path d="M5 9l4.2-4.2M5.5 4.8H9.2V8.5" stroke="#0b1311" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
   return '<a class="adthumb" href="'+esc(o.link||'#')+'" target="_blank" rel="noopener">'
-    +'<span class="media'+(o.image?'':' noimg')+'">'+img+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+go+'</span>'
+    +'<span class="media'+(o.image?'':' noimg')+'">'+img+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+(o.stats||'')+go+'</span>'
     +'<span class="cap">'+esc(o.cap||'')+'</span></a>';
 }
+var STAT_ICONS={
+  like:'<svg viewBox="0 0 16 16"><path d="M8 14.2C4.4 11.4 1.8 9 1.8 6.1 1.8 4.3 3.2 3 5 3c1.1 0 2.2.6 3 1.7C8.8 3.6 9.9 3 11 3c1.8 0 3.2 1.3 3.2 3.1 0 2.9-2.6 5.3-6.2 8.1z"/></svg>',
+  comment:'<svg viewBox="0 0 16 16"><path d="M2.2 3.2h11.6c.6 0 1 .5 1 1v5.8c0 .6-.4 1-1 1H6.6L3 13.6v-2.6H2.2c-.6 0-1-.4-1-1V4.2c0-.5.4-1 1-1z"/></svg>',
+  view:'<svg viewBox="0 0 16 16"><path d="M5.4 3.3l7.2 4.7-7.2 4.7z"/></svg>'
+};
+function statIcon(t,v){return '<span class="cstat">'+STAT_ICONS[t]+esc(String(v))+'</span>';}
 function adThumb(a){
   var plat=(a.platforms&&a.platforms[0])?prettyPlat(a.platforms[0]):'Meta';
   var tl=isRecent(a.started)?'<span class="nw">New</span>':(a.hasVideo?'<span class="nw vid">▶ Video</span>':'');
@@ -429,9 +446,12 @@ function loadAds(box){
 }
 function fmtNum(n){n=+n||0;return n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,'')+'M':(n>=1e3?(n/1e3).toFixed(1).replace(/\.0$/,'')+'k':''+n);}
 function socThumb(p){
-  var metric=p.views!=null?fmtNum(p.views)+' views':(p.likes!=null?fmtNum(p.likes)+' likes':'');
+  var st=[];
+  if(p.views!=null&&p.views>=0)st.push(statIcon('view',fmtNum(p.views)));
+  if(p.likes!=null&&p.likes>=0)st.push(statIcon('like',fmtNum(p.likes)));
+  if(p.comments!=null&&p.comments>=0)st.push(statIcon('comment',fmtNum(p.comments)));
   var tl=p.kind?'<span class="nw alt">'+esc(p.kind)+'</span>':'';
-  return postCard({link:p.url,image:p.image?API+'/api/img?u='+encodeURIComponent(p.image):'',tl:tl,tr:metric,cap:String(p.text||'')});
+  return postCard({link:p.url,image:p.image?API+'/api/img?u='+encodeURIComponent(p.image):'',tl:tl,stats:st.join(''),cap:String(p.text||'')});
 }
 function renderSoc(el,d){
   var body=el.querySelector('.soc-body'),met=el.querySelector('.soc-m');
@@ -466,7 +486,8 @@ function fmtDay(d){var x=new Date(d);if(isNaN(x))return '';var mo=['Jan','Feb','
 function fmtAgo(d){var ms=Date.now()-(+new Date(d));if(isNaN(ms))return '';var days=Math.floor(ms/864e5);if(days<=0)return 'today';if(days===1)return 'yesterday';if(days<14)return days+' days ago';return Math.round(days/7)+'w ago';}
 function emlRow(e){
   var tag=e.offer?'<span class="eml-tag">'+esc(e.offer)+'</span>':'';
-  return '<div class="eml"><span class="eml-d">'+esc(fmtDay(e.date))+'</span><span class="eml-main"><span class="eml-top"><span class="eml-sub">'+esc(e.subject||'(no subject)')+'</span>'+tag+'</span>'+(e.preview?'<span class="eml-pre">'+esc(e.preview)+'</span>':'')+'</span></div>';
+  var shots=(e.images&&e.images.length)?'<div class="eml-shots">'+e.images.slice(0,3).map(function(u){return '<a href="'+esc(u)+'" target="_blank" rel="noopener"><img src="'+esc(u)+'" loading="lazy" alt="" onerror="var a=this.parentNode;if(a)a.style.display=\'none\'"></a>';}).join('')+'</div>':'';
+  return '<div class="eml"><span class="eml-d">'+esc(fmtDay(e.date))+'</span><span class="eml-main"><span class="eml-top"><span class="eml-sub">'+esc(e.subject||'(no subject)')+'</span>'+tag+'</span>'+(e.preview?'<span class="eml-pre">'+esc(e.preview)+'</span>':'')+shots+'</span></div>';
 }
 function copyInbox(btn,addr){
   try{
@@ -553,8 +574,9 @@ function chanDetail(k,ch,c){
       +'<div class="socwrap" id="soc-'+esc(c.id)+'">'+inner+'</div>';
   }
   if(k==='website'){
+    var shot=c.url?'<a class="wshot" href="'+esc(c.url)+'" target="_blank" rel="noopener"><img src="https://s.wordpress.com/mshots/v1/'+encodeURIComponent(c.url)+'?w=1100" loading="lazy" alt="" onerror="var w=this.closest(\'.wshot\');if(w)w.style.display=\'none\'"><span class="wshot-go">Open site ↗</span></a>':'';
     var st=ch.stats?'<div class="wstats">'+esc(ch.stats)+'</div>':'';
-    return st+ch.changes.map(function(d){return '<div class="drow"><span class="dmark '+d.m+'">'+(d.m==='up'?'↑':d.m==='new'?'+':'!')+'</span><div><div class="ds">'+esc(d.s)+'</div><div class="dd">'+d.d+'</div></div></div>';}).join('');
+    return shot+st+ch.changes.map(function(d){return '<div class="drow"><span class="dmark '+d.m+'">'+(d.m==='up'?'↑':d.m==='new'?'+':'!')+'</span><div><div class="ds">'+esc(d.s)+'</div><div class="dd">'+d.d+'</div></div></div>';}).join('');
   }
   if(k==='email'){
     return '<div class="emlbox" id="eml-'+esc(c.id)+'" data-host="'+esc(c.host||'')+'"><div class="adsload"><span class="spin"></span>Loading email activity…</div></div>';
