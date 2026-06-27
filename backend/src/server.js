@@ -18,6 +18,7 @@ import { fetchSocial } from './social.js';
 import { startScheduler, warmStatus } from './refresh.js';
 import { storeInbound, getEmails, recentEmails } from './email.js';
 import { chat } from './chat.js';
+import { websiteCompare } from './website.js';
 import { snapshotDays, snapshotForDay } from './snapshots.js';
 
 const app = express();
@@ -105,6 +106,16 @@ app.get('/api/snapshot', async (req, res) => {
     res.json({ day: req.query.day, channels: await snapshotForDay(req.query.host, req.query.day) });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// Website change detection — before/after screenshots + a list of what changed
+// since the previous captured day.
+app.get('/api/website-compare', async (req, res) => {
+  try {
+    res.json(await websiteCompare(req.query.host, req.query.url));
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
   }
 });
 

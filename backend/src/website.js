@@ -1,0 +1,122 @@
+// Website intelligence — captures a daily fingerprint of a competitor's storefront
+// (a products.json summary + a screenshot) so we can show, day over day, exactly
+// what changed: prices moved, a sale started, products added/removed — with a
+// before/after screenshot slider in the app.
+//
+//   GET /api/website-compare?host=theoodie.com&url=https://www.theoodie.com
+//     -> { after:{day,shot,summary}, before:{day,shot,summary}|null, changes:[...] }
+
+import { saveSnapshot, recentSnapshots } from './snapshots.js';
+
+const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
+
+function money(n) { n = Number(n); if (isNaN(n)) return '?'; return (Math.round(n * 100) / 100).toString(); }
+function cleanHost(host) {
+  return String(host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase();
+}
+
+// A small, diff-friendly summary of the storefront, from Shopify's products.json
+// (works for the many DTC brands on Shopify; returns null otherwise — the
+// before/after screenshot still works without it).
+export async function siteSummary(host) {
+  const base = 'https://' + cleanHost(host);
+  try {
+    const r = await fetch(base + '/products.json?limit=250', { headers: { 'User-Agent': UA, Accept: 'application/json' } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const products = Array.isArray(j.products) ? j.products : [];
+    if (!products.length) return null;
+    let onSale = 0, min = Infinity, max = 0;
+    const items = {};
+    for (const p of products) {
+      let pPrice = Infinity, pWas = null, sale = false, avail = false;
+      for (const v of (p.variants || [])) {
+        const price = parseFloat(v.price);
+        const was = v.compare_at_price ? parseFloat(v.compare_at_price) : null;
+        if (!isNaN(price)) { pPrice = Math.min(pPrice, price); min = Math.min(min, price); max = Math.max(max, price); }
+        if (was && !isNaN(was) && was > price) { sale = true; if (pWas == null || was > pWas) pWas = was; }
+        if (v.available) avail = true;
+      }
+      if (sale) onSale++;
+      if (p.handle && pPrice !== Infinity && Object.keys(items).length < 80) {
+        items[p.handle] = { title: p.title, price: pPrice, was: pWas, sale, avail };
+      }
+    }
+    return { products: products.length, onSale, min: min === Infinity ? null : min, max: max || null, items };
+  } catch (e) { return null; }
+}
+
+// One above-the-fold screenshot as a base64 data URL (so before/after frames are
+// stored and pixel-aligned). Needs SCREENSHOTONE_KEY; returns null without it.
+export async function siteShot(url) {
+  const key = process.env.SCREENSHOTONE_KEY;
+  if (!key || !/^https?:\/\//i.test(String(url || ''))) return null;
+  const target = 'https://api.screenshotone.com/take?access_key=' + encodeURIComponent(key) +
+    '&url=' + encodeURIComponent(url) +
+    '&format=jpg&image_quality=72&viewport_width=1280&viewport_height=800' +
+    '&block_cookie_banners=true&block_banners_by_heuristics=true&block_ads=true&block_chats=true' +
+    '&cache=true&cache_ttl=82800';
+  try {
+    const r = await fetch(target, { headers: { 'User-Agent': UA } });
+    if (!r.ok) return null;
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length < 1200) return null; // too small to be a real screenshot
+    return 'data:image/jpeg;base64,' + buf.toString('base64');
+  } catch (e) { return null; }
+}
+
+// Capture today's fingerprint and persist it (one row per host/day; upserts).
+export async function captureWebsite(host, url) {
+  const u = url || ('https://' + cleanHost(host));
+  const [summary, shot] = await Promise.all([siteSummary(host), siteShot(u)]);
+  const data = { summary, shot, capturedAt: new Date().toISOString() };
+  await saveSnapshot(host, 'website', data);
+  return data;
+}
+
+// Human-readable list of what changed between two daily summaries.
+export function diffWebsite(a, b) {
+  if (!a || !b) return [];
+  const out = [];
+  const aSale = a.onSale || 0, bSale = b.onSale || 0;
+  if (aSale === 0 && bSale > 0) out.push('Sale started — ' + bSale + ' product' + (bSale > 1 ? 's' : '') + ' now discounted');
+  else if (aSale > 0 && bSale === 0) out.push('Sale ended — nothing discounted now (was ' + aSale + ')');
+  else if (bSale > aSale) out.push('Sale widened — ' + aSale + ' → ' + bSale + ' products discounted');
+  else if (bSale < aSale) out.push('Sale narrowed — ' + aSale + ' → ' + bSale + ' products discounted');
+
+  const am = a.items || {}, bm = b.items || {};
+  let priceChanges = 0;
+  for (const h in bm) {
+    if (am[h] && am[h].price != null && bm[h].price != null && Math.abs(am[h].price - bm[h].price) >= 0.01) {
+      if (priceChanges < 4) out.push('“' + (bm[h].title || h) + '”  ' + money(am[h].price) + ' → ' + money(bm[h].price));
+      priceChanges++;
+    }
+  }
+  if (priceChanges > 4) out.push('+' + (priceChanges - 4) + ' more price change' + (priceChanges - 4 > 1 ? 's' : ''));
+
+  const added = Object.keys(bm).filter((h) => !am[h]);
+  const removed = Object.keys(am).filter((h) => !bm[h]);
+  if (added.length) out.push(added.length + ' new product' + (added.length > 1 ? 's' : '') + (added.length <= 2 ? ': “' + added.map((h) => bm[h].title || h).join('”, “') + '”' : ''));
+  if (removed.length) out.push(removed.length + ' product' + (removed.length > 1 ? 's' : '') + ' removed');
+  if (a.min != null && b.min != null && Math.abs(a.min - b.min) >= 0.01) out.push('Lowest price ' + money(a.min) + ' → ' + money(b.min));
+
+  return out.slice(0, 7);
+}
+
+// The compare payload for the app. Ensures there's a fresh capture (so "after" is
+// current), then diffs it against the most recent earlier day.
+export async function websiteCompare(host, url) {
+  if (!host) { const e = new Error('Missing host.'); e.status = 400; throw e; }
+  let recent = await recentSnapshots(host, 'website', 5);
+  const top = recent[0];
+  const ageH = top && top.data && top.data.capturedAt ? (Date.now() - Date.parse(top.data.capturedAt)) / 3600000 : Infinity;
+  if (ageH > 20) {
+    await captureWebsite(host, url);
+    recent = await recentSnapshots(host, 'website', 5);
+  }
+  const shape = (s) => s ? { day: s.day, capturedAt: (s.data && s.data.capturedAt) || null, shot: (s.data && s.data.shot) || null, summary: (s.data && s.data.summary) || null } : null;
+  const after = recent[0] || null;
+  const before = recent[1] || null;
+  const changes = (before && after) ? diffWebsite(before.data && before.data.summary, after.data && after.data.summary) : [];
+  return { host: cleanHost(host), after: shape(after), before: shape(before), changes };
+}

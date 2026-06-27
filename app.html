@@ -148,6 +148,23 @@ button{font-family:inherit;cursor:pointer}
 .wshot:hover{border-color:var(--sage-d)}
 .wshot img{width:100%;display:block;min-height:140px}
 .wshot-go{position:absolute;right:10px;bottom:10px;font-size:11px;font-weight:600;background:rgba(0,0,0,.6);color:#fff;padding:4px 11px;border-radius:14px;backdrop-filter:blur(4px)}
+.webcmp{margin-top:2px}
+.cmp{position:relative;max-width:600px;border-radius:11px;overflow:hidden;border:1px solid var(--line2);background:var(--raised);margin-bottom:10px}
+.cmp img{display:block;width:100%}
+.cmp .cmp-top{position:absolute;inset:0;width:100%;clip-path:inset(0 50% 0 0)}
+.cmp-split{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:var(--sage);box-shadow:0 0 10px var(--sage);pointer-events:none;z-index:2}
+.cmp-grip{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;background:var(--sage);color:#06231f;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+.cmp-range{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:none;opacity:0;cursor:ew-resize;z-index:4}
+.cmp-tag{position:absolute;top:10px;font-family:var(--mono);font-size:9.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:4px 9px;border-radius:4px;pointer-events:none;z-index:3}
+.cmp-tl{left:10px;background:rgba(0,0,0,.62);color:#fff}
+.cmp-tr{right:10px;background:var(--sage);color:#06231f}
+.cmp-hint{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--muted);margin:0 0 14px 2px}
+.wchg{display:flex;flex-direction:column;border:1px solid var(--line2);border-radius:11px;overflow:hidden;max-width:600px}
+.wchg-row{display:flex;align-items:flex-start;gap:11px;padding:11px 14px;font-size:13.5px;color:var(--text);border-bottom:1px solid var(--line2);line-height:1.45}
+.wchg-row:last-child{border-bottom:none}
+.wchg-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-top:6px;box-shadow:0 0 7px var(--gold)}
+.wbase{max-width:600px;border:1px dashed var(--line2);border-radius:11px;padding:14px 16px;font-size:13px;color:var(--muted);line-height:1.55}
+.wbase b{color:var(--text)}
 .eml-shots{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
 .eml-shots a{display:block;border-radius:7px;overflow:hidden;border:1px solid var(--line2);transition:transform .15s}
 .eml-shots a:hover{transform:translateY(-2px)}
@@ -593,9 +610,9 @@ function chanDetail(k,ch,c){
       +'<div class="socwrap" id="soc-'+esc(c.id)+'">'+inner+'</div>';
   }
   if(k==='website'){
-    var shot=c.url?'<a class="wshot" href="'+esc(c.url)+'" target="_blank" rel="noopener"><img src="'+API+'/api/shot?url='+encodeURIComponent(c.url)+'" loading="lazy" alt="" onerror="var w=this.closest(\'.wshot\');if(w)w.style.display=\'none\'"><span class="wshot-go">Open site ↗</span></a>':'';
     var st=ch.stats?'<div class="wstats">'+esc(ch.stats)+'</div>':'';
-    return shot+st+ch.changes.map(function(d){return '<div class="drow"><span class="dmark '+d.m+'">'+(d.m==='up'?'↑':d.m==='new'?'+':'!')+'</span><div><div class="ds">'+esc(d.s)+'</div><div class="dd">'+d.d+'</div></div></div>';}).join('');
+    var wurl=c.url||('https://'+c.host);
+    return st+'<div class="webcmp" id="web-'+esc(c.id)+'" data-host="'+esc(c.host||'')+'" data-url="'+esc(wurl)+'"><div class="adsload"><span class="spin"></span>Comparing the latest capture…</div></div>';
   }
   if(k==='email'){
     return '<div class="emlbox" id="eml-'+esc(c.id)+'" data-host="'+esc(c.host||'')+'"><div class="adsload"><span class="spin"></span>Loading email activity…</div></div>';
@@ -609,6 +626,7 @@ function channel(k,c){
   if(k==='ads'&&!ch)ch={active:true,summary:'<span class="flag">Live — Meta Ad Library</span>'};
   if(k==='social'&&(!ch||!ch.summary))ch={active:true,angle:(ch&&ch.angle)||'',summary:'<span class="flag">Live — IG · TikTok · Facebook</span>'};
   if(k==='email'&&(!ch||!ch.summary))ch={active:true,summary:'<span class="flag">Seeded inbox — monitoring</span>'};
+  if(k==='website'&&!ch)ch={active:true,summary:'<span class="flag">Daily change tracking</span>'};
   var on=ch&&ch.active;
   var inactive=c.live?'available with full monitoring':(c.demo?'no change':'begins within 24 hours');
   var right=on?'<span class="chan-sum">'+ch.summary+'</span><svg class="chev" width="13" height="13" fill="none" viewBox="0 0 13 13"><path d="M3.5 5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
@@ -626,7 +644,47 @@ function tog(btn){
     if(soc&&!soc.dataset.loaded){soc.dataset.loaded='1';loadSocial(soc);}
     var eml=chan.querySelector('.emlbox');
     if(eml&&!eml.dataset.loaded){eml.dataset.loaded='1';loadEmail(eml);}
+    var web=chan.querySelector('.webcmp');
+    if(web&&!web.dataset.loaded){web.dataset.loaded='1';loadWeb(web);}
   }
+}
+
+/* ── website before/after comparison ── */
+function cmpMove(r){var c=r.closest('.cmp');if(!c)return;var v=r.value;var t=c.querySelector('.cmp-top');var s=c.querySelector('.cmp-split');if(t)t.style.clipPath='inset(0 '+(100-v)+'% 0 0)';if(s)s.style.left=v+'%';}
+function cmpHTML(before,after){
+  return '<div class="cmp">'
+    +'<img class="cmp-base" src="'+after.shot+'" alt="">'
+    +'<img class="cmp-top" src="'+before.shot+'" alt="">'
+    +'<span class="cmp-tag cmp-tl">Before · '+esc(fmtShortDay(before.day))+'</span>'
+    +'<span class="cmp-tag cmp-tr">After · '+esc(fmtShortDay(after.day))+'</span>'
+    +'<div class="cmp-split"><span class="cmp-grip">⇄</span></div>'
+    +'<input class="cmp-range" type="range" min="0" max="100" value="50" oninput="cmpMove(this)" aria-label="Drag to compare before and after">'
+    +'</div>';
+}
+function loadWeb(box){
+  var host=box.dataset.host,url=box.dataset.url;
+  fetch(API+'/api/website-compare?host='+encodeURIComponent(host)+'&url='+encodeURIComponent(url))
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(!d||d.error){box.innerHTML='<div class="wbase">Couldn’t load the website comparison right now.</div>';return;}
+      var vis;
+      if(d.before&&d.before.shot&&d.after&&d.after.shot){
+        vis=cmpHTML(d.before,d.after)+'<div class="cmp-hint">drag the divider — left is '+esc(fmtShortDay(d.before.day))+', right is '+esc(fmtShortDay(d.after.day))+'</div>';
+      }else if(d.after&&d.after.shot){
+        vis='<a class="wshot" href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+d.after.shot+'" alt=""><span class="wshot-go">Open site ↗</span></a>';
+      }else{
+        vis='<a class="wshot" href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+API+'/api/shot?url='+encodeURIComponent(url)+'" loading="lazy" alt="" onerror="var w=this.closest(\'.wshot\');if(w)w.style.display=\'none\'"><span class="wshot-go">Open site ↗</span></a>';
+      }
+      var chg;
+      if(d.changes&&d.changes.length){
+        chg='<div class="wchg">'+d.changes.map(function(s){return '<div class="wchg-row"><span class="wchg-dot"></span><span>'+esc(s)+'</span></div>';}).join('')+'</div>';
+      }else{
+        var day=(d.after&&d.after.day)?fmtShortDay(d.after.day):'today';
+        chg='<div class="wbase"><b>Baseline captured ('+esc(day)+').</b> This storefront is now watched daily — the next time a price moves, a sale starts, or products change, it shows up here with a before/after slider. The first comparison appears on the next daily capture.</div>';
+      }
+      box.innerHTML=vis+chg;
+    })
+    .catch(function(){box.innerHTML='<div class="wbase">Couldn’t load the website comparison right now.</div>';});
 }
 
 /* ── best-effort live refresh (graceful: keeps captured data if it can't fetch) ── */

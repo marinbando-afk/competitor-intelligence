@@ -44,6 +44,20 @@ export async function snapshotDays(host) {
   } catch (e) { return []; }
 }
 
+// The most recent snapshots for one channel (newest first, one per day) —
+// powers the website before/after comparison.
+export async function recentSnapshots(host, channel, limit) {
+  if (!ok() || !host) return [];
+  try {
+    const r = await pool.query(
+      `SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots
+       WHERE host = $1 AND channel = $2 ORDER BY day DESC LIMIT $3`,
+      [String(host).toLowerCase(), channel, Math.min(20, limit || 5)],
+    );
+    return r.rows.map((x) => ({ day: x.day, data: x.data }));
+  } catch (e) { return []; }
+}
+
 // All channels captured for a host on a given day.
 export async function snapshotForDay(host, day) {
   if (!ok() || !host || !day) return {};
