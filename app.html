@@ -231,8 +231,7 @@ button{font-family:inherit;cursor:pointer}
 .m-act{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
 /* ── AI chat ── */
 .chatfab{position:fixed;bottom:22px;right:22px;z-index:40;display:inline-flex;align-items:center;gap:8px;background:var(--sage);color:#0b1311;border:none;border-radius:24px;padding:12px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 12px 30px rgba(0,0,0,.42);transition:.15s}
-.datefloat{position:fixed;right:22px;bottom:74px;z-index:39}
-.datefloat .datenav{background:var(--panel);box-shadow:0 12px 28px rgba(0,0,0,.55)}
+#dateNavWrap .datenav{margin-bottom:0}
 .chatfab:hover{background:var(--quiet);transform:translateY(-2px)}
 .chatpanel{position:fixed;top:0;right:0;bottom:0;width:412px;max-width:93vw;z-index:60;background:var(--panel);border-left:1px solid var(--line2);box-shadow:-24px 0 70px rgba(0,0,0,.5);display:flex;flex-direction:column;transform:translateX(101%);transition:transform .26s cubic-bezier(.4,0,.2,1)}
 .chatpanel.open{transform:translateX(0)}
@@ -281,12 +280,10 @@ button{font-family:inherit;cursor:pointer}
   <a class="brand" href="index.html" title="Back to site">
     <span class="crest"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="#57d2cf" stroke-width="1.1"><circle cx="8" cy="8" r="5.4"/><path d="M8 .8v3M8 12.2v3M.8 8h3M12.2 8h3" stroke-linecap="round"/><circle cx="8" cy="8" r="1.3" fill="#57d2cf" stroke="none"/></svg></span>
     <span class="bn">IntelAI</span>
-    <span class="div"></span>
-    <span class="mast">Surveillance terminal</span>
   </a>
   <div class="topmeta">
-    <span class="classy"><span class="recd"></span>Classified · Lvl-5</span>
     <span class="top-date" id="topDate"></span>
+    <div id="dateNavWrap"></div>
   </div>
 </div>
 
@@ -314,7 +311,6 @@ button{font-family:inherit;cursor:pointer}
 <button class="chatfab" id="chatFab" onclick="openChat()" title="Ask the AI about this competitor">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.2l1.7 4.6 4.6 1.7-4.6 1.7L8 13.8 6.3 9.2 1.7 7.5l4.6-1.7L8 1.2Z" fill="#0b1311"/></svg><span>Ask AI</span>
 </button>
-<div class="datefloat" id="dateFloat"></div>
 <div class="chatpanel" id="chatPanel" aria-hidden="true">
   <div class="chat-h">
     <div><div class="chat-t">Ask IntelAI</div><div class="chat-sub" id="chatSub">about this competitor</div></div>
@@ -413,8 +409,7 @@ function railRow(c){
   return '<button class="row'+(c.id===state.sel?' sel':'')+'" onclick="select(\''+c.id+'\')">'
     +'<span class="badge">'+badge(c)+'</span>'
     +'<span class="row-main"><span class="row-top"><span class="row-name">'+esc(c.name)+'</span><span class="row-time">'+t+'</span></span>'
-    +'<span class="row-sub">'+esc(c.demo?c.oneLiner:'Baseline capturing…')+'</span>'
-    +'<span class="row-stat '+p+'"><span class="stat-dot bg-'+p+'"></span>'+PRIO[p].l+'</span></span></button>';
+    +'<span class="row-sub">'+esc(c.demo?c.oneLiner:'Baseline capturing…')+'</span></span></button>';
 }
 
 var PLAT={FACEBOOK:'Facebook',INSTAGRAM:'Instagram',AUDIENCE_NETWORK:'Audience',MESSENGER:'Messenger',THREADS:'Threads'};
@@ -698,7 +693,7 @@ function ensureHist(c){
     if(state.sel===c.id)refreshDateFloat();
   }).catch(function(){});
 }
-function refreshDateFloat(){var c=currentComp(),f=document.getElementById('dateFloat');if(f)f.innerHTML=c?dateNav(c):'';}
+function refreshDateFloat(){var c=currentComp(),f=document.getElementById('dateNavWrap');if(f)f.innerHTML=c?dateNav(c):'';}
 function goDay(day){
   var c=currentComp();if(!c)return;state.day=day;viewSnap=null;
   document.getElementById('detail').innerHTML=report(c);refreshDateFloat();
@@ -716,8 +711,7 @@ function report(c){
   else if(c.demo){meta=esc(c.host)+' · scanned '+ago(c.updatedAt)+' ago';}
   else{meta=esc(c.host);}
   var head=back+BOTANICAL+'<div class="rep-head"><span class="rep-badge">'+badge(c)+'</span>'
-    +'<div><div class="rep-name">'+esc(c.name)+'</div><div class="rep-meta">'+meta+'</div></div>'
-    +'<div class="rep-status"><span class="s '+p+'"><span class="stat-dot bg-'+p+'"></span>'+PRIO[p].l+'</span></div></div>';
+    +'<div><div class="rep-name">'+esc(c.name)+'</div><div class="rep-meta">'+meta+'</div></div></div>';
 
   if(!c.demo){
     return '<div class="report">'+head
