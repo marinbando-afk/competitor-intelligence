@@ -223,6 +223,7 @@ export async function quickAngle(text, kind, image, video) {
       hook: oneLine(o.hook).slice(0, 170),
       creative: (withImg && img) ? oneLine(o.creative).slice(0, 220) : '',
       apply: oneLine(o.apply).slice(0, 220),
+      script: script ? script.slice(0, 340) : '',
     };
   };
   try {

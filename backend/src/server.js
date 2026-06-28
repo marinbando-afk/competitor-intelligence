@@ -159,7 +159,7 @@ app.post('/api/angle', async (req, res) => {
   try {
     const { text, kind, image, video } = req.body || {};
     const r = await quickAngle(text, kind, image, video);
-    res.json({ angle: r.angle, hook: r.hook, creative: r.creative, apply: r.apply });
+    res.json({ angle: r.angle, hook: r.hook, creative: r.creative, apply: r.apply, script: r.script });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
