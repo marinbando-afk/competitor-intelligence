@@ -19,7 +19,7 @@ import { startScheduler, warmStatus } from './refresh.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
-import { getInsights } from './insights.js';
+import { getInsights, quickAngle } from './insights.js';
 import { snapshotDays, snapshotForDay } from './snapshots.js';
 
 const app = express();
@@ -135,6 +135,16 @@ app.get('/api/website-compare', async (req, res) => {
 app.get('/api/insights', async (req, res) => {
   try {
     res.json({ insights: await getInsights(req.query.host, req.query.name) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// One-line marketing angle for a single ad/post (on-demand, cached).
+app.post('/api/angle', async (req, res) => {
+  try {
+    const { text, kind } = req.body || {};
+    res.json({ angle: await quickAngle(text, kind) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

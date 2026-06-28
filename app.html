@@ -222,6 +222,8 @@ button{font-family:inherit;cursor:pointer}
 .adrow-v{color:var(--text);word-break:break-all}
 a.adrow-v{color:var(--sage);text-decoration:none}
 a.adrow-v:hover{text-decoration:underline}
+.adrow-angle .adrow-v{color:var(--sage);font-weight:500}
+.angle-load{color:var(--muted);font-weight:400;font-style:italic}
 .adlink{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);text-decoration:none;margin-top:15px}
 .adlink:hover{color:var(--quiet)}
 .adsbox{margin-bottom:2px}
@@ -892,14 +894,25 @@ function openAd(i){
   var cta=a.cta?'<span class="adcta">'+esc(a.cta)+'</span>':'';
   var text=a.text?'<div class="adtext">'+esc(a.text)+'</div>':'';
   var copy=(cta||text)?'<div class="adcopy">'+cta+text+'</div>':'';
-  var rows='';
+  var rows=(a.text||a.title)?angleRowHTML():'';
   if(a.landing)rows+='<div class="adrow"><span class="adrow-k">Landing page</span><a class="adrow-v" href="'+esc(a.landing)+'" target="_blank" rel="noopener">'+esc(a.landing)+' ↗</a></div>';
   if(a.page)rows+='<div class="adrow"><span class="adrow-k">Run from page</span><span class="adrow-v">'+esc(a.page)+'</span></div>';
   if(a.link)rows+='<div class="adrow"><span class="adrow-k">Source</span><a class="adrow-v" href="'+esc(a.link)+'" target="_blank" rel="noopener">Open in Meta Ad Library ↗</a></div>';
   document.getElementById('adBody').innerHTML=media+copy+(rows?'<div class="adrows">'+rows+'</div>':'');
   ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+  if(a.text||a.title)loadAngle(a.text||a.title,'ad');
 }
 function closeAd(){var ov=document.getElementById('adOv');if(!ov)return;ov.classList.remove('open');ov.setAttribute('aria-hidden','true');document.body.style.overflow='';}
+var angleCache={};
+function angleRowHTML(){return '<div class="adrow adrow-angle"><span class="adrow-k">Angle</span><span class="adrow-v" id="angleVal"><span class="angle-load">reading the angle…</span></span></div>';}
+function loadAngle(text,kind){
+  var el=document.getElementById('angleVal');if(!el)return;
+  var key=kind+'|'+String(text||'').slice(0,160);el.dataset.k=key;
+  if(angleCache[key]!==undefined){el.textContent=angleCache[key]||'—';return;}
+  fetch(API+'/api/angle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text,kind:kind})})
+    .then(function(r){return r.json();}).then(function(d){var a=(d&&d.angle)||'';angleCache[key]=a;var e=document.getElementById('angleVal');if(e&&e.dataset.k===key)e.textContent=a||'—';})
+    .catch(function(){var e=document.getElementById('angleVal');if(e&&e.dataset.k===key)e.textContent='—';});
+}
 function openSoc(el){
   var url=(el&&el.dataset)?el.dataset.url:el;var rec=SOC_SHOWN[url];if(!rec)return;
   var p=rec.post,ov=document.getElementById('adOv');if(!ov)return;
@@ -915,11 +928,12 @@ function openSoc(el){
   if(p.likes!=null)stats.push(fmtNum(p.likes)+' likes');
   if(p.comments!=null)stats.push(fmtNum(p.comments)+' comments');
   if(p.shares!=null)stats.push(fmtNum(p.shares)+' shares');
-  var rows='';
+  var rows=p.text?angleRowHTML():'';
   if(stats.length)rows+='<div class="adrow"><span class="adrow-k">Engagement</span><span class="adrow-v">'+esc(stats.join(' · '))+'</span></div>';
   if(p.url)rows+='<div class="adrow"><span class="adrow-k">Source</span><a class="adrow-v" href="'+esc(p.url)+'" target="_blank" rel="noopener">Open original post ↗</a></div>';
   document.getElementById('adBody').innerHTML=media+copy+(rows?'<div class="adrows">'+rows+'</div>':'');
   ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+  if(p.text)loadAngle(p.text,'post');
 }
 function goDay(day){
   var c=currentComp();if(!c)return;state.day=day;viewSnap=null;

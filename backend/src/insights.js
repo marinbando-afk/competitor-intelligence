@@ -127,6 +127,27 @@ export async function generateInsights(brand, host) {
   return out;
 }
 
+// A one-line marketing ANGLE for a single ad/post, generated on demand (cheap,
+// cached) when the user opens its preview.
+const _angleCache = new Map();
+export async function quickAngle(text, kind) {
+  const t = oneLine(text).slice(0, 1400);
+  if (!t || !process.env.ANTHROPIC_API_KEY) return '';
+  const key = (kind || 'ad') + '|' + t.slice(0, 220);
+  if (_angleCache.has(key)) return _angleCache.get(key);
+  const what = kind === 'post' ? 'organic social post' : 'ad';
+  const system =
+    `You are a performance-marketing strategist. Name the marketing ANGLE of this ${what} — the core persuasion strategy/hook, not a summary. ` +
+    `You may combine up to two (e.g. "problem→solution: stress relief", "social proof + scarcity", "aspirational identity", "benefit-led comfort", "FOMO new drop", "sale-urgency / EOFY"). ` +
+    `Answer in 12 words or fewer, ONLY the angle phrase — no quotes, no preamble, no trailing period.`;
+  try {
+    const resp = await client().messages.create({ model: process.env.ANGLE_MODEL || MODEL, max_tokens: 40, system, messages: [{ role: 'user', content: t }] });
+    const a = oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')).replace(/^["'\s]+|["'\s.]+$/g, '').slice(0, 100);
+    _angleCache.set(key, a);
+    return a;
+  } catch (e) { return ''; }
+}
+
 // Read the latest cached insights; generate on demand if missing.
 export async function getInsights(host, name) {
   let ins = await latestSnapshot(host, 'insights');
