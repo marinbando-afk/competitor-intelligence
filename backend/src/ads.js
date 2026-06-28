@@ -27,7 +27,7 @@ export async function fetchAds(brand, country, force, cacheOnly) {
     encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + '&media_type=all';
 
   // Covers the common input shapes across Meta Ad Library actors — extra fields are ignored.
-  const ADS_N = Number(process.env.ADS_COUNT) || 90;   // raise/lower via ADS_COUNT env
+  const ADS_N = Number(process.env.ADS_COUNT) || 300;   // raise/lower via ADS_COUNT env (billed per ad actually returned)
   const input = {
     urls: [{ url: searchUrl }],
     startUrls: [{ url: searchUrl }],
@@ -41,7 +41,7 @@ export async function fetchAds(brand, country, force, cacheOnly) {
 
   const endpoint =
     'https://api.apify.com/v2/acts/' + ACTOR +
-    '/run-sync-get-dataset-items?token=' + encodeURIComponent(TOKEN) + '&timeout=240';
+    '/run-sync-get-dataset-items?token=' + encodeURIComponent(TOKEN) + '&timeout=300';
 
   const res = await fetch(endpoint, {
     method: 'POST',
@@ -116,6 +116,6 @@ function normalize(items, brand, country) {
     active: ads.filter((a) => a.active).length,
     platforms,
     newest,
-    ads: ads.slice(0, 60),
+    ads: ads.slice(0, 100),
   };
 }
