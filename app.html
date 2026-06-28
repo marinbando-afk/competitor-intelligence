@@ -1208,7 +1208,7 @@ function chatCtx(c){var p=[];if(c.oneLiner)p.push(c.oneLiner);if(c.verdict)p.pus
 function openChat(){var c=currentComp();if(!c)return;document.getElementById('chatSub').textContent='about '+c.name;document.getElementById('chatPanel').classList.add('open');renderChat(c);setTimeout(function(){document.getElementById('chatInput').focus();},150);}
 function closeChat(){var p=document.getElementById('chatPanel');if(p)p.classList.remove('open');}
 function syncChat(c){var p=document.getElementById('chatPanel');if(c&&p&&p.classList.contains('open')){document.getElementById('chatSub').textContent='about '+c.name;renderChat(c);}}
-function linkify(t){return esc(String(t==null?'':t)).replace(/(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"\]])/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');}
+function linkify(t){var s=esc(String(t==null?'':t)).replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>').replace(/(^|\n)\s*[-•]\s+/g,'$1• ');return s.replace(/(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"\]])/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');}
 function renderChat(c){
   var box=document.getElementById('chatMsgs'),thread=chatThreads[c.id]||[];
   box.innerHTML='';
