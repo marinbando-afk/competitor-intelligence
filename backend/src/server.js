@@ -45,7 +45,11 @@ app.get('/api/ads', async (req, res) => {
     if (req.query.host) {
       try {
         const ch = await adsChanges(req.query.host, data.ads);
-        if (ch) { out.ads = ch.newAds; out.newCount = ch.newCount; out.baseline = ch.baseline; out.signals = ch.signals; }
+        if (ch) {
+          out.newCount = ch.newCount; out.baseline = ch.baseline; out.signals = ch.signals;
+          // Show the new ads when there are any; otherwise show current creatives so the section is never empty.
+          out.ads = (ch.newCount > 0) ? ch.newAds : (data.ads || []).slice(0, 24);
+        }
       } catch (e) { /* fall back to the trimmed full list */ }
     }
     res.json(out);

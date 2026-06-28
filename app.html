@@ -625,18 +625,21 @@ function adsHTML(d){
     if(!d.ads||!d.ads.length)return '<div class="adsempty">No ads on this date.</div>';
     return '<div class="adssum"><b>'+(d.active||d.ads.length)+' ad'+((d.active||d.ads.length)===1?'':'s')+'</b></div><div class="adstrip">'+d.ads.map(adThumb).join('')+'</div>';
   }
-  if(d.baseline){
-    return '<div class="adssum"><b>'+(d.active||0)+' active ads</b> — baseline captured. From tomorrow this shows only what’s <b>NEW</b>: fresh creatives, new angles, new landing pages, or a new Facebook page.</div>';
-  }
   var nc=d.newCount||0,sig=[];
   if(d.signals){
     (d.signals.pages||[]).forEach(function(p){sig.push('<span class="adsig pg">📄 New page · '+esc(p)+'</span>');});
     (d.signals.landings||[]).forEach(function(l){sig.push('<span class="adsig ld">⛳ New landing · '+esc(l)+'</span>');});
     (d.signals.formats||[]).forEach(function(f){sig.push('<span class="adsig fm">🎬 New format · '+esc(f)+'</span>');});
   }
-  var head='<div class="adssum"><b>'+nc+' new ad'+(nc===1?'':'s')+' today</b>'+(d.active?' · '+d.active+' active':'')+'</div>'+(sig.length?'<div class="adsigs">'+sig.join('')+'</div>':'');
-  if(!nc)return head+'<div class="adsempty">No new ads today — same creatives still running.</div>';
-  return head+'<div class="adstrip">'+(d.ads||[]).map(adThumb).join('')+'</div>';
+  var sigHTML=sig.length?'<div class="adsigs">'+sig.join('')+'</div>':'';
+  var cards=(d.ads&&d.ads.length)?'<div class="adstrip">'+d.ads.map(adThumb).join('')+'</div>':'<div class="adsempty">No ad creatives available right now.</div>';
+  if(nc>0){
+    return '<div class="adssum"><b>'+nc+' new ad'+(nc===1?'':'s')+' today</b>'+(d.active?' · '+d.active+' active':'')+'</div>'+sigHTML+cards;
+  }
+  var note=d.baseline
+    ? '<div class="adssum"><b>'+(d.active||0)+' active ads</b> — establishing a baseline. From tomorrow, <b>new</b> ads (fresh creatives, angles, landing pages or Facebook pages) get flagged up top. Current creatives:</div>'
+    : '<div class="adssum"><b>No new ads today</b>'+(d.active?' · '+d.active+' active':'')+' — same creatives still running. Current ads:</div>';
+  return note+sigHTML+cards;
 }
 function loadAds(box){
   var brand=box.getAttribute('data-brand'),country=box.getAttribute('data-country')||'ALL',host=box.getAttribute('data-host')||'';
