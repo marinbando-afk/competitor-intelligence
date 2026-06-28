@@ -201,6 +201,27 @@ button{font-family:inherit;cursor:pointer}
 .emlmodal-x:hover{color:var(--text);border-color:var(--sage-d)}
 .emlmodal-body{flex:1;min-height:0;background:#fff}
 .emlframe{width:100%;height:100%;border:none;display:block;background:#fff}
+.adov{position:fixed;inset:0;z-index:80;background:rgba(4,7,9,.72);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:24px}
+.adov.open{display:flex}
+.admodal{width:560px;max-width:96vw;max-height:88vh;background:var(--panel);border:1px solid var(--line2);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.admodal-h{display:flex;align-items:flex-start;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line2);background:var(--panel2)}
+.admodal-meta{flex:1;min-width:0}
+.admodal-page{font-size:14.5px;font-weight:600;color:var(--text);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.admodal-sub{font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--sage);text-transform:uppercase;margin-top:4px}
+.admodal-body{overflow:auto}
+.admedia{position:relative;display:block;background:var(--bg);max-height:430px;overflow:hidden}
+.admedia img{width:100%;height:auto;display:block;max-height:430px;object-fit:contain}
+.admedia-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;padding-left:3px;backdrop-filter:blur(3px)}
+.adcopy{padding:15px 17px;border-bottom:1px solid var(--line2)}
+.adcta{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(227,169,44,.4);padding:3px 9px;border-radius:4px;margin-bottom:11px}
+.adtext{font-size:14px;line-height:1.55;color:var(--text);white-space:pre-wrap;word-break:break-word}
+.adrows{padding:5px 17px 15px}
+.adrow{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--line2);font-size:12.5px}
+.adrow:last-child{border-bottom:none}
+.adrow-k{flex:none;width:104px;font-family:var(--mono);font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.adrow-v{color:var(--text);word-break:break-all}
+a.adrow-v{color:var(--sage);text-decoration:none}
+a.adrow-v:hover{text-decoration:underline}
 .adlink{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);text-decoration:none;margin-top:15px}
 .adlink:hover{color:var(--quiet)}
 .adsbox{margin-bottom:2px}
@@ -366,6 +387,12 @@ button{font-family:inherit;cursor:pointer}
     <div class="emlmodal-body" id="emlBody"></div>
   </div>
 </div>
+<div class="adov" id="adOv" onclick="if(event.target===this)closeAd()" aria-hidden="true">
+  <div class="admodal">
+    <div class="admodal-h"><div class="admodal-meta"><div class="admodal-page" id="adPage"></div><div class="admodal-sub" id="adSub"></div></div><button class="emlmodal-x" onclick="closeAd()" aria-label="Close">✕</button></div>
+    <div class="admodal-body" id="adBody"></div>
+  </div>
+</div>
 <div class="chatpanel" id="chatPanel" aria-hidden="true">
   <div class="chat-h">
     <div><div class="chat-t">Ask IntelAI</div><div class="chat-sub" id="chatSub">about this competitor</div></div>
@@ -474,7 +501,8 @@ function isRecent(s){var t=Date.parse((s||'')+'T00:00:00');return !isNaN(t)&&(Da
 function postCard(o){
   var img=o.image?'<img src="'+esc(o.image)+'" loading="lazy" onerror="this.style.display=\'none\';this.parentNode.classList.add(\'noimg\')">':'';
   var go='<span class="go"><span><svg width="15" height="15" fill="none" viewBox="0 0 14 14"><path d="M5 9l4.2-4.2M5.5 4.8H9.2V8.5" stroke="#0b1311" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
-  return '<a class="adthumb" href="'+esc(o.link||'#')+'" target="_blank" rel="noopener">'
+  var clk=o.click?' onclick="'+o.click+';return false"':'';
+  return '<a class="adthumb" href="'+esc(o.link||'#')+'" target="_blank" rel="noopener"'+clk+'>'
     +'<span class="media'+(o.image?'':' noimg')+'">'+img+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+(o.stats?'<span class="cstats">'+o.stats+'</span>':'')+go+'</span>'
     +'<span class="cap">'+esc(o.cap||'')+'</span></a>';
 }
@@ -484,13 +512,15 @@ var STAT_ICONS={
   view:'<svg viewBox="0 0 16 16"><path d="M5.4 3.3l7.2 4.7-7.2 4.7z"/></svg>'
 };
 function statIcon(t,v){return '<span class="cstat">'+STAT_ICONS[t]+esc(String(v))+'</span>';}
-function adThumb(a){
+function adThumb(a,i){
   var plat=(a.platforms&&a.platforms[0])?prettyPlat(a.platforms[0]):'Meta';
   var tl=isRecent(a.started)?'<span class="nw">New</span>':(a.hasVideo?'<span class="nw vid">▶ Video</span>':'');
-  return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,cap:String(a.text||a.title||'')});
+  return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,cap:String(a.text||a.title||''),click:'openAd('+i+')'});
 }
+var ADS_SHOWN=[];
 function adsHTML(d){
   if(!d||d.error||!d.ads||!d.ads.length)return '<div class="adsempty">No active ads found in the Meta Ad Library right now.</div>';
+  ADS_SHOWN=d.ads;
   var plats=(d.platforms||[]).map(prettyPlat).join(' · ');
   var sum='<div class="adssum"><b>'+d.active+' active ad'+(d.active===1?'':'s')+'</b>'+(d.newest?' · newest '+fmtDate(d.newest):'')+(plats?' · '+plats:'')+'</div>';
   return sum+'<div class="adstrip">'+d.ads.map(adThumb).join('')+'</div>';
@@ -837,6 +867,29 @@ function openEml(id){
   }).catch(function(){document.getElementById('emlSub').textContent='';body.innerHTML='<div class="wbase" style="margin:18px">Couldn’t load this email.</div>';});
 }
 function closeEml(){var ov=document.getElementById('emlOv');if(!ov)return;ov.classList.remove('open');ov.setAttribute('aria-hidden','true');document.body.style.overflow='';}
+/* ── ad full preview ── */
+function openAd(i){
+  var a=ADS_SHOWN[i];if(!a)return;
+  var ov=document.getElementById('adOv');if(!ov)return;
+  document.getElementById('adPage').textContent=a.page||'Advertiser';
+  var plats=(a.platforms||[]).map(prettyPlat).join(' · ');
+  document.getElementById('adSub').textContent=(a.started?'Running since '+fmtDate(a.started):'Active ad')+(plats?' · '+plats:'');
+  var media='';
+  if(a.image){
+    var inner='<img src="'+esc(a.image)+'" alt="" onerror="var m=this.closest(\'.admedia\');if(m)m.style.display=\'none\'">'+(a.hasVideo?'<span class="admedia-play">▶</span>':'');
+    media=(a.hasVideo&&a.link)?'<a class="admedia vid" href="'+esc(a.link)+'" target="_blank" rel="noopener" title="Watch in Meta Ad Library">'+inner+'</a>':'<div class="admedia">'+inner+'</div>';
+  }
+  var cta=a.cta?'<span class="adcta">'+esc(a.cta)+'</span>':'';
+  var text=a.text?'<div class="adtext">'+esc(a.text)+'</div>':'';
+  var copy=(cta||text)?'<div class="adcopy">'+cta+text+'</div>':'';
+  var rows='';
+  if(a.landing)rows+='<div class="adrow"><span class="adrow-k">Landing page</span><a class="adrow-v" href="'+esc(a.landing)+'" target="_blank" rel="noopener">'+esc(a.landing)+' ↗</a></div>';
+  if(a.page)rows+='<div class="adrow"><span class="adrow-k">Run from page</span><span class="adrow-v">'+esc(a.page)+'</span></div>';
+  if(a.link)rows+='<div class="adrow"><span class="adrow-k">Source</span><a class="adrow-v" href="'+esc(a.link)+'" target="_blank" rel="noopener">Open in Meta Ad Library ↗</a></div>';
+  document.getElementById('adBody').innerHTML=media+copy+(rows?'<div class="adrows">'+rows+'</div>':'');
+  ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+}
+function closeAd(){var ov=document.getElementById('adOv');if(!ov)return;ov.classList.remove('open');ov.setAttribute('aria-hidden','true');document.body.style.overflow='';}
 function goDay(day){
   var c=currentComp();if(!c)return;state.day=day;viewSnap=null;
   document.getElementById('detail').innerHTML=report(c);refreshDateFloat();
@@ -901,7 +954,7 @@ function submitComp(){
   var l=getList();l.unshift({id:'c-'+Date.now(),demo:false,name:n,host:u.hostname.replace(/^www\./,''),url:u.href,updatedAt:Date.now()});
   save(l);state.sel=l[0].id;closeModal();document.getElementById('app').dataset.view='detail';render();
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
 
 /* ── AI chat (answers grounded in the captured data) ── */
 var chatThreads={};
