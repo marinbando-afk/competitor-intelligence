@@ -21,6 +21,7 @@ import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
 import { getInsights, quickAngle, generateInsights } from './insights.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
+import { storeFeedback, listFeedback } from './feedback.js';
 import { snapshotDays, snapshotForDay } from './snapshots.js';
 
 const app = express();
@@ -177,11 +178,25 @@ app.delete('/api/my-brand', async (req, res) => {
 // Register a user-added competitor for the daily warm + kick off its first capture now.
 app.post('/api/track', async (req, res) => {
   try {
-    const { name, host, url, country } = req.body || {};
-    const r = await addTracked({ name, host, url, country });
-    res.json({ ok: true, added: !!(r && r.added) });
+    const { name, host, url, country, key } = req.body || {};
+    const admin = !!(process.env.ADMIN_KEY && key === process.env.ADMIN_KEY);   // owner bypass
+    const r = await addTracked({ name, host, url, country }, admin);
+    res.json({ ok: true, added: !!(r && r.added), limited: !!(r && r.limited) });
     if (r && r.added) warmBrand(r.comp, false).catch(() => {});   // immediate baseline (async)
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+
+// Feature requests / feedback. Anyone can POST; only the owner (admin key) can list.
+app.post('/api/feedback', async (req, res) => {
+  try {
+    res.json(await storeFeedback(req.body));
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+app.get('/api/feedback', async (req, res) => {
+  try {
+    if (!process.env.ADMIN_KEY || req.query.key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Owner key required.' });
+    res.json({ feedback: await listFeedback() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Image proxy — streams social CDN thumbnails so hotlink/expiry never breaks them

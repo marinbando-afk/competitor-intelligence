@@ -33,13 +33,13 @@ export async function getTracked() {
   const d = await latestSnapshot(TKEY, 'list');
   return (d && Array.isArray(d.items)) ? d.items : [];
 }
-export async function addTracked(comp) {
+export async function addTracked(comp, admin) {
   const host = cleanHost(comp && (comp.host || comp.url));
   if (!host || host.indexOf('.') < 0) return null;
   if (TRACKED.some((t) => t.host === host)) return { existing: true };   // already a warm demo
   const items = await getTracked();
   if (items.some((t) => t.host === host)) return { existing: true };
-  if (items.length >= MAX_USER) return { limited: true, max: MAX_USER };   // plan limit reached
+  if (!admin && items.length >= MAX_USER) return { limited: true, max: MAX_USER };   // plan limit (owner bypasses)
   const norm = { name: String(comp.name || host).slice(0, 120), host, url: comp.url || ('https://' + host), country: String(comp.country || 'ALL').toUpperCase(), handles: comp.handles || {} };
   items.push(norm);
   await saveSnapshot(TKEY, 'list', { items: items.slice(-200) });
@@ -47,7 +47,7 @@ export async function addTracked(comp) {
 }
 async function allBrands() {
   const seen = new Set(TRACKED.map((t) => t.host));
-  return TRACKED.concat((await getTracked()).filter((t) => t && t.host && !seen.has(t.host)).slice(0, MAX_USER));
+  return TRACKED.concat((await getTracked()).filter((t) => t && t.host && !seen.has(t.host)));
 }
 
 let running = false;

@@ -303,6 +303,18 @@ a.adrow-v:hover{text-decoration:underline}
 .up-rows{display:flex;flex-direction:column;gap:1px;background:var(--line2);border:1px solid var(--line2);border-radius:10px;overflow:hidden;margin:18px 0 22px;text-align:left}
 .up-row{display:flex;justify-content:space-between;gap:12px;padding:11px 14px;background:var(--panel);font-size:13px;color:var(--muted)}
 .up-row b{color:var(--sage);white-space:nowrap}
+.fbfab{position:fixed;left:22px;bottom:22px;z-index:40;display:inline-flex;align-items:center;gap:7px;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:24px;padding:10px 16px;font-size:12.5px;font-weight:500;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.35);transition:.15s}
+.fbfab:hover{border-color:var(--sage-d);transform:translateY(-2px)}
+.fld textarea{width:100%;background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:12px 14px;color:var(--text);font-family:inherit;font-size:14px;line-height:1.5;outline:none;resize:vertical;min-height:90px;transition:.15s}
+.fld textarea:focus{border-color:var(--sage);box-shadow:0 0 0 3px var(--sage-soft)}
+.fb-viewbtn{margin-top:18px;width:100%;background:none;border:1px dashed var(--line2);border-radius:9px;padding:9px;color:var(--sage);font-family:var(--mono);font-size:11px;letter-spacing:.05em;cursor:pointer}
+.fb-viewbtn:hover{border-color:var(--sage-d)}
+.fb-list-h{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:18px 0 10px}
+.fb-list{display:flex;flex-direction:column;gap:9px;max-height:300px;overflow-y:auto}
+.fb-item{border:1px solid var(--line2);border-radius:9px;padding:10px 12px;background:var(--bg)}
+.fb-meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:5px}
+.fb-msg{font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.fb-empty{color:var(--muted);font-size:13px;padding:14px 0}
 .empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px;color:var(--muted);position:relative;z-index:1}
 .empty .ei{width:56px;height:56px;border-radius:50%;border:1px solid var(--sage-d);background:var(--sage-soft);display:flex;align-items:center;justify-content:center;margin-bottom:20px}
 .empty h3{font-family:'Oswald',sans-serif;font-size:22px;color:var(--text);margin:0 0 8px;font-weight:600}
@@ -425,6 +437,19 @@ a.adrow-v:hover{text-decoration:underline}
       <div class="up-row"><span>Add your own competitors</span><b>🔒 → ✓</b></div>
     </div>
     <div class="m-act"><button class="btn btn-g" onclick="closeUpgrade()">Maybe later</button><button class="btn btn-p" onclick="closeUpgrade()">Upgrade — coming soon</button></div>
+  </div>
+</div>
+
+<button class="fbfab" id="fbFab" onclick="openFeedback()" title="Request a feature / share feedback"><span>💡</span> Feedback</button>
+<div class="ov" id="fbOv" onclick="if(event.target===this)closeFeedback()">
+  <div class="modal" id="fbModal">
+    <h2>Request a feature</h2>
+    <p>What would make this more useful for you? Feature ideas, gripes, anything — it goes straight to us.</p>
+    <div class="fld"><label for="fbMsg">Your idea or feedback</label><textarea id="fbMsg" rows="4" placeholder="e.g. I'd love to track competitors' TikTok Shop prices…"></textarea></div>
+    <div class="fld"><label for="fbEmail">Email <span style="color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400">— optional, if you'd like a reply</span></label><input id="fbEmail" type="text" placeholder="you@brand.com" autocomplete="off"/></div>
+    <div class="er" id="fbErr"></div>
+    <div class="m-act"><button class="btn btn-g" onclick="closeFeedback()">Cancel</button><button class="btn btn-p" id="fbSend" onclick="sendFeedback()">Send</button></div>
+    <div id="fbAdmin"></div>
   </div>
 </div>
 
@@ -1073,7 +1098,7 @@ function submitComp(){
   var l=getList();l.unshift({id:'c-'+Date.now(),demo:false,name:n,host:u.hostname.replace(/^www\./,''),url:u.href,updatedAt:Date.now()});
   save(l);trackComp(l[0]);state.sel=l[0].id;closeModal();document.getElementById('app').dataset.view='detail';render();
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
 /* ── your brand (apply-to-me knowledge base) ── */
 var myBrand=null;
 function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)return;el.innerHTML=(myBrand&&myBrand.name)?('<span class="mb-dot"></span><span class="mb-lbl">My brand:</span> '+esc(myBrand.name)):'+ Add your brand';el.className='mybrand'+((myBrand&&myBrand.name)?' set':'');}
@@ -1141,14 +1166,49 @@ function sendChat(){
     }).catch(function(){typ.remove();var am=document.createElement('div');am.className='cmsg ai';am.textContent='Couldn’t reach the AI just now — try again in a moment.';box.appendChild(am);box.scrollTop=box.scrollHeight;});
 }
 
-function trackComp(c){if(!c||c.demo||!c.host)return;fetch(API+'/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:c.name,host:c.host,url:c.url,country:c.country||'ALL'})}).catch(function(){});}
+function trackComp(c){if(!c||c.demo||!c.host)return;fetch(API+'/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:c.name,host:c.host,url:c.url,country:c.country||'ALL',key:adminKey()})}).catch(function(){});}
 function registerCompetitors(){getList().forEach(function(c){if(c&&!c.demo)trackComp(c);});}
 /* ── plan tier (Starter): the 2 seeded demos are monitored; added competitors lock until upgrade ── */
 var PLAN={ads:20,competitors:2};
-function lockedComp(c){return !!(c&&!c.demo);}
-function addOrUpgrade(){var m=getList().filter(function(c){return !lockedComp(c);}).length;if(m>=PLAN.competitors){showUpgrade();return;}openModal();}
+(function(){var m=location.search.match(/[?&]admin=([^&]+)/);if(m){try{localStorage.setItem('adminKey',decodeURIComponent(m[1]));}catch(e){}try{history.replaceState(null,'',location.pathname);}catch(e){}}})();
+function adminKey(){try{return localStorage.getItem('adminKey')||'';}catch(e){return '';}}
+var ADMIN=!!adminKey();
+function lockedComp(c){return !ADMIN && !!(c&&!c.demo);}
+function addOrUpgrade(){if(ADMIN){openModal();return;}var m=getList().filter(function(c){return !lockedComp(c);}).length;if(m>=PLAN.competitors){showUpgrade();return;}openModal();}
 function showUpgrade(){var o=document.getElementById('upOv');if(o)o.classList.add('open');}
 function closeUpgrade(){var o=document.getElementById('upOv');if(o)o.classList.remove('open');}
+/* ── feature-request / feedback ── */
+function openFeedback(){
+  var er=document.getElementById('fbErr');if(er){er.style.display='none';er.style.color='';}
+  var b=document.getElementById('fbSend');if(b){b.disabled=false;b.textContent='Send';}
+  var a=document.getElementById('fbAdmin');if(a)a.innerHTML=ADMIN?'<button class="fb-viewbtn" onclick="loadFeedback()">View submissions ↓</button>':'';
+  document.getElementById('fbOv').classList.add('open');
+  setTimeout(function(){var t=document.getElementById('fbMsg');if(t)t.focus();},40);
+}
+function closeFeedback(){var o=document.getElementById('fbOv');if(o)o.classList.remove('open');}
+function sendFeedback(){
+  var msg=document.getElementById('fbMsg').value.trim(),email=document.getElementById('fbEmail').value.trim(),er=document.getElementById('fbErr');
+  er.style.color='';
+  if(!msg){er.textContent='Write something first.';er.style.display='block';return;}
+  var btn=document.getElementById('fbSend');btn.disabled=true;btn.textContent='Sending…';
+  fetch(API+'/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,email:email,name:(typeof myBrand!=='undefined'&&myBrand&&myBrand.name)||''})})
+    .then(function(r){return r.json();}).then(function(d){
+      btn.disabled=false;btn.textContent='Send';
+      if(d&&d.error){er.textContent=d.error;er.style.display='block';return;}
+      document.getElementById('fbMsg').value='';document.getElementById('fbEmail').value='';
+      er.style.color='var(--quiet)';er.textContent='✓ Sent — thank you! We read every one.';er.style.display='block';
+      setTimeout(closeFeedback,1500);
+    })
+    .catch(function(){btn.disabled=false;btn.textContent='Send';er.style.color='';er.textContent='Couldn’t send — try again in a moment.';er.style.display='block';});
+}
+function loadFeedback(){
+  var a=document.getElementById('fbAdmin');a.innerHTML='<div class="adsload" style="padding:14px 0"><span class="spin"></span>Loading submissions…</div>';
+  fetch(API+'/api/feedback?key='+encodeURIComponent(adminKey())).then(function(r){return r.json();}).then(function(d){
+    if(!d||d.error){a.innerHTML='<div class="fb-empty">'+esc((d&&d.error)||'Couldn’t load.')+'</div>';return;}
+    var list=d.feedback||[];
+    a.innerHTML='<div class="fb-list-h">'+list.length+' submission'+(list.length===1?'':'s')+'</div>'+(list.length?'<div class="fb-list">'+list.map(function(f){return '<div class="fb-item"><div class="fb-meta">'+esc(f.name||'anonymous')+(f.email?' · '+esc(f.email):'')+' · '+esc(fmtDay(f.created_at))+'</div><div class="fb-msg">'+esc(f.message)+'</div></div>';}).join('')+'</div>':'<div class="fb-empty">No submissions yet.</div>');
+  }).catch(function(){a.innerHTML='<div class="fb-empty">Couldn’t load.</div>';});
+}
 render();
 loadMyBrand();
 registerCompetitors();

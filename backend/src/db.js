@@ -59,5 +59,12 @@ export async function initSchema() {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS idx_snap_unique ON snapshots(host, channel, day);
     CREATE INDEX IF NOT EXISTS idx_snap_host ON snapshots(host, channel, day DESC);
+    CREATE TABLE IF NOT EXISTS feedback (
+      id         SERIAL PRIMARY KEY,
+      name       TEXT,
+      email      TEXT,
+      message    TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `);
 }
