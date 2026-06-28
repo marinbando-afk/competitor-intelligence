@@ -234,6 +234,22 @@ a.adrow-v:hover{text-decoration:underline}
 .mybrand.set{color:var(--text);border-color:var(--sage-d)}
 .mb-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);box-shadow:0 0 6px var(--sage)}
 .mb-lbl{color:var(--muted);font-weight:400}
+.datenav .dlabel{cursor:pointer}
+.dcar{font-size:9px;color:var(--muted)}
+.calwrap{position:fixed;top:56px;right:18px;z-index:70;width:262px;background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.55);padding:12px;display:none}
+.calwrap.open{display:block}
+.cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.cal-title{font-family:'Oswald',sans-serif;font-size:14px;font-weight:600;color:var(--text);letter-spacing:.02em}
+.cal-nav{width:26px;height:26px;border-radius:7px;border:1px solid var(--line2);background:none;color:var(--text);cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center}
+.cal-nav:hover{border-color:var(--sage-d)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-dow{font-family:var(--mono);font-size:9px;color:var(--muted);text-align:center;padding:3px 0}
+.cal-cell{aspect-ratio:1;border:none;background:none;color:var(--faint);font-size:12px;border-radius:7px;display:flex;align-items:center;justify-content:center;padding:0}
+.cal-cell.has{color:var(--text);background:var(--raised);cursor:pointer;font-weight:500}
+.cal-cell.has:hover{background:var(--sage-soft);color:var(--sage)}
+.cal-cell.today{box-shadow:inset 0 0 0 1px var(--sage-d)}
+.cal-cell.sel{background:var(--sage);color:#06231f;font-weight:700}
+.cal-foot{margin-top:9px;font-family:var(--mono);font-size:9px;color:var(--muted);text-align:center;line-height:1.45}
 .intel-apply{margin:2px 0 13px;padding:9px 12px;border-radius:8px;background:rgba(227,169,44,.08);border:1px solid rgba(227,169,44,.22);font-size:12.5px;line-height:1.5;color:var(--text)}
 .ia-h{display:block;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
 .adlink{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);text-decoration:none;margin-top:15px}
@@ -398,6 +414,7 @@ a.adrow-v:hover{text-decoration:underline}
     <button class="mybrand" id="myBrandChip" onclick="openBrand()" title="Your brand — powers the ‘apply to you’ suggestions">+ Add your brand</button>
     <span class="top-date" id="topDate"></span>
     <div id="dateNavWrap"></div>
+    <div class="calwrap" id="calWrap" onclick="event.stopPropagation()"></div>
   </div>
 </div>
 
@@ -538,7 +555,7 @@ var DEMOS=[
   }
 ];
 
-var state={sel:null,day:null};
+var state={sel:null,day:null,open:{}};
 var viewSnap=null,histDays={};
 var liveCache={};
 
@@ -800,10 +817,11 @@ function channel(k,c){
     :'<span class="chan-sum q" id="'+sid+'">'+inactive+'</span>';
   var head='<button class="chan-head"'+(on?' onclick="tog(this)"':'')+'><span class="chan-name">'+def.label+'</span>'+right+'</button>';
   var body=on?'<div class="chan-body"><div class="intel" id="intel-'+k+'-'+c.id+'"></div>'+chanDetail(k,ch,c)+'</div>':'';
-  return '<div class="chan'+(on?' on':'')+'">'+head+body+'</div>';
+  return '<div class="chan'+(on?' on':'')+(on&&state.open&&state.open[k]?' open':'')+'" data-k="'+k+'">'+head+body+'</div>';
 }
 function tog(btn){
   var chan=btn.parentNode;chan.classList.toggle('open');
+  if(chan.dataset&&chan.dataset.k)state.open[chan.dataset.k]=chan.classList.contains('open');
   if(chan.classList.contains('open')){
     var box=chan.querySelector('.adsbox');
     if(box&&!box.dataset.loaded){box.dataset.loaded='1';loadAds(box);}
@@ -909,7 +927,7 @@ function dateNav(c){
   var label=live?'Today':fmtShortDay(state.day);
   return '<div class="datenav'+(live?'':' hist')+'">'
     +'<button class="dnav"'+(older?' onclick="goDay(\''+older+'\')"':' disabled')+' title="Previous day">‹</button>'
-    +'<span class="dlabel"'+(live?'':' onclick="goToday()" style="cursor:pointer" title="Back to today"')+'>'+esc(label)+'</span>'
+    +'<span class="dlabel" onclick="toggleCal(event)" title="Pick a date">'+esc(label)+' <span class="dcar">▾</span></span>'
     +'<button class="dnav"'+(canNewer?(' onclick="'+(newer?'goDay(\''+newer+'\')':'goToday()')+'"'):' disabled')+' title="Next day">›</button>'
     +'</div>';
 }
@@ -1056,6 +1074,30 @@ function goDay(day){
   }).catch(function(){viewSnap={};if(state.sel===c.id){document.getElementById('detail').innerHTML=report(c);refreshDateFloat();}});
 }
 function goToday(){state.day=null;viewSnap=null;var c=currentComp();if(c){document.getElementById('detail').innerHTML=report(c);refreshDateFloat();}}
+/* ── calendar date-picker (click the date label to jump across months) ── */
+var calY,calM;
+function parseDay(s){var p=String(s).split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
+function toggleCal(e){if(e)e.stopPropagation();var w=document.getElementById('calWrap');if(!w)return;if(w.classList.contains('open')){closeCal();return;}var d=state.day?parseDay(state.day):new Date();calY=d.getFullYear();calM=d.getMonth();renderCal();w.classList.add('open');}
+function closeCal(){var w=document.getElementById('calWrap');if(w)w.classList.remove('open');}
+function calNav(delta){calM+=delta;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}renderCal();}
+function renderCal(){
+  var w=document.getElementById('calWrap');if(!w)return;
+  var c=currentComp(),days=(c&&histDays[c.host])||[],avail={};days.forEach(function(d){avail[String(d).slice(0,10)]=1;});
+  var todayStr=new Date().toISOString().slice(0,10);
+  var mo=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var startDow=new Date(calY,calM,1).getDay(),dim=new Date(calY,calM+1,0).getDate();
+  var h='<div class="cal-h"><button class="cal-nav" onclick="calNav(-1)" title="Previous month">‹</button><span class="cal-title">'+mo[calM]+' '+calY+'</span><button class="cal-nav" onclick="calNav(1)" title="Next month">›</button></div><div class="cal-grid">';
+  ['S','M','T','W','T','F','S'].forEach(function(d){h+='<span class="cal-dow">'+d+'</span>';});
+  for(var i=0;i<startDow;i++)h+='<span class="cal-cell"></span>';
+  for(var day=1;day<=dim;day++){
+    var ds=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    var has=avail[ds],isToday=ds===todayStr,isSel=state.day?state.day===ds:isToday;
+    h+='<button class="cal-cell'+(has?' has':'')+(isToday?' today':'')+(isSel?' sel':'')+'"'+(has?' onclick="goCal(\''+ds+'\')"':' disabled')+'>'+day+'</button>';
+  }
+  h+='</div><div class="cal-foot">'+(days.length?days.length+' day'+(days.length===1?'':'s')+' captured — only those are selectable':'history is still building…')+'</div>';
+  w.innerHTML=h;
+}
+function goCal(ds){closeCal();if(ds===new Date().toISOString().slice(0,10))goToday();else goDay(ds);}
 function report(c){
   var p=c.demo?c.priority:'setup';
   var back='<button class="back-btn" onclick="back()"><svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Watchlist</button>';
@@ -1119,7 +1161,8 @@ function submitComp(){
   var l=getList();l.unshift({id:'c-'+Date.now(),demo:false,name:n,host:u.hostname.replace(/^www\./,''),url:u.href,updatedAt:Date.now()});
   save(l);trackComp(l[0]);state.sel=l[0].id;closeModal();document.getElementById('app').dataset.view='detail';render();
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();closeCal();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
+document.addEventListener('click',function(){closeCal();});
 /* ── your brand (apply-to-me knowledge base) ── */
 var myBrand=null;
 function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)return;el.innerHTML=(myBrand&&myBrand.name)?('<span class="mb-dot"></span><span class="mb-lbl">My brand:</span> '+esc(myBrand.name)):'+ Add your brand';el.className='mybrand'+((myBrand&&myBrand.name)?' set':'');}
