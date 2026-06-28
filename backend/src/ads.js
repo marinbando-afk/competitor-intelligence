@@ -27,7 +27,7 @@ export async function fetchAds(brand, country, force, cacheOnly) {
     encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + '&media_type=all';
 
   // Covers the common input shapes across Meta Ad Library actors — extra fields are ignored.
-  const ADS_N = Number(process.env.ADS_COUNT) || 300;   // raise/lower via ADS_COUNT env (billed per ad actually returned)
+  const ADS_N = Number(process.env.ADS_COUNT) || 20;   // plan cap; raise via ADS_COUNT env on upgrade (billed per ad actually returned)
   const input = {
     urls: [{ url: searchUrl }],
     startUrls: [{ url: searchUrl }],

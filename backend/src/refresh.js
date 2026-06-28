@@ -24,6 +24,9 @@ const PLATFORMS = [['instagram', 'ig'], ['tiktok', 'tt'], ['facebook', 'fb']];
 // Competitors the user added in the app — persisted as a singleton list so the
 // daily warm covers them too (the seeded demos live in TRACKED above).
 const TKEY = '__tracked__';
+// Plan limit: how many USER-ADDED competitors the daily warm covers (the seeded
+// demos in TRACKED are always on). Free = 0; bump MAX_USER_BRANDS env on upgrade.
+const MAX_USER = Number(process.env.MAX_USER_BRANDS) || 0;
 function cleanHost(h) { return String(h || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase(); }
 
 export async function getTracked() {
@@ -36,6 +39,7 @@ export async function addTracked(comp) {
   if (TRACKED.some((t) => t.host === host)) return { existing: true };   // already a warm demo
   const items = await getTracked();
   if (items.some((t) => t.host === host)) return { existing: true };
+  if (items.length >= MAX_USER) return { limited: true, max: MAX_USER };   // plan limit reached
   const norm = { name: String(comp.name || host).slice(0, 120), host, url: comp.url || ('https://' + host), country: String(comp.country || 'ALL').toUpperCase(), handles: comp.handles || {} };
   items.push(norm);
   await saveSnapshot(TKEY, 'list', { items: items.slice(-200) });
@@ -43,7 +47,7 @@ export async function addTracked(comp) {
 }
 async function allBrands() {
   const seen = new Set(TRACKED.map((t) => t.host));
-  return TRACKED.concat((await getTracked()).filter((t) => t && t.host && !seen.has(t.host)));
+  return TRACKED.concat((await getTracked()).filter((t) => t && t.host && !seen.has(t.host)).slice(0, MAX_USER));
 }
 
 let running = false;

@@ -292,6 +292,17 @@ a.adrow-v:hover{text-decoration:underline}
 
 .setup-note{font-family:'Oswald',sans-serif;font-style:italic;font-size:17px;color:var(--muted);line-height:1.65;margin:0 0 30px;position:relative;z-index:1;max-width:760px}
 .setup-note b{color:var(--text);font-style:normal;font-weight:600}
+.row.lockedrow{opacity:.6}
+.row.lockedrow .row-name{color:var(--muted)}
+.lk{color:var(--gold);font-size:11px}
+.locked-rep{max-width:540px;margin:34px auto;text-align:center;padding:38px 30px;border:1px solid var(--line2);border-radius:14px;background:var(--panel);position:relative;z-index:1}
+.locked-rep .lk-ic{font-size:30px;margin-bottom:12px}
+.locked-rep h3{font-family:'Oswald',sans-serif;font-size:23px;font-weight:600;margin:0 0 12px;color:var(--text)}
+.locked-rep p{color:var(--muted);font-size:14px;line-height:1.6;margin:0 0 8px}
+.locked-rep p b{color:var(--text)}
+.up-rows{display:flex;flex-direction:column;gap:1px;background:var(--line2);border:1px solid var(--line2);border-radius:10px;overflow:hidden;margin:18px 0 22px;text-align:left}
+.up-row{display:flex;justify-content:space-between;gap:12px;padding:11px 14px;background:var(--panel);font-size:13px;color:var(--muted)}
+.up-row b{color:var(--sage);white-space:nowrap}
 .empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px;color:var(--muted);position:relative;z-index:1}
 .empty .ei{width:56px;height:56px;border-radius:50%;border:1px solid var(--sage-d);background:var(--sage-soft);display:flex;align-items:center;justify-content:center;margin-bottom:20px}
 .empty h3{font-family:'Oswald',sans-serif;font-size:22px;color:var(--text);margin:0 0 8px;font-weight:600}
@@ -376,7 +387,7 @@ a.adrow-v:hover{text-decoration:underline}
   <aside class="rail">
     <div class="rail-h">
       <span class="lbl" style="white-space:nowrap">Competitor watchlist</span>
-      <button class="add-btn" onclick="openModal()"><svg width="11" height="11" fill="none" viewBox="0 0 11 11"><path d="M5.5 1.5v8M1.5 5.5h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="abl">Add</span></button>
+      <button class="add-btn" onclick="addOrUpgrade()"><svg width="11" height="11" fill="none" viewBox="0 0 11 11"><path d="M5.5 1.5v8M1.5 5.5h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="abl">Add</span></button>
     </div>
     <div class="rail-list" id="railList"></div>
   </aside>
@@ -401,6 +412,19 @@ a.adrow-v:hover{text-decoration:underline}
     <div class="fld"><label for="bU">Your website</label><input id="bU" type="text" placeholder="e.g. acme.com" autocomplete="off"/><div class="er" id="bErr"></div></div>
     <div class="fld"><label for="bP">Main product <span style="color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400">— optional, sharpens the tips</span></label><input id="bP" type="text" placeholder="e.g. Weighted blankets" autocomplete="off"/></div>
     <div class="m-act"><button class="btn btn-g" id="bRemove" onclick="removeBrand()" style="margin-right:auto;display:none">Remove</button><button class="btn btn-g" onclick="closeBrand()">Cancel</button><button class="btn btn-p" id="bSave" onclick="saveBrand()">Scan &amp; save</button></div>
+  </div>
+</div>
+
+<div class="ov" id="upOv" onclick="if(event.target===this)closeUpgrade()">
+  <div class="modal">
+    <h2>Upgrade your plan</h2>
+    <p>You're on the <b>Starter</b> plan. Upgrade to monitor more competitors and capture their full ad volume.</p>
+    <div class="up-rows">
+      <div class="up-row"><span>Competitors monitored</span><b>2 → 10+</b></div>
+      <div class="up-row"><span>Ads captured per brand</span><b>20 → up to 300</b></div>
+      <div class="up-row"><span>Add your own competitors</span><b>🔒 → ✓</b></div>
+    </div>
+    <div class="m-act"><button class="btn btn-g" onclick="closeUpgrade()">Maybe later</button><button class="btn btn-p" onclick="closeUpgrade()">Upgrade — coming soon</button></div>
   </div>
 </div>
 
@@ -512,12 +536,13 @@ function ago(t){var m=Math.round((Date.now()-t)/6e4);if(m<60)return Math.max(1,m
 function badge(c){return '<img src="'+fav(c.host)+'" onerror="this.style.display=\'none\';this.parentNode.textContent=\''+mono(c.name)+'\'">';}
 
 function railRow(c){
-  var p=c.demo?c.priority:'setup';
-  var t=c.live?'<span style="color:var(--quiet)">LIVE</span>':ago(c.updatedAt||Date.now());
-  return '<button class="row'+(c.id===state.sel?' sel':'')+'" onclick="select(\''+c.id+'\')">'
+  var locked=lockedComp(c);
+  var t=locked?'<span class="lk">🔒</span>':(c.live?'<span style="color:var(--quiet)">LIVE</span>':ago(c.updatedAt||Date.now()));
+  var sub=locked?'Upgrade to monitor':(c.demo?c.oneLiner:'Baseline capturing…');
+  return '<button class="row'+(c.id===state.sel?' sel':'')+(locked?' lockedrow':'')+'" onclick="select(\''+c.id+'\')">'
     +'<span class="badge">'+badge(c)+'</span>'
     +'<span class="row-main"><span class="row-top"><span class="row-name">'+esc(c.name)+'</span><span class="row-time">'+t+'</span></span>'
-    +'<span class="row-sub">'+esc(c.demo?c.oneLiner:'Baseline capturing…')+'</span></span></button>';
+    +'<span class="row-sub">'+esc(sub)+'</span></span></button>';
 }
 
 var PLAT={FACEBOOK:'Facebook',INSTAGRAM:'Instagram',AUDIENCE_NETWORK:'Audience',MESSENGER:'Messenger',THREADS:'Threads'};
@@ -996,6 +1021,13 @@ function report(c){
   var head=back+BOTANICAL+'<div class="rep-head"><span class="rep-badge">'+badge(c)+'</span>'
     +'<div><div class="rep-name">'+esc(c.name)+'</div><div class="rep-meta">'+meta+'</div></div></div>';
 
+  if(lockedComp(c)){
+    return '<div class="report">'+head
+      +'<div class="locked-rep"><div class="lk-ic">🔒</div><h3>Upgrade to monitor '+esc(c.name)+'</h3>'
+      +'<p>Your plan monitors <b>'+PLAN.competitors+' competitors</b> (the two live demos), <b>'+PLAN.ads+' ads</b> each. Upgrade to add your own competitors like <b>'+esc(c.name)+'</b> and capture more ads per brand.</p>'
+      +'<div class="up-rows"><div class="up-row"><span>Competitors monitored</span><b>'+PLAN.competitors+' → 10+</b></div><div class="up-row"><span>Ads captured per brand</span><b>'+PLAN.ads+' → up to 300</b></div></div>'
+      +'<button class="btn btn-p" onclick="showUpgrade()">See upgrade options</button></div></div>';
+  }
   if(!c.demo){
     return '<div class="report">'+head
       +'<p class="setup-note">Capturing a live baseline of <b>'+esc(c.host)+'</b> now — each channel below populates within a few minutes; day-over-day comparisons build from tomorrow.</p>'
@@ -1013,7 +1045,7 @@ function render(){
   var list=sorted();
   if(!list.length){
     document.getElementById('railList').innerHTML='';
-    document.getElementById('detail').innerHTML='<div class="empty"><div class="ei"><svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="#3f9d9b" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8 15V4.5"/><path d="M8 9.5C5.4 9.2 3.8 7.4 4.1 4.7 6.7 5 8.2 6.8 8 9.5Z"/><path d="M8 7.2C10.4 6.9 11.8 5.2 11.6 2.9 9.3 3.2 7.9 4.9 8 7.2Z"/></svg></div><h3>Your watchlist is empty</h3><p>Add the first brand you want to keep an eye on.</p><button class="btn btn-p" onclick="openModal()">Add to Watchlist</button></div>';
+    document.getElementById('detail').innerHTML='<div class="empty"><div class="ei"><svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="#3f9d9b" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8 15V4.5"/><path d="M8 9.5C5.4 9.2 3.8 7.4 4.1 4.7 6.7 5 8.2 6.8 8 9.5Z"/><path d="M8 7.2C10.4 6.9 11.8 5.2 11.6 2.9 9.3 3.2 7.9 4.9 8 7.2Z"/></svg></div><h3>Your watchlist is empty</h3><p>Add the first brand you want to keep an eye on.</p><button class="btn btn-p" onclick="addOrUpgrade()">Add to Watchlist</button></div>';
     setDate();return;
   }
   if(!state.sel||!list.some(function(c){return c.id===state.sel;}))state.sel=list[0].id;
@@ -1041,7 +1073,7 @@ function submitComp(){
   var l=getList();l.unshift({id:'c-'+Date.now(),demo:false,name:n,host:u.hostname.replace(/^www\./,''),url:u.href,updatedAt:Date.now()});
   save(l);trackComp(l[0]);state.sel=l[0].id;closeModal();document.getElementById('app').dataset.view='detail';render();
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
 /* ── your brand (apply-to-me knowledge base) ── */
 var myBrand=null;
 function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)return;el.innerHTML=(myBrand&&myBrand.name)?('<span class="mb-dot"></span><span class="mb-lbl">My brand:</span> '+esc(myBrand.name)):'+ Add your brand';el.className='mybrand'+((myBrand&&myBrand.name)?' set':'');}
@@ -1111,6 +1143,12 @@ function sendChat(){
 
 function trackComp(c){if(!c||c.demo||!c.host)return;fetch(API+'/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:c.name,host:c.host,url:c.url,country:c.country||'ALL'})}).catch(function(){});}
 function registerCompetitors(){getList().forEach(function(c){if(c&&!c.demo)trackComp(c);});}
+/* ── plan tier (Starter): the 2 seeded demos are monitored; added competitors lock until upgrade ── */
+var PLAN={ads:20,competitors:2};
+function lockedComp(c){return !!(c&&!c.demo);}
+function addOrUpgrade(){var m=getList().filter(function(c){return !lockedComp(c);}).length;if(m>=PLAN.competitors){showUpgrade();return;}openModal();}
+function showUpgrade(){var o=document.getElementById('upOv');if(o)o.classList.add('open');}
+function closeUpgrade(){var o=document.getElementById('upOv');if(o)o.classList.remove('open');}
 render();
 loadMyBrand();
 registerCompetitors();
