@@ -98,6 +98,7 @@ function normalize(items, brand, country) {
       title,
       image,
       hasVideo: vids.length > 0 || cards.some((c) => c.video_sd_url || c.video_hd_url),
+      video: (() => { const v = vids.find((x) => x.video_sd_url || x.video_hd_url) || cards.find((x) => x.video_sd_url || x.video_hd_url); return v ? (v.video_sd_url || v.video_hd_url) : ''; })(),
       page: it.page_name || snap.page_name || brand,
       platforms,
       format: snap.display_format || (cards.length > 1 ? 'CAROUSEL' : 'IMAGE'),

@@ -1028,7 +1028,7 @@ function openAd(i){
   if(a.link)rows+='<div class="adrow"><span class="adrow-k">Source</span><a class="adrow-v" href="'+esc(a.link)+'" target="_blank" rel="noopener">Open in Meta Ad Library ↗</a></div>';
   document.getElementById('adBody').innerHTML=media+copy+(rows?'<div class="adrows">'+rows+'</div>':'');
   ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
-  if(a.text||a.title||a.image)loadAngle(a.text||a.title||'','ad',a.image);
+  if(a.text||a.title||a.image)loadAngle(a.text||a.title||'','ad',a.image,a.video);
 }
 function closeAd(){var ov=document.getElementById('adOv');if(!ov)return;ov.classList.remove('open');ov.setAttribute('aria-hidden','true');document.body.style.overflow='';}
 var angleCache={};
@@ -1045,11 +1045,11 @@ function fillAngle(key,o){
   row('angleCreativeRow','angleCreative',o.creative);
   row('angleApplyRow','angleApply',o.apply);
 }
-function loadAngle(text,kind,image){
+function loadAngle(text,kind,image,video){
   var el=document.getElementById('angleVal');if(!el)return;
-  var key=kind+'|'+String(image||'').slice(0,80)+'|'+String(text||'').slice(0,110);el.dataset.k=key;
+  var key=kind+'|'+String(image||'').slice(0,80)+'|'+String(video||'').slice(0,50)+'|'+String(text||'').slice(0,100);el.dataset.k=key;
   if(angleCache[key]!==undefined){fillAngle(key,angleCache[key]);return;}
-  fetch(API+'/api/angle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text,kind:kind,image:image||''})})
+  fetch(API+'/api/angle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text,kind:kind,image:image||'',video:video||''})})
     .then(function(r){return r.json();}).then(function(d){var o={angle:(d&&d.angle)||'',hook:(d&&d.hook)||'',creative:(d&&d.creative)||'',apply:(d&&d.apply)||''};angleCache[key]=o;fillAngle(key,o);})
     .catch(function(){fillAngle(key,{angle:'—',hook:'',creative:'',apply:''});});
 }

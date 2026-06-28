@@ -157,8 +157,8 @@ app.get('/api/insights', async (req, res) => {
 // One-line marketing angle (+ how YOUR brand could apply it) for a single ad/post.
 app.post('/api/angle', async (req, res) => {
   try {
-    const { text, kind, image } = req.body || {};
-    const r = await quickAngle(text, kind, image);
+    const { text, kind, image, video } = req.body || {};
+    const r = await quickAngle(text, kind, image, video);
     res.json({ angle: r.angle, hook: r.hook, creative: r.creative, apply: r.apply });
   } catch (e) {
     res.status(500).json({ error: e.message });

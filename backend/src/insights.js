@@ -13,6 +13,7 @@ import { recentSnapshots, saveSnapshot, latestSnapshot } from './snapshots.js';
 import { getEmails } from './email.js';
 import { diffWebsite } from './website.js';
 import { getMyBrand } from './brand.js';
+import { transcribeVideo } from './transcribe.js';
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
 let _client;
@@ -184,17 +185,19 @@ async function fetchImageB64(url) {
 
 // Vision-powered analysis of a single ad/post — sees the actual CREATIVE (image,
 // or a video ad's cover frame) plus the copy → angle, hook, creative read, apply.
-export async function quickAngle(text, kind, image) {
+export async function quickAngle(text, kind, image, video) {
   const t = oneLine(text).slice(0, 1400);
   if (!process.env.ANTHROPIC_API_KEY) return { angle: '', hook: '', creative: '', apply: '' };
   const me = await getMyBrand();
   const img = image ? await fetchImageB64(image) : null;
-  const key = (kind || 'ad') + '|' + ((me && me.host) || '') + '|' + (img ? 'V' : 'T') + '|' + String(image || '').slice(0, 90) + '|' + t.slice(0, 110);
+  const script = video ? await transcribeVideo(video) : '';   // spoken hook of a video ad (needs OPENAI_API_KEY)
+  const key = (kind || 'ad') + '|' + ((me && me.host) || '') + '|' + (img ? 'V' : 'T') + (script ? 'S' : '') + '|' + String(image || '').slice(0, 70) + '|' + String(video || '').slice(0, 50) + '|' + t.slice(0, 100);
   if (_angleCache.has(key)) return _angleCache.get(key);
   const what = kind === 'post' ? 'organic social post' : 'ad';
-  const visual = img
+  const visual = (img
     ? (kind === 'post' ? 'You are shown the post CREATIVE (image).' : 'You are shown the ad CREATIVE — for a video ad this is its cover frame.')
-    : 'No creative image is available — analyze from the copy only and leave "creative" brief.';
+    : 'No creative image is available — analyze from the copy only and leave "creative" brief.')
+    + (script ? ' A transcription of the video\'s SPOKEN audio is also provided — base the HOOK on the actual opening line(s) of that script.' : '');
   const applyField = (me && me.profile)
     ? `,"apply":"<one realistic, specific way the ADVISING BRAND could use the SAME approach — reference their real products/positioning; if it doesn't fit, say so briefly. Start with a verb, <=28 words>"`
     : `,"apply":""`;
@@ -209,7 +212,7 @@ export async function quickAngle(text, kind, image) {
   const run = async (withImg) => {
     const content = [];
     if (withImg && img) content.push({ type: 'image', source: img });
-    content.push({ type: 'text', text: 'COPY: ' + (t || '(no copy provided)') });
+    content.push({ type: 'text', text: 'COPY: ' + (t || '(no copy provided)') + (script ? '\n\nVIDEO SCRIPT (spoken audio, transcribed): ' + script : '') });
     const resp = await client().messages.create({ model: process.env.ANGLE_MODEL || MODEL, max_tokens: 400, system, messages: [{ role: 'user', content }] });
     const raw = oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''));
     let o = null;
