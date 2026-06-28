@@ -10,7 +10,8 @@ import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
 import { captureWebsiteFull } from './website.js';
-import { generateInsights } from './insights.js';
+import { generateInsights, creditStatus } from './insights.js';
+import { notifyCreditsEmpty } from './alert.js';
 import { saveSnapshot, latestSnapshot } from './snapshots.js';
 
 // Brands kept permanently warm (mirrors the app's seeded demos).
@@ -69,9 +70,19 @@ export async function warmBrand(b, force) {
   return { ok, fail };
 }
 
+// Probe the Anthropic balance; email the founder once if it's empty (the AI
+// features go blank without credit — this is the proactive heads-up).
+async function creditWatch() {
+  try {
+    const s = await creditStatus();
+    if (s && s.empty) { const sent = await notifyCreditsEmpty(); console.warn('AI credits empty — alert email ' + (sent ? 'sent' : 'skipped (set RESEND_API_KEY + ALERT_EMAIL)')); }
+  } catch (e) { /* best-effort */ }
+}
+
 export async function refreshAll(force) {
   if (running) { console.log('refresh already in progress — skipping'); return { skipped: true }; }
   running = true;
+  creditWatch().catch(() => {}); // heads-up email if Anthropic credits are empty (non-blocking, best-effort)
   const t0 = Date.now();
   let ok = 0, fail = 0;
   try {

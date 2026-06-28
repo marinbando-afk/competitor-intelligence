@@ -14,6 +14,21 @@ import { getEmails } from './email.js';
 import { diffWebsite } from './website.js';
 import { getMyBrand } from './brand.js';
 import { transcribeVideo } from './transcribe.js';
+import { notifyCreditsEmpty } from './alert.js';
+
+// True when an Anthropic error means the account is out of credit (vs auth/rate/etc).
+function isCreditError(e) { return /credit balance is too low/i.test(String((e && e.message) || e)); }
+
+// Lightweight balance probe — a tiny Claude ping. {ok:true} | {ok:false, empty, error}.
+export async function creditStatus() {
+  if (!process.env.ANTHROPIC_API_KEY) return { ok: false, empty: false, reason: 'no-key' };
+  try {
+    await client().messages.create({ model: MODEL, max_tokens: 4, messages: [{ role: 'user', content: 'ping' }] });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, empty: isCreditError(e), status: (e && e.status) || null, error: String((e && e.message) || e).slice(0, 200) };
+  }
+}
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
 let _client;
@@ -235,6 +250,7 @@ export async function quickAngle(text, kind, image, video) {
     _angleCache.set(key, out);
     return out;
   } catch (e) {
+    if (isCreditError(e)) notifyCreditsEmpty().catch(() => {}); // heads-up email (throttled)
     console.warn('quickAngle vision failed (' + e.message + ') — retrying copy-only');
     if (img) { try { const out = await run(false); _angleCache.set(key, out); return out; } catch (e2) { /* fall through */ } }
     return { angle: '', hook: '', creative: '', apply: '' };

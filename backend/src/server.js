@@ -20,6 +20,7 @@ import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js'
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
 import { getInsights, quickAngle, generateInsights } from './insights.js';
+import { sendEmail } from './alert.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { snapshotDays, snapshotForDay } from './snapshots.js';
@@ -155,6 +156,12 @@ app.get('/api/insights', async (req, res) => {
 });
 
 // One-line marketing angle (+ how YOUR brand could apply it) for a single ad/post.
+// TEMP — verify the alert email plumbing once Resend is configured (emails ALERT_EMAIL only). Remove after.
+app.get('/api/test-alert', async (req, res) => {
+  const configured = !!(process.env.RESEND_API_KEY && process.env.ALERT_EMAIL);
+  const sent = await sendEmail('IntelAI: test alert ✅', '<p>This is a test from your IntelAI credit watchdog. If you got this, low-credit alerts will reach you.</p>');
+  res.json({ configured, to: process.env.ALERT_EMAIL ? process.env.ALERT_EMAIL.replace(/(.{2}).*(@.*)/, '$1***$2') : null, sent });
+});
 app.post('/api/angle', async (req, res) => {
   try {
     const { text, kind, image, video } = req.body || {};
