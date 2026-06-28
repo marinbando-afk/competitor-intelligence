@@ -219,7 +219,8 @@ button{font-family:inherit;cursor:pointer}
 .adrow{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--line2);font-size:12.5px}
 .adrow:last-child{border-bottom:none}
 .adrow-k{flex:none;width:104px;font-family:var(--mono);font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding-top:3px}
-.adrow-v{color:var(--text);word-break:break-all}
+.adrow-v{color:var(--text);overflow-wrap:break-word;word-break:normal}
+a.adrow-v{word-break:break-all}
 a.adrow-v{color:var(--sage);text-decoration:none}
 a.adrow-v:hover{text-decoration:underline}
 .adrow-angle .adrow-v{color:var(--sage);font-weight:500}
