@@ -157,41 +157,63 @@ export async function generateInsights(brand, host) {
 // A one-line marketing ANGLE for a single ad/post, generated on demand (cheap,
 // cached) when the user opens its preview.
 const _angleCache = new Map();
-export async function quickAngle(text, kind) {
+const UA_IMG = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
+// Fetch a creative image as a base64 block for the multimodal model (skips non-images / oversized).
+async function fetchImageB64(url) {
+  if (!url || !/^https?:\/\//i.test(url)) return null;
+  try {
+    const r = await fetch(url, { headers: { 'User-Agent': UA_IMG, Accept: 'image/*' } });
+    if (!r.ok) return null;
+    const media = (r.headers.get('content-type') || '').split(';')[0].trim();
+    if (!/^image\/(jpeg|png|gif|webp)$/.test(media)) return null;
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length < 600 || buf.length > 4.5 * 1024 * 1024) return null;
+    return { type: 'base64', media_type: media, data: buf.toString('base64') };
+  } catch (e) { return null; }
+}
+
+// Vision-powered analysis of a single ad/post — sees the actual CREATIVE (image,
+// or a video ad's cover frame) plus the copy → angle, hook, creative read, apply.
+export async function quickAngle(text, kind, image) {
   const t = oneLine(text).slice(0, 1400);
-  if (!t || !process.env.ANTHROPIC_API_KEY) return { angle: '', apply: '' };
+  if (!process.env.ANTHROPIC_API_KEY) return { angle: '', hook: '', creative: '', apply: '' };
   const me = await getMyBrand();
-  const key = (kind || 'ad') + '|' + ((me && me.host) || '') + '|' + t.slice(0, 220);
+  const img = image ? await fetchImageB64(image) : null;
+  const key = (kind || 'ad') + '|' + ((me && me.host) || '') + '|' + (img ? 'V' : 'T') + '|' + String(image || '').slice(0, 90) + '|' + t.slice(0, 110);
   if (_angleCache.has(key)) return _angleCache.get(key);
   const what = kind === 'post' ? 'organic social post' : 'ad';
-  let system, wantJson = false;
-  if (me && me.profile) {
-    wantJson = true;
-    system =
-      `You are a performance-marketing strategist. For this competitor ${what}, return ONLY minified JSON: ` +
-      `{"angle":"<the marketing angle / persuasion strategy in <=12 words; may combine two>","apply":"<one realistic, specific way the ADVISING BRAND below could use the SAME angle — reference their real products/positioning; if it doesn't fit them, say so briefly. Start with a verb, <=28 words>"}. No preamble, no markdown.\n` +
-      `ADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}`;
-  } else {
-    system =
-      `You are a performance-marketing strategist. Name the marketing ANGLE of this ${what} — the core persuasion strategy/hook, not a summary. ` +
-      `You may combine up to two (e.g. "problem→solution: stress relief", "social proof + scarcity", "aspirational identity", "benefit-led comfort", "FOMO new drop", "sale-urgency / EOFY"). ` +
-      `Answer in 12 words or fewer, ONLY the angle phrase — no quotes, no preamble, no trailing period.`;
-  }
+  const visual = img
+    ? (kind === 'post' ? 'You are shown the post CREATIVE (image).' : 'You are shown the ad CREATIVE — for a video ad this is its cover frame.')
+    : 'No creative image is available — analyze from the copy only and leave "creative" brief.';
+  const applyField = (me && me.profile)
+    ? `,"apply":"<one realistic, specific way the ADVISING BRAND could use the SAME approach — reference their real products/positioning; if it doesn't fit, say so briefly. Start with a verb, <=28 words>"`
+    : `,"apply":""`;
+  const brandLine = (me && me.profile) ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}` : '';
+  const system =
+    `You are a performance-marketing strategist analyzing a competitor's ${what}. ${visual} ` +
+    `Be specific and concrete — describe what you actually see, don't generalize. Return ONLY minified JSON, no markdown: {` +
+    `"angle":"<core marketing angle / persuasion strategy, <=12 words>",` +
+    `"hook":"<what grabs attention first — the visual + any headline/on-screen text, <=16 words>",` +
+    `"creative":"<read of the creative: format/style (UGC, studio, lifestyle, before/after, text-heavy, meme, product demo, founder...), what is shown, key on-screen text, <=26 words>"` +
+    applyField + `}.` + brandLine;
+  const content = [];
+  if (img) content.push({ type: 'image', source: img });
+  content.push({ type: 'text', text: 'COPY: ' + (t || '(no copy provided)') });
   try {
-    const resp = await client().messages.create({ model: process.env.ANGLE_MODEL || MODEL, max_tokens: wantJson ? 230 : 40, system, messages: [{ role: 'user', content: t }] });
+    const resp = await client().messages.create({ model: process.env.ANGLE_MODEL || MODEL, max_tokens: 400, system, messages: [{ role: 'user', content }] });
     const raw = oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''));
-    let out;
-    if (wantJson) {
-      let o = null;
-      try { o = JSON.parse(raw); } catch (e) { const m = raw.match(/\{[\s\S]*\}/); if (m) { try { o = JSON.parse(m[0]); } catch (_) { /* noop */ } } }
-      out = { angle: oneLine(o && o.angle).replace(/^["'\s]+|["'\s.]+$/g, '').slice(0, 100), apply: oneLine(o && o.apply).slice(0, 220) };
-      if (!out.angle) out.angle = raw.replace(/[{}"]/g, '').slice(0, 100);
-    } else {
-      out = { angle: raw.replace(/^["'\s]+|["'\s.]+$/g, '').slice(0, 100), apply: '' };
-    }
+    let o = null;
+    try { o = JSON.parse(raw); } catch (e) { const m = raw.match(/\{[\s\S]*\}/); if (m) { try { o = JSON.parse(m[0]); } catch (_) { /* noop */ } } }
+    o = o || {};
+    const out = {
+      angle: oneLine(o.angle).replace(/^["'\s]+|["'\s.]+$/g, '').slice(0, 100) || raw.replace(/[{}"]/g, '').slice(0, 100),
+      hook: oneLine(o.hook).slice(0, 170),
+      creative: img ? oneLine(o.creative).slice(0, 220) : '',
+      apply: oneLine(o.apply).slice(0, 220),
+    };
     _angleCache.set(key, out);
     return out;
-  } catch (e) { return { angle: '', apply: '' }; }
+  } catch (e) { return { angle: '', hook: '', creative: '', apply: '' }; }
 }
 
 // Read the latest cached insights; generate on demand if missing.

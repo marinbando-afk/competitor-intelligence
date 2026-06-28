@@ -1028,24 +1028,30 @@ function openAd(i){
   if(a.link)rows+='<div class="adrow"><span class="adrow-k">Source</span><a class="adrow-v" href="'+esc(a.link)+'" target="_blank" rel="noopener">Open in Meta Ad Library ↗</a></div>';
   document.getElementById('adBody').innerHTML=media+copy+(rows?'<div class="adrows">'+rows+'</div>':'');
   ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
-  if(a.text||a.title)loadAngle(a.text||a.title,'ad');
+  if(a.text||a.title||a.image)loadAngle(a.text||a.title||'','ad',a.image);
 }
 function closeAd(){var ov=document.getElementById('adOv');if(!ov)return;ov.classList.remove('open');ov.setAttribute('aria-hidden','true');document.body.style.overflow='';}
 var angleCache={};
-function angleRowHTML(){return '<div class="adrow adrow-angle"><span class="adrow-k">Angle</span><span class="adrow-v" id="angleVal"><span class="angle-load">reading the angle…</span></span></div><div class="adrow adrow-apply" id="angleApplyRow" style="display:none"><span class="adrow-k">For you</span><span class="adrow-v" id="angleApply"></span></div>';}
+function angleRowHTML(){return ''
+  +'<div class="adrow adrow-angle"><span class="adrow-k">Angle</span><span class="adrow-v" id="angleVal"><span class="angle-load">analyzing the creative…</span></span></div>'
+  +'<div class="adrow" id="angleHookRow" style="display:none"><span class="adrow-k">Hook</span><span class="adrow-v" id="angleHook"></span></div>'
+  +'<div class="adrow" id="angleCreativeRow" style="display:none"><span class="adrow-k">Creative</span><span class="adrow-v" id="angleCreative"></span></div>'
+  +'<div class="adrow adrow-apply" id="angleApplyRow" style="display:none"><span class="adrow-k">For you</span><span class="adrow-v" id="angleApply"></span></div>';}
 function fillAngle(key,o){
   var el=document.getElementById('angleVal');if(!el||el.dataset.k!==key)return;
   el.textContent=o.angle||'—';
-  var row=document.getElementById('angleApplyRow'),ap=document.getElementById('angleApply');
-  if(row&&ap){if(o.apply){ap.textContent=o.apply;row.style.display='';}else{row.style.display='none';}}
+  function row(rid,vid,val){var r=document.getElementById(rid),v=document.getElementById(vid);if(r&&v){if(val){v.textContent=val;r.style.display='';}else{r.style.display='none';}}}
+  row('angleHookRow','angleHook',o.hook);
+  row('angleCreativeRow','angleCreative',o.creative);
+  row('angleApplyRow','angleApply',o.apply);
 }
-function loadAngle(text,kind){
+function loadAngle(text,kind,image){
   var el=document.getElementById('angleVal');if(!el)return;
-  var key=kind+'|'+String(text||'').slice(0,160);el.dataset.k=key;
+  var key=kind+'|'+String(image||'').slice(0,80)+'|'+String(text||'').slice(0,110);el.dataset.k=key;
   if(angleCache[key]!==undefined){fillAngle(key,angleCache[key]);return;}
-  fetch(API+'/api/angle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text,kind:kind})})
-    .then(function(r){return r.json();}).then(function(d){var o={angle:(d&&d.angle)||'',apply:(d&&d.apply)||''};angleCache[key]=o;fillAngle(key,o);})
-    .catch(function(){fillAngle(key,{angle:'—',apply:''});});
+  fetch(API+'/api/angle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text,kind:kind,image:image||''})})
+    .then(function(r){return r.json();}).then(function(d){var o={angle:(d&&d.angle)||'',hook:(d&&d.hook)||'',creative:(d&&d.creative)||'',apply:(d&&d.apply)||''};angleCache[key]=o;fillAngle(key,o);})
+    .catch(function(){fillAngle(key,{angle:'—',hook:'',creative:'',apply:''});});
 }
 function openSoc(el){
   var url=(el&&el.dataset)?el.dataset.url:el;var rec=SOC_SHOWN[url];if(!rec)return;
@@ -1067,7 +1073,7 @@ function openSoc(el){
   if(p.url)rows+='<div class="adrow"><span class="adrow-k">Source</span><a class="adrow-v" href="'+esc(p.url)+'" target="_blank" rel="noopener">Open original post ↗</a></div>';
   document.getElementById('adBody').innerHTML=media+copy+(rows?'<div class="adrows">'+rows+'</div>':'');
   ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
-  if(p.text)loadAngle(p.text,'post');
+  if(p.text||p.image)loadAngle(p.text||'','post',p.image);
 }
 function goDay(day){
   var c=currentComp();if(!c)return;state.day=day;viewSnap=null;
