@@ -40,18 +40,19 @@ export async function clearMyBrand() {
   _cache = null;
 }
 
-export async function setMyBrand(name, website) {
+export async function setMyBrand(name, website, mainProduct) {
   const host = cleanHost(website);
   if (!host || host.indexOf('.') < 0) { const e = new Error('Enter a valid website (e.g. mybrand.com).'); e.status = 400; throw e; }
   const url = /^https?:\/\//i.test(website) ? website : ('https://' + host);
-  const profile = await buildProfile(host, url, name);
-  const data = { name: oneLine(name) || host, host, url, profile, builtAt: new Date().toISOString() };
+  const mp = oneLine(mainProduct).slice(0, 200);
+  const profile = await buildProfile(host, url, name, mp);
+  const data = { name: oneLine(name) || host, host, url, mainProduct: mp, profile, builtAt: new Date().toISOString() };
   await saveSnapshot(KEY, 'profile', data);
   _cache = data;
   return data;
 }
 
-async function buildProfile(host, url, name) {
+async function buildProfile(host, url, name, mainProduct) {
   const sum = await siteSummary(host).catch(() => null);
   let homeText = '';
   try {
@@ -60,12 +61,13 @@ async function buildProfile(host, url, name) {
   } catch (e) { /* best effort */ }
   const titles = sum && sum.items ? Object.values(sum.items).map((i) => i.title).filter(Boolean).slice(0, 40).join('; ') : '';
   const priceLine = sum ? `~${sum.products} products, prices ${sum.min}–${sum.max}` : '';
-  const fallback = oneLine(`${name || host} (${host}). ${priceLine}. Sells: ${titles}`).slice(0, 800);
-  if (!process.env.ANTHROPIC_API_KEY || (!homeText && !titles)) return fallback;
+  const fallback = oneLine(`${name || host} (${host}). ${mainProduct ? 'Main product: ' + mainProduct + '. ' : ''}${priceLine}. Sells: ${titles}`).slice(0, 800);
+  if (!process.env.ANTHROPIC_API_KEY || (!homeText && !titles && !mainProduct)) return fallback;
   const system =
     'You are a brand strategist. From the homepage text and product list, write a tight profile of THIS brand (<=95 words) covering: what they sell, who it is for, market positioning (premium / value / clinical / playful, etc), tone of voice, price range, and 3–5 key product categories. ' +
+    'If a MAIN PRODUCT is stated by the founder, centre the profile on it. ' +
     'Plain factual prose, no marketing fluff or hype. This profile will be used to tailor competitor-marketing suggestions to this brand, so be accurate and specific.';
-  const user = `BRAND: ${name || host} (${host})\nPRICING: ${priceLine}\nPRODUCT TITLES: ${titles}\n\nHOMEPAGE TEXT:\n${homeText}`;
+  const user = `BRAND: ${name || host} (${host})\n${mainProduct ? 'MAIN PRODUCT (stated by founder): ' + mainProduct + '\n' : ''}PRICING: ${priceLine}\nPRODUCT TITLES: ${titles}\n\nHOMEPAGE TEXT:\n${homeText}`;
   try {
     const resp = await client().messages.create({ model: MODEL, max_tokens: 320, system, messages: [{ role: 'user', content: user }] });
     return oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')).slice(0, 1100) || fallback;

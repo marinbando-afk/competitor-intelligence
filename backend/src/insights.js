@@ -101,7 +101,7 @@ async function ask(channel, brand, todayBlock, prevBlock, me) {
   if (me && me.profile) {
     system +=
       `Also add an "apply" field: ONE realistic, specific way the ADVISING BRAND below could apply this channel's single most important takeaway to their OWN marketing. Reference their ACTUAL products/positioning; be concrete and honest — if the tactic doesn't transfer well to them, say so briefly instead of forcing it. Start with a verb, <=30 words.\n` +
-      `ADVISING BRAND — ${me.name}: ${me.profile}\n\n` +
+      `ADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}\n\n` +
       `Return ONLY minified JSON, no markdown: {"summary":"<=18 words","bullets":["<short specific point>", ...up to 4],"apply":"<the tailored suggestion>"}.`;
   } else {
     system += `Return ONLY minified JSON, no markdown: {"summary":"<one tight sentence (<=18 words): the single most important or most-new takeaway>","bullets":["<short, specific point>", ...]} with 0–4 bullets. If nothing changed and nothing notable, return a 1-sentence summary and an empty bullets array.`;
@@ -170,7 +170,7 @@ export async function quickAngle(text, kind) {
     system =
       `You are a performance-marketing strategist. For this competitor ${what}, return ONLY minified JSON: ` +
       `{"angle":"<the marketing angle / persuasion strategy in <=12 words; may combine two>","apply":"<one realistic, specific way the ADVISING BRAND below could use the SAME angle — reference their real products/positioning; if it doesn't fit them, say so briefly. Start with a verb, <=28 words>"}. No preamble, no markdown.\n` +
-      `ADVISING BRAND — ${me.name}: ${me.profile}`;
+      `ADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}`;
   } else {
     system =
       `You are a performance-marketing strategist. Name the marketing ANGLE of this ${what} — the core persuasion strategy/hook, not a summary. ` +

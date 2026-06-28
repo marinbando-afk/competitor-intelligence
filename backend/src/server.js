@@ -39,7 +39,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true, ...warmStatus() }));
 //   GET /api/ads?brand=The%20Oodie&country=AU  -> { count, ads: [{ text, image, page, started, link }] }
 app.get('/api/ads', async (req, res) => {
   try {
-    res.json(await fetchAds(req.query.brand, req.query.country));
+    res.json(await fetchAds(req.query.brand, req.query.country, req.query.force === '1'));
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }
@@ -159,8 +159,8 @@ app.get('/api/my-brand', async (req, res) => {
 });
 app.post('/api/my-brand', async (req, res) => {
   try {
-    const { name, website } = req.body || {};
-    const brand = await setMyBrand(name, website);
+    const { name, website, mainProduct } = req.body || {};
+    const brand = await setMyBrand(name, website, mainProduct);
     res.json({ brand });
     // Refresh tracked competitors' insights with the new brand context (best-effort, async).
     Promise.all((TRACKED || []).map((b) => generateInsights(b.name, b.host).catch(() => {}))).catch(() => {});

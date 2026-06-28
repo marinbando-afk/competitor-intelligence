@@ -399,6 +399,7 @@ a.adrow-v:hover{text-decoration:underline}
     <p>Add your store, and every competitor insight comes with a realistic <b>“here’s how you’d apply it to your brand.”</b> I’ll scan your site to learn what you sell.</p>
     <div class="fld"><label for="bN">Brand name</label><input id="bN" type="text" placeholder="e.g. Acme Co" autocomplete="off"/></div>
     <div class="fld"><label for="bU">Your website</label><input id="bU" type="text" placeholder="e.g. acme.com" autocomplete="off"/><div class="er" id="bErr"></div></div>
+    <div class="fld"><label for="bP">Main product <span style="color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400">— optional, sharpens the tips</span></label><input id="bP" type="text" placeholder="e.g. Weighted blankets" autocomplete="off"/></div>
     <div class="m-act"><button class="btn btn-g" id="bRemove" onclick="removeBrand()" style="margin-right:auto;display:none">Remove</button><button class="btn btn-g" onclick="closeBrand()">Cancel</button><button class="btn btn-p" id="bSave" onclick="saveBrand()">Scan &amp; save</button></div>
   </div>
 </div>
@@ -1047,20 +1048,20 @@ function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)r
 function loadMyBrand(){
   try{var s=localStorage.getItem('myBrand');if(s)myBrand=JSON.parse(s);}catch(e){}
   paintBrandChip();
-  fetch(API+'/api/my-brand').then(function(r){return r.json();}).then(function(d){if(d&&d.brand){myBrand=d.brand;try{localStorage.setItem('myBrand',JSON.stringify({name:d.brand.name,host:d.brand.host,url:d.brand.url}));}catch(e){}paintBrandChip();}}).catch(function(){});
+  fetch(API+'/api/my-brand').then(function(r){return r.json();}).then(function(d){if(d&&d.brand){myBrand=d.brand;try{localStorage.setItem('myBrand',JSON.stringify({name:d.brand.name,host:d.brand.host,url:d.brand.url,mainProduct:d.brand.mainProduct}));}catch(e){}paintBrandChip();}}).catch(function(){});
 }
-function openBrand(){document.getElementById('bN').value=(myBrand&&myBrand.name)||'';document.getElementById('bU').value=(myBrand&&(myBrand.url||myBrand.host))||'';document.getElementById('bErr').style.display='none';var rm=document.getElementById('bRemove');if(rm)rm.style.display=(myBrand&&myBrand.name)?'':'none';document.getElementById('brandOv').classList.add('open');setTimeout(function(){document.getElementById('bN').focus();},40);}
+function openBrand(){document.getElementById('bN').value=(myBrand&&myBrand.name)||'';document.getElementById('bU').value=(myBrand&&(myBrand.url||myBrand.host))||'';document.getElementById('bP').value=(myBrand&&myBrand.mainProduct)||'';document.getElementById('bErr').style.display='none';var rm=document.getElementById('bRemove');if(rm)rm.style.display=(myBrand&&myBrand.name)?'':'none';document.getElementById('brandOv').classList.add('open');setTimeout(function(){document.getElementById('bN').focus();},40);}
 function removeBrand(){fetch(API+'/api/my-brand',{method:'DELETE'}).then(function(r){return r.json();}).catch(function(){});myBrand=null;try{localStorage.removeItem('myBrand');}catch(e){}paintBrandChip();closeBrand();insightsCache={};angleCache={};var c=currentComp();if(c){delete insightsCache[c.host];loadInsights(c);}}
 function closeBrand(){var o=document.getElementById('brandOv');if(o)o.classList.remove('open');}
 function saveBrand(){
-  var name=document.getElementById('bN').value.trim(),web=document.getElementById('bU').value.trim(),er=document.getElementById('bErr');
+  var name=document.getElementById('bN').value.trim(),web=document.getElementById('bU').value.trim(),prod=document.getElementById('bP').value.trim(),er=document.getElementById('bErr');
   if(!web||web.indexOf('.')<0){er.textContent='Enter a valid website (e.g. acme.com).';er.style.display='block';return;}
   var btn=document.getElementById('bSave');btn.disabled=true;btn.textContent='Scanning your site…';er.style.display='none';
-  fetch(API+'/api/my-brand',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,website:web})})
+  fetch(API+'/api/my-brand',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,website:web,mainProduct:prod})})
     .then(function(r){return r.json();}).then(function(d){
       btn.disabled=false;btn.textContent='Scan & save';
       if(!d||d.error){er.textContent=(d&&d.error)||'Couldn’t scan that site.';er.style.display='block';return;}
-      myBrand=d.brand;try{localStorage.setItem('myBrand',JSON.stringify({name:d.brand.name,host:d.brand.host,url:d.brand.url}));}catch(e){}
+      myBrand=d.brand;try{localStorage.setItem('myBrand',JSON.stringify({name:d.brand.name,host:d.brand.host,url:d.brand.url,mainProduct:d.brand.mainProduct}));}catch(e){}
       paintBrandChip();closeBrand();insightsCache={};angleCache={};
       pollPersonalize(0);
     })
