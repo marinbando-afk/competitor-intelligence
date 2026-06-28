@@ -502,7 +502,8 @@ function postCard(o){
   var img=o.image?'<img src="'+esc(o.image)+'" loading="lazy" onerror="this.style.display=\'none\';this.parentNode.classList.add(\'noimg\')">':'';
   var go='<span class="go"><span><svg width="15" height="15" fill="none" viewBox="0 0 14 14"><path d="M5 9l4.2-4.2M5.5 4.8H9.2V8.5" stroke="#0b1311" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
   var clk=o.click?' onclick="'+o.click+';return false"':'';
-  return '<a class="adthumb" href="'+esc(o.link||'#')+'" target="_blank" rel="noopener"'+clk+'>'
+  var du=o.url?' data-url="'+esc(o.url)+'"':'';
+  return '<a class="adthumb" href="'+esc(o.link||'#')+'" target="_blank" rel="noopener"'+clk+du+'>'
     +'<span class="media'+(o.image?'':' noimg')+'">'+img+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+(o.stats?'<span class="cstats">'+o.stats+'</span>':'')+go+'</span>'
     +'<span class="cap">'+esc(o.cap||'')+'</span></a>';
 }
@@ -543,13 +544,15 @@ function loadAds(box){
 }
 function fmtNum(n){n=+n||0;return n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,'')+'M':(n>=1e3?(n/1e3).toFixed(1).replace(/\.0$/,'')+'k':''+n);}
 function socSummary(posts){if(!posts.length)return null;var hv=posts.some(function(p){return p.views!=null;}),metric=hv?'views':'likes';var top=posts.reduce(function(m,p){var v=(metric==='views'?p.views:p.likes)||0;return v>m?v:m;},0);return {count:posts.length,metric:metric,topValue:top};}
-function socThumb(p){
+var SOC_SHOWN={};
+function socThumb(p,handle,platform){
   var st=[];
   if(p.views!=null&&p.views>=0)st.push(statIcon('view',fmtNum(p.views)));
   if(p.likes!=null&&p.likes>=0)st.push(statIcon('like',fmtNum(p.likes)));
   if(p.comments!=null&&p.comments>=0)st.push(statIcon('comment',fmtNum(p.comments)));
   var tl=p.kind?'<span class="nw alt">'+esc(p.kind)+'</span>':'';
-  return postCard({link:p.url,image:p.image?API+'/api/img?u='+encodeURIComponent(p.image):'',tl:tl,stats:st.join(''),cap:String(p.text||'')});
+  if(p.url)SOC_SHOWN[p.url]={post:p,handle:handle||'',platform:platform||''};
+  return postCard({link:p.url,image:p.image?API+'/api/img?u='+encodeURIComponent(p.image):'',tl:tl,stats:st.join(''),cap:String(p.text||''),click:p.url?'openSoc(this)':'',url:p.url});
 }
 function renderSoc(el,d){
   var body=el.querySelector('.soc-body'),met=el.querySelector('.soc-m');
@@ -564,7 +567,7 @@ function renderSoc(el,d){
   var s=d.summary||{};
   var top=s.topValue?' · top '+fmtNum(s.topValue)+' '+(s.metric==='views'?'views':'likes'):'';
   if(met)met.innerHTML='@'+esc(d.handle)+' · '+d.posts.length+' recent'+top;
-  if(body)body.innerHTML='<div class="adstrip">'+d.posts.map(socThumb).join('')+'</div>';
+  if(body)body.innerHTML='<div class="adstrip">'+d.posts.map(function(p){return socThumb(p,d.handle,el.getAttribute('data-platform'));}).join('')+'</div>';
 }
 function loadOneSoc(el){
   var platform=el.getAttribute('data-platform'),handle=el.getAttribute('data-handle'),host=el.getAttribute('data-host');
@@ -827,7 +830,20 @@ function ensureHist(c){
     if(state.sel===c.id)refreshDateFloat();
   }).catch(function(){});
 }
-function refreshDateFloat(){var c=currentComp(),f=document.getElementById('dateNavWrap');if(f)f.innerHTML=c?dateNav(c):'';if(c)loadInsights(c);}
+function refreshDateFloat(){var c=currentComp(),f=document.getElementById('dateNavWrap');if(f)f.innerHTML=c?dateNav(c):'';if(c)loadInsights(c);eagerLoad();}
+/* Preload every section of the open competitor on render (so nothing waits for a
+   click). Only the viewed competitor is loaded — and from the warm daily cache —
+   so it never spends extra credits on brands you don't open. */
+function eagerLoad(){
+  var d=document.getElementById('detail');if(!d)return;
+  Array.prototype.forEach.call(d.querySelectorAll('.adsbox,.socwrap,.emlbox,.webcmp'),function(box){
+    if(box.dataset.loaded)return;box.dataset.loaded='1';
+    if(box.classList.contains('adsbox'))loadAds(box);
+    else if(box.classList.contains('socwrap'))loadSocial(box);
+    else if(box.classList.contains('emlbox'))loadEmail(box);
+    else if(box.classList.contains('webcmp'))loadWeb(box);
+  });
+}
 /* ── AI insights (per-channel, context-aware) ── */
 var insightsCache={};
 function paintInsights(c,ins){
@@ -890,6 +906,27 @@ function openAd(i){
   ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
 }
 function closeAd(){var ov=document.getElementById('adOv');if(!ov)return;ov.classList.remove('open');ov.setAttribute('aria-hidden','true');document.body.style.overflow='';}
+function openSoc(el){
+  var url=(el&&el.dataset)?el.dataset.url:el;var rec=SOC_SHOWN[url];if(!rec)return;
+  var p=rec.post,ov=document.getElementById('adOv');if(!ov)return;
+  var platLabel=({instagram:'Instagram',tiktok:'TikTok',facebook:'Facebook'})[rec.platform]||rec.platform||'Social';
+  document.getElementById('adPage').textContent=rec.handle?'@'+rec.handle:platLabel;
+  document.getElementById('adSub').textContent=[platLabel,p.kind||'Post',p.date?fmtDate(String(p.date).slice(0,10)):''].filter(Boolean).join(' · ');
+  var imgUrl=p.image?API+'/api/img?u='+encodeURIComponent(p.image):'';
+  var isVid=(p.kind==='Reel'||p.views!=null);
+  var media=imgUrl?'<a class="admedia'+(isVid?' vid':'')+'" href="'+esc(p.url||'#')+'" target="_blank" rel="noopener"><img src="'+esc(imgUrl)+'" alt="" onerror="var m=this.closest(\'.admedia\');if(m)m.style.display=\'none\'">'+(isVid?'<span class="admedia-play">▶</span>':'')+'</a>':'';
+  var copy=p.text?'<div class="adcopy"><div class="adtext">'+esc(p.text)+'</div></div>':'';
+  var stats=[];
+  if(p.views!=null)stats.push(fmtNum(p.views)+' views');
+  if(p.likes!=null)stats.push(fmtNum(p.likes)+' likes');
+  if(p.comments!=null)stats.push(fmtNum(p.comments)+' comments');
+  if(p.shares!=null)stats.push(fmtNum(p.shares)+' shares');
+  var rows='';
+  if(stats.length)rows+='<div class="adrow"><span class="adrow-k">Engagement</span><span class="adrow-v">'+esc(stats.join(' · '))+'</span></div>';
+  if(p.url)rows+='<div class="adrow"><span class="adrow-k">Source</span><a class="adrow-v" href="'+esc(p.url)+'" target="_blank" rel="noopener">Open original post ↗</a></div>';
+  document.getElementById('adBody').innerHTML=media+copy+(rows?'<div class="adrows">'+rows+'</div>':'');
+  ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+}
 function goDay(day){
   var c=currentComp();if(!c)return;state.day=day;viewSnap=null;
   document.getElementById('detail').innerHTML=report(c);refreshDateFloat();
@@ -964,11 +1001,12 @@ function chatCtx(c){var p=[];if(c.oneLiner)p.push(c.oneLiner);if(c.verdict)p.pus
 function openChat(){var c=currentComp();if(!c)return;document.getElementById('chatSub').textContent='about '+c.name;document.getElementById('chatPanel').classList.add('open');renderChat(c);setTimeout(function(){document.getElementById('chatInput').focus();},150);}
 function closeChat(){var p=document.getElementById('chatPanel');if(p)p.classList.remove('open');}
 function syncChat(c){var p=document.getElementById('chatPanel');if(c&&p&&p.classList.contains('open')){document.getElementById('chatSub').textContent='about '+c.name;renderChat(c);}}
+function linkify(t){return esc(String(t==null?'':t)).replace(/(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"\]])/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');}
 function renderChat(c){
   var box=document.getElementById('chatMsgs'),thread=chatThreads[c.id]||[];
   box.innerHTML='';
   if(!thread.length){var s=document.createElement('div');s.className='cmsg sys';s.textContent='Ask me anything about '+c.name+' — I answer from their real ads, posts and emails we’ve captured.';box.appendChild(s);}
-  else{thread.forEach(function(m){var d=document.createElement('div');d.className='cmsg '+(m.role==='assistant'?'ai':'user');d.textContent=m.content;box.appendChild(d);});}
+  else{thread.forEach(function(m){var d=document.createElement('div');d.className='cmsg '+(m.role==='assistant'?'ai':'user');if(m.role==='assistant')d.innerHTML=linkify(m.content);else d.textContent=m.content;box.appendChild(d);});}
   document.getElementById('chatChips').innerHTML=thread.length?'':CHAT_CHIPS.map(function(q){return '<button class="cchip" onclick="askChip(this)">'+esc(q)+'</button>';}).join('');
   box.scrollTop=box.scrollHeight;
 }
@@ -983,7 +1021,7 @@ function sendChat(){
   var typ=document.createElement('div');typ.className='ctyping';typ.innerHTML='<span class="spin"></span> IntelAI is reading the data…';box.appendChild(typ);box.scrollTop=box.scrollHeight;
   fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:c.name,host:c.host||'',country:c.country||'ALL',handles:c.handles||{},context:chatCtx(c),question:q,messages:hist})})
     .then(function(r){return r.json();}).then(function(d){
-      typ.remove();var am=document.createElement('div');am.className='cmsg ai';am.textContent=(d&&d.error)?('⚠ '+d.error):((d&&d.answer)||'(no answer)');box.appendChild(am);box.scrollTop=box.scrollHeight;
+      typ.remove();var am=document.createElement('div');am.className='cmsg ai';if(d&&d.error){am.textContent='⚠ '+d.error;}else{am.innerHTML=linkify((d&&d.answer)||'(no answer)');}box.appendChild(am);box.scrollTop=box.scrollHeight;
       if(d&&!d.error&&d.answer)thread.push({role:'assistant',content:d.answer});
     }).catch(function(){typ.remove();var am=document.createElement('div');am.className='cmsg ai';am.textContent='Couldn’t reach the AI just now — try again in a moment.';box.appendChild(am);box.scrollTop=box.scrollHeight;});
 }

@@ -9,7 +9,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
-import { latestSnapshot } from './snapshots.js';
+import { latestSnapshot, recentSnapshots } from './snapshots.js';
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
 
@@ -20,6 +20,25 @@ function client() { if (!_client) _client = new Anthropic(); return _client; }
 const oneLine = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
 const dayOf = (s) => String(s || '').split('T')[0].split(' ')[0];
 
+// Merge posts across recent daily snapshots (deduped) so the chat sees the FULL
+// captured set — e.g. "highest-engagement post in the last 30 days" works even if
+// we only started monitoring a week ago (the scraper returns ~30 days of posts).
+async function allPosts(host, pf) {
+  const snaps = await recentSnapshots(host, pf, 8);
+  const byKey = new Map();
+  let handle = '';
+  for (const s of snaps) {
+    const d = s.data || {};
+    if (d.handle) handle = d.handle;
+    for (const p of (d.posts || [])) {
+      const key = p.url || ((p.text || '').slice(0, 40) + '|' + dayOf(p.date));
+      const prev = byKey.get(key);
+      if (!prev || ((p.views || 0) + (p.likes || 0)) > ((prev.views || 0) + (prev.likes || 0))) byKey.set(key, p);
+    }
+  }
+  return { handle, posts: [...byKey.values()] };
+}
+
 // Pull together everything we already have on this competitor (cache-only: no live scrape).
 async function assembleContext({ name, host, country, handles }) {
   const out = [];
@@ -28,7 +47,7 @@ async function assembleContext({ name, host, country, handles }) {
     if (!a || !a.ads || !a.ads.length) a = await fetchAds(name, country, false, true); // fallback: warm cache
     if (a && a.ads && a.ads.length) {
       out.push(`META ADS (${a.country || country}): ${a.active} active across ${(a.platforms || []).join(', ')}; newest ${a.newest}.`);
-      a.ads.slice(0, 10).forEach((ad) => out.push(`  • ad ${ad.started}: ${oneLine(ad.text).slice(0, 170)}${ad.cta ? ` [CTA ${ad.cta}]` : ''}`));
+      a.ads.slice(0, 14).forEach((ad) => out.push(`  • ad ${ad.started} [${ad.hasVideo ? 'video' : 'image'}]${ad.page ? ` page:${ad.page}` : ''}: ${oneLine(ad.text).slice(0, 150)}${ad.cta ? ` [CTA ${ad.cta}]` : ''}${ad.landing ? ` -> lands ${ad.landing}` : ''}${ad.link ? ` | ${ad.link}` : ''}`));
     }
   } catch (e) { /* skip channel on error */ }
 
@@ -36,12 +55,15 @@ async function assembleContext({ name, host, country, handles }) {
     const h = handles && handles[key];
     if (!h && !host) continue;
     try {
-      let s = await latestSnapshot(host, pf);                // persisted daily snapshot (complete)
-      if (!s || !s.posts || !s.posts.length) s = await fetchSocial(pf, h, host, false, true); // fallback: warm cache
-      if (s && s.posts && s.posts.length) {
-        const sm = s.summary || {};
-        out.push(`${label} @${s.handle}: ${s.posts.length} recent posts; top ${sm.topValue || '?'} ${sm.metric || ''}.`);
-        s.posts.slice(0, 6).forEach((p) => out.push(`  • ${pf} ${dayOf(p.date)}${p.views != null ? ` (${p.views} views)` : p.likes != null ? ` (${p.likes} likes)` : ''}: ${oneLine(p.text).slice(0, 130)}`));
+      let { handle: hh, posts } = await allPosts(host, pf);  // merged across recent daily snapshots
+      if (!posts.length) { const s = await fetchSocial(pf, h, host, false, true); posts = (s && s.posts) || []; hh = (s && s.handle) || hh; }
+      if (posts.length) {
+        posts.sort((x, y) => String(y.date).localeCompare(String(x.date)));
+        out.push(`${label} @${hh || h || '?'} — ${posts.length} posts captured (recent window, newest first; each has engagement + link):`);
+        posts.slice(0, 20).forEach((p) => {
+          const eng = [p.views != null ? `${p.views} views` : '', p.likes != null ? `${p.likes} likes` : '', p.comments != null ? `${p.comments} comments` : '', p.shares != null ? `${p.shares} shares` : ''].filter(Boolean).join(', ');
+          out.push(`  • ${dayOf(p.date)} ${p.kind || 'post'}: ${oneLine(p.text).slice(0, 110)} | ${eng}${p.url ? ` | ${p.url}` : ''}`);
+        });
       }
     } catch (e) { /* skip platform on error */ }
   }
@@ -97,6 +119,8 @@ export async function chat(body) {
     `Rules:\n` +
     `- Ground every claim in the data; cite specific dates, numbers, platforms and offers when relevant.\n` +
     `- If the data doesn't contain the answer, say so plainly and suggest what to watch to find out — never speculate or invent facts, dates, or figures.\n` +
+    `- The DATA spans the recent capture window (often ~30 days of posts), not just today — for questions about a range ("last 30 days") or superlatives ("highest engagement", "best post"), scan the FULL list and compare the numbers given.\n` +
+    `- Whenever you reference a specific post, ad, or email, include its link/URL from the data, in full and on its own, so the user can open it directly. If a post has no link in the data, say so.\n` +
     `- Lead with the answer. Be concise and direct (a few sentences or tight bullets). Do NOT narrate your reasoning or restate the question — give the final answer only.\n` +
     `- Write for a busy marketer: practical and specific.\n\n` +
     `DATA (as of ${today}):\n${data}`;
