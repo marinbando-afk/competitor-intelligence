@@ -224,6 +224,14 @@ a.adrow-v{color:var(--sage);text-decoration:none}
 a.adrow-v:hover{text-decoration:underline}
 .adrow-angle .adrow-v{color:var(--sage);font-weight:500}
 .angle-load{color:var(--muted);font-weight:400;font-style:italic}
+.adrow-apply .adrow-k{color:var(--gold)}
+.adrow-apply .adrow-v{color:var(--text)}
+.mybrand{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--muted);background:none;border:1px solid var(--line2);border-radius:20px;padding:5px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:.15s}
+.mybrand:hover{border-color:var(--sage-d);color:var(--text)}
+.mybrand.set{color:var(--text);border-color:var(--sage-d)}
+.mb-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);box-shadow:0 0 6px var(--sage)}
+.intel-apply{margin:2px 0 13px;padding:9px 12px;border-radius:8px;background:rgba(227,169,44,.08);border:1px solid rgba(227,169,44,.22);font-size:12.5px;line-height:1.5;color:var(--text)}
+.ia-h{display:block;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
 .adlink{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);text-decoration:none;margin-top:15px}
 .adlink:hover{color:var(--quiet)}
 .adsbox{margin-bottom:2px}
@@ -354,6 +362,7 @@ a.adrow-v:hover{text-decoration:underline}
     <span class="bn">IntelAI</span>
   </a>
   <div class="topmeta">
+    <button class="mybrand" id="myBrandChip" onclick="openBrand()" title="Your brand — powers the ‘apply to you’ suggestions">+ Add your brand</button>
     <span class="top-date" id="topDate"></span>
     <div id="dateNavWrap"></div>
   </div>
@@ -377,6 +386,16 @@ a.adrow-v:hover{text-decoration:underline}
     <div class="fld"><label for="fN">Brand name</label><input id="fN" type="text" placeholder="e.g. The Oodie" autocomplete="off"/><div class="er" id="eN">Please enter a name.</div></div>
     <div class="fld"><label for="fU">Website</label><input id="fU" type="text" placeholder="e.g. theoodie.com" autocomplete="off"/><div class="er" id="eU">Please enter a valid website.</div></div>
     <div class="m-act"><button class="btn btn-g" onclick="closeModal()">Cancel</button><button class="btn btn-p" onclick="submitComp()">Add to Watchlist</button></div>
+  </div>
+</div>
+
+<div class="ov" id="brandOv" onclick="if(event.target===this)closeBrand()">
+  <div class="modal">
+    <h2>Your brand</h2>
+    <p>Add your store, and every competitor insight comes with a realistic <b>“here’s how you’d apply it to your brand.”</b> I’ll scan your site to learn what you sell.</p>
+    <div class="fld"><label for="bN">Brand name</label><input id="bN" type="text" placeholder="e.g. Acme Co" autocomplete="off"/></div>
+    <div class="fld"><label for="bU">Your website</label><input id="bU" type="text" placeholder="e.g. acme.com" autocomplete="off"/><div class="er" id="bErr"></div></div>
+    <div class="m-act"><button class="btn btn-g" id="bRemove" onclick="removeBrand()" style="margin-right:auto;display:none">Remove</button><button class="btn btn-g" onclick="closeBrand()">Cancel</button><button class="btn btn-p" id="bSave" onclick="saveBrand()">Scan &amp; save</button></div>
   </div>
 </div>
 
@@ -850,7 +869,8 @@ function paintInsights(c,ins){
     var box=document.getElementById('intel-'+k+'-'+c.id);
     if(box){
       var bl=(o.bullets&&o.bullets.length)?'<ul class="intel-l">'+o.bullets.map(function(b){return '<li>'+esc(b)+'</li>';}).join('')+'</ul>':'';
-      box.innerHTML='<div class="intel-h"><span class="intel-dot"></span>AI read</div>'+(o.summary?'<div class="intel-s">'+esc(o.summary)+'</div>':'')+bl;
+      var ap=o.apply?'<div class="intel-apply"><span class="ia-h">↳ Apply to '+esc((myBrand&&myBrand.name)||'your brand')+'</span>'+esc(o.apply)+'</div>':'';
+      box.innerHTML='<div class="intel-h"><span class="intel-dot"></span>AI read</div>'+(o.summary?'<div class="intel-s">'+esc(o.summary)+'</div>':'')+bl+ap;
     }
   });
 }
@@ -904,14 +924,20 @@ function openAd(i){
 }
 function closeAd(){var ov=document.getElementById('adOv');if(!ov)return;ov.classList.remove('open');ov.setAttribute('aria-hidden','true');document.body.style.overflow='';}
 var angleCache={};
-function angleRowHTML(){return '<div class="adrow adrow-angle"><span class="adrow-k">Angle</span><span class="adrow-v" id="angleVal"><span class="angle-load">reading the angle…</span></span></div>';}
+function angleRowHTML(){return '<div class="adrow adrow-angle"><span class="adrow-k">Angle</span><span class="adrow-v" id="angleVal"><span class="angle-load">reading the angle…</span></span></div><div class="adrow adrow-apply" id="angleApplyRow" style="display:none"><span class="adrow-k">For you</span><span class="adrow-v" id="angleApply"></span></div>';}
+function fillAngle(key,o){
+  var el=document.getElementById('angleVal');if(!el||el.dataset.k!==key)return;
+  el.textContent=o.angle||'—';
+  var row=document.getElementById('angleApplyRow'),ap=document.getElementById('angleApply');
+  if(row&&ap){if(o.apply){ap.textContent=o.apply;row.style.display='';}else{row.style.display='none';}}
+}
 function loadAngle(text,kind){
   var el=document.getElementById('angleVal');if(!el)return;
   var key=kind+'|'+String(text||'').slice(0,160);el.dataset.k=key;
-  if(angleCache[key]!==undefined){el.textContent=angleCache[key]||'—';return;}
+  if(angleCache[key]!==undefined){fillAngle(key,angleCache[key]);return;}
   fetch(API+'/api/angle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text,kind:kind})})
-    .then(function(r){return r.json();}).then(function(d){var a=(d&&d.angle)||'';angleCache[key]=a;var e=document.getElementById('angleVal');if(e&&e.dataset.k===key)e.textContent=a||'—';})
-    .catch(function(){var e=document.getElementById('angleVal');if(e&&e.dataset.k===key)e.textContent='—';});
+    .then(function(r){return r.json();}).then(function(d){var o={angle:(d&&d.angle)||'',apply:(d&&d.apply)||''};angleCache[key]=o;fillAngle(key,o);})
+    .catch(function(){fillAngle(key,{angle:'—',apply:''});});
 }
 function openSoc(el){
   var url=(el&&el.dataset)?el.dataset.url:el;var rec=SOC_SHOWN[url];if(!rec)return;
@@ -999,7 +1025,40 @@ function submitComp(){
   var l=getList();l.unshift({id:'c-'+Date.now(),demo:false,name:n,host:u.hostname.replace(/^www\./,''),url:u.href,updatedAt:Date.now()});
   save(l);state.sel=l[0].id;closeModal();document.getElementById('app').dataset.view='detail';render();
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
+/* ── your brand (apply-to-me knowledge base) ── */
+var myBrand=null;
+function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)return;el.innerHTML=(myBrand&&myBrand.name)?('<span class="mb-dot"></span>'+esc(myBrand.name)):'+ Add your brand';el.className='mybrand'+((myBrand&&myBrand.name)?' set':'');}
+function loadMyBrand(){
+  try{var s=localStorage.getItem('myBrand');if(s)myBrand=JSON.parse(s);}catch(e){}
+  paintBrandChip();
+  fetch(API+'/api/my-brand').then(function(r){return r.json();}).then(function(d){if(d&&d.brand){myBrand=d.brand;try{localStorage.setItem('myBrand',JSON.stringify({name:d.brand.name,host:d.brand.host,url:d.brand.url}));}catch(e){}paintBrandChip();}}).catch(function(){});
+}
+function openBrand(){document.getElementById('bN').value=(myBrand&&myBrand.name)||'';document.getElementById('bU').value=(myBrand&&(myBrand.url||myBrand.host))||'';document.getElementById('bErr').style.display='none';var rm=document.getElementById('bRemove');if(rm)rm.style.display=(myBrand&&myBrand.name)?'':'none';document.getElementById('brandOv').classList.add('open');setTimeout(function(){document.getElementById('bN').focus();},40);}
+function removeBrand(){fetch(API+'/api/my-brand',{method:'DELETE'}).then(function(r){return r.json();}).catch(function(){});myBrand=null;try{localStorage.removeItem('myBrand');}catch(e){}paintBrandChip();closeBrand();insightsCache={};angleCache={};var c=currentComp();if(c){delete insightsCache[c.host];loadInsights(c);}}
+function closeBrand(){var o=document.getElementById('brandOv');if(o)o.classList.remove('open');}
+function saveBrand(){
+  var name=document.getElementById('bN').value.trim(),web=document.getElementById('bU').value.trim(),er=document.getElementById('bErr');
+  if(!web||web.indexOf('.')<0){er.textContent='Enter a valid website (e.g. acme.com).';er.style.display='block';return;}
+  var btn=document.getElementById('bSave');btn.disabled=true;btn.textContent='Scanning your site…';er.style.display='none';
+  fetch(API+'/api/my-brand',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,website:web})})
+    .then(function(r){return r.json();}).then(function(d){
+      btn.disabled=false;btn.textContent='Scan & save';
+      if(!d||d.error){er.textContent=(d&&d.error)||'Couldn’t scan that site.';er.style.display='block';return;}
+      myBrand=d.brand;try{localStorage.setItem('myBrand',JSON.stringify({name:d.brand.name,host:d.brand.host,url:d.brand.url}));}catch(e){}
+      paintBrandChip();closeBrand();insightsCache={};angleCache={};
+      pollPersonalize(0);
+    })
+    .catch(function(){btn.disabled=false;btn.textContent='Scan & save';er.textContent='Couldn’t reach the server — try again.';er.style.display='block';});
+}
+function pollPersonalize(tries){
+  var c=currentComp();if(!c)return;delete insightsCache[c.host];
+  fetch(API+'/api/insights?host='+encodeURIComponent(c.host)+'&name='+encodeURIComponent(c.name||'')).then(function(r){return r.json();}).then(function(d){
+    var ins=(d&&d.insights)||{};insightsCache[c.host]=ins;var cur=currentComp();if(cur&&cur.id===c.id)paintInsights(c,ins);
+    var hasApply=['ads','social','website','email'].some(function(k){return ins[k]&&ins[k].apply;});
+    if(!hasApply&&tries<6)setTimeout(function(){pollPersonalize(tries+1);},12000);
+  }).catch(function(){if(tries<6)setTimeout(function(){pollPersonalize(tries+1);},12000);});
+}
 
 /* ── AI chat (answers grounded in the captured data) ── */
 var chatThreads={};
@@ -1035,6 +1094,7 @@ function sendChat(){
 }
 
 render();
+loadMyBrand();
 </script>
 </body>
 </html>

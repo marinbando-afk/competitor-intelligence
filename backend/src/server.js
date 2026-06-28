@@ -15,11 +15,12 @@ import { initSchema, pool } from './db.js';
 import { signup, login, requireAuth } from './auth.js';
 import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
-import { startScheduler, warmStatus } from './refresh.js';
+import { startScheduler, warmStatus, TRACKED } from './refresh.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
-import { getInsights, quickAngle } from './insights.js';
+import { getInsights, quickAngle, generateInsights } from './insights.js';
+import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { snapshotDays, snapshotForDay } from './snapshots.js';
 
 const app = express();
@@ -140,14 +141,37 @@ app.get('/api/insights', async (req, res) => {
   }
 });
 
-// One-line marketing angle for a single ad/post (on-demand, cached).
+// One-line marketing angle (+ how YOUR brand could apply it) for a single ad/post.
 app.post('/api/angle', async (req, res) => {
   try {
     const { text, kind } = req.body || {};
-    res.json({ angle: await quickAngle(text, kind) });
+    const r = await quickAngle(text, kind);
+    res.json({ angle: r.angle, apply: r.apply });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// "Your brand" knowledge base — scanned once, used to tailor every insight.
+app.get('/api/my-brand', async (req, res) => {
+  try { res.json({ brand: await getMyBrand() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/my-brand', async (req, res) => {
+  try {
+    const { name, website } = req.body || {};
+    const brand = await setMyBrand(name, website);
+    res.json({ brand });
+    // Refresh tracked competitors' insights with the new brand context (best-effort, async).
+    Promise.all((TRACKED || []).map((b) => generateInsights(b.name, b.host).catch(() => {}))).catch(() => {});
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+app.delete('/api/my-brand', async (req, res) => {
+  try {
+    await clearMyBrand();
+    res.json({ ok: true });
+    Promise.all((TRACKED || []).map((b) => generateInsights(b.name, b.host).catch(() => {}))).catch(() => {});
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Image proxy — streams social CDN thumbnails so hotlink/expiry never breaks them
