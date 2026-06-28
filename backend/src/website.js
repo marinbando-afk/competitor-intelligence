@@ -74,6 +74,37 @@ export async function captureWebsite(host, url) {
   return data;
 }
 
+// Which specific products changed price (drop/rise) or are new — so we can
+// screenshot exactly those pages. Prioritises drops + new (most interesting).
+function changedHandles(a, b, cap) {
+  const am = (a && a.items) || {}, bm = (b && b.items) || {}, out = [];
+  for (const h in bm) {
+    if (am[h] && am[h].price != null && bm[h].price != null && Math.abs(am[h].price - bm[h].price) >= 0.01) {
+      out.push({ handle: h, title: bm[h].title || h, kind: bm[h].price < am[h].price ? 'drop' : 'rise', detail: money(am[h].price) + ' → ' + money(bm[h].price) });
+    }
+  }
+  for (const h in bm) { if (!am[h]) out.push({ handle: h, title: bm[h].title || h, kind: 'new', detail: 'New product' + (bm[h].price != null ? ' · ' + money(bm[h].price) : '') }); }
+  const pri = out.filter((c) => c.kind !== 'rise').concat(out.filter((c) => c.kind === 'rise'));
+  return pri.slice(0, cap || 3);
+}
+
+// Daily capture, plus a screenshot of each product page that changed vs the
+// previous capture (targeted "screenshot what changed").
+export async function captureWebsiteFull(host, url) {
+  const data = await captureWebsite(host, url);
+  try {
+    const recent = await recentSnapshots(host, 'website', 2);
+    const prev = recent[1];
+    if (prev && prev.data && prev.data.summary && data.summary) {
+      const changed = changedHandles(prev.data.summary, data.summary, 3);
+      for (const ch of changed) ch.shot = await siteShot('https://' + cleanHost(host) + '/products/' + ch.handle);
+      data.changedShots = changed.filter((c) => c.shot);
+      if (data.changedShots.length) await saveSnapshot(host, 'website', data);
+    }
+  } catch (e) { /* targeting is best-effort */ }
+  return data;
+}
+
 // Human-readable list of what changed between two daily summaries.
 export function diffWebsite(a, b) {
   if (!a || !b) return [];
@@ -111,12 +142,12 @@ export async function websiteCompare(host, url) {
   const top = recent[0];
   const ageH = top && top.data && top.data.capturedAt ? (Date.now() - Date.parse(top.data.capturedAt)) / 3600000 : Infinity;
   if (ageH > 20) {
-    await captureWebsite(host, url);
+    await captureWebsiteFull(host, url);
     recent = await recentSnapshots(host, 'website', 5);
   }
   const shape = (s) => s ? { day: s.day, capturedAt: (s.data && s.data.capturedAt) || null, shot: (s.data && s.data.shot) || null, summary: (s.data && s.data.summary) || null } : null;
   const after = recent[0] || null;
   const before = recent[1] || null;
   const changes = (before && after) ? diffWebsite(before.data && before.data.summary, after.data && after.data.summary) : [];
-  return { host: cleanHost(host), after: shape(after), before: shape(before), changes };
+  return { host: cleanHost(host), after: shape(after), before: shape(before), changes, changedShots: (after && after.data && after.data.changedShots) || [] };
 }

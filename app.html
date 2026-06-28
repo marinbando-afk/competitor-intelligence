@@ -165,6 +165,16 @@ button{font-family:inherit;cursor:pointer}
 .wchg-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-top:6px;box-shadow:0 0 7px var(--gold)}
 .wbase{max-width:600px;border:1px dashed var(--line2);border-radius:11px;padding:14px 16px;font-size:13px;color:var(--muted);line-height:1.55}
 .wbase b{color:var(--text)}
+.wshots-h{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--sage);margin:20px 0 11px}
+.wshots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;max-width:600px}
+.wshot-card{border:1px solid var(--line2);border-radius:10px;overflow:hidden;background:var(--raised)}
+.wshot-card img{width:100%;height:122px;object-fit:cover;object-position:top;display:block;background:var(--bg)}
+.wshot-cap{padding:9px 10px;font-size:12.5px;color:var(--text);line-height:1.35}
+.wshot-k{display:inline-block;font-family:var(--mono);font-size:8.5px;font-weight:700;letter-spacing:.05em;padding:2px 6px;border-radius:4px;margin-right:6px;vertical-align:middle}
+.wshot-k.new{background:var(--quiet);color:#06231f}
+.wshot-k.drop{background:var(--sage);color:#06231f}
+.wshot-k.rise{background:var(--gold);color:#241c06}
+.wshot-det{display:block;color:var(--muted);font-size:11px;margin-top:3px;font-family:var(--mono)}
 .eml-shots{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
 .eml-shots .eml-shot{display:block;border-radius:7px;overflow:hidden;border:1px solid var(--line2)}
 .eml-shots img{height:92px;width:auto;max-width:160px;object-fit:cover;display:block;background:var(--raised)}
@@ -714,7 +724,11 @@ function loadWeb(box){
         var day=(d.after&&d.after.day)?fmtShortDay(d.after.day):'today';
         chg='<div class="wbase"><b>Baseline captured ('+esc(day)+').</b> This storefront is now watched daily — the next time a price moves, a sale starts, or products change, it shows up here with a before/after slider. The first comparison appears on the next daily capture.</div>';
       }
-      box.innerHTML=vis+chg;
+      var shots='';
+      if(d.changedShots&&d.changedShots.length){
+        shots='<div class="wshots-h">📸 What changed — screenshots</div><div class="wshots">'+d.changedShots.map(function(s){var k=s.kind==='new'?'NEW':s.kind==='drop'?'↓ PRICE':s.kind==='rise'?'↑ PRICE':'CHANGED';return '<div class="wshot-card"><img src="'+s.shot+'" loading="lazy" alt=""><div class="wshot-cap"><span class="wshot-k '+(s.kind||'')+'">'+k+'</span>'+esc(s.title||'')+'<span class="wshot-det">'+esc(s.detail||'')+'</span></div></div>';}).join('')+'</div>';
+      }
+      box.innerHTML=vis+chg+shots;
     })
     .catch(function(){box.innerHTML='<div class="wbase">Couldn’t load the website comparison right now.</div>';});
 }

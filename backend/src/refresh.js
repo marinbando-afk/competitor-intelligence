@@ -9,7 +9,7 @@
 import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
-import { captureWebsite } from './website.js';
+import { captureWebsiteFull } from './website.js';
 import { generateInsights } from './insights.js';
 import { saveSnapshot } from './snapshots.js';
 
@@ -40,7 +40,7 @@ export async function refreshAll(force) {
         catch (e) { fail++; console.warn('warm ' + pf + ' ' + b.name + ':', e.message); }
       }
       try { const em = await getEmails(b.host); if (em && em.storage) await saveSnapshot(b.host, 'email', em); } catch (e) { /* email snapshot best-effort */ }
-      try { await captureWebsite(b.host, 'https://' + b.host); ok++; } catch (e) { fail++; console.warn('warm website ' + b.name + ':', e.message); }
+      try { await captureWebsiteFull(b.host, 'https://' + b.host); ok++; } catch (e) { fail++; console.warn('warm website ' + b.name + ':', e.message); }
       try { await generateInsights(b.name, b.host); ok++; } catch (e) { fail++; console.warn('warm insights ' + b.name + ':', e.message); }
     }
   } finally {
