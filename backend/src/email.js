@@ -104,14 +104,16 @@ export async function getEmails(host) {
   if (!process.env.DATABASE_URL) return { host, root, inbox: INBOX, storage: false, emails: [], summary: null };
   if (!root) { const e = new Error('Missing host.'); e.status = 400; throw e; }
   const r = await pool.query(
-    `SELECT from_name, sender_email, subject, preview, offer, received_at, html
+    `SELECT id, from_name, sender_email, subject, preview, offer, received_at, html
      FROM emails WHERE sender_domain = $1 ORDER BY received_at DESC LIMIT 16`, [root]);
   const emails = r.rows.map((e) => ({
+    id: e.id,
     from: e.from_name || e.sender_email,
     subject: e.subject,
     preview: e.preview,
     offer: e.offer || '',
     date: e.received_at,
+    hasFull: !!(e.html && e.html.length > 40),
     images: emailImages(e.html),
   }));
   const offers = [...new Set(emails.map((e) => e.offer).filter(Boolean))];
@@ -122,6 +124,17 @@ export async function getEmails(host) {
     offers: offers.slice(0, 6),
   } : null;
   return { host, root, inbox: INBOX, storage: true, emails, summary };
+}
+
+// Full stored HTML of one captured email, for the in-app preview.
+export async function getEmailHtml(idArg) {
+  const id = parseInt(idArg, 10);
+  if (!process.env.DATABASE_URL || !id) return null;
+  const r = await pool.query(
+    'SELECT subject, from_name, sender_email, received_at, html FROM emails WHERE id = $1', [id]);
+  if (!r.rows[0]) return null;
+  const e = r.rows[0];
+  return { subject: e.subject || '(no subject)', from: e.from_name || e.sender_email, date: e.received_at, html: e.html || '' };
 }
 
 // Monitoring: the most recent captured emails across every sender (any brand).

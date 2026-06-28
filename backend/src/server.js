@@ -16,9 +16,10 @@ import { signup, login, requireAuth } from './auth.js';
 import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
 import { startScheduler, warmStatus } from './refresh.js';
-import { storeInbound, getEmails, recentEmails } from './email.js';
+import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
+import { getInsights } from './insights.js';
 import { snapshotDays, snapshotForDay } from './snapshots.js';
 
 const app = express();
@@ -84,6 +85,17 @@ app.get('/api/emails-recent', async (req, res) => {
   }
 });
 
+// Full HTML of one captured email — for the in-app email preview.
+app.get('/api/email-html', async (req, res) => {
+  try {
+    const r = await getEmailHtml(req.query.id);
+    if (!r) return res.status(404).json({ error: 'not found' });
+    res.json(r);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // AI chat — answer a question grounded in a competitor's captured data.
 app.post('/api/chat', async (req, res) => {
   try {
@@ -116,6 +128,15 @@ app.get('/api/website-compare', async (req, res) => {
     res.json(await websiteCompare(req.query.host, req.query.url));
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
+// AI insights — per-channel, context-aware read (cached daily, generated on demand).
+app.get('/api/insights', async (req, res) => {
+  try {
+    res.json({ insights: await getInsights(req.query.host, req.query.name) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

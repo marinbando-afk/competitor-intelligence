@@ -166,9 +166,31 @@ button{font-family:inherit;cursor:pointer}
 .wbase{max-width:600px;border:1px dashed var(--line2);border-radius:11px;padding:14px 16px;font-size:13px;color:var(--muted);line-height:1.55}
 .wbase b{color:var(--text)}
 .eml-shots{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
-.eml-shots a{display:block;border-radius:7px;overflow:hidden;border:1px solid var(--line2);transition:transform .15s}
-.eml-shots a:hover{transform:translateY(-2px)}
+.eml-shots .eml-shot{display:block;border-radius:7px;overflow:hidden;border:1px solid var(--line2)}
 .eml-shots img{height:92px;width:auto;max-width:160px;object-fit:cover;display:block;background:var(--raised)}
+.eml-click{cursor:pointer;transition:background .14s}
+.eml-click:hover{background:var(--sage-soft)}
+.eml-open{display:inline-block;margin-top:9px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--sage);text-transform:uppercase}
+.chan-sum.ai{color:var(--sage);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.intel{border-left:2px solid var(--sage-d);padding:11px 0 1px 15px;margin:0 0 17px;background:linear-gradient(90deg,var(--sage-soft),transparent 80%)}
+.intel:empty{display:none}
+.intel-h{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--sage);margin:0 0 8px}
+.intel-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);box-shadow:0 0 7px var(--sage)}
+.intel-s{font-size:14px;line-height:1.5;color:var(--text);font-weight:500;margin:0 0 10px}
+.intel-l{margin:0 0 12px;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px}
+.intel-l li{position:relative;padding-left:15px;font-size:12.5px;line-height:1.5;color:var(--muted)}
+.intel-l li::before{content:'›';position:absolute;left:2px;top:-1px;color:var(--sage);font-weight:700}
+.emlov{position:fixed;inset:0;z-index:80;background:rgba(4,7,9,.72);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:24px}
+.emlov.open{display:flex}
+.emlmodal{width:680px;max-width:96vw;height:84vh;max-height:860px;background:var(--panel);border:1px solid var(--line2);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.emlmodal-h{display:flex;align-items:flex-start;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line2);background:var(--panel2)}
+.emlmodal-meta{flex:1;min-width:0}
+.emlmodal-from{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--sage);text-transform:uppercase;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.emlmodal-sub{font-size:14.5px;font-weight:600;color:var(--text);line-height:1.3}
+.emlmodal-x{flex:none;width:30px;height:30px;border-radius:8px;border:1px solid var(--line2);background:none;color:var(--muted);cursor:pointer;font-size:13px}
+.emlmodal-x:hover{color:var(--text);border-color:var(--sage-d)}
+.emlmodal-body{flex:1;min-height:0;background:#fff}
+.emlframe{width:100%;height:100%;border:none;display:block;background:#fff}
 .adlink{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);text-decoration:none;margin-top:15px}
 .adlink:hover{color:var(--quiet)}
 .adsbox{margin-bottom:2px}
@@ -328,6 +350,12 @@ button{font-family:inherit;cursor:pointer}
 <button class="chatfab" id="chatFab" onclick="openChat()" title="Ask the AI about this competitor">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.2l1.7 4.6 4.6 1.7-4.6 1.7L8 13.8 6.3 9.2 1.7 7.5l4.6-1.7L8 1.2Z" fill="#0b1311"/></svg><span>Ask AI</span>
 </button>
+<div class="emlov" id="emlOv" onclick="if(event.target===this)closeEml()" aria-hidden="true">
+  <div class="emlmodal">
+    <div class="emlmodal-h"><div class="emlmodal-meta"><div class="emlmodal-from" id="emlFrom"></div><div class="emlmodal-sub" id="emlSub"></div></div><button class="emlmodal-x" onclick="closeEml()" aria-label="Close">✕</button></div>
+    <div class="emlmodal-body" id="emlBody"></div>
+  </div>
+</div>
 <div class="chatpanel" id="chatPanel" aria-hidden="true">
   <div class="chat-h">
     <div><div class="chat-t">Ask IntelAI</div><div class="chat-sub" id="chatSub">about this competitor</div></div>
@@ -522,8 +550,11 @@ function fmtDay(d){var x=new Date(d);if(isNaN(x))return '';var mo=['Jan','Feb','
 function fmtAgo(d){var ms=Date.now()-(+new Date(d));if(isNaN(ms))return '';var days=Math.floor(ms/864e5);if(days<=0)return 'today';if(days===1)return 'yesterday';if(days<14)return days+' days ago';return Math.round(days/7)+'w ago';}
 function emlRow(e){
   var tag=e.offer?'<span class="eml-tag">'+esc(e.offer)+'</span>':'';
-  var shots=(e.images&&e.images.length)?'<div class="eml-shots">'+e.images.slice(0,3).map(function(u){return '<a href="'+esc(u)+'" target="_blank" rel="noopener"><img src="'+esc(u)+'" loading="lazy" alt="" onerror="var a=this.parentNode;if(a)a.style.display=\'none\'"></a>';}).join('')+'</div>':'';
-  return '<div class="eml"><span class="eml-d">'+esc(fmtDay(e.date))+'</span><span class="eml-main"><span class="eml-top"><span class="eml-sub">'+esc(e.subject||'(no subject)')+'</span>'+tag+'</span>'+(e.preview?'<span class="eml-pre">'+esc(e.preview)+'</span>':'')+shots+'</span></div>';
+  var shots=(e.images&&e.images.length)?'<div class="eml-shots">'+e.images.slice(0,3).map(function(u){return '<span class="eml-shot"><img src="'+esc(u)+'" loading="lazy" alt="" onerror="var a=this.parentNode;if(a)a.style.display=\'none\'"></span>';}).join('')+'</div>':'';
+  var canOpen=e.id&&e.hasFull!==false;
+  var click=canOpen?' role="button" tabindex="0" onclick="openEml('+e.id+')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openEml('+e.id+')}"':'';
+  var open=canOpen?'<span class="eml-open">Open full email ↗</span>':'';
+  return '<div class="eml'+(canOpen?' eml-click':'')+'"'+click+'><span class="eml-d">'+esc(fmtDay(e.date))+'</span><span class="eml-main"><span class="eml-top"><span class="eml-sub">'+esc(e.subject||'(no subject)')+'</span>'+tag+'</span>'+(e.preview?'<span class="eml-pre">'+esc(e.preview)+'</span>':'')+shots+open+'</span></div>';
 }
 function copyInbox(btn,addr){
   try{
@@ -629,10 +660,11 @@ function channel(k,c){
   if(k==='website'&&!ch)ch={active:true,summary:'<span class="flag">Daily change tracking</span>'};
   var on=ch&&ch.active;
   var inactive=c.live?'available with full monitoring':(c.demo?'no change':'begins within 24 hours');
-  var right=on?'<span class="chan-sum">'+ch.summary+'</span><svg class="chev" width="13" height="13" fill="none" viewBox="0 0 13 13"><path d="M3.5 5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-    :'<span class="chan-sum q">'+inactive+'</span>';
+  var sid='csum-'+k+'-'+c.id;
+  var right=on?'<span class="chan-sum" id="'+sid+'">'+ch.summary+'</span><svg class="chev" width="13" height="13" fill="none" viewBox="0 0 13 13"><path d="M3.5 5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    :'<span class="chan-sum q" id="'+sid+'">'+inactive+'</span>';
   var head='<button class="chan-head"'+(on?' onclick="tog(this)"':'')+'><span class="chan-name">'+def.label+'</span>'+right+'</button>';
-  var body=on?'<div class="chan-body">'+chanDetail(k,ch,c)+'</div>':'';
+  var body=on?'<div class="chan-body"><div class="intel" id="intel-'+k+'-'+c.id+'"></div>'+chanDetail(k,ch,c)+'</div>':'';
   return '<div class="chan'+(on?' on':'')+'">'+head+body+'</div>';
 }
 function tog(btn){
@@ -751,7 +783,46 @@ function ensureHist(c){
     if(state.sel===c.id)refreshDateFloat();
   }).catch(function(){});
 }
-function refreshDateFloat(){var c=currentComp(),f=document.getElementById('dateNavWrap');if(f)f.innerHTML=c?dateNav(c):'';}
+function refreshDateFloat(){var c=currentComp(),f=document.getElementById('dateNavWrap');if(f)f.innerHTML=c?dateNav(c):'';if(c)loadInsights(c);}
+/* ── AI insights (per-channel, context-aware) ── */
+var insightsCache={};
+function paintInsights(c,ins){
+  ['ads','social','website','email'].forEach(function(k){
+    var o=ins&&ins[k];if(!o||!(o.summary||(o.bullets&&o.bullets.length)))return;
+    var sum=document.getElementById('csum-'+k+'-'+c.id);
+    if(sum&&o.summary){sum.className='chan-sum ai';sum.innerHTML=esc(o.summary);}
+    var box=document.getElementById('intel-'+k+'-'+c.id);
+    if(box){
+      var bl=(o.bullets&&o.bullets.length)?'<ul class="intel-l">'+o.bullets.map(function(b){return '<li>'+esc(b)+'</li>';}).join('')+'</ul>':'';
+      box.innerHTML='<div class="intel-h"><span class="intel-dot"></span>AI read</div>'+(o.summary?'<div class="intel-s">'+esc(o.summary)+'</div>':'')+bl;
+    }
+  });
+}
+function loadInsights(c){
+  if(!c||!c.host)return;
+  if(insightsCache[c.host]){paintInsights(c,insightsCache[c.host]);return;}
+  fetch(API+'/api/insights?host='+encodeURIComponent(c.host)+'&name='+encodeURIComponent(c.name||'')).then(function(r){return r.json();}).then(function(d){
+    var ins=(d&&d.insights)||{};insightsCache[c.host]=ins;paintInsights(c,ins);
+  }).catch(function(){});
+}
+/* ── email full preview ── */
+function openEml(id){
+  var ov=document.getElementById('emlOv');if(!ov)return;
+  var body=document.getElementById('emlBody');
+  document.getElementById('emlFrom').textContent='';document.getElementById('emlSub').textContent='Loading…';
+  body.innerHTML='<div class="adsload" style="padding:40px"><span class="spin"></span>Loading email…</div>';
+  ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+  fetch(API+'/api/email-html?id='+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(d){
+    if(!d||d.error||!d.html){document.getElementById('emlSub').textContent='';body.innerHTML='<div class="wbase" style="margin:18px">Couldn’t load this email.</div>';return;}
+    document.getElementById('emlFrom').textContent=d.from||'';
+    document.getElementById('emlSub').textContent=d.subject||'(no subject)';
+    var f=document.createElement('iframe');
+    f.className='emlframe';f.setAttribute('sandbox','allow-popups allow-popups-to-escape-sandbox');
+    f.srcdoc='<base target="_blank">'+d.html;
+    body.innerHTML='';body.appendChild(f);
+  }).catch(function(){document.getElementById('emlSub').textContent='';body.innerHTML='<div class="wbase" style="margin:18px">Couldn’t load this email.</div>';});
+}
+function closeEml(){var ov=document.getElementById('emlOv');if(!ov)return;ov.classList.remove('open');ov.setAttribute('aria-hidden','true');document.body.style.overflow='';}
 function goDay(day){
   var c=currentComp();if(!c)return;state.day=day;viewSnap=null;
   document.getElementById('detail').innerHTML=report(c);refreshDateFloat();
@@ -816,7 +887,7 @@ function submitComp(){
   var l=getList();l.unshift({id:'c-'+Date.now(),demo:false,name:n,host:u.hostname.replace(/^www\./,''),url:u.href,updatedAt:Date.now()});
   save(l);state.sel=l[0].id;closeModal();document.getElementById('app').dataset.view='detail';render();
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
 
 /* ── AI chat (answers grounded in the captured data) ── */
 var chatThreads={};
