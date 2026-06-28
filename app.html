@@ -998,7 +998,7 @@ function report(c){
 
   if(!c.demo){
     return '<div class="report">'+head
-      +'<p class="setup-note">A baseline of <b>'+esc(c.host)+'</b> is being captured. Within 24 hours, each channel below begins reporting their ad, social, website and email moves.</p>'
+      +'<p class="setup-note">Capturing a live baseline of <b>'+esc(c.host)+'</b> now — each channel below populates within a few minutes; day-over-day comparisons build from tomorrow.</p>'
       +'<span class="lbl sec-l">Signal channels</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
   }
 
@@ -1039,7 +1039,7 @@ function submitComp(){
   document.getElementById('eU').style.display=u?'none':'block';if(!u)ok=false;
   if(!ok)return;
   var l=getList();l.unshift({id:'c-'+Date.now(),demo:false,name:n,host:u.hostname.replace(/^www\./,''),url:u.href,updatedAt:Date.now()});
-  save(l);state.sel=l[0].id;closeModal();document.getElementById('app').dataset.view='detail';render();
+  save(l);trackComp(l[0]);state.sel=l[0].id;closeModal();document.getElementById('app').dataset.view='detail';render();
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
 /* ── your brand (apply-to-me knowledge base) ── */
@@ -1109,8 +1109,11 @@ function sendChat(){
     }).catch(function(){typ.remove();var am=document.createElement('div');am.className='cmsg ai';am.textContent='Couldn’t reach the AI just now — try again in a moment.';box.appendChild(am);box.scrollTop=box.scrollHeight;});
 }
 
+function trackComp(c){if(!c||c.demo||!c.host)return;fetch(API+'/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:c.name,host:c.host,url:c.url,country:c.country||'ALL'})}).catch(function(){});}
+function registerCompetitors(){getList().forEach(function(c){if(c&&!c.demo)trackComp(c);});}
 render();
 loadMyBrand();
+registerCompetitors();
 </script>
 </body>
 </html>

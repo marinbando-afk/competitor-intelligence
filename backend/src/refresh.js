@@ -11,7 +11,7 @@ import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
 import { captureWebsiteFull } from './website.js';
 import { generateInsights } from './insights.js';
-import { saveSnapshot } from './snapshots.js';
+import { saveSnapshot, latestSnapshot } from './snapshots.js';
 
 // Brands kept permanently warm (mirrors the app's seeded demos).
 export const TRACKED = [
@@ -21,10 +21,49 @@ export const TRACKED = [
 
 const PLATFORMS = [['instagram', 'ig'], ['tiktok', 'tt'], ['facebook', 'fb']];
 
+// Competitors the user added in the app — persisted as a singleton list so the
+// daily warm covers them too (the seeded demos live in TRACKED above).
+const TKEY = '__tracked__';
+function cleanHost(h) { return String(h || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase(); }
+
+export async function getTracked() {
+  const d = await latestSnapshot(TKEY, 'list');
+  return (d && Array.isArray(d.items)) ? d.items : [];
+}
+export async function addTracked(comp) {
+  const host = cleanHost(comp && (comp.host || comp.url));
+  if (!host || host.indexOf('.') < 0) return null;
+  if (TRACKED.some((t) => t.host === host)) return { existing: true };   // already a warm demo
+  const items = await getTracked();
+  if (items.some((t) => t.host === host)) return { existing: true };
+  const norm = { name: String(comp.name || host).slice(0, 120), host, url: comp.url || ('https://' + host), country: String(comp.country || 'ALL').toUpperCase(), handles: comp.handles || {} };
+  items.push(norm);
+  await saveSnapshot(TKEY, 'list', { items: items.slice(-200) });
+  return { added: true, comp: norm };
+}
+async function allBrands() {
+  const seen = new Set(TRACKED.map((t) => t.host));
+  return TRACKED.concat((await getTracked()).filter((t) => t && t.host && !seen.has(t.host)));
+}
+
 let running = false;
 let lastWarm = null, lastResult = null;
-
 export function warmStatus() { return { warmedAt: lastWarm, last: lastResult, running, tracked: TRACKED.length }; }
+
+// One brand's full capture: ads + social + email + website + insights.
+export async function warmBrand(b, force) {
+  let ok = 0, fail = 0;
+  try { const a = await fetchAds(b.name, b.country, force); ok++; if (a && a.ads && a.ads.length) await saveSnapshot(b.host, 'ads', a); }
+  catch (e) { fail++; console.warn('warm ads ' + b.name + ':', e.message); }
+  for (const [pf, hk] of PLATFORMS) {
+    try { const s = await fetchSocial(pf, b.handles && b.handles[hk], b.host, force); ok++; if (s && s.posts && s.posts.length) await saveSnapshot(b.host, pf, s); }
+    catch (e) { fail++; console.warn('warm ' + pf + ' ' + b.name + ':', e.message); }
+  }
+  try { const em = await getEmails(b.host); if (em && em.storage) await saveSnapshot(b.host, 'email', em); } catch (e) { /* best-effort */ }
+  try { await captureWebsiteFull(b.host, b.url || ('https://' + b.host)); ok++; } catch (e) { fail++; console.warn('warm website ' + b.name + ':', e.message); }
+  try { await generateInsights(b.name, b.host); ok++; } catch (e) { fail++; console.warn('warm insights ' + b.name + ':', e.message); }
+  return { ok, fail };
+}
 
 export async function refreshAll(force) {
   if (running) { console.log('refresh already in progress — skipping'); return { skipped: true }; }
@@ -32,17 +71,8 @@ export async function refreshAll(force) {
   const t0 = Date.now();
   let ok = 0, fail = 0;
   try {
-    for (const b of TRACKED) {
-      try { const a = await fetchAds(b.name, b.country, force); ok++; if (a && a.ads && a.ads.length) await saveSnapshot(b.host, 'ads', a); }
-      catch (e) { fail++; console.warn('warm ads ' + b.name + ':', e.message); }
-      for (const [pf, hk] of PLATFORMS) {
-        try { const s = await fetchSocial(pf, b.handles && b.handles[hk], b.host, force); ok++; if (s && s.posts && s.posts.length) await saveSnapshot(b.host, pf, s); }
-        catch (e) { fail++; console.warn('warm ' + pf + ' ' + b.name + ':', e.message); }
-      }
-      try { const em = await getEmails(b.host); if (em && em.storage) await saveSnapshot(b.host, 'email', em); } catch (e) { /* email snapshot best-effort */ }
-      try { await captureWebsiteFull(b.host, 'https://' + b.host); ok++; } catch (e) { fail++; console.warn('warm website ' + b.name + ':', e.message); }
-      try { await generateInsights(b.name, b.host); ok++; } catch (e) { fail++; console.warn('warm insights ' + b.name + ':', e.message); }
-    }
+    const brands = await allBrands();
+    for (const b of brands) { const r = await warmBrand(b, force); ok += r.ok; fail += r.fail; }
   } finally {
     running = false;
   }

@@ -15,7 +15,7 @@ import { initSchema, pool } from './db.js';
 import { signup, login, requireAuth } from './auth.js';
 import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
-import { startScheduler, warmStatus, TRACKED } from './refresh.js';
+import { startScheduler, warmStatus, TRACKED, addTracked, warmBrand } from './refresh.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
@@ -172,6 +172,16 @@ app.delete('/api/my-brand', async (req, res) => {
     res.json({ ok: true });
     Promise.all((TRACKED || []).map((b) => generateInsights(b.name, b.host).catch(() => {}))).catch(() => {});
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Register a user-added competitor for the daily warm + kick off its first capture now.
+app.post('/api/track', async (req, res) => {
+  try {
+    const { name, host, url, country } = req.body || {};
+    const r = await addTracked({ name, host, url, country });
+    res.json({ ok: true, added: !!(r && r.added) });
+    if (r && r.added) warmBrand(r.comp, false).catch(() => {});   // immediate baseline (async)
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
 
 // Image proxy — streams social CDN thumbnails so hotlink/expiry never breaks them
