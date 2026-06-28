@@ -159,15 +159,25 @@ export async function generateInsights(brand, host) {
 const _angleCache = new Map();
 const UA_IMG = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 // Fetch a creative image as a base64 block for the multimodal model (skips non-images / oversized).
+// Detect the true image type from magic bytes (CDNs often mislabel webp as jpeg,
+// which the vision API then rejects).
+function detectMedia(b) {
+  if (!b || b.length < 12) return null;
+  if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return 'image/jpeg';
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return 'image/png';
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return 'image/gif';
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return 'image/webp';
+  return null;
+}
 async function fetchImageB64(url) {
   if (!url || !/^https?:\/\//i.test(url)) return null;
   try {
     const r = await fetch(url, { headers: { 'User-Agent': UA_IMG, Accept: 'image/*' } });
     if (!r.ok) return null;
-    const media = (r.headers.get('content-type') || '').split(';')[0].trim();
-    if (!/^image\/(jpeg|png|gif|webp)$/.test(media)) return null;
     const buf = Buffer.from(await r.arrayBuffer());
     if (buf.length < 600 || buf.length > 4.5 * 1024 * 1024) return null;
+    const media = detectMedia(buf);   // trust the bytes, not the Content-Type header
+    if (!media) return null;
     return { type: 'base64', media_type: media, data: buf.toString('base64') };
   } catch (e) { return null; }
 }
@@ -196,24 +206,31 @@ export async function quickAngle(text, kind, image) {
     `"hook":"<what grabs attention first — the visual + any headline/on-screen text, <=16 words>",` +
     `"creative":"<read of the creative: format/style (UGC, studio, lifestyle, before/after, text-heavy, meme, product demo, founder...), what is shown, key on-screen text, <=26 words>"` +
     applyField + `}.` + brandLine;
-  const content = [];
-  if (img) content.push({ type: 'image', source: img });
-  content.push({ type: 'text', text: 'COPY: ' + (t || '(no copy provided)') });
-  try {
+  const run = async (withImg) => {
+    const content = [];
+    if (withImg && img) content.push({ type: 'image', source: img });
+    content.push({ type: 'text', text: 'COPY: ' + (t || '(no copy provided)') });
     const resp = await client().messages.create({ model: process.env.ANGLE_MODEL || MODEL, max_tokens: 400, system, messages: [{ role: 'user', content }] });
     const raw = oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''));
     let o = null;
     try { o = JSON.parse(raw); } catch (e) { const m = raw.match(/\{[\s\S]*\}/); if (m) { try { o = JSON.parse(m[0]); } catch (_) { /* noop */ } } }
     o = o || {};
-    const out = {
+    return {
       angle: oneLine(o.angle).replace(/^["'\s]+|["'\s.]+$/g, '').slice(0, 100) || raw.replace(/[{}"]/g, '').slice(0, 100),
       hook: oneLine(o.hook).slice(0, 170),
-      creative: img ? oneLine(o.creative).slice(0, 220) : '',
+      creative: (withImg && img) ? oneLine(o.creative).slice(0, 220) : '',
       apply: oneLine(o.apply).slice(0, 220),
     };
+  };
+  try {
+    const out = await run(true);
     _angleCache.set(key, out);
     return out;
-  } catch (e) { return { angle: '', hook: '', creative: '', apply: '' }; }
+  } catch (e) {
+    console.warn('quickAngle vision failed (' + e.message + ') — retrying copy-only');
+    if (img) { try { const out = await run(false); _angleCache.set(key, out); return out; } catch (e2) { /* fall through */ } }
+    return { angle: '', hook: '', creative: '', apply: '' };
+  }
 }
 
 // Read the latest cached insights; generate on demand if missing.
