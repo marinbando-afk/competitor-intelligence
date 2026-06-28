@@ -29,7 +29,7 @@ export async function fetchAds(brand, country, force, cacheOnly) {
     encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + '&media_type=all';
 
   // Covers the common input shapes across Meta Ad Library actors — extra fields are ignored.
-  const ADS_N = Number(process.env.ADS_COUNT) || 300;   // check ALL daily so new-ad detection is complete; billed per ad returned
+  const ADS_N = Number(process.env.ADS_COUNT) || 100;   // sweet spot: catches new ads (usually recent) at ~$2.25/mo/brand; ADS_COUNT env overrides
   const input = {
     urls: [{ url: searchUrl }],
     startUrls: [{ url: searchUrl }],
