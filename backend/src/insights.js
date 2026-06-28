@@ -61,17 +61,34 @@ const GUIDE = {
 };
 
 function parseOut(txt) {
+  const raw = String(txt || '');
   let o = null;
-  try { o = JSON.parse(txt); } catch (e) {
-    const m = txt.match(/\{[\s\S]*\}/);
+  try { o = JSON.parse(raw); } catch (e) {
+    const m = raw.match(/\{[\s\S]*\}/);
     if (m) { try { o = JSON.parse(m[0]); } catch (_) { /* noop */ } }
   }
-  if (!o || typeof o !== 'object') return { summary: oneLine(txt).slice(0, 240), bullets: [], apply: '' };
-  return {
-    summary: oneLine(o.summary).slice(0, 280),
-    bullets: Array.isArray(o.bullets) ? o.bullets.map((b) => oneLine(b).slice(0, 220)).filter(Boolean).slice(0, 5) : [],
-    apply: oneLine(o.apply).slice(0, 240),
-  };
+  if (o && typeof o === 'object') {
+    return {
+      summary: oneLine(o.summary).slice(0, 280),
+      bullets: Array.isArray(o.bullets) ? o.bullets.map((b) => oneLine(b).slice(0, 220)).filter(Boolean).slice(0, 5) : [],
+      apply: oneLine(o.apply).slice(0, 240),
+    };
+  }
+  // Malformed/truncated JSON (e.g. hit the token limit) — salvage the fields by regex
+  // so a raw {"summary":...} blob is NEVER shown as the headline.
+  if (raw.indexOf('"summary"') >= 0 || /^\s*\{/.test(raw)) {
+    const grab = (k) => {
+      const m = raw.match(new RegExp('"' + k + '"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"'));
+      return m ? oneLine(m[1].replace(/\\"/g, '"').replace(/\\[rnt]/g, ' ')) : '';
+    };
+    let bm = raw.match(/"bullets"\s*:\s*\[([\s\S]*?)\]/);
+    if (!bm) bm = raw.match(/"bullets"\s*:\s*\[([\s\S]*)/);
+    const bullets = bm ? (bm[1].match(/"((?:[^"\\]|\\.)*)"/g) || []).map((s) => oneLine(s.slice(1, -1).replace(/\\"/g, '"'))).filter(Boolean).slice(0, 5) : [];
+    const summary = grab('summary');
+    if (summary || bullets.length) return { summary: summary.slice(0, 280), bullets, apply: grab('apply').slice(0, 240) };
+  }
+  // Genuinely plain text — use it as the summary.
+  return { summary: oneLine(raw).slice(0, 240), bullets: [], apply: '' };
 }
 
 async function ask(channel, brand, todayBlock, prevBlock, me) {
@@ -90,7 +107,7 @@ async function ask(channel, brand, todayBlock, prevBlock, me) {
     system += `Return ONLY minified JSON, no markdown: {"summary":"<one tight sentence (<=18 words): the single most important or most-new takeaway>","bullets":["<short, specific point>", ...]} with 0–4 bullets. If nothing changed and nothing notable, return a 1-sentence summary and an empty bullets array.`;
   }
   const user = `=== TODAY ===\n${todayBlock}\n\n=== PREVIOUS CAPTURE ===\n${prevBlock && prevBlock.trim() ? prevBlock : '(no earlier capture to compare against yet)'}`;
-  const resp = await client().messages.create({ model: MODEL, max_tokens: 700, system, messages: [{ role: 'user', content: user }] });
+  const resp = await client().messages.create({ model: MODEL, max_tokens: 1000, system, messages: [{ role: 'user', content: user }] });
   const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
   return parseOut(txt);
 }
@@ -161,7 +178,7 @@ export async function quickAngle(text, kind) {
       `Answer in 12 words or fewer, ONLY the angle phrase — no quotes, no preamble, no trailing period.`;
   }
   try {
-    const resp = await client().messages.create({ model: process.env.ANGLE_MODEL || MODEL, max_tokens: wantJson ? 150 : 40, system, messages: [{ role: 'user', content: t }] });
+    const resp = await client().messages.create({ model: process.env.ANGLE_MODEL || MODEL, max_tokens: wantJson ? 230 : 40, system, messages: [{ role: 'user', content: t }] });
     const raw = oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''));
     let out;
     if (wantJson) {
@@ -178,8 +195,8 @@ export async function quickAngle(text, kind) {
 }
 
 // Read the latest cached insights; generate on demand if missing.
-export async function getInsights(host, name) {
-  let ins = await latestSnapshot(host, 'insights');
+export async function getInsights(host, name, refresh) {
+  let ins = refresh ? null : await latestSnapshot(host, 'insights');
   const channels = ins ? Object.keys(ins).filter((k) => k !== 'generatedAt' && k !== '__day') : [];
   if (channels.length === 0 && process.env.ANTHROPIC_API_KEY) ins = await generateInsights(name || host, host);
   return ins || {};

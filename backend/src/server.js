@@ -135,7 +135,7 @@ app.get('/api/website-compare', async (req, res) => {
 // AI insights — per-channel, context-aware read (cached daily, generated on demand).
 app.get('/api/insights', async (req, res) => {
   try {
-    res.json({ insights: await getInsights(req.query.host, req.query.name) });
+    res.json({ insights: await getInsights(req.query.host, req.query.name, req.query.refresh === '1') });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
