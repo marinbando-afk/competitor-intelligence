@@ -136,8 +136,24 @@ export function diffWebsite(a, b) {
 
 // The compare payload for the app. Ensures there's a fresh capture (so "after" is
 // current), then diffs it against the most recent earlier day.
-export async function websiteCompare(host, url) {
+export async function websiteCompare(host, url, day) {
   if (!host) { const e = new Error('Missing host.'); e.status = 400; throw e; }
+  const shape = (s) => s ? { day: s.day, capturedAt: (s.data && s.data.capturedAt) || null, shot: (s.data && s.data.shot) || null, summary: (s.data && s.data.summary) || null } : null;
+  const mk = (after, before, extra) => ({
+    host: cleanHost(host),
+    after: shape(after), before: shape(before),
+    changes: (before && after) ? diffWebsite(before.data && before.data.summary, after.data && after.data.summary) : [],
+    changedShots: (after && after.data && after.data.changedShots) || [],
+    ...extra,
+  });
+
+  // Historical view — the capture on `day` vs the most recent earlier capture (no live re-capture).
+  if (day) {
+    const recent = await recentSnapshots(host, 'website', 40);   // sorted day DESC
+    return mk(recent.find((s) => s.day === day) || null, recent.find((s) => s.day < day) || null, { day });
+  }
+
+  // Latest view — make sure today's capture is fresh, then diff the two most recent.
   let recent = await recentSnapshots(host, 'website', 5);
   const top = recent[0];
   const ageH = top && top.data && top.data.capturedAt ? (Date.now() - Date.parse(top.data.capturedAt)) / 3600000 : Infinity;
@@ -145,9 +161,5 @@ export async function websiteCompare(host, url) {
     await captureWebsiteFull(host, url);
     recent = await recentSnapshots(host, 'website', 5);
   }
-  const shape = (s) => s ? { day: s.day, capturedAt: (s.data && s.data.capturedAt) || null, shot: (s.data && s.data.shot) || null, summary: (s.data && s.data.summary) || null } : null;
-  const after = recent[0] || null;
-  const before = recent[1] || null;
-  const changes = (before && after) ? diffWebsite(before.data && before.data.summary, after.data && after.data.summary) : [];
-  return { host: cleanHost(host), after: shape(after), before: shape(before), changes, changedShots: (after && after.data && after.data.changedShots) || [] };
+  return mk(recent[0] || null, recent[1] || null);
 }

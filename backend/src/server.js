@@ -135,7 +135,7 @@ app.get('/api/snapshot', async (req, res) => {
 // since the previous captured day.
 app.get('/api/website-compare', async (req, res) => {
   try {
-    res.json(await websiteCompare(req.query.host, req.query.url));
+    res.json(await websiteCompare(req.query.host, req.query.url, req.query.day));
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }

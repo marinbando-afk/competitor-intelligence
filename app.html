@@ -830,21 +830,26 @@ function cmpHTML(before,after){
 }
 function loadWeb(box){
   var host=box.dataset.host,url=box.dataset.url;
-  fetch(API+'/api/website-compare?host='+encodeURIComponent(host)+'&url='+encodeURIComponent(url))
+  fetch(API+'/api/website-compare?host='+encodeURIComponent(host)+'&url='+encodeURIComponent(url)+(state.day?'&day='+encodeURIComponent(state.day):''))
     .then(function(r){return r.json();})
     .then(function(d){
       if(!d||d.error){box.innerHTML='<div class="wbase">Couldn’t load the website comparison right now.</div>';return;}
+      var hist=!!d.day;
       var vis;
       if(d.before&&d.before.shot&&d.after&&d.after.shot){
         vis=cmpHTML(d.before,d.after)+'<div class="cmp-hint">drag the divider — left is '+esc(fmtShortDay(d.before.day))+', right is '+esc(fmtShortDay(d.after.day))+'</div>';
       }else if(d.after&&d.after.shot){
         vis='<a class="wshot" href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+d.after.shot+'" alt=""><span class="wshot-go">Open site ↗</span></a>';
+      }else if(hist){
+        box.innerHTML='<div class="wbase">No website snapshot was captured on <b>'+esc(fmtShortDay(d.day))+'</b> — daily website tracking started after this date.</div>';return;
       }else{
         vis='<a class="wshot" href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+API+'/api/shot?url='+encodeURIComponent(url)+'" loading="lazy" alt="" onerror="var w=this.closest(\'.wshot\');if(w)w.style.display=\'none\'"><span class="wshot-go">Open site ↗</span></a>';
       }
       var chg;
       if(d.changes&&d.changes.length){
         chg='<div class="wchg">'+d.changes.map(function(s){return '<div class="wchg-row"><span class="wchg-dot"></span><span>'+esc(s)+'</span></div>';}).join('')+'</div>';
+      }else if(hist){
+        chg='<div class="wbase"><b>'+esc(fmtShortDay((d.after&&d.after.day)||d.day))+'.</b> '+(d.before?'No price or product changes detected vs the previous capture.':'First website capture — no earlier day to compare against yet.')+'</div>';
       }else{
         var day=(d.after&&d.after.day)?fmtShortDay(d.after.day):'today';
         chg='<div class="wbase"><b>Baseline captured ('+esc(day)+').</b> This storefront is now watched daily — the next time a price moves, a sale starts, or products change, it shows up here with a before/after slider. The first comparison appears on the next daily capture.</div>';
