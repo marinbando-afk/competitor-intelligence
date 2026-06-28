@@ -792,13 +792,7 @@ function refreshLive(c){
 function applyLive(c,s){
   var el=document.getElementById('lr-'+c.id);
   if(!el||!s)return;
-  var diff='';
-  if(c.base&&typeof s.onSale==='number'){
-    var d=s.onSale-c.base.onSale;
-    if(d>=2)diff=' · ↑'+d+' more on sale';
-    else if(d<=-2)diff=' · ↓'+Math.abs(d)+' fewer on sale';
-  }
-  el.innerHTML=' · <span style="color:var(--quiet)">re-checked live just now'+diff+'</span>';
+  el.innerHTML=' · <span style="color:var(--quiet)">re-checked live just now</span>';
 }
 function ensureLive(c){
   if(!c||!c.live)return;
