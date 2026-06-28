@@ -5,6 +5,8 @@
 //   APIFY_TOKEN       (required) your Apify API token
 //   APIFY_ADS_ACTOR   the actor you pick from the Apify Store, e.g. "curious_coder~facebook-ads-library-scraper"
 
+import { recentSnapshots } from './snapshots.js';
+
 const TOKEN = process.env.APIFY_TOKEN;
 const ACTOR = process.env.APIFY_ADS_ACTOR || 'curious_coder~facebook-ads-library-scraper';
 const TTL = 26 * 60 * 60 * 1000; // 26h — a daily 5am pre-warm keeps this hot so users never wait
@@ -27,7 +29,7 @@ export async function fetchAds(brand, country, force, cacheOnly) {
     encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + '&media_type=all';
 
   // Covers the common input shapes across Meta Ad Library actors — extra fields are ignored.
-  const ADS_N = Number(process.env.ADS_COUNT) || 20;   // plan cap; raise via ADS_COUNT env on upgrade (billed per ad actually returned)
+  const ADS_N = Number(process.env.ADS_COUNT) || 300;   // check ALL daily so new-ad detection is complete; billed per ad returned
   const input = {
     urls: [{ url: searchUrl }],
     startUrls: [{ url: searchUrl }],
@@ -116,6 +118,48 @@ function normalize(items, brand, country) {
     active: ads.filter((a) => a.active).length,
     platforms,
     newest,
-    ads: ads.slice(0, 100),
+    ads: ads.slice(0, 300),   // keep the full set for day-over-day "what's new" diffing
   };
+}
+
+// ── "What's new" detection — compare today's ads to the most recent earlier
+// capture and surface ONLY the new ones, tagged by why they're notable
+// (new landing page / domain, new Facebook page, new creative format). ──
+function adKey(a) { return a.id || a.link || a.image || ((a.page || '') + '|' + String(a.text || '').slice(0, 40)); }
+function adDomain(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
+function fmtOf(a) { return a.hasVideo ? 'video' : (a.format && /carousel/i.test(a.format) ? 'carousel' : 'image'); }
+
+export async function adsChanges(host, todayAds) {
+  const today = todayAds || [];
+  if (!host) return null;
+  const recent = await recentSnapshots(host, 'ads', 6);
+  const tStr = new Date().toISOString().slice(0, 10);
+  const prevSnap = recent.find((s) => s.day !== tStr && s.data && Array.isArray(s.data.ads) && s.data.ads.length);
+  const prev = (prevSnap && prevSnap.data.ads) || [];
+  // No comparable prior capture (first run, or the previous scan was much shallower) → baseline only.
+  if (!prev.length || prev.length < today.length * 0.6) {
+    return { baseline: true, newCount: 0, newAds: [], signals: { landings: [], pages: [], formats: [] } };
+  }
+  const prevIds = new Set(prev.map(adKey));
+  const prevLand = new Set(prev.map((a) => adDomain(a.landing)).filter(Boolean));
+  const prevPages = new Set(prev.map((a) => String(a.page || '').toLowerCase()).filter(Boolean));
+  const prevFmts = new Set(prev.map(fmtOf));
+  const fresh = [];
+  for (const a of today) {
+    if (prevIds.has(adKey(a))) continue;
+    const tags = [];
+    const dom = adDomain(a.landing);
+    if (dom && !prevLand.has(dom)) tags.push({ k: 'landing', v: dom });
+    if (a.page && !prevPages.has(String(a.page).toLowerCase())) tags.push({ k: 'page', v: a.page });
+    const f = fmtOf(a);
+    if (!prevFmts.has(f)) tags.push({ k: 'format', v: f });
+    fresh.push({ ...a, tags });
+  }
+  const uniq = (arr) => [...new Set(arr)];
+  const signals = {
+    landings: uniq(fresh.flatMap((a) => a.tags.filter((t) => t.k === 'landing').map((t) => t.v))),
+    pages: uniq(fresh.filter((a) => a.tags.some((t) => t.k === 'page')).map((a) => a.page)),
+    formats: uniq(fresh.flatMap((a) => a.tags.filter((t) => t.k === 'format').map((t) => t.v))),
+  };
+  return { baseline: false, newCount: fresh.length, newAds: fresh.slice(0, 30), signals };
 }

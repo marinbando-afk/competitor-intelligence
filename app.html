@@ -244,6 +244,12 @@ a.adrow-v:hover{text-decoration:underline}
 @keyframes sp{to{transform:rotate(360deg)}}
 .adssum{font-size:12.5px;color:var(--muted);margin-bottom:13px;padding-bottom:11px;border-bottom:1px solid var(--line)}
 .adssum b{color:var(--text);font-weight:600}
+.adsigs{display:flex;flex-wrap:wrap;gap:7px;margin:-2px 0 15px}
+.adsig{font-family:var(--mono);font-size:10px;letter-spacing:.02em;padding:4px 9px;border-radius:5px;border:1px solid var(--line2);color:var(--text);background:var(--raised)}
+.adsig.pg{border-color:rgba(227,169,44,.45);color:var(--gold)}
+.adsig.ld{border-color:var(--sage-d);color:var(--sage)}
+.adsig.fm{border-color:rgba(98,189,126,.45);color:var(--quiet)}
+.adssum b{color:var(--text);font-weight:600}
 .adsempty{font-size:13.5px;color:var(--faint);font-style:italic;font-family:'Oswald',sans-serif;padding:4px 0 12px}
 .rtry{color:var(--sage);font-style:normal;font-weight:600;text-decoration:underline;cursor:pointer}
 .rtry:hover{color:var(--quiet)}
@@ -596,26 +602,36 @@ function adThumb(a,i){
 }
 var ADS_SHOWN=[];
 function adsHTML(d){
-  if(!d||d.error||!d.ads||!d.ads.length)return '<div class="adsempty">No active ads found in the Meta Ad Library right now.</div>';
-  ADS_SHOWN=d.ads;
-  var plats=(d.platforms||[]).map(prettyPlat).join(' · ');
-  var sum='<div class="adssum"><b>'+d.active+' active ad'+(d.active===1?'':'s')+'</b>'+(d.newest?' · newest '+fmtDate(d.newest):'')+(plats?' · '+plats:'')+'</div>';
-  return sum+'<div class="adstrip">'+d.ads.map(adThumb).join('')+'</div>';
+  if(!d||d.error)return '<div class="adsempty">No ads found in the Meta Ad Library right now.</div>';
+  ADS_SHOWN=d.ads||[];
+  if(d.simple){
+    if(!d.ads||!d.ads.length)return '<div class="adsempty">No ads on this date.</div>';
+    return '<div class="adssum"><b>'+(d.active||d.ads.length)+' ad'+((d.active||d.ads.length)===1?'':'s')+'</b></div><div class="adstrip">'+d.ads.map(adThumb).join('')+'</div>';
+  }
+  if(d.baseline){
+    return '<div class="adssum"><b>'+(d.active||0)+' active ads</b> — baseline captured. From tomorrow this shows only what’s <b>NEW</b>: fresh creatives, new angles, new landing pages, or a new Facebook page.</div>';
+  }
+  var nc=d.newCount||0,sig=[];
+  if(d.signals){
+    (d.signals.pages||[]).forEach(function(p){sig.push('<span class="adsig pg">📄 New page · '+esc(p)+'</span>');});
+    (d.signals.landings||[]).forEach(function(l){sig.push('<span class="adsig ld">⛳ New landing · '+esc(l)+'</span>');});
+    (d.signals.formats||[]).forEach(function(f){sig.push('<span class="adsig fm">🎬 New format · '+esc(f)+'</span>');});
+  }
+  var head='<div class="adssum"><b>'+nc+' new ad'+(nc===1?'':'s')+' today</b>'+(d.active?' · '+d.active+' active':'')+'</div>'+(sig.length?'<div class="adsigs">'+sig.join('')+'</div>':'');
+  if(!nc)return head+'<div class="adsempty">No new ads today — same creatives still running.</div>';
+  return head+'<div class="adstrip">'+(d.ads||[]).map(adThumb).join('')+'</div>';
 }
 function loadAds(box){
-  var brand=box.getAttribute('data-brand'),country=box.getAttribute('data-country')||'ALL';
+  var brand=box.getAttribute('data-brand'),country=box.getAttribute('data-country')||'ALL',host=box.getAttribute('data-host')||'';
   if(state.day){
     var sa=(viewSnap&&viewSnap.ads)||{ads:[]};
     var fa=(sa.ads||[]).filter(function(a){return String(a.started||'').slice(0,10)===state.day;});
-    box.innerHTML=fa.length?adsHTML({ads:fa,active:fa.length,platforms:sa.platforms||[],newest:state.day,country:sa.country}):'<div class="adsempty">No new ads detected on this date.</div>';
+    box.innerHTML=fa.length?adsHTML({ads:fa,active:fa.length,simple:true}):'<div class="adsempty">No new ads detected on this date.</div>';
     return;
   }
-  fetch(API+'/api/ads?brand='+encodeURIComponent(brand)+'&country='+encodeURIComponent(country))
+  fetch(API+'/api/ads?brand='+encodeURIComponent(brand)+'&country='+encodeURIComponent(country)+'&host='+encodeURIComponent(host))
     .then(function(r){return r.json();})
-    .then(function(d){
-      box.innerHTML=adsHTML(d);
-      if(d&&d.ads&&d.ads.length){var s=box.closest('.chan').querySelector('.chan-sum');if(s)s.innerHTML='<b style="color:var(--text);font-weight:600">'+d.active+'</b> active ad'+(d.active===1?'':'s')+' · <span class="flag">Meta Ad Library</span>';}
-    })
+    .then(function(d){box.innerHTML=adsHTML(d);})
     .catch(function(){box.innerHTML='<div class="adsempty">Couldn’t reach the ad service just now — try again in a moment.</div>';});
 }
 function fmtNum(n){n=+n||0;return n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,'')+'M':(n>=1e3?(n/1e3).toFixed(1).replace(/\.0$/,'')+'k':''+n);}
@@ -743,7 +759,7 @@ function loadEmail(box){
 function chanDetail(k,ch,c){
   if(k==='ads'){
     var ctry=c.country||'ALL';
-    var box='<div class="adsbox" id="ads-'+esc(c.id)+'" data-brand="'+esc(c.name)+'" data-country="'+esc(ctry)+'"><div class="adsload"><span class="spin"></span>Pulling live ads from the Meta Ad Library…</div></div>';
+    var box='<div class="adsbox" id="ads-'+esc(c.id)+'" data-brand="'+esc(c.name)+'" data-country="'+esc(ctry)+'" data-host="'+esc(c.host||'')+'"><div class="adsload"><span class="spin"></span>Checking today’s ads for anything new…</div></div>';
     var note=ch.angle?'<div class="note">'+ch.angle+'</div>':'';
     var lib='https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country='+encodeURIComponent(ctry)+'&q='+encodeURIComponent(c.name);
     return box+note+'<a class="adlink" href="'+lib+'" target="_blank" rel="noopener">Open full Meta Ad Library <svg width="11" height="11" fill="none" viewBox="0 0 11 11"><path d="M1 5.5h8M5.5 2l3.5 3.5L5.5 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>';

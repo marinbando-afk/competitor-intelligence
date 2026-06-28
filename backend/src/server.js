@@ -13,7 +13,7 @@ import express from 'express';
 import cors from 'cors';
 import { initSchema, pool } from './db.js';
 import { signup, login, requireAuth } from './auth.js';
-import { fetchAds } from './ads.js';
+import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial } from './social.js';
 import { startScheduler, warmStatus, TRACKED, addTracked, warmBrand } from './refresh.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
@@ -40,7 +40,15 @@ app.get('/api/health', (req, res) => res.json({ ok: true, ...warmStatus() }));
 //   GET /api/ads?brand=The%20Oodie&country=AU  -> { count, ads: [{ text, image, page, started, link }] }
 app.get('/api/ads', async (req, res) => {
   try {
-    res.json(await fetchAds(req.query.brand, req.query.country, req.query.force === '1'));
+    const data = await fetchAds(req.query.brand, req.query.country, req.query.force === '1');
+    const out = { active: data.active, newest: data.newest, platforms: data.platforms, country: data.country, ads: (data.ads || []).slice(0, 30) };
+    if (req.query.host) {
+      try {
+        const ch = await adsChanges(req.query.host, data.ads);
+        if (ch) { out.ads = ch.newAds; out.newCount = ch.newCount; out.baseline = ch.baseline; out.signals = ch.signals; }
+      } catch (e) { /* fall back to the trimmed full list */ }
+    }
+    res.json(out);
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }
