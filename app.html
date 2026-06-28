@@ -198,6 +198,8 @@ button{font-family:inherit;cursor:pointer}
 .emlmodal-from{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--sage);text-transform:uppercase;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .emlmodal-sub{font-size:14.5px;font-weight:600;color:var(--text);line-height:1.3}
 .emlmodal-x{flex:none;width:30px;height:30px;border-radius:8px;border:1px solid var(--line2);background:none;color:var(--muted);cursor:pointer;font-size:13px}
+.emlmodal-tab{flex:none;height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--sage-d);background:var(--sage-soft);color:var(--sage);cursor:pointer;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.04em}
+.emlmodal-tab:hover{background:var(--sage);color:#06231f}
 .emlmodal-x:hover{color:var(--text);border-color:var(--sage-d)}
 .emlmodal-body{flex:1;min-height:0;background:#fff}
 .emlframe{width:100%;height:100%;border:none;display:block;background:#fff}
@@ -406,7 +408,7 @@ a.adrow-v:hover{text-decoration:underline}
 </button>
 <div class="emlov" id="emlOv" onclick="if(event.target===this)closeEml()" aria-hidden="true">
   <div class="emlmodal">
-    <div class="emlmodal-h"><div class="emlmodal-meta"><div class="emlmodal-from" id="emlFrom"></div><div class="emlmodal-sub" id="emlSub"></div></div><button class="emlmodal-x" onclick="closeEml()" aria-label="Close">✕</button></div>
+    <div class="emlmodal-h"><div class="emlmodal-meta"><div class="emlmodal-from" id="emlFrom"></div><div class="emlmodal-sub" id="emlSub"></div></div><button class="emlmodal-tab" id="emlTab" onclick="openEmlTab()" title="Open this email in a new browser tab" style="display:none">Open ↗</button><button class="emlmodal-x" onclick="closeEml()" aria-label="Close">✕</button></div>
     <div class="emlmodal-body" id="emlBody"></div>
   </div>
 </div>
@@ -884,22 +886,33 @@ function loadInsights(c){
   }).catch(function(){});
 }
 /* ── email full preview ── */
+var _emlHtml='';
+function withBase(html){
+  // inject <base target=_blank> INSIDE <head> (never before <!DOCTYPE>, which forces quirks mode)
+  if(/<head[^>]*>/i.test(html))return html.replace(/<head([^>]*)>/i,'<head$1><base target="_blank">');
+  if(/<html[^>]*>/i.test(html))return html.replace(/<html([^>]*)>/i,'<html$1><head><base target="_blank"></head>');
+  return '<!DOCTYPE html><html><head><base target="_blank"></head><body>'+html+'</body></html>';
+}
 function openEml(id){
   var ov=document.getElementById('emlOv');if(!ov)return;
-  var body=document.getElementById('emlBody');
+  var body=document.getElementById('emlBody'),tab=document.getElementById('emlTab');
   document.getElementById('emlFrom').textContent='';document.getElementById('emlSub').textContent='Loading…';
+  if(tab)tab.style.display='none';_emlHtml='';
   body.innerHTML='<div class="adsload" style="padding:40px"><span class="spin"></span>Loading email…</div>';
   ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
   fetch(API+'/api/email-html?id='+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(d){
     if(!d||d.error||!d.html){document.getElementById('emlSub').textContent='';body.innerHTML='<div class="wbase" style="margin:18px">Couldn’t load this email.</div>';return;}
     document.getElementById('emlFrom').textContent=d.from||'';
     document.getElementById('emlSub').textContent=d.subject||'(no subject)';
+    _emlHtml=withBase(d.html);
+    if(tab)tab.style.display='';
     var f=document.createElement('iframe');
-    f.className='emlframe';f.setAttribute('sandbox','allow-popups allow-popups-to-escape-sandbox');
-    f.srcdoc='<base target="_blank">'+d.html;
+    f.className='emlframe';f.setAttribute('sandbox','allow-same-origin allow-popups allow-popups-to-escape-sandbox');
+    f.srcdoc=_emlHtml;
     body.innerHTML='';body.appendChild(f);
   }).catch(function(){document.getElementById('emlSub').textContent='';body.innerHTML='<div class="wbase" style="margin:18px">Couldn’t load this email.</div>';});
 }
+function openEmlTab(){if(!_emlHtml)return;try{var b=new Blob([_emlHtml],{type:'text/html'});var u=URL.createObjectURL(b);window.open(u,'_blank','noopener');setTimeout(function(){URL.revokeObjectURL(u);},60000);}catch(e){}}
 function closeEml(){var ov=document.getElementById('emlOv');if(!ov)return;ov.classList.remove('open');ov.setAttribute('aria-hidden','true');document.body.style.overflow='';}
 /* ── ad full preview ── */
 function openAd(i){
