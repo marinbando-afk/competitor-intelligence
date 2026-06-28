@@ -158,6 +158,16 @@ export async function generateInsights(brand, host) {
 // A one-line marketing ANGLE for a single ad/post, generated on demand (cheap,
 // cached) when the user opens its preview.
 const _angleCache = new Map();
+// TEMP diagnostic — minimal Claude call to surface the real API error (remove after).
+export async function diagClaude() {
+  if (!process.env.ANTHROPIC_API_KEY) return { ok: false, reason: 'no ANTHROPIC_API_KEY env on this deploy' };
+  try {
+    const r = await client().messages.create({ model: MODEL, max_tokens: 8, messages: [{ role: 'user', content: 'ping' }] });
+    return { ok: true, model: MODEL, said: (r.content && r.content[0] && r.content[0].text) || '' };
+  } catch (e) {
+    return { ok: false, model: MODEL, status: e.status || e.statusCode || null, type: e.name || '', error: String(e.message || e).slice(0, 400) };
+  }
+}
 const UA_IMG = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 // Fetch a creative image as a base64 block for the multimodal model (skips non-images / oversized).
 // Detect the true image type from magic bytes (CDNs often mislabel webp as jpeg,

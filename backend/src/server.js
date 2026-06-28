@@ -19,7 +19,7 @@ import { startScheduler, warmStatus, TRACKED, addTracked, warmBrand } from './re
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
-import { getInsights, quickAngle, generateInsights } from './insights.js';
+import { getInsights, quickAngle, generateInsights, diagClaude } from './insights.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { snapshotDays, snapshotForDay } from './snapshots.js';
@@ -155,6 +155,7 @@ app.get('/api/insights', async (req, res) => {
 });
 
 // One-line marketing angle (+ how YOUR brand could apply it) for a single ad/post.
+app.get('/api/diag', async (req, res) => { res.json(await diagClaude()); }); // TEMP — remove after diagnosing
 app.post('/api/angle', async (req, res) => {
   try {
     const { text, kind, image, video } = req.body || {};
