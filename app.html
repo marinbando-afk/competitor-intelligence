@@ -230,6 +230,7 @@ a.adrow-v:hover{text-decoration:underline}
 .mybrand:hover{border-color:var(--sage-d);color:var(--text)}
 .mybrand.set{color:var(--text);border-color:var(--sage-d)}
 .mb-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);box-shadow:0 0 6px var(--sage)}
+.mb-lbl{color:var(--muted);font-weight:400}
 .intel-apply{margin:2px 0 13px;padding:9px 12px;border-radius:8px;background:rgba(227,169,44,.08);border:1px solid rgba(227,169,44,.22);font-size:12.5px;line-height:1.5;color:var(--text)}
 .ia-h{display:block;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
 .adlink{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);text-decoration:none;margin-top:15px}
@@ -1028,7 +1029,7 @@ function submitComp(){
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
 /* ── your brand (apply-to-me knowledge base) ── */
 var myBrand=null;
-function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)return;el.innerHTML=(myBrand&&myBrand.name)?('<span class="mb-dot"></span>'+esc(myBrand.name)):'+ Add your brand';el.className='mybrand'+((myBrand&&myBrand.name)?' set':'');}
+function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)return;el.innerHTML=(myBrand&&myBrand.name)?('<span class="mb-dot"></span><span class="mb-lbl">My brand:</span> '+esc(myBrand.name)):'+ Add your brand';el.className='mybrand'+((myBrand&&myBrand.name)?' set':'');}
 function loadMyBrand(){
   try{var s=localStorage.getItem('myBrand');if(s)myBrand=JSON.parse(s);}catch(e){}
   paintBrandChip();
