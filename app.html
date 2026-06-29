@@ -280,6 +280,8 @@ a.adrow-v:hover{text-decoration:underline}
 .adsig.pg{border-color:rgba(227,169,44,.45);color:var(--gold)}
 .adsig.ld{border-color:var(--sage-d);color:var(--sage)}
 .adsig.fm{border-color:rgba(98,189,126,.45);color:var(--quiet)}
+a.adsig{text-decoration:none;cursor:pointer;transition:border-color .14s,background .14s}
+a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .adssum b{color:var(--text);font-weight:600}
 .adsempty{font-size:13.5px;color:var(--faint);font-style:italic;font-family:'Oswald',sans-serif;padding:4px 0 12px}
 .rtry{color:var(--sage);font-style:normal;font-weight:600;text-decoration:underline;cursor:pointer}
@@ -667,7 +669,7 @@ function adsHTML(d){
   var nc=d.newCount||0,sig=[];
   if(d.signals){
     (d.signals.pages||[]).forEach(function(p){sig.push('<span class="adsig pg">📄 New page · '+esc(p)+'</span>');});
-    (d.signals.landings||[]).forEach(function(l){sig.push('<span class="adsig ld">⛳ New landing · '+esc(l)+'</span>');});
+    (d.signals.landings||[]).forEach(function(l){var dom=(l&&l.domain)||l||'',url=(l&&l.url)||'';if(!dom)return;sig.push(url?('<a class="adsig ld" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer" title="'+esc(url)+'">⛳ New landing · '+esc(dom)+'</a>'):('<span class="adsig ld">⛳ New landing · '+esc(dom)+'</span>'));});
     (d.signals.formats||[]).forEach(function(f){sig.push('<span class="adsig fm">🎬 New format · '+esc(f)+'</span>');});
   }
   var sigHTML=sig.length?'<div class="adsigs">'+sig.join('')+'</div>':'';

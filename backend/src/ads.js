@@ -130,6 +130,18 @@ function adKey(a) { return a.id || a.link || a.image || ((a.page || '') + '|' + 
 function adDomain(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
 function fmtOf(a) { return a.hasVideo ? 'video' : (a.format && /carousel/i.test(a.format) ? 'carousel' : 'image'); }
 
+// A "landing" worth surfacing as a clickable funnel: a real, openable web page —
+// NOT an app deep-link, link-shortener, social/click redirect or other non-page URL
+// (those don't work when clicked and aren't real landing pages, e.g. cooltra.onelink.me).
+const JUNK_LANDING = /(?:^|\.)(onelink\.me|app\.link|go\.link|smart\.link|adj\.st|bnc\.lt|branch\.io|page\.link|bit\.ly|tinyurl\.com|t\.co|lnk\.to|linktr\.ee|rebrand\.ly|ow\.ly|buff\.ly|cutt\.ly|fb\.me|m\.me|wa\.me|api\.whatsapp\.com|l\.facebook\.com|lm\.facebook\.com)$/i;
+function isFunnelUrl(u) {
+  if (!/^https?:\/\//i.test(String(u || ''))) return false;        // must be a real web URL
+  const dom = adDomain(u);
+  if (!dom || dom.indexOf('.') < 0 || /\s/.test(dom)) return false; // need a valid public domain
+  if (/^(facebook|instagram|fb)\.com$/i.test(dom)) return false;    // points back to the platform, not a funnel
+  return !JUNK_LANDING.test(dom);
+}
+
 export async function adsChanges(host, todayAds) {
   const today = todayAds || [];
   if (!host) return null;
@@ -146,11 +158,12 @@ export async function adsChanges(host, todayAds) {
   const prevPages = new Set(prev.map((a) => String(a.page || '').toLowerCase()).filter(Boolean));
   const prevFmts = new Set(prev.map(fmtOf));
   const fresh = [];
+  const landingUrl = {}; // domain -> first full landing URL, so the chip can link to the real funnel
   for (const a of today) {
     if (prevIds.has(adKey(a))) continue;
     const tags = [];
     const dom = adDomain(a.landing);
-    if (dom && !prevLand.has(dom)) tags.push({ k: 'landing', v: dom });
+    if (dom && !prevLand.has(dom) && isFunnelUrl(a.landing)) { tags.push({ k: 'landing', v: dom }); if (!landingUrl[dom]) landingUrl[dom] = a.landing; }
     if (a.page && !prevPages.has(String(a.page).toLowerCase())) tags.push({ k: 'page', v: a.page });
     const f = fmtOf(a);
     if (!prevFmts.has(f)) tags.push({ k: 'format', v: f });
@@ -158,7 +171,7 @@ export async function adsChanges(host, todayAds) {
   }
   const uniq = (arr) => [...new Set(arr)];
   const signals = {
-    landings: uniq(fresh.flatMap((a) => a.tags.filter((t) => t.k === 'landing').map((t) => t.v))),
+    landings: uniq(fresh.flatMap((a) => a.tags.filter((t) => t.k === 'landing').map((t) => t.v))).map((domain) => ({ domain, url: landingUrl[domain] })),
     pages: uniq(fresh.filter((a) => a.tags.some((t) => t.k === 'page')).map((a) => a.page)),
     formats: uniq(fresh.flatMap((a) => a.tags.filter((t) => t.k === 'format').map((t) => t.v))),
   };
