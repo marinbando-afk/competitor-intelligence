@@ -133,6 +133,10 @@ section{padding:64px 0; position:relative}
 .fstat .fn{font-family:var(--disp); font-weight:700; font-size:29px; color:var(--sage); line-height:1}
 .fstat .fl{font-size:12px; color:var(--faint); margin-top:6px; font-family:var(--mono); letter-spacing:.03em}
 .founder-sign{font-family:var(--mono); font-size:12px; letter-spacing:.05em; color:var(--muted)}
+.founder-by{display:flex; align-items:center; gap:15px; margin-top:2px}
+.founder-photo{width:76px; height:76px; border-radius:50%; object-fit:cover; object-position:50% 20%; border:1px solid var(--line2); flex:none}
+.founder-name{font-family:var(--disp); font-weight:600; font-size:18px; color:#e9eff0}
+.founder-role{font-family:var(--mono); font-size:11px; letter-spacing:.04em; color:var(--faint); margin-top:3px}
 /* pricing */
 .plans{display:grid; grid-template-columns:repeat(2,1fr); gap:18px; max-width:860px; margin:0 auto}
 .plan{position:relative; border:1px solid var(--line2); border-radius:13px; background:var(--panel); padding:32px 28px; display:flex; flex-direction:column}
@@ -267,7 +271,10 @@ html.js .reveal.in{opacity:1; transform:none}
       <div class="fstat"><div class="fn">$100M+</div><div class="fl">in ad spend</div></div>
       <div class="fstat"><div class="fn">Every time</div><div class="fl">the same blind spot</div></div>
     </div>
-    <div class="founder-sign">— Founder, Competitor Intelligence AI</div>
+    <div class="founder-by">
+      <img class="founder-photo" src="marin.jpg" alt="Marin Bando, Founder" loading="lazy"/>
+      <div><div class="founder-name">Marin Bando</div><div class="founder-role">Founder · former eCommerce media buyer</div></div>
+    </div>
   </div>
 </section>
 
