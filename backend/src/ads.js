@@ -72,16 +72,28 @@ const BRAND_STOP = new Set(['the', 'and', 'for', 'shop', 'store', 'official', 'l
 function brandTokens(brand) {
   return [...new Set(String(brand || '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !BRAND_STOP.has(w)))];
 }
-function adMatchesBrand(a, tokens) {
-  if (!tokens.length) return true; // no distinctive word to match on → don't filter (fail open)
-  // Attribute by IDENTITY, not body copy: the real advertiser (Facebook page) or the
-  // landing domain must carry the brand. Keyword search drags in rivals, affiliates
-  // and roundup ads that merely name-drop the brand in their text — those are NOT
-  // this brand's ads, and counting their landing pages misreports them as the
-  // brand's "off-domain funnels."
-  const adv = String(a.advertiser || '').toLowerCase();   // '' when the actor omits the page
-  const land = adDomain(a.landing).toLowerCase();
-  return tokens.some((t) => adv.indexOf(t) >= 0 || land.indexOf(t) >= 0);
+// The set of strings that identify the brand: its distinctive name words, PLUS the
+// whole name with separators removed (so "The Oodie" → "theoodie", which is how it
+// appears in its own domain theoodie.com and page name).
+function brandKeys(brand) {
+  const keys = new Set(brandTokens(brand));
+  const full = String(brand || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  if (full.length >= 4) keys.add(full);
+  return keys;
+}
+// Split a name/domain into lowercased alphanumeric words. Domains break on dots AND
+// hyphens ("super-hoodie.com" → super, hoodie, com), so a short key like "oodie" can
+// never silently match inside "hoodie"/"foodie".
+function wordsOf(s) { return String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean); }
+function adMatchesBrand(a, keys) {
+  if (!keys.size) return true; // no distinctive key → don't filter (fail open)
+  // Attribute by IDENTITY, not body copy: a brand key must appear as a WHOLE WORD in
+  // the real advertiser (Facebook page) or the landing domain. Whole-word matching is
+  // what stops "The Oodie" from swallowing "Super Hoodie" / "Foodie Flavours" (whose
+  // domains merely contain the letters "oodie"), and stops rivals/affiliates that only
+  // name-drop the brand in ad copy from being counted as the brand's own funnels.
+  const words = wordsOf(a.advertiser).concat(wordsOf(adDomain(a.landing)));
+  return words.some((w) => keys.has(w));
 }
 
 // De-duplicate ads — never show the same creative twice. Two ads are "the same" if
@@ -154,8 +166,8 @@ function normalize(items, brand, country) {
 
   // Drop unrelated advertisers that keyword-search dragged in (keep all if a brand
   // word is too generic to match, so we never wipe a legitimate result set).
-  const tokens = brandTokens(brand);
-  const relevant = tokens.length ? ads.filter((a) => adMatchesBrand(a, tokens)) : ads;
+  const keys = brandKeys(brand);
+  const relevant = keys.size ? ads.filter((a) => adMatchesBrand(a, keys)) : ads;
   const kept = relevant.length ? relevant : ads;
   const unique = dedupeAds(kept);   // never show the same creative twice
 
