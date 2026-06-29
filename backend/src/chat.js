@@ -10,6 +10,7 @@ import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
 import { latestSnapshot, recentSnapshots } from './snapshots.js';
+import { funnelFacts, getInsights } from './insights.js';
 
 const MODEL = process.env.CHAT_MODEL || 'claude-sonnet-4-6';
 
@@ -47,7 +48,12 @@ async function assembleContext({ name, host, country, handles }) {
     if (!a || !a.ads || !a.ads.length) a = await fetchAds(name, country, false, true); // fallback: warm cache
     if (a && a.ads && a.ads.length) {
       out.push(`META ADS (${a.country || country}): ${a.active} active across ${(a.platforms || []).join(', ')}; newest ${a.newest}.`);
-      a.ads.slice(0, 14).forEach((ad) => out.push(`  • ad ${ad.started} [${ad.hasVideo ? 'video' : 'image'}]${ad.page ? ` page:${ad.page}` : ''}: ${oneLine(ad.text).slice(0, 150)}${ad.cta ? ` [CTA ${ad.cta}]` : ''}${ad.landing ? ` -> lands ${ad.landing}` : ''}${ad.link ? ` | ${ad.link}` : ''}`));
+      const ff = funnelFacts(a.ads, name);
+      out.push('  ' + ff.text.replace(/\n/g, '\n  '));   // pages + landing domains + third-party flags — the SAME view the AI-read panel uses
+      // surface every third-party ad (the publisher advertorials), then a sample of own-page ads
+      const third = a.ads.filter(ff.isThird), first = a.ads.filter((x) => !ff.isThird(x));
+      const sample = third.slice(0, 8).concat(first.slice(0, Math.max(10, 24 - Math.min(third.length, 8))));
+      sample.forEach((ad) => out.push(`  • ad ${ad.started} [${ad.hasVideo ? 'video' : 'image'}]${ff.isThird(ad) ? ' (3RD-PARTY PLACEMENT)' : ''}${ad.page ? ` page:${ad.page}` : ''}: ${oneLine(ad.text).slice(0, 150)}${ad.cta ? ` [CTA ${ad.cta}]` : ''}${ad.landing ? ` -> lands ${ad.landing}` : ''}${ad.link ? ` | ${ad.link}` : ''}`));
     }
   } catch (e) { /* skip channel on error */ }
 
@@ -112,17 +118,34 @@ export async function chat(body) {
   if (extra) data = (data ? data + '\n' : '') + 'WEBSITE / OFFERS: ' + extra;
   if (!data) data = 'No data has been captured for this competitor yet.';
 
+  // Load the same insights the user is looking at in-app, so the chat NEVER contradicts the AI-read panel.
+  let analysis = '';
+  try {
+    const ins = await getInsights(host, name);
+    if (ins) {
+      const parts = [];
+      for (const [k, label] of [['ads', 'Ads'], ['social', 'Social'], ['website', 'Website'], ['email', 'Email']]) {
+        const c = ins[k];
+        if (c && (c.summary || (c.bullets && c.bullets.length))) parts.push(`${label}: ${c.summary || ''}${(c.bullets || []).length ? '\n    - ' + c.bullets.join('\n    - ') : ''}`);
+      }
+      if (parts.length) analysis = parts.join('\n');
+    }
+  } catch (e) { /* analysis is best-effort */ }
+
   const today = new Date().toISOString().slice(0, 10);
   const system =
-    `You are IntelAI, a sharp competitor-intelligence analyst for an eCommerce brand. ` +
-    `Answer the user's question about the competitor "${name}" using ONLY the DATA below — their live ads, organic social posts, and captured marketing emails.\n\n` +
+    `You are IntelAI — the SAME competitor-intelligence analyst that produced the on-screen "AI read" the user sees in the app. ` +
+    `Answer the user's question about the competitor "${name}" using the IN-APP ANALYSIS and the DATA below (their live ads with a FUNNEL FACTS breakdown of pages and landing domains, organic social posts, and captured emails).\n\n` +
     `Rules:\n` +
-    `- Ground every claim in the data; cite specific dates, numbers, platforms and offers when relevant.\n` +
-    `- If the data doesn't contain the answer, say so plainly and suggest what to watch to find out — never speculate or invent facts, dates, or figures.\n` +
-    `- The DATA spans the recent capture window (often ~30 days of posts), not just today — for questions about a range ("last 30 days") or superlatives ("highest engagement", "best post"), scan the FULL list and compare the numbers given.\n` +
-    `- Whenever you reference a specific post, ad, or email, include its link/URL from the data, in full and on its own, so the user can open it directly. If a post has no link in the data, say so.\n` +
-    `- Lead with the answer. Be concise and direct (a few sentences or tight bullets). Do NOT narrate your reasoning or restate the question — give the final answer only.\n` +
+    `- Be CONSISTENT with the IN-APP ANALYSIS below — it is your own conclusion shown to the user. If they ask about something it states (e.g. third-party advertorial placements), confirm and ELABORATE using the supporting ads/pages/domains; never deny it or claim you didn't say it.\n` +
+    `- The FUNNEL FACTS list every page and landing domain across ALL the ads and flag genuine THIRD-PARTY placements (publisher advertorials, media/affiliate partners). Treat them as ground truth — they are real even if a specific ad isn't in the sample list below.\n` +
+    `- Ground every claim in the data/analysis; cite specific dates, numbers, platforms, pages, domains and offers when relevant.\n` +
+    `- Only say something "isn't captured" if it is genuinely absent from BOTH the analysis and the data — and never claim the analysis itself doesn't exist. Never speculate or invent figures.\n` +
+    `- The DATA spans the recent capture window (often ~30 days), not just today — for ranges ("last 30 days") or superlatives ("highest engagement"), scan the FULL list and compare the numbers given.\n` +
+    `- When you reference a specific post, ad, or email, include its link/URL from the data, in full and on its own. If an item has no link in the data, say so.\n` +
+    `- Lead with the answer. Be concise and direct. Don't narrate reasoning or restate the question.\n` +
     `- Write for a busy marketer: practical and specific.\n\n` +
+    (analysis ? `IN-APP ANALYSIS — the AI read currently shown to the user (this is established; be consistent with it):\n${analysis}\n\n` : '') +
     `DATA (as of ${today}):\n${data}`;
 
   const resp = await client().messages.create({

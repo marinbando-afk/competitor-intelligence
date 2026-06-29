@@ -47,34 +47,41 @@ const dayOf = (s) => String(s || '').split('T')[0].split(' ')[0];
 function adHost(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
 const INS_STOP = new Set(['the', 'and', 'for', 'shop', 'store', 'official', 'ltd', 'inc', 'llc', 'brand', 'online', 'cosmetics', 'beauty', 'skin', 'care', 'fashion', 'clothing', 'apparel', 'group', 'collective', 'australia']);
 function brandToks(name) { return [...new Set(String(name || '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !INS_STOP.has(w)))]; }
-function fmtAds(d) {
-  if (!d || !d.ads || !d.ads.length) return 'No active ads.';
-  const ads = d.ads;
-  // ── Funnel facts computed across ALL ads, so the model can't infer the wrong thing
-  //    from a small sample (e.g. wrongly claim "no 3rd-party" when a publisher advertorial exists). ──
+// Shared funnel analysis — pages + landing domains across ALL ads, flagging genuine
+// third-party placements (publisher advertorials, media/affiliate partners) vs the
+// brand's own pages/domains. EXPORTED so the chat uses the exact same view as this
+// read — the app must never contradict itself.
+export function funnelFacts(ads, brand) {
+  ads = ads || [];
   const pageN = {}, domN = {};
   ads.forEach((a) => { const p = oneLine(a.page) || '?'; pageN[p] = (pageN[p] || 0) + 1; const dm = adHost(a.landing); if (dm) domN[dm] = (domN[dm] || 0) + 1; });
   const pages = Object.entries(pageN).sort((x, y) => y[1] - x[1]);
   const doms = Object.entries(domN).sort((x, y) => y[1] - x[1]);
-  let toks = brandToks(d.brand);
+  let toks = brandToks(brand);
   if (!toks.length && doms.length) { const sld = doms[0][0].split('.')[0]; if (sld.length >= 3) toks = [sld]; } // fallback: the dominant domain's root
   const own = (s) => { s = String(s || '').toLowerCase(); return !toks.length || toks.some((t) => s.indexOf(t) >= 0); };
   const thirdPages = pages.filter(([p]) => p !== '?' && !own(p));
   const thirdDoms = doms.filter(([dm]) => !own(dm));
   const ownDoms = doms.filter(([dm]) => own(dm));
-  const funnel = [
+  const text = [
     `FUNNEL FACTS (computed across all ${ads.length} ads — ground truth, do NOT contradict):`,
     `  Ad pages: ${pages.slice(0, 8).map(([p, n]) => `"${p}"×${n}`).join(', ')}.`,
     thirdPages.length ? `  >> THIRD-PARTY pages (not the brand's own): ${thirdPages.map(([p, n]) => `"${p}"×${n}`).join(', ')} — publisher/advertorial or media-partner placements, worth surfacing.` : `  All ads run from the brand's own page(s).`,
     `  Landing domains: ${doms.slice(0, 10).map(([dm, n]) => `${dm}×${n}`).join(', ')}.`,
     thirdDoms.length ? `  >> THIRD-PARTY landing domains (off the brand's own sites): ${thirdDoms.map(([dm, n]) => `${dm}×${n}`).join(', ')} — they're sending traffic off-domain.` : `  All landings on the brand's own domain(s)${ownDoms.length > 1 ? ` (multiple regional sites: ${ownDoms.map(([dm]) => dm).join(', ')})` : ''}.`,
   ].join('\n');
-  // Sample ads — include every third-party ad, then fill with first-party, so both are visible.
   const isThird = (a) => (oneLine(a.page) && !own(a.page)) || (adHost(a.landing) && !own(adHost(a.landing)));
-  const third = ads.filter(isThird), first = ads.filter((a) => !isThird(a));
+  return { text, own, isThird };
+}
+function fmtAds(d) {
+  if (!d || !d.ads || !d.ads.length) return 'No active ads.';
+  const ads = d.ads;
+  const ff = funnelFacts(ads, d.brand);
+  // Sample ads — include every third-party ad, then fill with first-party, so both are visible.
+  const third = ads.filter(ff.isThird), first = ads.filter((a) => !ff.isThird(a));
   const sample = third.slice(0, 6).concat(first.slice(0, Math.max(6, 16 - Math.min(third.length, 6))));
-  const lines = sample.map((a) => `- [${a.started || '?'}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'} · page:"${a.page || '?'}"${own(a.page) ? '' : ' (3RD-PARTY)'}${a.cta ? ` · cta:"${a.cta}"` : ''}${a.landing ? ` · lands:${adHost(a.landing)}${own(adHost(a.landing)) ? '' : ' (3RD-PARTY)'}` : ''} :: ${oneLine(a.text).slice(0, 170)}`);
-  return [`${d.active || ads.length} active ad(s) on ${(d.platforms || []).join('/') || '?'}; newest ${d.newest || '?'}.`, funnel, 'SAMPLE ADS:'].concat(lines).join('\n');
+  const lines = sample.map((a) => `- [${a.started || '?'}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'} · page:"${a.page || '?'}"${ff.own(a.page) ? '' : ' (3RD-PARTY)'}${a.cta ? ` · cta:"${a.cta}"` : ''}${a.landing ? ` · lands:${adHost(a.landing)}${ff.own(adHost(a.landing)) ? '' : ' (3RD-PARTY)'}` : ''} :: ${oneLine(a.text).slice(0, 170)}`);
+  return [`${d.active || ads.length} active ad(s) on ${(d.platforms || []).join('/') || '?'}; newest ${d.newest || '?'}.`, ff.text, 'SAMPLE ADS:'].concat(lines).join('\n');
 }
 function fmtPosts(posts, label) {
   if (!posts || !posts.length) return '';
