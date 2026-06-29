@@ -1064,12 +1064,12 @@ function paintInsights(c,ins){
   ['ads','social','website','email'].forEach(function(k){
     var o=ins&&ins[k];if(!o||!(o.summary||(o.bullets&&o.bullets.length)))return;
     var sum=document.getElementById('csum-'+k+'-'+c.id);
-    if(sum&&o.summary){sum.className='chan-sum ai';sum.innerHTML=esc(o.summary);}
+    if(sum&&o.summary){sum.className='chan-sum ai';sum.innerHTML=linkify(o.summary);}
     var box=document.getElementById('intel-'+k+'-'+c.id);
     if(box){
-      var bl=(o.bullets&&o.bullets.length)?'<ul class="intel-l">'+o.bullets.map(function(b){return '<li>'+esc(b)+'</li>';}).join('')+'</ul>':'';
-      var ap=o.apply?'<div class="intel-apply"><span class="ia-h">↳ Apply to '+esc((myBrand&&myBrand.name)||'your brand')+'</span>'+esc(o.apply)+'</div>':'';
-      box.innerHTML='<div class="intel-h"><span class="intel-dot"></span>AI read</div>'+(o.summary?'<div class="intel-s">'+esc(o.summary)+'</div>':'')+bl+ap;
+      var bl=(o.bullets&&o.bullets.length)?'<ul class="intel-l">'+o.bullets.map(function(b){return '<li>'+linkify(b)+'</li>';}).join('')+'</ul>':'';
+      var ap=o.apply?'<div class="intel-apply"><span class="ia-h">↳ Apply to '+esc((myBrand&&myBrand.name)||'your brand')+'</span>'+linkify(o.apply)+'</div>':'';
+      box.innerHTML='<div class="intel-h"><span class="intel-dot"></span>AI read</div>'+(o.summary?'<div class="intel-s">'+linkify(o.summary)+'</div>':'')+bl+ap;
     }
   });
 }
@@ -1328,7 +1328,12 @@ function chatCtx(c){var p=[];if(c.oneLiner)p.push(c.oneLiner);if(c.verdict)p.pus
 function openChat(){var c=currentComp();if(!c)return;document.getElementById('chatSub').textContent='about '+c.name;document.getElementById('chatPanel').classList.add('open');renderChat(c);setTimeout(function(){document.getElementById('chatInput').focus();},150);}
 function closeChat(){var p=document.getElementById('chatPanel');if(p)p.classList.remove('open');}
 function syncChat(c){var p=document.getElementById('chatPanel');if(c&&p&&p.classList.contains('open')){document.getElementById('chatSub').textContent='about '+c.name;renderChat(c);}}
-function linkify(t){var s=esc(String(t==null?'':t)).replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>').replace(/(^|\n)\s*[-•]\s+/g,'$1• ');return s.replace(/(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"\]])/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');}
+function linkify(t){
+  var s=esc(String(t==null?'':t)).replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>').replace(/(^|\n)\s*[-•]\s+/g,'$1• ');
+  // Hyperlink full URLs AND bare domains (e.g. 7news.com.au, theoodie.co.nz) — single pass, TLD-gated so prose like "e.g." / "etc." is left alone.
+  var re=/(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"\]]|\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|co|ai|app|store|shop|me|tv|news|info|biz|eu|us|uk|au|nz|ca)(?:\.(?:au|nz|uk|us|ca))?(?:\/[^\s<>()]*[a-z0-9\/])?)/gi;
+  return s.replace(re,function(m){var href=/^https?:\/\//i.test(m)?m:'https://'+m;return '<a href="'+href+'" target="_blank" rel="noopener">'+m+'</a>';});
+}
 function renderChat(c){
   var box=document.getElementById('chatMsgs'),thread=chatThreads[c.id]||[];
   box.innerHTML='';
