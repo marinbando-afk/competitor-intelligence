@@ -34,6 +34,11 @@ export async function initSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS idx_competitors_user ON competitors(user_id);
+    ALTER TABLE competitors ADD COLUMN IF NOT EXISTS country TEXT;
+    ALTER TABLE competitors ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'setup';
+    ALTER TABLE competitors ADD COLUMN IF NOT EXISTS handles JSONB;
+    ALTER TABLE competitors ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_competitors_user_host ON competitors(user_id, host);
     CREATE TABLE IF NOT EXISTS emails (
       id            SERIAL PRIMARY KEY,
       message_id    TEXT,

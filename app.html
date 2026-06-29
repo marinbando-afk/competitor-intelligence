@@ -74,6 +74,11 @@ button{font-family:inherit;cursor:pointer}
 .row-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
 .row-name{font-family:'Oswald',sans-serif;font-size:16.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row-time{font-size:10px;font-weight:500;letter-spacing:.06em;color:var(--faint);flex-shrink:0;text-transform:uppercase}
+#authSlot{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.authbtn{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:none;border:1px solid var(--line2);border-radius:20px;padding:6px 13px;cursor:pointer;transition:.15s;white-space:nowrap}
+.authbtn:hover{border-color:var(--sage-d);color:var(--sage)}
+.authbtn.primary{color:var(--sage);border-color:var(--sage-d);background:var(--sage-soft)}
+.authuser{font-family:var(--mono);font-size:11px;color:var(--text);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .row-sub{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
 .row-stat{font-size:9.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;margin-top:7px;display:inline-flex;align-items:center;gap:6px}
 .stat-dot{width:6px;height:6px;border-radius:50%}
@@ -432,6 +437,7 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
     <span class="top-date" id="topDate"></span>
     <div id="dateNavWrap"></div>
     <div class="calwrap" id="calWrap" onclick="event.stopPropagation()"></div>
+    <div id="authSlot"></div>
   </div>
 </div>
 
@@ -453,6 +459,17 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
     <div class="fld"><label for="fN">Brand name</label><input id="fN" type="text" placeholder="e.g. The Oodie" autocomplete="off"/><div class="er" id="eN">Please enter a name.</div></div>
     <div class="fld"><label for="fU">Website</label><input id="fU" type="text" placeholder="e.g. theoodie.com" autocomplete="off"/><div class="er" id="eU">Please enter a valid website.</div></div>
     <div class="m-act"><button class="btn btn-g" onclick="closeModal()">Cancel</button><button class="btn btn-p" onclick="submitComp()">Add to Watchlist</button></div>
+  </div>
+</div>
+
+<div class="ov" id="authOv" onclick="if(event.target===this)closeAuth()">
+  <div class="modal">
+    <h2 id="authTitle">Create your account</h2>
+    <p id="authSub">Save your competitors and pick up where you left off — on any device.</p>
+    <div class="fld"><label for="aE">Email</label><input id="aE" type="email" autocomplete="email" placeholder="you@brand.com"/></div>
+    <div class="fld"><label for="aP">Password</label><input id="aP" type="password" autocomplete="current-password" placeholder="At least 8 characters"/></div>
+    <div class="er" id="aErr" style="display:none"></div>
+    <div class="m-act"><button class="btn btn-g" id="authToggle" onclick="toggleAuthMode()">Have an account? Sign in</button><button class="btn btn-p" id="authGo" onclick="submitAuth()">Create account</button></div>
   </div>
 </div>
 
@@ -576,22 +593,53 @@ var state={sel:null,day:null,open:{}};
 var viewSnap=null,histDays={};
 var liveCache={};
 
+/* ── Accounts: demos are open to everyone; signing in loads & saves YOUR competitors ── */
+var TOKEN=localStorage.getItem('ci_token')||'';
+var USER=null; try{USER=JSON.parse(localStorage.getItem('ci_user')||'null');}catch(e){}
+var USERCOMPS=[];                 // competitors loaded from the signed-in user's account
+var pendingAfterAuth=null;        // run after a successful sign-in (e.g. open the add form)
+var authMode='signup';
+function authH(){return TOKEN?{'Authorization':'Bearer '+TOKEN}:{};}
+function loggedIn(){return !!TOKEN;}
+function mapServerComp(c){return {id:'u'+c.id,dbId:c.id,demo:false,account:true,name:c.name,host:c.host,url:c.url,country:c.country||'ALL',handles:c.handles||{},status:c.status||'setup',updatedAt:c.updated_at?Date.parse(c.updated_at):Date.now()};}
+function loadUserComps(cb){
+  if(!TOKEN){USERCOMPS=[];if(cb)cb();return;}
+  fetch(API+'/api/competitors',{headers:authH()})
+    .then(function(r){if(r.status===401){doSignout(true);throw 0;}return r.json();})
+    .then(function(d){USERCOMPS=(d.competitors||[]).map(mapServerComp);registerCompetitors();render();if(cb)cb();})
+    .catch(function(){if(cb)cb();});
+}
+function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');}catch(e){}paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
+function paintAuth(){var s=document.getElementById('authSlot');if(!s)return;
+  if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML='<span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
+  else{s.innerHTML='<button class="authbtn primary" onclick="openAuth(\'signin\')">Sign in</button>';}
+}
+function openAuth(mode,after){authMode=(mode==='signin')?'login':'signup';pendingAfterAuth=after||null;paintAuthMode();var er=document.getElementById('aErr');if(er)er.style.display='none';document.getElementById('authOv').classList.add('open');setTimeout(function(){document.getElementById('aE').focus();},40);}
+function closeAuth(){var o=document.getElementById('authOv');if(o)o.classList.remove('open');}
+function toggleAuthMode(){authMode=(authMode==='signup')?'login':'signup';paintAuthMode();}
+function paintAuthMode(){var t=document.getElementById('authTitle'),s=document.getElementById('authSub'),go=document.getElementById('authGo'),tg=document.getElementById('authToggle');if(!t)return;
+  if(authMode==='signup'){t.textContent='Create your account';s.textContent='Save your competitors and pick up where you left off — on any device.';go.textContent='Create account';tg.textContent='Have an account? Sign in';}
+  else{t.textContent='Welcome back';s.textContent='Sign in to your watchlist.';go.textContent='Sign in';tg.textContent='New here? Create an account';}
+}
+function submitAuth(){
+  var email=document.getElementById('aE').value.trim(),pass=document.getElementById('aP').value,er=document.getElementById('aErr');
+  if(email.indexOf('@')<1){er.textContent='Enter a valid email.';er.style.display='block';return;}
+  if((pass||'').length<8){er.textContent='Password must be at least 8 characters.';er.style.display='block';return;}
+  var go=document.getElementById('authGo');go.disabled=true;var was=go.textContent;go.textContent='…';er.style.display='none';
+  fetch(API+'/api/'+(authMode==='signup'?'signup':'login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,password:pass})})
+    .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+    .then(function(x){go.disabled=false;go.textContent=was;
+      if(!x.ok){er.textContent=(x.d&&x.d.error)||'Something went wrong.';er.style.display='block';return;}
+      TOKEN=x.d.token;USER=x.d.user;try{localStorage.setItem('ci_token',TOKEN);localStorage.setItem('ci_user',JSON.stringify(USER));}catch(e){}
+      paintAuth();closeAuth();document.getElementById('aP').value='';
+      loadUserComps(function(){var cb=pendingAfterAuth;pendingAfterAuth=null;if(cb)cb();});
+    })
+    .catch(function(){go.disabled=false;go.textContent=was;er.textContent='Network error — please try again.';er.style.display='block';});
+}
+
 function load(){try{var r=localStorage.getItem(KEY);if(r)return JSON.parse(r);}catch(e){}return null;}
 function save(l){try{localStorage.setItem(KEY,JSON.stringify(l));}catch(e){}}
-function getList(){
-  var l=load();
-  if(l===null){
-    var mig=[];
-    ['intelai_v4','intelai_competitors_v3','intelai_competitors_v2','intelai_competitors_v1'].forEach(function(k){
-      try{JSON.parse(localStorage.getItem(k)||'[]').forEach(function(c){
-        if(c&&c.demo===false&&c.name&&!mig.some(function(m){return m.host===c.host;}))
-          mig.push({id:c.id||('c-'+Date.now()+Math.round(Math.random()*1e4)),demo:false,name:c.name,host:c.host,url:c.url,updatedAt:c.addedAt||c.updatedAt||Date.now()});
-      });}catch(e){}
-    });
-    l=DEMOS.concat(mig);save(l);
-  }
-  return l;
-}
+function getList(){return DEMOS.concat(USERCOMPS);}  // demos (open to all) + your saved account competitors
 function sorted(){return getList().slice().sort(function(a,b){var pa=a.demo?a.priority:'setup',pb=b.demo?b.priority:'setup';return (ORD[pa]-ORD[pb])||((b.updatedAt||0)-(a.updatedAt||0));});}
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -1220,10 +1268,20 @@ function submitComp(){
   document.getElementById('eN').style.display=n?'none':'block';if(!n)ok=false;
   document.getElementById('eU').style.display=u?'none':'block';if(!u)ok=false;
   if(!ok)return;
-  var l=getList();l.unshift({id:'c-'+Date.now(),demo:false,name:n,host:u.hostname.replace(/^www\./,''),url:u.href,updatedAt:Date.now()});
-  save(l);trackComp(l[0]);state.sel=l[0].id;closeModal();document.getElementById('app').dataset.view='detail';render();
+  var body={name:n,host:u.hostname.replace(/^www\./,''),url:u.href,country:'ALL'};
+  if(!loggedIn()){closeModal();openAuth('signup',function(){saveComp(body);});return;}  // need an account to save
+  saveComp(body);
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();closeCal();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();});
+function saveComp(body){
+  fetch(API+'/api/competitors',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify(body)})
+    .then(function(r){if(r.status===401){doSignout(true);throw 0;}return r.json();})
+    .then(function(d){
+      if(d&&d.competitor){var c=mapServerComp(d.competitor);USERCOMPS=USERCOMPS.filter(function(x){return x.dbId!==c.dbId;});USERCOMPS.unshift(c);trackComp(c);state.sel=c.id;closeModal();document.getElementById('app').dataset.view='detail';render();}
+      else{var eU=document.getElementById('eU');eU.textContent=(d&&d.error)||'Could not save — please try again.';eU.style.display='block';}
+    })
+    .catch(function(){});
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();closeCal();closeAuth();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();if(e.key==='Enter'&&document.getElementById('authOv')&&document.getElementById('authOv').classList.contains('open'))submitAuth();});
 document.addEventListener('click',function(){closeCal();});
 /* ── your brand (apply-to-me knowledge base) ── */
 var myBrand=null;
@@ -1299,8 +1357,12 @@ var PLAN={ads:20,competitors:2};
 (function(){var m=location.search.match(/[?&]admin=([^&]+)/);if(m){try{localStorage.setItem('adminKey',decodeURIComponent(m[1]));}catch(e){}try{history.replaceState(null,'',location.pathname);}catch(e){}}})();
 function adminKey(){try{return localStorage.getItem('adminKey')||'';}catch(e){return '';}}
 var ADMIN=!!adminKey();
-function lockedComp(c){return !ADMIN && !!(c&&!c.demo);}
-function addOrUpgrade(){if(ADMIN){openModal();return;}var m=getList().filter(function(c){return !lockedComp(c);}).length;if(m>=PLAN.competitors){showUpgrade();return;}openModal();}
+function lockedComp(c){return !ADMIN && !!(c&&!c.demo&&!c.account);}  // your own saved competitors are never locked
+function addOrUpgrade(){
+  if(!loggedIn()){openAuth('signup',openModal);return;}                       // need an account to add your own
+  if(!ADMIN&&USERCOMPS.length>=PLAN.competitors){showUpgrade();return;}        // plan limit on your own competitors
+  openModal();
+}
 function showUpgrade(){var o=document.getElementById('upOv');if(o)o.classList.add('open');}
 function closeUpgrade(){var o=document.getElementById('upOv');if(o)o.classList.remove('open');}
 /* ── feature-request / feedback ── */
@@ -1337,7 +1399,8 @@ function loadFeedback(){
 }
 render();
 loadMyBrand();
-registerCompetitors();
+paintAuth();
+if(TOKEN)loadUserComps();   // restore the signed-in user's saved competitors
 </script>
 </body>
 </html>

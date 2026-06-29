@@ -283,7 +283,7 @@ app.get('/api/me', requireAuth, (req, res) => {
 app.get('/api/competitors', requireAuth, async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id, name, host, url, created_at FROM competitors WHERE user_id = $1 ORDER BY created_at DESC',
+      'SELECT id, name, host, url, country, status, handles, created_at, updated_at FROM competitors WHERE user_id = $1 ORDER BY created_at DESC',
       [req.user.uid],
     );
     res.json({ competitors: r.rows });
@@ -294,15 +294,34 @@ app.get('/api/competitors', requireAuth, async (req, res) => {
 
 app.post('/api/competitors', requireAuth, async (req, res) => {
   try {
-    const { name, host, url } = req.body || {};
+    const { name, host, url, country, handles, status } = req.body || {};
     if (!name || !host || !url) return res.status(400).json({ error: 'Missing name, host, or url.' });
+    const h = String(host).replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase().slice(0, 200);
     const r = await pool.query(
-      'INSERT INTO competitors(user_id, name, host, url) VALUES($1, $2, $3, $4) RETURNING id, name, host, url, created_at',
-      [req.user.uid, String(name).slice(0, 120), String(host).slice(0, 200), String(url).slice(0, 500)],
+      `INSERT INTO competitors(user_id, name, host, url, country, handles, status)
+       VALUES($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (user_id, host) DO UPDATE SET name = EXCLUDED.name, url = EXCLUDED.url, country = EXCLUDED.country, handles = EXCLUDED.handles, updated_at = now()
+       RETURNING id, name, host, url, country, status, handles, created_at, updated_at`,
+      [req.user.uid, String(name).slice(0, 120), h, String(url).slice(0, 500), String(country || 'ALL').slice(0, 8), JSON.stringify(handles || {}), String(status || 'setup').slice(0, 24)],
     );
     res.json({ competitor: r.rows[0] });
   } catch (e) {
     res.status(500).json({ error: 'Could not save competitor.' });
+  }
+});
+
+// Update a competitor's watch status (setup -> baseline -> watching), per user.
+app.patch('/api/competitors/:id', requireAuth, async (req, res) => {
+  try {
+    const { status } = req.body || {};
+    const r = await pool.query(
+      'UPDATE competitors SET status = $1, updated_at = now() WHERE id = $2 AND user_id = $3 RETURNING id, status, updated_at',
+      [String(status || 'setup').slice(0, 24), req.params.id, req.user.uid],
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: 'Not found.' });
+    res.json({ competitor: r.rows[0] });
+  } catch (e) {
+    res.status(500).json({ error: 'Could not update status.' });
   }
 });
 
