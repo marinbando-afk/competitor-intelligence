@@ -43,13 +43,37 @@ const oneLine = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
 const dayOf = (s) => String(s || '').split('T')[0].split(' ')[0];
 
 // ── compact, diff-friendly text for each channel ──────────────────────────────
+function adHost(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
+const INS_STOP = new Set(['the', 'and', 'for', 'shop', 'store', 'official', 'ltd', 'inc', 'llc', 'brand', 'online', 'cosmetics', 'beauty', 'skin', 'care', 'fashion', 'clothing', 'apparel', 'group', 'collective', 'australia']);
+function brandToks(name) { return [...new Set(String(name || '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !INS_STOP.has(w)))]; }
 function fmtAds(d) {
   if (!d || !d.ads || !d.ads.length) return 'No active ads.';
-  const out = [`${d.active || d.ads.length} active ad(s) on ${(d.platforms || []).join('/') || '?'}; newest ${d.newest || '?'}.`];
-  d.ads.slice(0, 12).forEach((a) => {
-    out.push(`- [${a.started || '?'}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'} · page:"${a.page || '?'}"${a.cta ? ` · cta:"${a.cta}"` : ''}${a.landing ? ` · lands:${a.landing}` : ''} :: ${oneLine(a.text).slice(0, 170)}`);
-  });
-  return out.join('\n');
+  const ads = d.ads;
+  // ── Funnel facts computed across ALL ads, so the model can't infer the wrong thing
+  //    from a small sample (e.g. wrongly claim "no 3rd-party" when a publisher advertorial exists). ──
+  const pageN = {}, domN = {};
+  ads.forEach((a) => { const p = oneLine(a.page) || '?'; pageN[p] = (pageN[p] || 0) + 1; const dm = adHost(a.landing); if (dm) domN[dm] = (domN[dm] || 0) + 1; });
+  const pages = Object.entries(pageN).sort((x, y) => y[1] - x[1]);
+  const doms = Object.entries(domN).sort((x, y) => y[1] - x[1]);
+  let toks = brandToks(d.brand);
+  if (!toks.length && doms.length) { const sld = doms[0][0].split('.')[0]; if (sld.length >= 3) toks = [sld]; } // fallback: the dominant domain's root
+  const own = (s) => { s = String(s || '').toLowerCase(); return !toks.length || toks.some((t) => s.indexOf(t) >= 0); };
+  const thirdPages = pages.filter(([p]) => p !== '?' && !own(p));
+  const thirdDoms = doms.filter(([dm]) => !own(dm));
+  const ownDoms = doms.filter(([dm]) => own(dm));
+  const funnel = [
+    `FUNNEL FACTS (computed across all ${ads.length} ads — ground truth, do NOT contradict):`,
+    `  Ad pages: ${pages.slice(0, 8).map(([p, n]) => `"${p}"×${n}`).join(', ')}.`,
+    thirdPages.length ? `  >> THIRD-PARTY pages (not the brand's own): ${thirdPages.map(([p, n]) => `"${p}"×${n}`).join(', ')} — publisher/advertorial or media-partner placements, worth surfacing.` : `  All ads run from the brand's own page(s).`,
+    `  Landing domains: ${doms.slice(0, 10).map(([dm, n]) => `${dm}×${n}`).join(', ')}.`,
+    thirdDoms.length ? `  >> THIRD-PARTY landing domains (off the brand's own sites): ${thirdDoms.map(([dm, n]) => `${dm}×${n}`).join(', ')} — they're sending traffic off-domain.` : `  All landings on the brand's own domain(s)${ownDoms.length > 1 ? ` (multiple regional sites: ${ownDoms.map(([dm]) => dm).join(', ')})` : ''}.`,
+  ].join('\n');
+  // Sample ads — include every third-party ad, then fill with first-party, so both are visible.
+  const isThird = (a) => (oneLine(a.page) && !own(a.page)) || (adHost(a.landing) && !own(adHost(a.landing)));
+  const third = ads.filter(isThird), first = ads.filter((a) => !isThird(a));
+  const sample = third.slice(0, 6).concat(first.slice(0, Math.max(6, 16 - Math.min(third.length, 6))));
+  const lines = sample.map((a) => `- [${a.started || '?'}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'} · page:"${a.page || '?'}"${own(a.page) ? '' : ' (3RD-PARTY)'}${a.cta ? ` · cta:"${a.cta}"` : ''}${a.landing ? ` · lands:${adHost(a.landing)}${own(adHost(a.landing)) ? '' : ' (3RD-PARTY)'}` : ''} :: ${oneLine(a.text).slice(0, 170)}`);
+  return [`${d.active || ads.length} active ad(s) on ${(d.platforms || []).join('/') || '?'}; newest ${d.newest || '?'}.`, funnel, 'SAMPLE ADS:'].concat(lines).join('\n');
 }
 function fmtPosts(posts, label) {
   if (!posts || !posts.length) return '';
@@ -75,7 +99,7 @@ function fmtWeb(d) {
 
 // ── per-channel analyst guidance ──────────────────────────────────────────────
 const GUIDE = {
-  ads: 'their Meta/Facebook ads. Surface, only if present in the data: what is NEW vs the previous capture; the HOOKS and ANGLES in the copy; creative FORMATS (video vs image/carousel); LANDING PAGES / domains / funnels (flag if they test multiple, switch domain, or send to a 3rd-party funnel); the advertising PAGE name (flag if it differs from the brand — they may be running ads from another page).',
+  ads: 'their Meta/Facebook ads. Use the FUNNEL FACTS block as ground truth for pages and landing domains — NEVER claim there are no third-party pages or off-domain landings unless the facts confirm it; if any THIRD-PARTY page or domain is listed (e.g. a news-publisher advertorial / native ad, an affiliate or media-partner funnel), SURFACE it as a notable tactic. Also surface, only if present: what is NEW vs the previous capture; the HOOKS and ANGLES in the copy; creative FORMATS (video vs image/carousel); whether they test multiple regional own-domains. Do not over-generalize beyond what the facts and sample support.',
   social: 'their organic social (Instagram / TikTok / Facebook). Surface, only if present: new posts vs the previous capture; recurring HOOKS / ANGLES / themes; FORMATS (Reel / Carousel / Post); which content is getting engagement; any product or campaign focus.',
   website: 'their online storefront. Surface what materially CHANGED vs the previous capture: sale scope, prices, products added/removed. If nothing material changed, say that plainly in one line.',
   email: 'their email marketing. Surface: sending CADENCE; OFFER / discount patterns; recurring THEMES and angles; what is newest. Give a real read, not a list of subjects.',
