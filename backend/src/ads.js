@@ -74,8 +74,14 @@ function brandTokens(brand) {
 }
 function adMatchesBrand(a, tokens) {
   if (!tokens.length) return true; // no distinctive word to match on → don't filter (fail open)
-  const hay = (String(a.page || '') + ' ' + adDomain(a.landing) + ' ' + String(a.title || '') + ' ' + String(a.text || '')).toLowerCase();
-  return tokens.some((t) => hay.indexOf(t) >= 0);
+  // Attribute by IDENTITY, not body copy: the real advertiser (Facebook page) or the
+  // landing domain must carry the brand. Keyword search drags in rivals, affiliates
+  // and roundup ads that merely name-drop the brand in their text — those are NOT
+  // this brand's ads, and counting their landing pages misreports them as the
+  // brand's "off-domain funnels."
+  const adv = String(a.advertiser || '').toLowerCase();   // '' when the actor omits the page
+  const land = adDomain(a.landing).toLowerCase();
+  return tokens.some((t) => adv.indexOf(t) >= 0 || land.indexOf(t) >= 0);
 }
 
 // De-duplicate ads — never show the same creative twice. Two ads are "the same" if
@@ -134,6 +140,8 @@ function normalize(items, brand, country) {
       hasVideo: vids.length > 0 || cards.some((c) => c.video_sd_url || c.video_hd_url),
       video: (() => { const v = vids.find((x) => x.video_sd_url || x.video_hd_url) || cards.find((x) => x.video_sd_url || x.video_hd_url); return v ? (v.video_sd_url || v.video_hd_url) : ''; })(),
       page: it.page_name || snap.page_name || brand,
+      advertiser: it.page_name || snap.page_name || '',   // real Facebook advertiser; '' if the actor omits it — used to attribute the ad to a brand
+
       platforms,
       format: snap.display_format || (cards.length > 1 ? 'CAROUSEL' : 'IMAGE'),
       cta: snap.cta_text || '',
