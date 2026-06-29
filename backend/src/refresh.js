@@ -11,6 +11,7 @@ import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
 import { captureWebsiteFull } from './website.js';
 import { generateInsights } from './insights.js';
+import { postDigest } from './slack.js';
 import { saveSnapshot, latestSnapshot } from './snapshots.js';
 
 // Brands kept permanently warm (mirrors the app's seeded demos).
@@ -45,7 +46,7 @@ export async function addTracked(comp, admin) {
   await saveSnapshot(TKEY, 'list', { items: items.slice(-200) });
   return { added: true, comp: norm };
 }
-async function allBrands() {
+export async function allBrands() {
   const seen = new Set(TRACKED.map((t) => t.host));
   return TRACKED.concat((await getTracked()).filter((t) => t && t.host && !seen.has(t.host)));
 }
@@ -73,9 +74,9 @@ export async function refreshAll(force) {
   if (running) { console.log('refresh already in progress — skipping'); return { skipped: true }; }
   running = true;
   const t0 = Date.now();
-  let ok = 0, fail = 0;
+  let ok = 0, fail = 0, brands = [];
   try {
-    const brands = await allBrands();
+    brands = await allBrands();
     for (const b of brands) { const r = await warmBrand(b, force); ok += r.ok; fail += r.fail; }
   } finally {
     running = false;
@@ -83,6 +84,7 @@ export async function refreshAll(force) {
   lastWarm = Date.now();
   lastResult = { ok, fail };
   console.log('✓ pre-warm done: ' + ok + ' ok, ' + fail + ' failed in ' + Math.round((Date.now() - t0) / 1000) + 's');
+  if (force) postDigest(brands).then((r) => console.log('slack digest:', JSON.stringify(r))).catch(() => {}); // daily brief to Slack (only on the scheduled run, best-effort)
   return { ok, fail };
 }
 

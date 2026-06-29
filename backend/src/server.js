@@ -15,7 +15,8 @@ import { initSchema, pool } from './db.js';
 import { signup, login, requireAuth } from './auth.js';
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial } from './social.js';
-import { startScheduler, warmStatus, TRACKED, addTracked, warmBrand } from './refresh.js';
+import { startScheduler, warmStatus, TRACKED, addTracked, warmBrand, allBrands } from './refresh.js';
+import { postDigest } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
@@ -157,6 +158,8 @@ app.get('/api/insights', async (req, res) => {
 // One-line marketing angle (+ how YOUR brand could apply it) for a single ad/post.
 // Quick Anthropic balance probe (cached ~5 min) — so I can check if AI credits ran dry.
 app.get('/api/credits', async (req, res) => { res.json(await creditStatus(req.query.fresh === '1')); });
+// Send the Slack daily brief now (on-demand / for testing). Posts only to your SLACK_WEBHOOK_URL.
+app.get('/api/slack-test', async (req, res) => { res.json(await postDigest(await allBrands())); });
 app.post('/api/angle', async (req, res) => {
   try {
     const { text, kind, image, video } = req.body || {};
