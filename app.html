@@ -1108,7 +1108,9 @@ function ensureHist(c){
 function paintAsOf(c){
   var el=c&&document.getElementById('asof-'+c.id);if(!el)return;
   var days=(c&&histDays[c.host])||[];if(!days.length){el.innerHTML='';return;}
-  var latest=days.slice().sort()[days.length-1],today=new Date().toISOString().slice(0,10);
+  // Compare against the viewer's LOCAL date (what the header shows), not UTC — else a
+  // viewer ahead of UTC sees "captured today" when their day has already rolled over.
+  var latest=days.slice().sort()[days.length-1],n=new Date(),today=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
   el.innerHTML=' · <span class="asoflbl'+(latest===today?'':' stale')+'" title="The most recent daily capture. A new capture replaces this when it runs.">'+(latest===today?'captured today':'📅 as of '+esc(fmtShortDay(latest)))+'</span>';
 }
 function refreshDateFloat(){var c=currentComp(),f=document.getElementById('dateNavWrap');if(f)f.innerHTML=c?dateNav(c):'';if(c){paintAsOf(c);loadInsights(c);}eagerLoad();}
