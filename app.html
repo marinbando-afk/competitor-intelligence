@@ -1401,6 +1401,7 @@ render();
 loadMyBrand();
 paintAuth();
 if(TOKEN)loadUserComps();   // restore the signed-in user's saved competitors
+if(!TOKEN&&/[?&]signin=1/.test(location.search))openAuth('signin');  // arriving from the site's "Sign in"
 </script>
 </body>
 </html>
