@@ -147,6 +147,30 @@ section{padding:64px 0; position:relative}
 .plan li svg{width:16px; height:16px; stroke:var(--sage); fill:none; stroke-width:2.2; flex:none; margin-top:2px}
 .plan .btn{width:100%; justify-content:center; margin-top:auto}
 .pl-foot{text-align:center; font-family:var(--mono); font-size:10px; letter-spacing:.04em; color:var(--faint); margin-top:13px}
+/* grounded / process */
+.process{max-width:760px; margin:0 auto 30px; display:flex; flex-direction:column; gap:13px}
+.pstep{display:flex; gap:15px; align-items:flex-start; border:1px solid var(--line2); border-radius:11px; background:var(--panel); padding:17px 20px; font-size:14.5px; color:var(--muted); line-height:1.6}
+.pstep b{color:var(--text)}
+.pstep .pn{flex:none; width:30px; height:30px; border-radius:8px; background:var(--sage-soft); border:1px solid var(--sage-d); color:var(--sage); font-family:var(--disp); font-weight:700; font-size:16px; display:flex; align-items:center; justify-content:center}
+.compare{max-width:840px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:16px}
+.cmp-col{border:1px solid var(--line2); border-radius:12px; padding:22px; background:var(--panel)}
+.cmp-col.good{border-color:var(--sage-d); background:linear-gradient(180deg,rgba(87,210,207,.06),var(--panel))}
+.cmp-h{font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; margin-bottom:12px}
+.cmp-col.bad .cmp-h{color:var(--clay)}
+.cmp-col.good .cmp-h{color:var(--sage)}
+.cmp-col p{font-size:15px; line-height:1.55; color:var(--text); margin:0 0 13px}
+.cmp-col.bad p{color:var(--muted); font-style:italic}
+.cmp-col.good p b{color:var(--sage)}
+.cmp-tag{font-family:var(--mono); font-size:10.5px; letter-spacing:.03em; color:var(--faint)}
+/* slack band */
+.slackband{max-width:900px; margin:0 auto; border:1px solid var(--line2); border-radius:14px; background:linear-gradient(180deg,var(--panel2),var(--panel)); padding:32px 34px; display:grid; grid-template-columns:1fr 1fr; gap:30px; align-items:center}
+.slack-txt h2{font-family:var(--disp); font-weight:600; font-size:clamp(23px,3.3vw,31px); color:#eef3f4; margin:12px 0 13px; line-height:1.15}
+.slack-txt p{font-size:15px; color:var(--muted); line-height:1.65; margin:0}
+.slack-txt p b{color:var(--text)}
+.slack-card{border:1px solid var(--line2); border-radius:11px; background:var(--bg); overflow:hidden}
+.sc-h{font-family:var(--mono); font-size:11px; letter-spacing:.04em; color:var(--sage); padding:11px 15px; border-bottom:1px solid var(--line); background:var(--panel)}
+.sc-b{padding:15px; font-size:13px; line-height:1.75; color:var(--muted)}
+.sc-b b{color:var(--text)}
 footer{border-top:1px solid var(--line2); margin-top:60px; padding:30px 0}
 .foot-in{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap}
 .foot-in .lbl{color:var(--faint)}
@@ -157,7 +181,7 @@ html.js .reveal.in{opacity:1; transform:none}
 
 @media(max-width:820px){
   .nav-links{display:none}
-  .steps,.tech,.chan,.plans{grid-template-columns:1fr}
+  .steps,.tech,.chan,.plans,.compare,.slackband{grid-template-columns:1fr}
   .founder{padding:28px 22px}
   .feed{grid-template-columns:1fr}
   .tcard.wide{grid-column:auto}
@@ -276,6 +300,34 @@ html.js .reveal.in{opacity:1; transform:none}
   </div>
 </section>
 
+<!-- ── GROUNDED, NOT GENERIC ── -->
+<section id="grounded" class="wrap">
+  <div class="sec-head">
+    <div class="rule"></div>
+    <span class="lbl" style="display:block;margin-top:14px">How it actually works</span>
+    <h2>It reads their real data — it doesn't make things up</h2>
+    <p>"Isn't this just ChatGPT spitting out generic guesses?" No — and the difference is entirely in <em>what the AI is allowed to look at</em>.</p>
+  </div>
+  <div class="process">
+    <div class="pstep reveal"><span class="pn">1</span><div><b>Capture, every day.</b> We pull each competitor's live ads, organic posts, email campaigns and a full snapshot of their storefront — a fresh, dated record. Their actual moves, not a model's memory.</div></div>
+    <div class="pstep reveal"><span class="pn">2</span><div><b>Read it deeply.</b> The AI watches each video ad and transcribes what's actually said, studies every creative, and reads the storefront — so it works off what's really there, including audio and on-screen text.</div></div>
+    <div class="pstep reveal"><span class="pn">3</span><div><b>Compare to yesterday.</b> It diffs today's capture against the last one and keeps only what genuinely changed — a new angle, a price drop to the cent, a new product, a sale starting.</div></div>
+    <div class="pstep reveal"><span class="pn">4</span><div><b>Ground every line.</b> Each takeaway is tied to the exact ad, price or post it came from, with a link to the source. If it can't point to it, it doesn't say it.</div></div>
+  </div>
+  <div class="compare">
+    <div class="cmp-col bad reveal">
+      <div class="cmp-h">❌ Generic AI tool</div>
+      <p>"Your competitor is likely running seasonal promotions and leveraging social proof to create urgency."</p>
+      <span class="cmp-tag">Vague · could be written without ever looking</span>
+    </div>
+    <div class="cmp-col good reveal">
+      <div class="cmp-h">✅ This</div>
+      <p>"Tue: The Oodie cut Weighted Blankets <b>$59 → $42</b> and launched a <b>7NEWS advertorial</b> ('cheap as chips') landing on 7news.com.au."</p>
+      <span class="cmp-tag">Specific · dated · linked to the exact ad</span>
+    </div>
+  </div>
+</section>
+
 <!-- ── THE TECHNOLOGY ── -->
 <section id="tech" class="wrap">
   <div class="sec-head">
@@ -336,6 +388,21 @@ html.js .reveal.in{opacity:1; transform:none}
       <svg viewBox="0 0 24 24"><path d="M4 9l1-4h14l1 4M4 9h16v10H4zM4 9a3 3 0 006 0 3 3 0 006 0"/></svg>
       <div class="n">Storefront</div>
       <div class="d">Price moves, new products, sales — before/after</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SLACK DAILY PULSE ── -->
+<section id="slack" class="wrap">
+  <div class="slackband reveal">
+    <div class="slack-txt">
+      <span class="lbl" style="color:var(--sage)">Daily pulse</span>
+      <h2>The brief comes to you — in Slack</h2>
+      <p>Connect Slack and a one-line-per-channel summary lands in your channel every morning. You see at a glance whether a competitor actually <b>did something worth your time</b> — and only then open the app to dig in. No logging in just to find out nothing changed.</p>
+    </div>
+    <div class="slack-card">
+      <div class="sc-h">🛰️ IntelAI — Daily brief · Mon</div>
+      <div class="sc-b"><b>The Oodie</b><br>📣 Ads: EOFY 50% push; new 7NEWS advertorial scaled to 3.<br>🌐 Website: Weighted Blanket → flat $119; 3 new collabs.<br>✉️ Email: 3 urgency-led sends this week.</div>
     </div>
   </div>
 </section>
