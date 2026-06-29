@@ -660,8 +660,9 @@ function adsHTML(d){
   if(!d||d.error)return '<div class="adsempty">No ads found in the Meta Ad Library right now.</div>';
   ADS_SHOWN=d.ads||[];
   if(d.simple){
-    if(!d.ads||!d.ads.length)return '<div class="adsempty">No ads on this date.</div>';
-    return '<div class="adssum"><b>'+(d.active||d.ads.length)+' ad'+((d.active||d.ads.length)===1?'':'s')+'</b></div><div class="adstrip">'+d.ads.map(adThumb).join('')+'</div>';
+    if(!d.ads||!d.ads.length)return '<div class="adssum"><b>No new ads detected on this date.</b></div>';
+    var shead=d.note?('<div class="adssum">'+d.note+'</div>'):('<div class="adssum"><b>'+(d.active||d.ads.length)+' ad'+((d.active||d.ads.length)===1?'':'s')+'</b></div>');
+    return shead+'<div class="adstrip">'+d.ads.map(adThumb).join('')+'</div>';
   }
   var nc=d.newCount||0,sig=[];
   if(d.signals){
@@ -683,8 +684,17 @@ function loadAds(box){
   var brand=box.getAttribute('data-brand'),country=box.getAttribute('data-country')||'ALL',host=box.getAttribute('data-host')||'';
   if(state.day){
     var sa=(viewSnap&&viewSnap.ads)||{ads:[]};
-    var fa=(sa.ads||[]).filter(function(a){return String(a.started||'').slice(0,10)===state.day;});
-    box.innerHTML=fa.length?adsHTML({ads:fa,active:fa.length,simple:true}):'<div class="adsempty">No new ads detected on this date.</div>';
+    var all=sa.ads||[];
+    var fa=all.filter(function(a){return String(a.started||'').slice(0,10)===state.day;});
+    if(fa.length){
+      box.innerHTML=adsHTML({ads:fa,active:fa.length,simple:true});
+    }else{
+      // No ads launched on this date — say so visibly, but still show the most recent ads running.
+      var recent=all.slice().sort(function(x,y){return String(y.started||'').localeCompare(String(x.started||''));}).slice(0,10);
+      box.innerHTML=recent.length
+        ? adsHTML({ads:recent,simple:true,note:'<b>No new ads detected on this date.</b> Showing the '+recent.length+' most recent ad'+(recent.length===1?'':'s')+' still running:'})
+        : '<div class="adssum"><b>No new ads detected on this date.</b></div>';
+    }
     return;
   }
   fetch(API+'/api/ads?brand='+encodeURIComponent(brand)+'&country='+encodeURIComponent(country)+'&host='+encodeURIComponent(host))
