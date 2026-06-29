@@ -6,11 +6,17 @@
 //   APIFY_ADS_ACTOR   the actor you pick from the Apify Store, e.g. "curious_coder~facebook-ads-library-scraper"
 
 import { recentSnapshots } from './snapshots.js';
+import Anthropic from '@anthropic-ai/sdk';
 
 const TOKEN = process.env.APIFY_TOKEN;
 const ACTOR = process.env.APIFY_ADS_ACTOR || 'curious_coder~facebook-ads-library-scraper';
 const TTL = 26 * 60 * 60 * 1000; // 26h — a daily 5am pre-warm keeps this hot so users never wait
 const cache = new Map();
+
+const BRAND_MATCH_MODEL = process.env.BRAND_MODEL || 'claude-haiku-4-5';
+let _ac;
+function aiClient() { if (!_ac) _ac = new Anthropic(); return _ac; }
+const _verdict = new Map();   // 'brand|advertiser|domain' -> { at, val } — cached AI brand-identity verdicts
 
 export async function fetchAds(brand, country, force, cacheOnly) {
   brand = String(brand || '').trim();
@@ -56,7 +62,7 @@ export async function fetchAds(brand, country, force, cacheOnly) {
     e.status = 502; throw e;
   }
   const items = await res.json();
-  const data = normalize(Array.isArray(items) ? items : [], brand, country);
+  const data = await normalize(Array.isArray(items) ? items : [], brand, country);
   cache.set(key, { at: Date.now(), data });
   return data;
 }
@@ -96,6 +102,63 @@ function adMatchesBrand(a, keys) {
   return words.some((w) => keys.has(w));
 }
 
+// ── AI brand attribution ───────────────────────────────────────────────────────
+// The whole-word rules above are a free fallback. When a Claude key is present we let
+// the model make the real judgment — "is this advertiser the SAME brand, or a
+// different company?" — which handles what no string rule can: a rival named "Super
+// Hoodie", the brand's own advertorial on a news domain, regional storefronts.
+async function sameBrandVerdicts(brand, hint, distinct) {
+  const out = new Map(), ask = [];
+  for (const d of distinct) {
+    const ck = brand.toLowerCase() + '|' + d.advertiser.toLowerCase() + '|' + d.domain.toLowerCase();
+    const c = _verdict.get(ck);
+    if (c && Date.now() - c.at < 24 * 60 * 60 * 1000) out.set(d.id, c.val); else ask.push(d);
+  }
+  if (ask.length) {
+    const rows = ask.map((d, i) => `${i + 1}. advertiser="${d.advertiser || '(unknown)'}" landing="${d.domain || '(none)'}"`).join('\n');
+    const system =
+      `Decide for each row whether the ADVERTISER is the SAME brand as the target, or a DIFFERENT company. ` +
+      `Target brand: "${brand}"${hint ? ` (official site ${hint})` : ''}. ` +
+      `SAME = the brand itself — including its regional pages/stores and its OWN advertorial or native-ad funnels (the advertiser is the brand even when the landing page is a news site or partner domain). ` +
+      `DIFFERENT = a separate company: a competitor, reseller, affiliate, fan account, or an unrelated brand that merely name-drops the target. ` +
+      `Judge by the advertiser name and landing domain. Do NOT call it the same just because the brand's letters appear inside another word (e.g. "Super Hoodie" and "Foodie Flavours" are DIFFERENT from "The Oodie"). ` +
+      `Return ONLY minified JSON: {"v":[{"i":1,"same":true|false}, ...]}, one entry per row.`;
+    const resp = await aiClient().messages.create({ model: BRAND_MATCH_MODEL, max_tokens: 1000, system, messages: [{ role: 'user', content: rows }] });
+    const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim().replace(/^```(?:json)?|```$/g, '').trim();
+    const parsed = JSON.parse(txt);
+    const arr = Array.isArray(parsed.v) ? parsed.v : [];
+    if (!arr.length) throw new Error('no verdicts');
+    ask.forEach((d, idx) => {
+      const hitv = arr.find((x) => Number(x.i) === idx + 1);
+      const val = hitv ? !!hitv.same : true;   // keep if the model skipped a row
+      out.set(d.id, val);
+      _verdict.set(brand.toLowerCase() + '|' + d.advertiser.toLowerCase() + '|' + d.domain.toLowerCase(), { at: Date.now(), val });
+    });
+  }
+  return out;
+}
+
+// Keep only the ads that really belong to `brand`. The AI decides per distinct
+// advertiser; whole-word string rules are the fallback when no key / on error.
+async function filterToBrand(brand, ads) {
+  if (!ads.length) return ads;
+  const keys = brandKeys(brand);
+  const stringKeep = (a) => (!keys.size ? true : adMatchesBrand(a, keys));
+  if (!process.env.ANTHROPIC_API_KEY) return ads.filter(stringKeep);
+  const idOf = (a) => (a.advertiser || '') + '|' + (adDomain(a.landing) || '');
+  const distinct = [...new Map(ads.map((a) => [idOf(a), { id: idOf(a), advertiser: a.advertiser || '', domain: adDomain(a.landing) || '' }])).values()];
+  // Hint the model with the most common brand-looking landing domain (usually the official site).
+  const own = {};
+  ads.forEach((a) => { const dm = adDomain(a.landing); if (dm && keys.size && adMatchesBrand(a, keys)) own[dm] = (own[dm] || 0) + 1; });
+  const hint = (Object.entries(own).sort((a, b) => b[1] - a[1])[0] || [''])[0];
+  try {
+    const verdict = await sameBrandVerdicts(brand, hint, distinct);
+    return ads.filter((a) => { const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
+  } catch (e) {
+    return ads.filter(stringKeep);   // AI unavailable/error → whole-word rules
+  }
+}
+
 // De-duplicate ads — never show the same creative twice. Two ads are "the same" if
 // they share an image URL, or have the same landing + format and identical/≥90%-similar
 // copy (the Meta library returns the same creative under many ad IDs / placements).
@@ -120,7 +183,7 @@ function dedupeAds(ads) {
 // Map the Facebook Ad Library actor's items to a clean, display-ready shape.
 // Many eComm ads are dynamic catalog ads whose body is a "{{product.brand}}"
 // template — the real copy and creative then live in the per-product `cards` array.
-function normalize(items, brand, country) {
+async function normalize(items, brand, country) {
   const ads = items.map((it) => {
     const snap = it.snapshot || {};
     const cards = Array.isArray(snap.cards) ? snap.cards : [];
@@ -166,9 +229,10 @@ function normalize(items, brand, country) {
 
   // Drop unrelated advertisers that keyword-search dragged in (keep all if a brand
   // word is too generic to match, so we never wipe a legitimate result set).
-  const keys = brandKeys(brand);
-  const relevant = keys.size ? ads.filter((a) => adMatchesBrand(a, keys)) : ads;
-  const kept = relevant.length ? relevant : ads;
+  // Decide which ads are really THIS brand's — the AI makes the call per distinct
+  // advertiser (string rules are the fallback inside filterToBrand). Then dedupe.
+  let kept = await filterToBrand(brand, ads);
+  if (!kept.length) kept = ads;     // never blank the panel if the model rejected everything
   const unique = dedupeAds(kept);   // never show the same creative twice
 
   const platforms = [...new Set(unique.flatMap((a) => a.platforms))];
