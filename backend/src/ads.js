@@ -65,6 +65,19 @@ function isTpl(s) { return !s || /\{\{[^}]*\}\}/.test(String(s)); }      // e.g.
 function clean(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
 function cardMedia(c) { return c.original_image_url || c.resized_image_url || c.video_preview_image_url || ''; }
 
+// Keyword search in the Meta Ad Library drags in unrelated advertisers (e.g. a scooter
+// brand surfacing under "oodie"). Keep only ads that actually belong to THIS brand —
+// where a distinctive brand word appears in the page name, landing domain, or copy.
+const BRAND_STOP = new Set(['the', 'and', 'for', 'shop', 'store', 'official', 'ltd', 'inc', 'llc', 'brand', 'online', 'buy', 'get', 'app', 'mobility', 'cosmetics', 'beauty', 'skincare', 'skin', 'care', 'fashion', 'clothing', 'apparel', 'wear', 'home', 'studio', 'company', 'group', 'global', 'world', 'collective']);
+function brandTokens(brand) {
+  return [...new Set(String(brand || '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !BRAND_STOP.has(w)))];
+}
+function adMatchesBrand(a, tokens) {
+  if (!tokens.length) return true; // no distinctive word to match on → don't filter (fail open)
+  const hay = (String(a.page || '') + ' ' + adDomain(a.landing) + ' ' + String(a.title || '') + ' ' + String(a.text || '')).toLowerCase();
+  return tokens.some((t) => hay.indexOf(t) >= 0);
+}
+
 // Map the Facebook Ad Library actor's items to a clean, display-ready shape.
 // Many eComm ads are dynamic catalog ads whose body is a "{{product.brand}}"
 // template — the real copy and creative then live in the per-product `cards` array.
@@ -110,16 +123,22 @@ function normalize(items, brand, country) {
     };
   }).filter((a) => a.text || a.image);
 
-  const platforms = [...new Set(ads.flatMap((a) => a.platforms))];
-  const newest = ads.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '';
+  // Drop unrelated advertisers that keyword-search dragged in (keep all if a brand
+  // word is too generic to match, so we never wipe a legitimate result set).
+  const tokens = brandTokens(brand);
+  const relevant = tokens.length ? ads.filter((a) => adMatchesBrand(a, tokens)) : ads;
+  const kept = relevant.length ? relevant : ads;
+
+  const platforms = [...new Set(kept.flatMap((a) => a.platforms))];
+  const newest = kept.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '';
   return {
     brand,
     country,
-    count: items.length,
-    active: ads.filter((a) => a.active).length,
+    count: kept.length,
+    active: kept.filter((a) => a.active).length,
     platforms,
     newest,
-    ads: ads.slice(0, 300),   // keep the full set for day-over-day "what's new" diffing
+    ads: kept.slice(0, 300),   // keep the full set for day-over-day "what's new" diffing
   };
 }
 
