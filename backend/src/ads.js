@@ -78,6 +78,27 @@ function adMatchesBrand(a, tokens) {
   return tokens.some((t) => hay.indexOf(t) >= 0);
 }
 
+// De-duplicate ads — never show the same creative twice. Two ads are "the same" if
+// they share an image URL, or have the same landing + format and identical/≥90%-similar
+// copy (the Meta library returns the same creative under many ad IDs / placements).
+function normDup(t) { return String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+function dupToks(t) { return new Set(normDup(t).split(' ').filter(Boolean)); }
+function jaccard(a, b) { if (!a.size || !b.size) return a.size === b.size ? 1 : 0; let i = 0; a.forEach((w) => { if (b.has(w)) i++; }); return i / (a.size + b.size - i); }
+function dedupeAds(ads) {
+  const kept = [], meta = [];
+  for (const a of ads) {
+    const t = normDup(a.text || a.title), tk = dupToks(a.text || a.title), dom = adDomain(a.landing), f = fmtOf(a);
+    let dup = false;
+    for (let i = 0; i < kept.length; i++) {
+      if (a.image && a.image === kept[i].image) { dup = true; break; }                          // identical creative
+      const m = meta[i];
+      if (dom === m.dom && f === m.f && tk.size >= 4 && (t === m.t || jaccard(tk, m.tk) >= 0.9)) { dup = true; break; } // same copy + funnel + format
+    }
+    if (!dup) { kept.push(a); meta.push({ t, tk, dom, f }); }
+  }
+  return kept;
+}
+
 // Map the Facebook Ad Library actor's items to a clean, display-ready shape.
 // Many eComm ads are dynamic catalog ads whose body is a "{{product.brand}}"
 // template — the real copy and creative then live in the per-product `cards` array.
@@ -128,17 +149,18 @@ function normalize(items, brand, country) {
   const tokens = brandTokens(brand);
   const relevant = tokens.length ? ads.filter((a) => adMatchesBrand(a, tokens)) : ads;
   const kept = relevant.length ? relevant : ads;
+  const unique = dedupeAds(kept);   // never show the same creative twice
 
-  const platforms = [...new Set(kept.flatMap((a) => a.platforms))];
-  const newest = kept.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '';
+  const platforms = [...new Set(unique.flatMap((a) => a.platforms))];
+  const newest = unique.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '';
   return {
     brand,
     country,
-    count: kept.length,
-    active: kept.filter((a) => a.active).length,
+    count: unique.length,
+    active: unique.filter((a) => a.active).length,
     platforms,
     newest,
-    ads: kept.slice(0, 300),   // keep the full set for day-over-day "what's new" diffing
+    ads: unique.slice(0, 300),   // keep the full set for day-over-day "what's new" diffing
   };
 }
 

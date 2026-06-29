@@ -30,6 +30,25 @@ const INPUT = {
 
 function clean(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
 
+// De-duplicate posts — never show the same post twice (same URL/image, or ≥90%-similar caption).
+function normDup(t) { return String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+function dupToks(t) { return new Set(normDup(t).split(' ').filter(Boolean)); }
+function jaccard(a, b) { if (!a.size || !b.size) return a.size === b.size ? 1 : 0; let i = 0; a.forEach((w) => { if (b.has(w)) i++; }); return i / (a.size + b.size - i); }
+function dedupePosts(posts) {
+  const kept = [], meta = [];
+  for (const p of posts) {
+    const t = normDup(p.text), tk = dupToks(p.text);
+    let dup = false;
+    for (let i = 0; i < kept.length; i++) {
+      if (p.url && p.url === kept[i].url) { dup = true; break; }
+      if (p.image && p.image === kept[i].image) { dup = true; break; }
+      if (tk.size >= 4 && (t === meta[i].t || jaccard(tk, meta[i].tk) >= 0.9)) { dup = true; break; }
+    }
+    if (!dup) { kept.push(p); meta.push({ t, tk }); }
+  }
+  return kept;
+}
+
 async function runActor(actor, input) {
   const ep = 'https://api.apify.com/v2/acts/' + actor +
     '/run-sync-get-dataset-items?token=' + encodeURIComponent(TOKEN) + '&timeout=150';
@@ -153,7 +172,7 @@ export async function fetchSocial(platform, handle, host, force, cacheOnly) {
   if (cacheOnly) return { platform, handle, posts: [], summary: null, cacheMiss: true };
 
   const items = await runActor(ACTORS[platform], INPUT[platform](handle));
-  const posts = NORM[platform](items).slice(0, 9);
+  const posts = dedupePosts(NORM[platform](items)).slice(0, 9);
   const data = { platform, handle, posts, summary: summarize(platform, posts) };
   cache.set(key, { at: Date.now(), data });
   return data;
