@@ -122,6 +122,20 @@ section{padding:64px 0; position:relative}
 .close h2{font-family:var(--disp); font-weight:600; font-size:clamp(28px,4.4vw,44px); color:#eef3f4; margin:0 0 10px; line-height:1.08}
 .close p{color:var(--muted); margin:0 auto 26px; max-width:48ch}
 
+/* pricing */
+.plans{display:grid; grid-template-columns:repeat(2,1fr); gap:18px; max-width:860px; margin:0 auto}
+.plan{position:relative; border:1px solid var(--line2); border-radius:13px; background:var(--panel); padding:32px 28px; display:flex; flex-direction:column}
+.plan.feat{border-color:var(--sage-d); background:linear-gradient(180deg,rgba(87,210,207,.07),var(--panel)); box-shadow:0 26px 70px -44px rgba(87,210,207,.45)}
+.pl-badge{position:absolute; top:-10px; left:28px; font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:#06231f; background:var(--sage); padding:4px 10px; border-radius:4px}
+.pl-name{font-family:var(--mono); font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--sage)}
+.price{font-family:var(--disp); font-weight:600; font-size:48px; color:#eef3f4; margin:12px 0 2px; line-height:1}
+.price small{font-size:15px; color:var(--muted); font-family:'Inter',sans-serif; font-weight:500; letter-spacing:0}
+.pl-sub{font-size:13.5px; color:var(--muted); margin:6px 0 22px}
+.plan ul{list-style:none; padding:0; margin:0 0 26px; display:flex; flex-direction:column; gap:12px}
+.plan li{display:flex; gap:10px; align-items:flex-start; font-size:14px; color:var(--text); line-height:1.45}
+.plan li svg{width:16px; height:16px; stroke:var(--sage); fill:none; stroke-width:2.2; flex:none; margin-top:2px}
+.plan .btn{width:100%; justify-content:center; margin-top:auto}
+.pl-foot{text-align:center; font-family:var(--mono); font-size:10px; letter-spacing:.04em; color:var(--faint); margin-top:13px}
 footer{border-top:1px solid var(--line2); margin-top:60px; padding:30px 0}
 .foot-in{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap}
 .foot-in .lbl{color:var(--faint)}
@@ -132,7 +146,7 @@ html.js .reveal.in{opacity:1; transform:none}
 
 @media(max-width:820px){
   .nav-links{display:none}
-  .steps,.tech,.chan{grid-template-columns:1fr}
+  .steps,.tech,.chan,.plans{grid-template-columns:1fr}
   .feed{grid-template-columns:1fr}
   .tcard.wide{grid-column:auto}
   section{padding:48px 0}
@@ -152,8 +166,9 @@ html.js .reveal.in{opacity:1; transform:none}
       <a href="#how">How it works</a>
       <a href="#tech">The technology</a>
       <a href="#channels">Coverage</a>
+      <a href="#pricing">Pricing</a>
     </div>
-    <a class="btn btn-primary" data-demo href="#book">Book a demo</a>
+    <a class="btn btn-primary" href="#pricing">Get started</a>
   </div>
 </nav>
 
@@ -164,10 +179,10 @@ html.js .reveal.in{opacity:1; transform:none}
   <h1>Every competitor move, on your desk <span class="hl">by morning</span>.</h1>
   <p class="lede">We keep every rival under watch — their <b>ads, social, email and storefront</b> — every single day. Then our AI hands you what changed, why it works, and <b>the exact play to counter it</b>.</p>
   <div class="cta-row">
-    <a class="btn btn-primary" data-demo href="#book">Book a demo</a>
-    <a class="btn btn-ghost" href="#how">See how it works ↓</a>
+    <a class="btn btn-primary" href="#pricing">Get started — $149/mo</a>
+    <a class="btn btn-ghost" data-demo href="#book">Book a demo</a>
   </div>
-  <div class="hero-note">No more refreshing their ad library. No more finding out last.</div>
+  <div class="hero-note">Self-serve in minutes — or book a walkthrough first. Cancel anytime.</div>
 
   <div class="dossier reveal">
     <div class="dossier-top">
@@ -291,13 +306,56 @@ html.js .reveal.in{opacity:1; transform:none}
   </div>
 </section>
 
+<!-- ── PRICING ── -->
+<section id="pricing" class="wrap">
+  <div class="sec-head">
+    <div class="rule"></div>
+    <span class="lbl" style="display:block;margin-top:14px">Pricing</span>
+    <h2>Start watching today</h2>
+    <p>Sign up and you're live in minutes — no setup, no contracts. Need more firepower? Let's talk.</p>
+  </div>
+  <div class="plans">
+    <div class="plan feat reveal">
+      <span class="pl-badge">Self-serve</span>
+      <span class="pl-name">Starter</span>
+      <div class="price">$149<small> / month</small></div>
+      <div class="pl-sub">Two competitors under full daily watch.</div>
+      <ul>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>2 competitors, watched every single day</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>All four channels — ads, social, email &amp; storefront</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Daily briefing, in your timezone</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>AI insights + a play for your own brand</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Creative &amp; video decoded · change alerts · ask-anything chat</li>
+      </ul>
+      <a class="btn btn-primary" data-checkout href="#pricing">Sign up &amp; pay</a>
+      <div class="pl-foot">Secure checkout · cancel anytime</div>
+    </div>
+    <div class="plan reveal">
+      <span class="pl-name">Scale</span>
+      <div class="price">Custom</div>
+      <div class="pl-sub">More competitors, markets and hands-on help.</div>
+      <ul>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Everything in Starter</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Five, ten or unlimited competitors</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Multiple markets &amp; your own brand tracked</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Priority onboarding &amp; support</li>
+      </ul>
+      <a class="btn btn-ghost" data-demo href="#book">Book a demo</a>
+      <div class="pl-foot">Tailored to your watchlist</div>
+    </div>
+  </div>
+</section>
+
 <!-- ── CLOSE ── -->
 <section id="book" class="wrap">
   <div class="close reveal">
-    <span class="lbl" style="color:var(--sage)">Request access</span>
+    <span class="lbl" style="color:var(--sage)">Get started</span>
     <h2>Stop finding out last.</h2>
-    <p>See your real competitors decoded in a live walkthrough — bring two rivals and we'll show you what they did this week.</p>
-    <a class="btn btn-primary" data-demo href="#book" style="padding:15px 30px; font-size:13px">Book a demo</a>
+    <p>Sign up and you're watching your competitors today — or book a live walkthrough first and we'll decode two of your rivals on the call.</p>
+    <div class="cta-row" style="margin-top:6px">
+      <a class="btn btn-primary" data-checkout href="#pricing" style="padding:15px 30px; font-size:13px">Sign up &amp; pay</a>
+      <a class="btn btn-ghost" data-demo href="#book" style="padding:15px 30px; font-size:13px">Book a demo</a>
+    </div>
   </div>
 </section>
 
@@ -318,8 +376,14 @@ html.js .reveal.in{opacity:1; transform:none}
 var DEMO_LINK = "mailto:marin.bando@gmail.com?subject=Demo%20request%20%E2%80%94%20Competitor%20Intelligence%20AI&body=Hi%2C%20I'd%20like%20a%20demo.%20The%20two%20competitors%20I%20want%20to%20watch%20are%3A%0A%0A1.%20%0A2.%20";
 document.querySelectorAll('[data-demo]').forEach(function(a){ a.setAttribute('href', DEMO_LINK); });
 
+// ── Sign-up checkout. Paste your Stripe payment link (https://buy.stripe.com/...) into
+//    CHECKOUT_LINK once created. Until then, the button opens a pre-filled signup email.
+var CHECKOUT_LINK = "";
+var SIGNUP_FALLBACK = "mailto:marin.bando@gmail.com?subject=Sign%20up%20%E2%80%94%20Starter%20%24149%2Fmo&body=Hi%2C%20I'd%20like%20to%20sign%20up%20for%20the%20%24149%2Fmo%20plan.%20The%20two%20competitors%20I%20want%20to%20watch%20are%3A%0A%0A1.%20%0A2.%20";
+document.querySelectorAll('[data-checkout]').forEach(function(a){ a.setAttribute('href', CHECKOUT_LINK || SIGNUP_FALLBACK); });
+
 // smooth-scroll for same-page anchors
-document.querySelectorAll('a[href^="#"]:not([data-demo])').forEach(function(a){
+document.querySelectorAll('a[href^="#"]:not([data-demo]):not([data-checkout])').forEach(function(a){
   a.addEventListener('click', function(e){
     var t = document.querySelector(a.getAttribute('href'));
     if(t){ e.preventDefault(); t.scrollIntoView({behavior:'smooth', block:'start'}); }
