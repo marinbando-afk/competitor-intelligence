@@ -106,6 +106,14 @@ const GUIDE = {
   email: 'their email marketing. Surface: sending CADENCE; OFFER / discount patterns; recurring THEMES and angles; what is newest. Give a real read, not a list of subjects.',
 };
 
+// Trim to a word boundary with an ellipsis — never cut mid-word / mid-sentence.
+function clip(s, n) {
+  s = oneLine(s);
+  if (s.length <= n) return s;
+  const cut = s.slice(0, n);
+  const sp = cut.lastIndexOf(' ');
+  return (sp > n * 0.5 ? cut.slice(0, sp) : cut).replace(/[\s.,;:!?'"\-—]+$/, '') + '…';
+}
 function parseOut(txt) {
   const raw = String(txt || '');
   let o = null;
@@ -115,9 +123,9 @@ function parseOut(txt) {
   }
   if (o && typeof o === 'object') {
     return {
-      summary: oneLine(o.summary).slice(0, 280),
-      bullets: Array.isArray(o.bullets) ? o.bullets.map((b) => oneLine(b).slice(0, 220)).filter(Boolean).slice(0, 5) : [],
-      apply: oneLine(o.apply).slice(0, 240),
+      summary: clip(o.summary, 240),
+      bullets: Array.isArray(o.bullets) ? o.bullets.map((b) => clip(b, 230)).filter(Boolean).slice(0, 5) : [],
+      apply: clip(o.apply, 260),
     };
   }
   // Malformed/truncated JSON (e.g. hit the token limit) — salvage the fields by regex
@@ -131,10 +139,10 @@ function parseOut(txt) {
     if (!bm) bm = raw.match(/"bullets"\s*:\s*\[([\s\S]*)/);
     const bullets = bm ? (bm[1].match(/"((?:[^"\\]|\\.)*)"/g) || []).map((s) => oneLine(s.slice(1, -1).replace(/\\"/g, '"'))).filter(Boolean).slice(0, 5) : [];
     const summary = grab('summary');
-    if (summary || bullets.length) return { summary: summary.slice(0, 280), bullets, apply: grab('apply').slice(0, 240) };
+    if (summary || bullets.length) return { summary: clip(summary, 240), bullets: bullets.map((b) => clip(b, 230)), apply: clip(grab('apply'), 260) };
   }
   // Genuinely plain text — use it as the summary.
-  return { summary: oneLine(raw).slice(0, 240), bullets: [], apply: '' };
+  return { summary: clip(raw, 240), bullets: [], apply: '' };
 }
 
 async function ask(channel, brand, todayBlock, prevBlock, me) {
@@ -143,17 +151,17 @@ async function ask(channel, brand, todayBlock, prevBlock, me) {
     `You are IntelAI, a sharp eCommerce competitor-intelligence analyst. Analyze ${brand}'s ${channel} — ${GUIDE[channel]}\n\n` +
     `Use ONLY the DATA the user provides. Be specific: cite dates, numbers, offers, domains, handles, formats. ` +
     `Compare TODAY against the PREVIOUS capture and lead with what is NEW or CHANGED — do not just restate static facts or repeat an unchanging description. ` +
-    `If something isn't supported by the data, leave it out — never invent. Write for a busy marketer.\n\n`;
+    `If something isn't supported by the data, leave it out — never invent. Write for a busy marketer. Keep every bullet and the apply SHORT and COMPLETE — a finished thought that never trails off mid-sentence; if a point won't fit concisely, drop detail rather than cut the ending.\n\n`;
   if (me && me.profile) {
     system +=
-      `Also add an "apply" field: ONE realistic, specific way the ADVISING BRAND below could apply this channel's single most important takeaway to their OWN marketing. Reference their ACTUAL products/positioning; be concrete and honest — if the tactic doesn't transfer well to them, say so briefly instead of forcing it. Start with a verb, <=30 words.\n` +
+      `Also add an "apply" field: ONE realistic, specific way the ADVISING BRAND below could apply this channel's single most important takeaway to their OWN marketing. Reference their ACTUAL products/positioning; be concrete and honest — if the tactic doesn't transfer well to them, say so briefly instead of forcing it. Start with a verb, ≤ 28 words, and finish the sentence.\n` +
       `ADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}\n\n` +
-      `Return ONLY minified JSON, no markdown: {"summary":"<=18 words","bullets":["<short specific point>", ...up to 4],"apply":"<the tailored suggestion>"}.`;
+      `Return ONLY minified JSON, no markdown: {"summary":"<=18 words","bullets":["<one complete, self-contained point, ≤ 20 words — never trail off>", ...up to 4],"apply":"<the tailored suggestion, a finished sentence>"}.`;
   } else {
-    system += `Return ONLY minified JSON, no markdown: {"summary":"<one tight sentence (<=18 words): the single most important or most-new takeaway>","bullets":["<short, specific point>", ...]} with 0–4 bullets. If nothing changed and nothing notable, return a 1-sentence summary and an empty bullets array.`;
+    system += `Return ONLY minified JSON, no markdown: {"summary":"<one tight sentence (<=18 words): the single most important or most-new takeaway>","bullets":["<one complete, self-contained point, ≤ 20 words — never trail off mid-thought>", ...]} with 0–4 bullets. If nothing changed and nothing notable, return a 1-sentence summary and an empty bullets array.`;
   }
   const user = `=== TODAY ===\n${todayBlock}\n\n=== PREVIOUS CAPTURE ===\n${prevBlock && prevBlock.trim() ? prevBlock : '(no earlier capture to compare against yet)'}`;
-  const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 1000, system, messages: [{ role: 'user', content: user }] });
+  const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 1200, system, messages: [{ role: 'user', content: user }] });
   const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
   return parseOut(txt);
 }
