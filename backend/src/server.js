@@ -12,7 +12,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { initSchema, pool } from './db.js';
-import { signup, login, requireAuth } from './auth.js';
+import { signup, login, requireAuth, changePassword, JWT_IS_DEFAULT } from './auth.js';
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial } from './social.js';
 import { startScheduler, warmStatus, TRACKED, addTracked, warmBrand, allBrands } from './refresh.js';
@@ -34,6 +34,29 @@ app.use(express.urlencoded({ extended: true, limit: '3mb' }));
 //   https://marinbando-afk.github.io
 const allowed = (process.env.ALLOWED_ORIGIN || '*').split(',').map((s) => s.trim());
 app.use(cors({ origin: allowed.includes('*') ? true : allowed }));
+
+// ── Per-IP rate limiting (in-memory, no external deps) ─────────────────────────
+// Guards the cost-bearing AI/scrape endpoints from runaway use or abuse. Each
+// limiter keeps its own sliding window and returns 429 + Retry-After when tripped.
+function rateLimit(max, windowMs) {
+  const hits = new Map();
+  return (req, res, next) => {
+    const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'x').split(',')[0].trim();
+    const now = Date.now();
+    let e = hits.get(ip);
+    if (!e || now - e.start >= windowMs) { e = { start: now, n: 0 }; hits.set(ip, e); }
+    if (++e.n > max) {
+      res.set('Retry-After', String(Math.ceil((e.start + windowMs - now) / 1000)));
+      return res.status(429).json({ error: 'Too many requests — please slow down a moment.' });
+    }
+    if (hits.size > 5000) for (const [k, v] of hits) if (now - v.start > windowMs) hits.delete(k);
+    next();
+  };
+}
+// Generous global ceiling — normal use is far under this; the Claude-backed
+// endpoints (chat/angle/shot) get a tighter shared cap applied at their routes.
+app.use('/api/', rateLimit(200, 60000));
+const aiLimit = rateLimit(30, 60000);
 
 app.get('/api/health', (req, res) => res.json({ ok: true, ...warmStatus() }));
 
@@ -112,7 +135,7 @@ app.get('/api/email-html', async (req, res) => {
 });
 
 // AI chat — answer a question grounded in a competitor's captured data.
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', aiLimit, async (req, res) => {
   try {
     res.json(await chat(req.body));
   } catch (e) {
@@ -159,8 +182,11 @@ app.get('/api/insights', async (req, res) => {
 // Quick Anthropic balance probe (cached ~5 min) — so I can check if AI credits ran dry.
 app.get('/api/credits', async (req, res) => { res.json(await creditStatus(req.query.fresh === '1')); });
 // Send the Slack daily brief now (on-demand / for testing). Posts only to your SLACK_WEBHOOK_URL.
-app.get('/api/slack-test', async (req, res) => { res.json(await postDigest(await allBrands())); });
-app.post('/api/angle', async (req, res) => {
+app.get('/api/slack-test', async (req, res) => {
+  if (!process.env.ADMIN_KEY || req.query.key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Owner key required.' });
+  res.json(await postDigest(await allBrands()));
+});
+app.post('/api/angle', aiLimit, async (req, res) => {
   try {
     const { text, kind, image, video } = req.body || {};
     const r = await quickAngle(text, kind, image, video);
@@ -239,7 +265,7 @@ const UA_IMG = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.
 // Website screenshot proxy. With SCREENSHOTONE_KEY set, uses ScreenshotOne with
 // cookie/consent banners + ad/chat widgets auto-blocked. Falls back to WordPress
 // mShots (no key, but bakes in any popup) so the screenshot always works.
-app.get('/api/shot', async (req, res) => {
+app.get('/api/shot', aiLimit, async (req, res) => {
   try {
     const u = String(req.query.url || '');
     if (!/^https?:\/\//i.test(u)) return res.status(400).end();
@@ -281,6 +307,14 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/me', requireAuth, (req, res) => {
   res.json({ user: { id: req.user.uid, email: req.user.email } });
+});
+
+// Change your own password (must supply the current one).
+app.patch('/api/me/password', requireAuth, async (req, res) => {
+  try {
+    const { current, next } = req.body || {};
+    res.json(await changePassword(req.user.uid, current, next));
+  } catch (e) { res.status(e.status || 500).json({ error: e.message || 'Could not change password.' }); }
 });
 
 app.get('/api/competitors', requireAuth, async (req, res) => {
@@ -338,7 +372,10 @@ app.delete('/api/competitors/:id', requireAuth, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-function start() { app.listen(PORT, () => { console.log('✓ API listening on :' + PORT); startScheduler(); }); }
+function start() {
+  if (JWT_IS_DEFAULT) console.warn('⚠  JWT_SECRET is not set — sessions are signed with a PUBLIC default key. Set JWT_SECRET in Railway before real users sign in.');
+  app.listen(PORT, () => { console.log('✓ API listening on :' + PORT); startScheduler(); });
+}
 // Start the server no matter what — if the DB isn't wired yet, accounts are
 // disabled but the ads endpoint still works.
 initSchema().then(start).catch((err) => {
