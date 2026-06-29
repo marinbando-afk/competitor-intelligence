@@ -71,5 +71,6 @@ export async function initSchema() {
       message    TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+    ALTER TABLE feedback ADD COLUMN IF NOT EXISTS image TEXT;
   `);
 }

@@ -360,6 +360,14 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .fb-item{border:1px solid var(--line2);border-radius:9px;padding:10px 12px;background:var(--bg)}
 .fb-meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:5px}
 .fb-msg{font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.fb-shot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fb-attbtn{font-size:12px;color:var(--text);background:var(--raised);border:1px solid var(--line2);border-radius:7px;padding:7px 12px;cursor:pointer}
+.fb-attbtn:hover{border-color:var(--sage-d);color:var(--sage)}
+.fb-hint{font-size:11px;color:var(--faint)}
+.fb-prev{position:relative;display:inline-block;margin-top:9px}
+.fb-prev img{max-height:120px;max-width:100%;border-radius:8px;border:1px solid var(--line2);display:block;cursor:zoom-in}
+.fb-x{position:absolute;top:-8px;right:-8px;width:22px;height:22px;border-radius:50%;background:var(--clay);color:#fff;border:none;font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.fb-thumb{max-height:150px;max-width:100%;border-radius:8px;border:1px solid var(--line2);margin-top:8px;cursor:zoom-in}
 .fb-empty{color:var(--muted);font-size:13px;padding:14px 0}
 .empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px;color:var(--muted);position:relative;z-index:1}
 .empty .ei{width:56px;height:56px;border-radius:50%;border:1px solid var(--sage-d);background:var(--sage-soft);display:flex;align-items:center;justify-content:center;margin-bottom:20px}
@@ -507,6 +515,11 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
     <p id="fbIntro">Tell us what would make this more useful for you — feature ideas, requests, anything. It goes straight to us.</p>
     <div class="fld"><label for="fbMsg" id="fbLabel">Your idea or feedback</label><textarea id="fbMsg" rows="4" placeholder="e.g. I'd love to track competitors' TikTok Shop prices…"></textarea></div>
     <div class="fld"><label for="fbEmail">Email <span style="color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400">— optional, if you'd like a reply</span></label><input id="fbEmail" type="text" placeholder="you@brand.com" autocomplete="off"/></div>
+    <div class="fld"><label>Screenshot <span style="color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400">— optional, paste or attach an image</span></label>
+      <input type="file" id="fbFile" accept="image/*" style="display:none" onchange="fbPickFile(this)"/>
+      <div class="fb-shot"><button type="button" class="fb-attbtn" onclick="document.getElementById('fbFile').click()">📎 Attach screenshot</button><span class="fb-hint">or paste (⌘V / Ctrl+V)</span></div>
+      <div id="fbShotPrev"></div>
+    </div>
     <div class="er" id="fbErr"></div>
     <div class="m-act"><button class="btn btn-g" onclick="closeFeedback()">Cancel</button><button class="btn btn-p" id="fbSend" onclick="sendFeedback()">Send</button></div>
     <div id="fbAdmin"></div>
@@ -1382,23 +1395,49 @@ function openFeedback(kind){
   var L=document.getElementById('fbLabel');if(L)L.textContent=bug?'What happened?':'Your idea or feedback';
   var M=document.getElementById('fbMsg');if(M)M.placeholder=bug?'e.g. The video script showed as gibberish (wrong language) on this Oodie ad…':"e.g. I'd love to track competitors' TikTok Shop prices…";
   var er=document.getElementById('fbErr');if(er){er.style.display='none';er.style.color='';}
+  fbClearShot();
   var b=document.getElementById('fbSend');if(b){b.disabled=false;b.textContent='Send';}
   var a=document.getElementById('fbAdmin');if(a)a.innerHTML=ADMIN?'<button class="fb-viewbtn" onclick="loadFeedback()">View submissions ↓</button>':'';
   document.getElementById('fbOv').classList.add('open');
   setTimeout(function(){var t=document.getElementById('fbMsg');if(t)t.focus();},40);
 }
 function closeFeedback(){var o=document.getElementById('fbOv');if(o)o.classList.remove('open');}
+var fbImage='';
+function fbReadImage(file){
+  if(!file||!/^image\//.test(file.type||''))return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    var im=new Image();
+    im.onload=function(){
+      var max=1500,w=im.width,h=im.height;
+      if(w>max||h>max){if(w>=h){h=Math.round(h*max/w);w=max;}else{w=Math.round(w*max/h);h=max;}}
+      try{var cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0,w,h);fbImage=cv.toDataURL('image/jpeg',0.72);}catch(e){fbImage=rd.result;}
+      paintFbShot();
+    };
+    im.onerror=function(){fbImage=rd.result;paintFbShot();};
+    im.src=rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+function fbPickFile(inp){if(inp&&inp.files&&inp.files[0])fbReadImage(inp.files[0]);}
+function fbClearShot(){fbImage='';var f=document.getElementById('fbFile');if(f)f.value='';paintFbShot();}
+function paintFbShot(){var p=document.getElementById('fbShotPrev');if(!p)return;p.innerHTML=fbImage?('<div class="fb-prev"><img class="zoomable" src="'+fbImage+'" alt="screenshot"><button type="button" class="fb-x" title="Remove" onclick="fbClearShot()">×</button></div>'):'';}
+document.addEventListener('paste',function(e){
+  var ov=document.getElementById('fbOv');if(!ov||!ov.classList.contains('open'))return;
+  var items=(e.clipboardData&&e.clipboardData.items)||[];
+  for(var i=0;i<items.length;i++){if(/^image\//.test(items[i].type)){var f=items[i].getAsFile();if(f){fbReadImage(f);e.preventDefault();}return;}}
+});
 function sendFeedback(){
   var msg=document.getElementById('fbMsg').value.trim(),email=document.getElementById('fbEmail').value.trim(),er=document.getElementById('fbErr');
   er.style.color='';
   if(!msg){er.textContent='Write something first.';er.style.display='block';return;}
   var btn=document.getElementById('fbSend');btn.disabled=true;btn.textContent='Sending…';
   var tagged=(fbKind==='bug'?'🐞 BUG: ':'💡 FEATURE: ')+msg;
-  fetch(API+'/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:tagged,email:email,name:(typeof myBrand!=='undefined'&&myBrand&&myBrand.name)||''})})
+  fetch(API+'/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:tagged,email:email,image:fbImage,name:(typeof myBrand!=='undefined'&&myBrand&&myBrand.name)||''})})
     .then(function(r){return r.json();}).then(function(d){
       btn.disabled=false;btn.textContent='Send';
       if(d&&d.error){er.textContent=d.error;er.style.display='block';return;}
-      document.getElementById('fbMsg').value='';document.getElementById('fbEmail').value='';
+      document.getElementById('fbMsg').value='';document.getElementById('fbEmail').value='';fbClearShot();
       er.style.color='var(--quiet)';er.textContent='✓ Sent — thank you! We read every one.';er.style.display='block';
       setTimeout(closeFeedback,1500);
     })
@@ -1409,7 +1448,7 @@ function loadFeedback(){
   fetch(API+'/api/feedback?key='+encodeURIComponent(adminKey())).then(function(r){return r.json();}).then(function(d){
     if(!d||d.error){a.innerHTML='<div class="fb-empty">'+esc((d&&d.error)||'Couldn’t load.')+'</div>';return;}
     var list=d.feedback||[];
-    a.innerHTML='<div class="fb-list-h">'+list.length+' submission'+(list.length===1?'':'s')+'</div>'+(list.length?'<div class="fb-list">'+list.map(function(f){return '<div class="fb-item"><div class="fb-meta">'+esc(f.name||'anonymous')+(f.email?' · '+esc(f.email):'')+' · '+esc(fmtDay(f.created_at))+'</div><div class="fb-msg">'+esc(f.message)+'</div></div>';}).join('')+'</div>':'<div class="fb-empty">No submissions yet.</div>');
+    a.innerHTML='<div class="fb-list-h">'+list.length+' submission'+(list.length===1?'':'s')+'</div>'+(list.length?'<div class="fb-list">'+list.map(function(f){return '<div class="fb-item"><div class="fb-meta">'+esc(f.name||'anonymous')+(f.email?' · '+esc(f.email):'')+' · '+esc(fmtDay(f.created_at))+'</div><div class="fb-msg">'+esc(f.message)+'</div>'+(f.image?'<img class="zoomable fb-thumb" src="'+esc(f.image)+'" alt="bug screenshot">':'')+'</div>';}).join('')+'</div>':'<div class="fb-empty">No submissions yet.</div>');
   }).catch(function(){a.innerHTML='<div class="fb-empty">Couldn’t load.</div>';});
 }
 render();
