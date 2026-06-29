@@ -3,7 +3,7 @@
 //
 //   POST /api/chat  { name, host, country, handles, context, question, messages[] }
 //
-// Requires ANTHROPIC_API_KEY in Railway. Model override: ANTHROPIC_MODEL (default Opus 4.8).
+// Requires ANTHROPIC_API_KEY in Railway. Model override: CHAT_MODEL (default Sonnet 4.6 — Q&A over captured data).
 
 import Anthropic from '@anthropic-ai/sdk';
 import { fetchAds } from './ads.js';
@@ -11,7 +11,7 @@ import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
 import { latestSnapshot, recentSnapshots } from './snapshots.js';
 
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
+const MODEL = process.env.CHAT_MODEL || 'claude-sonnet-4-6';
 
 // Lazy so the server still boots when ANTHROPIC_API_KEY isn't set yet.
 let _client;

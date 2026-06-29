@@ -35,7 +35,8 @@ export async function creditStatus(force) {
   return val;
 }
 
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';            // vision/angle analysis (quality-critical) + the credit ping
+const INSIGHTS_MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';  // daily per-channel summaries — Sonnet is plenty for summarizing, ~40% cheaper
 let _client;
 function client() { if (!_client) _client = new Anthropic(); return _client; }
 
@@ -152,7 +153,7 @@ async function ask(channel, brand, todayBlock, prevBlock, me) {
     system += `Return ONLY minified JSON, no markdown: {"summary":"<one tight sentence (<=18 words): the single most important or most-new takeaway>","bullets":["<short, specific point>", ...]} with 0–4 bullets. If nothing changed and nothing notable, return a 1-sentence summary and an empty bullets array.`;
   }
   const user = `=== TODAY ===\n${todayBlock}\n\n=== PREVIOUS CAPTURE ===\n${prevBlock && prevBlock.trim() ? prevBlock : '(no earlier capture to compare against yet)'}`;
-  const resp = await client().messages.create({ model: MODEL, max_tokens: 1000, system, messages: [{ role: 'user', content: user }] });
+  const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 1000, system, messages: [{ role: 'user', content: user }] });
   const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
   return parseOut(txt);
 }

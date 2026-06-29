@@ -11,7 +11,7 @@ import { siteSummary } from './website.js';
 import { saveSnapshot, latestSnapshot } from './snapshots.js';
 import Anthropic from '@anthropic-ai/sdk';
 
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
+const MODEL = process.env.BRAND_MODEL || 'claude-haiku-4-5';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 const KEY = '__mybrand__';
 
