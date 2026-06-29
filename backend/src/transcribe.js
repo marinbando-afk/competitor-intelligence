@@ -18,6 +18,7 @@ export async function transcribeVideo(url) {
     form.append('file', new Blob([buf], { type: 'video/mp4' }), 'ad.mp4');
     form.append('model', 'whisper-1');
     form.append('response_format', 'text');
+    form.append('language', process.env.WHISPER_LANG || 'en'); // force English — Whisper otherwise mis-detects some English ad audio as another language (e.g. Welsh)
     const wr = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + process.env.OPENAI_API_KEY },

@@ -348,6 +348,8 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .up-row{display:flex;justify-content:space-between;gap:12px;padding:11px 14px;background:var(--panel);font-size:13px;color:var(--muted)}
 .up-row b{color:var(--sage);white-space:nowrap}
 .fbfab{position:fixed;left:22px;bottom:22px;z-index:40;display:inline-flex;align-items:center;gap:7px;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:24px;padding:10px 16px;font-size:12.5px;font-weight:500;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.35);transition:.15s}
+.fbfab.bug{bottom:68px;border-color:rgba(226,85,79,.4)}
+.fbfab.bug:hover{border-color:var(--clay)}
 .fbfab:hover{border-color:var(--sage-d);transform:translateY(-2px)}
 .fld textarea{width:100%;background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:12px 14px;color:var(--text);font-family:inherit;font-size:14px;line-height:1.5;outline:none;resize:vertical;min-height:90px;transition:.15s}
 .fld textarea:focus{border-color:var(--sage);box-shadow:0 0 0 3px var(--sage-soft)}
@@ -497,12 +499,13 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
   </div>
 </div>
 
-<button class="fbfab" id="fbFab" onclick="openFeedback()" title="Want a new feature? Let us know"><span>💡</span> Want a feature?</button>
+<button class="fbfab" id="fbFab" onclick="openFeedback('feature')" title="Want a new feature? Let us know"><span>💡</span> Want a feature?</button>
+<button class="fbfab bug" id="bugFab" onclick="openFeedback('bug')" title="Found a bug? Tell us"><span>🐞</span> Report a bug</button>
 <div class="ov" id="fbOv" onclick="if(event.target===this)closeFeedback()">
   <div class="modal" id="fbModal">
-    <h2>Want a new feature? Let us know</h2>
-    <p>Tell us what would make this more useful for you — feature ideas, requests, anything. It goes straight to us.</p>
-    <div class="fld"><label for="fbMsg">Your idea or feedback</label><textarea id="fbMsg" rows="4" placeholder="e.g. I'd love to track competitors' TikTok Shop prices…"></textarea></div>
+    <h2 id="fbTitle">Want a new feature? Let us know</h2>
+    <p id="fbIntro">Tell us what would make this more useful for you — feature ideas, requests, anything. It goes straight to us.</p>
+    <div class="fld"><label for="fbMsg" id="fbLabel">Your idea or feedback</label><textarea id="fbMsg" rows="4" placeholder="e.g. I'd love to track competitors' TikTok Shop prices…"></textarea></div>
     <div class="fld"><label for="fbEmail">Email <span style="color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400">— optional, if you'd like a reply</span></label><input id="fbEmail" type="text" placeholder="you@brand.com" autocomplete="off"/></div>
     <div class="er" id="fbErr"></div>
     <div class="m-act"><button class="btn btn-g" onclick="closeFeedback()">Cancel</button><button class="btn btn-p" id="fbSend" onclick="sendFeedback()">Send</button></div>
@@ -1366,7 +1369,13 @@ function addOrUpgrade(){
 function showUpgrade(){var o=document.getElementById('upOv');if(o)o.classList.add('open');}
 function closeUpgrade(){var o=document.getElementById('upOv');if(o)o.classList.remove('open');}
 /* ── feature-request / feedback ── */
-function openFeedback(){
+var fbKind='feature';
+function openFeedback(kind){
+  fbKind=(kind==='bug')?'bug':'feature';var bug=fbKind==='bug';
+  var T=document.getElementById('fbTitle');if(T)T.textContent=bug?'Found a bug? Report it':'Want a new feature? Let us know';
+  var I=document.getElementById('fbIntro');if(I)I.textContent=bug?'Tell us what went wrong — what you saw, and on which competitor or screen. It comes straight to us.':'Tell us what would make this more useful for you — feature ideas, requests, anything. It goes straight to us.';
+  var L=document.getElementById('fbLabel');if(L)L.textContent=bug?'What happened?':'Your idea or feedback';
+  var M=document.getElementById('fbMsg');if(M)M.placeholder=bug?'e.g. The video script showed as gibberish (wrong language) on this Oodie ad…':"e.g. I'd love to track competitors' TikTok Shop prices…";
   var er=document.getElementById('fbErr');if(er){er.style.display='none';er.style.color='';}
   var b=document.getElementById('fbSend');if(b){b.disabled=false;b.textContent='Send';}
   var a=document.getElementById('fbAdmin');if(a)a.innerHTML=ADMIN?'<button class="fb-viewbtn" onclick="loadFeedback()">View submissions ↓</button>':'';
@@ -1379,7 +1388,8 @@ function sendFeedback(){
   er.style.color='';
   if(!msg){er.textContent='Write something first.';er.style.display='block';return;}
   var btn=document.getElementById('fbSend');btn.disabled=true;btn.textContent='Sending…';
-  fetch(API+'/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,email:email,name:(typeof myBrand!=='undefined'&&myBrand&&myBrand.name)||''})})
+  var tagged=(fbKind==='bug'?'🐞 BUG: ':'💡 FEATURE: ')+msg;
+  fetch(API+'/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:tagged,email:email,name:(typeof myBrand!=='undefined'&&myBrand&&myBrand.name)||''})})
     .then(function(r){return r.json();}).then(function(d){
       btn.disabled=false;btn.textContent='Send';
       if(d&&d.error){er.textContent=d.error;er.style.display='block';return;}
