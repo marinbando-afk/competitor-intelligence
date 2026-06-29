@@ -175,6 +175,21 @@ button{font-family:inherit;cursor:pointer}
 .wshot-k.drop{background:var(--sage);color:#06231f}
 .wshot-k.rise{background:var(--gold);color:#241c06}
 .wshot-det{display:block;color:var(--muted);font-size:11px;margin-top:3px;font-family:var(--mono)}
+/* ── expandable screenshots — generic lightbox (any img.zoomable / [data-zoom] opens full-size) ── */
+.zoomable{cursor:zoom-in}
+.wshot-go{text-decoration:none}
+.wshot-card{position:relative}
+.wshot-card::after{content:"⤢";position:absolute;top:7px;right:7px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity .15s;pointer-events:none}
+.wshot-card:hover::after{opacity:1}
+.zexp{position:absolute;width:26px;height:26px;border-radius:7px;background:rgba(0,0,0,.6);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;border:none;cursor:zoom-in;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);z-index:5}
+.cmp .zexp{bottom:10px;right:10px;opacity:0;transition:opacity .15s}
+.cmp:hover .zexp{opacity:1}
+.lbx{position:fixed;inset:0;z-index:1000;background:rgba(6,9,8,.92);display:none;flex-direction:column;align-items:center;overflow:auto;padding:34px 18px 42px;cursor:zoom-out;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.lbx img{max-width:min(94vw,1000px);width:auto;height:auto;margin:0 auto;display:block;border-radius:10px;box-shadow:0 18px 60px rgba(0,0,0,.6);cursor:default}
+.lbx-cap{margin:14px auto 0;max-width:min(94vw,1000px);color:#e8efe9;font-size:13px;line-height:1.5;text-align:center}
+.lbx-cap a{color:var(--sage)}
+.lbx-x{position:fixed;top:14px;right:16px;z-index:1001;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;border:none;font-size:22px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.lbx-x:hover{background:rgba(255,255,255,.22)}
 .eml-shots{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
 .eml-shots .eml-shot{display:block;border-radius:7px;overflow:hidden;border:1px solid var(--line2)}
 .eml-shots img{height:92px;width:auto;max-width:160px;object-fit:cover;display:block;background:var(--raised)}
@@ -606,6 +621,29 @@ function postCard(o){
     +'<span class="media'+(o.image?'':' noimg')+'">'+img+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+(o.stats?'<span class="cstats">'+o.stats+'</span>':'')+go+'</span>'
     +'<span class="cap">'+esc(o.cap||'')+'</span></a>';
 }
+/* ── Expandable screenshots — generic lightbox. Any <img class="zoomable"> (or any
+   element with [data-zoom] + data-full) opens full-size on click. Add the class to
+   any screenshot, now or in future, and it's expandable for free. ── */
+function openLightbox(src,cap,href){
+  if(!src)return;
+  var ov=document.getElementById('lbx');
+  if(!ov){ov=document.createElement('div');ov.id='lbx';ov.className='lbx';
+    ov.addEventListener('click',function(e){if(e.target===ov||(e.target.className&&String(e.target.className).indexOf('lbx-x')>-1))closeLightbox();});
+    document.body.appendChild(ov);}
+  var c=cap?esc(cap):'';
+  if(href)c+=(c?' · ':'')+'<a href="'+esc(href)+'" target="_blank" rel="noopener">Open ↗</a>';
+  ov.innerHTML='<button class="lbx-x" type="button" aria-label="Close">×</button><img src="'+esc(src)+'" alt="">'+(c?'<div class="lbx-cap">'+c+'</div>':'');
+  ov.style.display='flex';document.body.style.overflow='hidden';
+}
+function closeLightbox(){var ov=document.getElementById('lbx');if(ov){ov.style.display='none';ov.innerHTML='';}document.body.style.overflow='';}
+if(!window._lbxInit){window._lbxInit=1;
+  document.addEventListener('click',function(e){
+    var t=e.target.closest&&e.target.closest('[data-zoom],img.zoomable');
+    if(!t)return;e.preventDefault();
+    openLightbox(t.getAttribute('data-full')||t.getAttribute('src')||t.src||'',t.getAttribute('data-cap')||'',t.getAttribute('data-href')||'');
+  });
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLightbox();});
+}
 var STAT_ICONS={
   like:'<svg viewBox="0 0 16 16"><path d="M8 14.2C4.4 11.4 1.8 9 1.8 6.1 1.8 4.3 3.2 3 5 3c1.1 0 2.2.6 3 1.7C8.8 3.6 9.9 3 11 3c1.8 0 3.2 1.3 3.2 3.1 0 2.9-2.6 5.3-6.2 8.1z"/></svg>',
   comment:'<svg viewBox="0 0 16 16"><path d="M2.2 3.2h11.6c.6 0 1 .5 1 1v5.8c0 .6-.4 1-1 1H6.6L3 13.6v-2.6H2.2c-.6 0-1-.4-1-1V4.2c0-.5.4-1 1-1z"/></svg>',
@@ -847,6 +885,7 @@ function cmpHTML(before,after){
     +'<span class="cmp-tag cmp-tr">After · '+esc(fmtShortDay(after.day))+'</span>'
     +'<div class="cmp-split"><span class="cmp-grip">⇄</span></div>'
     +'<input class="cmp-range" type="range" min="0" max="100" value="50" oninput="cmpMove(this)" aria-label="Drag to compare before and after">'
+    +'<button class="zexp" type="button" data-zoom data-full="'+esc(after.shot)+'" data-cap="Current storefront · '+esc(fmtShortDay(after.day))+'" aria-label="Expand screenshot">⤢</button>'
     +'</div>';
 }
 function loadWeb(box){
@@ -860,11 +899,11 @@ function loadWeb(box){
       if(d.before&&d.before.shot&&d.after&&d.after.shot){
         vis=cmpHTML(d.before,d.after)+'<div class="cmp-hint">drag the divider — left is '+esc(fmtShortDay(d.before.day))+', right is '+esc(fmtShortDay(d.after.day))+'</div>';
       }else if(d.after&&d.after.shot){
-        vis='<a class="wshot" href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+d.after.shot+'" alt=""><span class="wshot-go">Open site ↗</span></a>';
+        vis='<div class="wshot"><img class="zoomable" src="'+d.after.shot+'" alt="" data-cap="Current storefront" data-href="'+esc(url)+'"><a class="wshot-go" href="'+esc(url)+'" target="_blank" rel="noopener">Open site ↗</a></div>';
       }else if(hist){
         box.innerHTML='<div class="wbase">No website snapshot was captured on <b>'+esc(fmtShortDay(d.day))+'</b> — daily website tracking started after this date.</div>';return;
       }else{
-        vis='<a class="wshot" href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+API+'/api/shot?url='+encodeURIComponent(url)+'" loading="lazy" alt="" onerror="var w=this.closest(\'.wshot\');if(w)w.style.display=\'none\'"><span class="wshot-go">Open site ↗</span></a>';
+        vis='<div class="wshot"><img class="zoomable" src="'+API+'/api/shot?url='+encodeURIComponent(url)+'" loading="lazy" alt="" data-cap="Current storefront" data-href="'+esc(url)+'" onerror="var w=this.closest(\'.wshot\');if(w)w.style.display=\'none\'"><a class="wshot-go" href="'+esc(url)+'" target="_blank" rel="noopener">Open site ↗</a></div>';
       }
       var chg;
       if(d.changes&&d.changes.length){
@@ -877,7 +916,7 @@ function loadWeb(box){
       }
       var shots='';
       if(d.changedShots&&d.changedShots.length){
-        shots='<div class="wshots-h">📸 What changed — screenshots</div><div class="wshots">'+d.changedShots.map(function(s){var k=s.kind==='new'?'NEW':s.kind==='drop'?'↓ PRICE':s.kind==='rise'?'↑ PRICE':'CHANGED';return '<div class="wshot-card"><img src="'+s.shot+'" loading="lazy" alt=""><div class="wshot-cap"><span class="wshot-k '+(s.kind||'')+'">'+k+'</span>'+esc(s.title||'')+'<span class="wshot-det">'+esc(s.detail||'')+'</span></div></div>';}).join('')+'</div>';
+        shots='<div class="wshots-h">📸 What changed — screenshots</div><div class="wshots">'+d.changedShots.map(function(s){var k=s.kind==='new'?'NEW':s.kind==='drop'?'↓ PRICE':s.kind==='rise'?'↑ PRICE':'CHANGED';return '<div class="wshot-card"><img class="zoomable" src="'+s.shot+'" loading="lazy" alt="" data-cap="'+esc((s.title||'')+(s.detail?' — '+s.detail:''))+'"><div class="wshot-cap"><span class="wshot-k '+(s.kind||'')+'">'+k+'</span>'+esc(s.title||'')+'<span class="wshot-det">'+esc(s.detail||'')+'</span></div></div>';}).join('')+'</div>';
       }
       box.innerHTML=vis+chg+shots;
     })
