@@ -321,8 +321,10 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .subaddr{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--sage);background:var(--bg);border:1px solid var(--line2);border-radius:8px;padding:8px 11px;flex:1;min-width:190px;overflow:auto;white-space:nowrap}
 .subcopy{font-size:12px;font-weight:600;color:#0b1311;background:var(--sage);border:none;border-radius:8px;padding:9px 17px;flex-shrink:0;transition:.15s}
 .subcopy:hover,.subcopy.ok{background:var(--quiet)}
-.inboxbar{margin-bottom:15px;max-width:760px}
-.inboxbar .ibl{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.inboxref{font-size:11px;color:var(--faint);margin-bottom:14px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;max-width:780px;line-height:1.5}
+.inboxref code{font-family:ui-monospace,Menlo,monospace;color:var(--muted);background:var(--bg);border:1px solid var(--line2);border-radius:6px;padding:3px 8px}
+.inboxcopy{font-size:10px;font-weight:600;color:var(--sage);background:none;border:1px solid var(--line2);border-radius:6px;padding:4px 10px;cursor:pointer}
+.inboxcopy:hover{border-color:var(--sage)}
 .substeps{font-size:12.5px;color:var(--muted);line-height:1.55}
 .substeps b{color:var(--text);font-weight:600}
 .substeps a{color:var(--sage);text-decoration:none;font-weight:500}
@@ -957,8 +959,7 @@ function emlHTML(d,host){
 // Keep the catch-all inbox address visible + copyable even after emails start arriving
 // (so you can subscribe it to more competitors without losing it).
 function inboxBarHTML(inbox){
-  return '<div class="inboxbar"><span class="ibl">Your tracking inbox — paste into any competitor’s newsletter sign-up</span>'
-    +'<div class="subrow" style="margin-bottom:0"><code class="subaddr">'+esc(inbox)+'</code><button class="subcopy" onclick="return copyInbox(this,\''+esc(inbox)+'\')">Copy</button></div></div>';
+  return '<div class="inboxref">One tracking inbox, shared across all your competitors — paste it into any of their sign-ups: <code>'+esc(inbox)+'</code><button class="inboxcopy" onclick="return copyInbox(this,\''+esc(inbox)+'\')">Copy</button></div>';
 }
 function loadEmail(box){
   var host=box.getAttribute('data-host');
