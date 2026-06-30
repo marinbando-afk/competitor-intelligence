@@ -45,13 +45,29 @@ export async function setMyBrand(name, website, mainProduct) {
   if (!host || host.indexOf('.') < 0) { const e = new Error('Enter a valid website (e.g. mybrand.com).'); e.status = 400; throw e; }
   const url = /^https?:\/\//i.test(website) ? website : ('https://' + host);
   const mp = oneLine(mainProduct).slice(0, 200);
-  const profile = await buildProfile(host, url, name, mp);
-  const data = { name: oneLine(name) || host, host, url, mainProduct: mp, profile, builtAt: new Date().toISOString() };
+  const { profile, catalog } = await buildProfile(host, url, name, mp);
+  const data = { name: oneLine(name) || host, host, url, mainProduct: mp, profile, catalog, builtAt: new Date().toISOString() };
   await saveSnapshot(KEY, 'profile', data);
   _cache = data;
   return data;
 }
 
+function money(n) { return n == null ? '?' : String(Math.round(n * 100) / 100); }
+// A compact, factual catalogue (products with prices + any bundles/kits) so growth
+// suggestions can reference the brand's REAL products, price points and bundles.
+function buildCatalog(sum) {
+  if (!sum) return '';
+  const items = sum.items ? Object.values(sum.items) : [];
+  if (!items.length) return `${sum.products || 0} products, prices ${money(sum.min)}–${money(sum.max)} (store currency)`;
+  const isBundle = (t) => /\b(bundle|kit|set|duo|trio|pack|collection|routine|system)\b/i.test(t || '');
+  const fmt = (i) => `${oneLine(i.title)} (${money(i.price)}${i.was && i.was > i.price ? ', was ' + money(i.was) : ''}${i.sale ? ', on sale' : ''})`;
+  const bundles = items.filter((i) => isBundle(i.title)).slice(0, 6);
+  const singles = items.filter((i) => !isBundle(i.title)).slice(0, 14);
+  const parts = [`${sum.products} products, ${sum.onSale || 0} on sale, price range ${money(sum.min)}–${money(sum.max)} (store currency).`];
+  if (singles.length) parts.push('Products: ' + singles.map(fmt).join('; ') + '.');
+  if (bundles.length) parts.push('Bundles/kits: ' + bundles.map(fmt).join('; ') + '.');
+  return parts.join(' ').slice(0, 1300);
+}
 async function buildProfile(host, url, name, mainProduct) {
   const sum = await siteSummary(host).catch(() => null);
   let homeText = '';
@@ -59,17 +75,17 @@ async function buildProfile(host, url, name, mainProduct) {
     const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'text/html' } });
     if (r.ok) homeText = stripText(await r.text()).slice(0, 3500);
   } catch (e) { /* best effort */ }
-  const titles = sum && sum.items ? Object.values(sum.items).map((i) => i.title).filter(Boolean).slice(0, 40).join('; ') : '';
-  const priceLine = sum ? `~${sum.products} products, prices ${sum.min}–${sum.max}` : '';
-  const fallback = oneLine(`${name || host} (${host}). ${mainProduct ? 'Main product: ' + mainProduct + '. ' : ''}${priceLine}. Sells: ${titles}`).slice(0, 800);
-  if (!process.env.ANTHROPIC_API_KEY || (!homeText && !titles && !mainProduct)) return fallback;
+  const catalog = buildCatalog(sum);
+  const fallback = oneLine(`${name || host} (${host}). ${mainProduct ? 'Main product: ' + mainProduct + '. ' : ''}${catalog}`).slice(0, 1000);
+  if (!process.env.ANTHROPIC_API_KEY || (!homeText && !catalog && !mainProduct)) return { profile: fallback, catalog };
   const system =
-    'You are a brand strategist. From the homepage text and product list, write a tight profile of THIS brand (<=95 words) covering: what they sell, who it is for, market positioning (premium / value / clinical / playful, etc), tone of voice, price range, and 3–5 key product categories. ' +
+    'You are a brand strategist. From the homepage text and the catalogue, write a tight profile of THIS brand (<=120 words) covering: what they sell; who it is for; market positioning (premium / value / clinical / playful, etc); tone of voice; the PRICE RANGE plus a few hero products WITH their prices; any BUNDLES or kits and roughly how they are priced; and whether they tend to discount. ' +
     'If a MAIN PRODUCT is stated by the founder, centre the profile on it. ' +
-    'Plain factual prose, no marketing fluff or hype. This profile will be used to tailor competitor-marketing suggestions to this brand, so be accurate and specific.';
-  const user = `BRAND: ${name || host} (${host})\n${mainProduct ? 'MAIN PRODUCT (stated by founder): ' + mainProduct + '\n' : ''}PRICING: ${priceLine}\nPRODUCT TITLES: ${titles}\n\nHOMEPAGE TEXT:\n${homeText}`;
+    'Plain factual prose, no marketing fluff. This profile is used to tailor competitor-marketing suggestions to this brand, so be accurate and specific about products, prices and bundles.';
+  const user = `BRAND: ${name || host} (${host})\n${mainProduct ? 'MAIN PRODUCT (stated by founder): ' + mainProduct + '\n' : ''}CATALOGUE: ${catalog}\n\nHOMEPAGE TEXT:\n${homeText}`;
   try {
-    const resp = await client().messages.create({ model: MODEL, max_tokens: 320, system, messages: [{ role: 'user', content: user }] });
-    return oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')).slice(0, 1100) || fallback;
-  } catch (e) { return fallback; }
+    const resp = await client().messages.create({ model: MODEL, max_tokens: 400, system, messages: [{ role: 'user', content: user }] });
+    const profile = oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')).slice(0, 1300) || fallback;
+    return { profile, catalog };
+  } catch (e) { return { profile: fallback, catalog }; }
 }

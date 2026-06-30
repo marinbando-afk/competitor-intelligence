@@ -265,9 +265,9 @@ async function ask(channel, brand, todayBlock, prevBlock, me) {
     `If something isn't supported by the data, leave it out — never invent. Write for a busy marketer. Keep every bullet and the apply SHORT and COMPLETE — a finished thought that never trails off mid-sentence; if a point won't fit concisely, drop detail rather than cut the ending.\n\n`;
   if (me && me.profile) {
     system +=
-      `Also add an "apply" field: ONE realistic, specific way the ADVISING BRAND below could apply this channel's single most important takeaway to their OWN marketing. Reference their ACTUAL products/positioning; be concrete and honest — if the tactic doesn't transfer well to them, say so briefly instead of forcing it. Start with a verb, ≤ 28 words, and finish the sentence.\n` +
-      `ADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}\n\n` +
-      `Return ONLY minified JSON, no markdown: {"summary":"<=18 words","bullets":["<one complete, self-contained point, ≤ 20 words — never trail off>", ...up to 4],"apply":"<the tailored suggestion, a finished sentence>"}.`;
+      `Also add an "apply" field. Act as ${me.name}'s DIRECTOR OF GROWTH: turn this channel's single most important takeaway into ONE realistic, specific move THEY could actually make — grounded in their ACTUAL products, prices and bundles below, and naming a real product, price point or bundle of theirs where you can. It should be doable without heavy resources; if it genuinely needs real effort or spend (new creative, a UGC budget, building a bundle, a price test, an email flow), name that cost briefly so it's clear you know what it takes. Be honest — if the tactic doesn't fit their catalogue or positioning, say so in one line instead of forcing it. Start with a verb, ≤ 34 words, finish the sentence.\n` +
+      `ADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}${me.catalog ? '\nTHEIR CATALOGUE (real products, prices, bundles): ' + me.catalog : ''}\n\n` +
+      `Return ONLY minified JSON, no markdown: {"summary":"<=18 words","bullets":["<one complete, self-contained point, ≤ 20 words — never trail off>", ...up to 4],"apply":"<the tailored growth move, a finished sentence>"}.`;
   } else {
     system += `Return ONLY minified JSON, no markdown: {"summary":"<one tight sentence (<=18 words): the single most important or most-new takeaway>","bullets":["<one complete, self-contained point, ≤ 20 words — never trail off mid-thought>", ...]} with 0–4 bullets. If nothing changed and nothing notable, return a 1-sentence summary and an empty bullets array.`;
   }
@@ -366,9 +366,9 @@ export async function quickAngle(text, kind, image, video) {
     : 'No creative image is available — analyze from the copy only and leave "creative" brief.')
     + (script ? ' A transcription of the video\'s SPOKEN audio is also provided — base the HOOK on the actual opening line(s) of that script.' : '');
   const applyField = (me && me.profile)
-    ? `,"apply":"<one realistic, specific way the ADVISING BRAND could use the SAME approach — reference their real products/positioning; if it doesn't fit, say so briefly. Start with a verb, <=28 words>"`
+    ? `,"apply":"<as ${me.name}'s director of growth: ONE realistic, doable move using the SAME approach, grounded in their real products/prices/bundles and naming one where you can; if it needs real spend/effort, name it; if it doesn't fit, say so briefly. Start with a verb, <=32 words>"`
     : `,"apply":""`;
-  const brandLine = (me && me.profile) ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}` : '';
+  const brandLine = (me && me.profile) ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}${me.catalog ? '\nTHEIR CATALOGUE: ' + me.catalog : ''}` : '';
   // For a video ad the spoken opening IS the hook — lead with it when we have the script.
   const hookField = script
     ? `"hook":"<the opening hook — LEAD with the first spoken line(s) from the VIDEO SCRIPT, then the opening visual/on-screen text, <=22 words>",`
