@@ -107,6 +107,10 @@ function fmtPosts(posts, label, noEng) {
   });
   return out.join('\n');
 }
+// Double opt-in / subscription-confirmation subjects (any language). These are NOT
+// marketing campaigns — never analyse them or draw conclusions/suggestions from them.
+const CONFIRM_RE = /(almost there|please confirm|confirm your (subscription|sign\s?-?up|email|newsletter|spot)|confirm (your )?subscription|verify your email|activate your subscription|bestätigen sie ihre anmeldung|anmeldung bestätigen|fast geschafft|abonnement bestätigen|confirmez votre (abonnement|inscription)|confirma tu suscripci)/i;
+function isConfirmEmail(e) { return CONFIRM_RE.test(oneLine((e && e.subject) || '')); }
 function fmtEmail(d) {
   if (!d || !d.emails || !d.emails.length) return 'No emails captured yet.';
   const sm = d.summary || {};
@@ -313,7 +317,14 @@ export async function generateInsights(brand, host) {
 
   try {
     const em = await getEmails(host);
-    if (em && em.emails && em.emails.length) out.email = await ask('email', brand, fmtEmail(em), '', me);
+    const all = (em && em.emails) || [];
+    const real = all.filter((e) => !isConfirmEmail(e));   // ignore opt-in confirmations
+    if (all.length && !real.length) {
+      // Only a sign-up confirmation so far — nothing to analyse. Don't invent cadence/offers/suggestions.
+      out.email = { summary: 'Only the sign-up confirmation captured so far — their first newsletter can take up to 24 hours to arrive.', bullets: [] };
+    } else if (real.length) {
+      out.email = await ask('email', brand, fmtEmail({ emails: real, summary: em.summary }), '', me);
+    }
   } catch (e) { /* skip */ }
 
   // Drop empty channels.
