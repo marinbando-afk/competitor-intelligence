@@ -909,31 +909,46 @@ function copyInbox(btn,addr){
 function subscribeCard(inbox,host){
   if(!inbox)return '';
   var site='https://'+host;
+  if(isSubbed(host)){
+    return '<div class="subcard"><div class="subcard-h">✓ You’ve subscribed to '+esc(host)+' — waiting for their first email</div>'
+      +'<div class="substeps">Their campaigns usually arrive within a day; we check automatically. <span style="color:var(--muted)">Form didn’t go through / want to redo it? <a href="#" class="rtry" onclick="return undoSub(this,\''+esc(host)+'\')">start over</a></span></div>'
+      +'<div class="subact"><span class="spin"></span><span class="substat">Watching for their first email…</span></div></div>';
+  }
   return '<div class="subcard"><div class="subcard-h">Track their emails — a 15-second one-time step</div>'
     +'<div class="subrow"><code class="subaddr">'+esc(inbox)+'</code><button class="subcopy" onclick="return copyInbox(this,\''+esc(inbox)+'\')">Copy</button></div>'
     +'<div class="substeps"><b>1.</b> Open <a href="'+esc(site)+'" target="_blank" rel="noopener">'+esc(host)+' ↗</a> and find their newsletter sign-up (usually in the footer).<span class="redcall">⚠ Step 2: paste the address above into their email sign-up and hit <b>Submit</b>.</span></div>'
     +'<div class="subact"><button class="subconfirm" onclick="confirmSub(this)">I’ve subscribed — check it worked</button><span class="substat"></span></div></div>';
 }
+// Remember (across page/competitor switches) that the user clicked "I've subscribed".
+function markSub(host){try{localStorage.setItem('ci_sub_'+host,Date.now());}catch(e){}}
+function isSubbed(host){try{var t=+localStorage.getItem('ci_sub_'+host);return !!t&&(Date.now()-t)<7*864e5;}catch(e){return false;}}
+function clearSub(host){try{localStorage.removeItem('ci_sub_'+host);}catch(e){}}
+function undoSub(a,host){clearSub(host);var box=a.closest('.emlbox');if(box){box.dataset.loaded='';loadEmail(box);}return false;}
 function confirmSub(btn){
   var box=btn.closest('.emlbox');if(!box)return;
   var host=box.getAttribute('data-host');
-  var act=btn.parentNode;
-  act.innerHTML='<span class="spin"></span><span class="substat">Watching for their first email — this can take a few minutes…</span>';
+  markSub(host);
+  pollForEmail(box,host);
+}
+function pollForEmail(box,host){
+  var act=box.querySelector('.subact');if(act)act.innerHTML='<span class="spin"></span><span class="substat">Watching for their first email — this can take a few minutes. We’ll remember you’ve subscribed even if you switch away.</span>';
   var tries=0,max=18;
   (function poll(){
     tries++;
     fetch(API+'/api/emails?host='+encodeURIComponent(host)).then(function(r){return r.json();}).then(function(d){
       if(!document.body.contains(box))return;
       if(d&&d.emails&&d.emails.length){
+        clearSub(host);
         box.innerHTML='<div class="subok">✓ Confirmed — we just received their first email. You’re tracking '+esc(host)+'.</div>'+emlHTML(d,host);
         var sm=box.closest('.chan').querySelector('.chan-sum');if(sm)sm.innerHTML='<b style="color:var(--text);font-weight:600">'+d.emails.length+'</b> email'+(d.emails.length===1?'':'s')+' · <span class="flag">seeded inbox</span>';
+        var cc=currentComp();if(cc)checkEmailBanner(cc);
         return;
       }
-      if(tries>=max){act.innerHTML='<span class="substat">No email yet — some brands send within minutes, others take longer (or ask you to confirm your address first). We’ll keep monitoring. <a href="#" class="rtry" onclick="return reConfirm(this)">Check again</a></span>';return;}
+      if(tries>=max){var a=box.querySelector('.subact');if(a)a.innerHTML='<span class="substat">No email yet — some brands send within minutes, others take longer (or ask you to confirm your address first). We’ll keep monitoring. <a href="#" class="rtry" onclick="return reConfirm(this)">Check again</a></span>';return;}
       setTimeout(poll,18000);
     }).catch(function(){
       if(!document.body.contains(box))return;
-      if(tries>=max){act.innerHTML='<span class="substat">Couldn’t check just now. <a href="#" class="rtry" onclick="return reConfirm(this)">Try again</a></span>';return;}
+      if(tries>=max){var a=box.querySelector('.subact');if(a)a.innerHTML='<span class="substat">Couldn’t check just now. <a href="#" class="rtry" onclick="return reConfirm(this)">Try again</a></span>';return;}
       setTimeout(poll,18000);
     });
   })();
@@ -966,7 +981,8 @@ function loadEmail(box){
   if(state.day){box.innerHTML=emlHTML((viewSnap&&viewSnap.email)||{storage:true,emails:[],inbox:''},host);return;}
   fetch(API+'/api/emails?host='+encodeURIComponent(host)).then(function(r){return r.json();}).then(function(d){
     box.innerHTML=emlHTML(d,host);
-    if(d&&d.emails&&d.emails.length){var sm=box.closest('.chan').querySelector('.chan-sum');if(sm)sm.innerHTML='<b style="color:var(--text);font-weight:600">'+d.emails.length+'</b> email'+(d.emails.length===1?'':'s')+' · <span class="flag">seeded inbox</span>';}
+    if(d&&d.emails&&d.emails.length){clearSub(host);var sm=box.closest('.chan').querySelector('.chan-sum');if(sm)sm.innerHTML='<b style="color:var(--text);font-weight:600">'+d.emails.length+'</b> email'+(d.emails.length===1?'':'s')+' · <span class="flag">seeded inbox</span>';}
+    else if(isSubbed(host)){pollForEmail(box,host);}   // resume the "watching" state after you navigated away and came back
   }).catch(function(){box.innerHTML='<div class="adsempty">Couldn’t load email activity — try again shortly.</div>';});
 }
 function chanDetail(k,ch,c){
