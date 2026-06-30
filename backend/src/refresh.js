@@ -18,7 +18,7 @@ import { saveSnapshot, latestSnapshot } from './snapshots.js';
 export const TRACKED = [
   { name: 'The Oodie', host: 'theoodie.com', country: 'AU', handles: { ig: 'the_oodie', tt: 'the_oodie', fb: 'theofficialoodie' } },
   { name: 'Athletic Greens', host: 'drinkag1.com', country: 'US', handles: { ig: 'drinkag1', tt: 'drinkag1', fb: 'drinkAG1' } },
-  { name: 'Smooche', host: 'smooche.com', country: 'US', handles: { ig: 'smooche', tt: 'smooche.com', fb: 'smooche' } },
+  { name: 'Smooche', host: 'smooche.com', country: 'US', handles: { ig: 'smooche', tt: 'smooche.com', fb: 'profile.php?id=100067470427617' } },
 ];
 
 const PLATFORMS = [['instagram', 'ig'], ['tiktok', 'tt'], ['facebook', 'fb']];

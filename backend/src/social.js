@@ -77,7 +77,11 @@ async function resolveHandles(host) {
     const fb = html.match(/facebook\.com\/([A-Za-z0-9_.]{2,40})/i);
     if (ig && !bad.test(ig[1])) h.ig = ig[1];
     if (tt) h.tt = tt[1];
-    if (fb && !bad.test(fb[1])) h.fb = fb[1];
+    // Facebook page can be a vanity handle, a numeric profile (profile.php?id=N), or the modern /p/Name-N/ form.
+    let fbm;
+    if ((fbm = html.match(/facebook\.com\/profile\.php\?id=(\d+)/i))) h.fb = 'profile.php?id=' + fbm[1];
+    else if ((fbm = html.match(/facebook\.com\/p\/([A-Za-z0-9._-]*\d{6,})\/?/i))) h.fb = 'p/' + fbm[1];
+    else if (fb && !bad.test(fb[1])) h.fb = fb[1];
   } catch (e) { /* leave handles empty on failure */ }
   handleCache.set(key, { at: Date.now(), h });
   return h;
