@@ -14,7 +14,7 @@ import cors from 'cors';
 import { initSchema, pool } from './db.js';
 import { signup, login, requireAuth, JWT_IS_DEFAULT } from './auth.js';
 import { fetchAds, adsChanges } from './ads.js';
-import { fetchSocial } from './social.js';
+import { fetchSocial, resolveHandles } from './social.js';
 import { startScheduler, warmStatus, TRACKED, addTracked, warmBrand, allBrands } from './refresh.js';
 import { postDigest } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
@@ -91,6 +91,16 @@ app.get('/api/social', async (req, res) => {
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }
+});
+
+// Detect a competitor's social handles from their website — powers the "confirm
+// their pages" step when a user adds a competitor.
+app.get('/api/resolve-handles', async (req, res) => {
+  try {
+    const host = String(req.query.host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase();
+    if (!host) return res.status(400).json({ error: 'Missing host.' });
+    res.json({ host, handles: await resolveHandles(host) });
+  } catch (e) { res.json({ host: '', handles: {} }); }
 });
 
 // Email intelligence (seeded inbox).

@@ -431,6 +431,13 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .snaplbl{color:var(--gold);font-weight:500}
 .asoflbl{color:var(--muted);font-weight:500}
 .asoflbl.stale{color:var(--gold)}
+.confirm-h{font-size:12.5px;color:var(--muted);margin:14px 0 11px;line-height:1.55}
+.cf-row{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+.cf-l{width:72px;flex-shrink:0;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+.cf-row input{flex:1;min-width:0;padding:9px 10px;border-radius:7px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font-size:12.5px;font-family:var(--mono)}
+.cf-act{flex-shrink:0;font-family:var(--mono);font-size:10.5px;padding:7px 8px;border-radius:6px;border:1px solid var(--line2);background:none;color:var(--text);cursor:pointer;text-decoration:none;white-space:nowrap}
+.cf-act:hover{background:var(--panel2);border-color:var(--sage)}
+.cf-act.find{color:var(--muted)}
 
 @media(max-width:880px){
   .rail{width:100%}
@@ -474,7 +481,13 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
     <p>We'll observe their ads, social, website, and email — then tell you what it means and what to do.</p>
     <div class="fld"><label for="fN">Brand name</label><input id="fN" type="text" placeholder="e.g. The Oodie" autocomplete="off"/><div class="er" id="eN">Please enter a name.</div></div>
     <div class="fld"><label for="fU">Website</label><input id="fU" type="text" placeholder="e.g. theoodie.com" autocomplete="off"/><div class="er" id="eU">Please enter a valid website.</div></div>
-    <div class="m-act"><button class="btn btn-g" onclick="closeModal()">Cancel</button><button class="btn btn-p" onclick="submitComp()">Add to Watchlist</button></div>
+    <div id="confirmPanel" style="display:none">
+      <p class="confirm-h">Confirm the right pages so we watch the correct competitor. Tap <b>Check</b> to open a page, or <b>Find</b> to search for it — then paste the correct link here.</p>
+      <div class="cf-row"><span class="cf-l">Facebook</span><input id="cfFb" type="text" placeholder="paste their Facebook URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('facebook')">Check ↗</button><a class="cf-act find" id="cfFbFind" target="_blank" rel="noopener">Find ↗</a></div>
+      <div class="cf-row"><span class="cf-l">Instagram</span><input id="cfIg" type="text" placeholder="paste their Instagram URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('instagram')">Check ↗</button><a class="cf-act find" id="cfIgFind" target="_blank" rel="noopener">Find ↗</a></div>
+      <div class="cf-row"><span class="cf-l">TikTok</span><input id="cfTt" type="text" placeholder="paste their TikTok URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('tiktok')">Check ↗</button><a class="cf-act find" id="cfTtFind" target="_blank" rel="noopener">Find ↗</a></div>
+    </div>
+    <div class="m-act"><button class="btn btn-g" onclick="closeModal()">Cancel</button><button class="btn btn-g" id="cfDetect" onclick="continueAdd()">Detect pages</button><button class="btn btn-p" id="cfConfirm" onclick="confirmAdd()" style="display:none">Confirm &amp; add</button></div>
   </div>
 </div>
 
@@ -1325,17 +1338,59 @@ function select(id){state.sel=id;state.day=null;viewSnap=null;document.getElemen
 function back(){document.getElementById('app').dataset.view='list';}
 
 function openModal(){document.getElementById('ov').classList.add('open');setTimeout(function(){document.getElementById('fN').focus();},40);}
-function closeModal(){document.getElementById('ov').classList.remove('open');document.getElementById('eN').style.display='none';document.getElementById('eU').style.display='none';document.getElementById('fN').value='';document.getElementById('fU').value='';}
+function closeModal(){document.getElementById('ov').classList.remove('open');document.getElementById('eN').style.display='none';document.getElementById('eU').style.display='none';document.getElementById('fN').value='';document.getElementById('fU').value='';resetConfirm();}
+function resetConfirm(){var p=document.getElementById('confirmPanel');if(p)p.style.display='none';['cfFb','cfIg','cfTt'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});var d=document.getElementById('cfDetect'),c=document.getElementById('cfConfirm');if(d){d.style.display='';d.textContent='Detect pages';d.disabled=false;}if(c)c.style.display='none';}
 function normUrl(v){v=(v||'').trim();if(!v)return null;if(!/^https?:\/\//i.test(v))v='https://'+v;try{var u=new URL(v);if(!u.hostname.includes('.'))return null;return u;}catch(e){return null;}}
-function submitComp(){
+// Step 1 → detect their social pages from the website so the user can confirm them.
+function continueAdd(){
   var n=document.getElementById('fN').value.trim(),u=normUrl(document.getElementById('fU').value),ok=true;
   document.getElementById('eN').style.display=n?'none':'block';if(!n)ok=false;
   document.getElementById('eU').style.display=u?'none':'block';if(!u)ok=false;
   if(!ok)return;
-  var body={name:n,host:u.hostname.replace(/^www\./,''),url:u.href,country:'ALL'};
-  if(!loggedIn()){closeModal();openAuth('signup',function(){saveComp(body);});return;}  // need an account to save
-  saveComp(body);
+  if(!loggedIn()){var nm=n,uu=u.href;closeModal();openAuth('signup',function(){openModal();document.getElementById('fN').value=nm;document.getElementById('fU').value=uu;continueAdd();});return;}  // need an account to save
+  var host=u.hostname.replace(/^www\./,''),q=encodeURIComponent;
+  document.getElementById('cfFbFind').href='https://www.google.com/search?q='+q('facebook.com '+n);
+  document.getElementById('cfIgFind').href='https://www.google.com/search?q='+q('site:instagram.com '+n);
+  document.getElementById('cfTtFind').href='https://www.google.com/search?q='+q('site:tiktok.com '+n);
+  var btn=document.getElementById('cfDetect');btn.disabled=true;btn.textContent='Detecting…';
+  fetch(API+'/api/resolve-handles?host='+q(host)).then(function(r){return r.json();}).then(function(d){
+    var h=(d&&d.handles)||{};
+    document.getElementById('cfFb').value=h.fb?('facebook.com/'+h.fb):'';
+    document.getElementById('cfIg').value=h.ig?('instagram.com/'+h.ig):'';
+    document.getElementById('cfTt').value=h.tt?('tiktok.com/@'+h.tt):'';
+    finishDetect();
+  }).catch(function(){finishDetect();});
 }
+function finishDetect(){var b=document.getElementById('cfDetect');b.disabled=false;b.textContent='Re-detect';document.getElementById('confirmPanel').style.display='block';document.getElementById('cfConfirm').style.display='';}
+// Step 2 → save with the confirmed (possibly corrected) handles.
+function confirmAdd(){
+  var n=document.getElementById('fN').value.trim(),u=normUrl(document.getElementById('fU').value);
+  if(!n||!u){continueAdd();return;}
+  var handles={fb:normUrlHandle('facebook',document.getElementById('cfFb').value),ig:normUrlHandle('instagram',document.getElementById('cfIg').value),tt:normUrlHandle('tiktok',document.getElementById('cfTt').value)};
+  saveComp({name:n,host:u.hostname.replace(/^www\./,''),url:u.href,country:'ALL',handles:handles});
+}
+// Accept a pasted URL or a bare handle and reduce it to the stored handle form.
+function normUrlHandle(p,val){
+  val=String(val||'').trim();if(!val)return '';
+  var v=val.replace(/^https?:\/\//i,'').replace(/^www\./i,''),m;
+  if(p==='instagram'){m=v.match(/instagram\.com\/([A-Za-z0-9_.]+)/i);return (m?m[1]:val.replace(/^@/,'')).replace(/[\/?].*$/,'');}
+  if(p==='tiktok'){m=v.match(/tiktok\.com\/@?([A-Za-z0-9_.]+)/i);return (m?m[1]:val.replace(/^@/,'')).replace(/[\/?].*$/,'');}
+  if(p==='facebook'){
+    if((m=v.match(/facebook\.com\/profile\.php\?id=(\d+)/i)))return 'profile.php?id='+m[1];
+    if((m=v.match(/facebook\.com\/p\/([A-Za-z0-9._-]*\d{6,})/i)))return 'p/'+m[1];
+    if((m=v.match(/facebook\.com\/([A-Za-z0-9_.]+)/i)))return m[1].replace(/[\/?].*$/,'');
+    return val.replace(/^@/,'').replace(/[\/?].*$/,'');
+  }
+  return val;
+}
+function handleToUrl(p,h){
+  h=String(h||'').trim();if(!h)return '';
+  if(p==='instagram')return 'https://www.instagram.com/'+h.replace(/^@/,'')+'/';
+  if(p==='tiktok')return 'https://www.tiktok.com/@'+h.replace(/^@/,'');
+  if(p==='facebook')return 'https://www.facebook.com/'+h;
+  return '';
+}
+function cfCheck(p){var id={facebook:'cfFb',instagram:'cfIg',tiktok:'cfTt'}[p];var v=document.getElementById(id).value.trim();if(!v)return;var h=normUrlHandle(p,v),url=handleToUrl(p,h)||(/^https?:\/\//i.test(v)?v:'https://'+v);window.open(url,'_blank','noopener');}
 function saveComp(body){
   fetch(API+'/api/competitors',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify(body)})
     .then(function(r){if(r.status===401){doSignout(true);throw 0;}return r.json();})
@@ -1345,7 +1400,7 @@ function saveComp(body){
     })
     .catch(function(){});
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();closeCal();closeAuth();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open'))submitComp();if(e.key==='Enter'&&document.getElementById('authOv')&&document.getElementById('authOv').classList.contains('open'))submitAuth();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();closeCal();closeAuth();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open')){var _cp=document.getElementById('confirmPanel');(_cp&&_cp.style.display!=='none')?confirmAdd():continueAdd();}if(e.key==='Enter'&&document.getElementById('authOv')&&document.getElementById('authOv').classList.contains('open'))submitAuth();});
 document.addEventListener('click',function(){closeCal();});
 /* ── your brand (apply-to-me knowledge base) ── */
 var myBrand=null;

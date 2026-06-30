@@ -63,7 +63,7 @@ async function runActor(actor, input) {
 }
 
 // Pull a brand's social handles straight from its website footer (cached).
-async function resolveHandles(host) {
+export async function resolveHandles(host) {
   const key = host.toLowerCase();
   const hit = handleCache.get(key);
   if (hit && Date.now() - hit.at < TTL) return hit.h;
