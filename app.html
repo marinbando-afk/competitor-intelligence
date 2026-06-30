@@ -718,7 +718,7 @@ function railRow(c){
   var t=locked?'<span class="lk">🔒</span>':(c.live?'<span style="color:var(--quiet)">LIVE</span>':ago(c.updatedAt||Date.now()));
   var sub=locked?'Upgrade to monitor':(c.demo?c.oneLiner:'Baseline capturing…');
   var row='<button class="row'+(c.id===state.sel?' sel':'')+(locked?' lockedrow':'')+'" onclick="select(\''+c.id+'\')">'
-    +'<span class="badge-wrap"><span class="badge">'+badge(c)+'</span><span class="rail-flag" id="railflag-'+c.id+'"'+(emailPending[c.host]?'':' style="display:none"')+' title="Action needed">!</span></span>'
+    +'<span class="badge-wrap"><span class="badge">'+badge(c)+'</span><span class="rail-flag" id="railflag-'+c.id+'"'+(needsAction(c)?'':' style="display:none"')+' title="Action needed">!</span></span>'
     +'<span class="row-main"><span class="row-top"><span class="row-name">'+esc(c.name)+'</span><span class="row-time">'+t+'</span></span>'
     +'<span class="row-sub">'+esc(sub)+'</span></span></button>';
   // Your own saved competitors get a hover "remove from watchlist" control.
@@ -1146,7 +1146,9 @@ function checkEmailBanner(c){
   }).catch(function(){});
 }
 // Rail flag: a small red ! on a competitor's icon while it still has an action pending (the email setup).
-function toggleRailFlag(c){var el=c&&document.getElementById('railflag-'+c.id);if(el)el.style.display=emailPending[c.host]?'':'none';}
+function handlesUnconfirmed(c){return !!(c&&c.account&&!(c.handles&&c.handles.confirmed));}   // user's own competitor whose socials they haven't confirmed
+function needsAction(c){return c?(handlesUnconfirmed(c)||!!emailPending[c.host]):false;}
+function toggleRailFlag(c){var el=c&&document.getElementById('railflag-'+c.id);if(el)el.style.display=needsAction(c)?'':'none';}
 function checkRailActions(list){
   (list||[]).forEach(function(c){
     if(!c||!c.host)return;
@@ -1339,6 +1341,8 @@ function report(c){
     +'<div><div class="rep-name">'+esc(c.name)+'</div><div class="rep-meta">'+meta+'</div></div></div>';
   // Top banner: email is the one channel that needs a manual step — shown until their emails start arriving (toggled by checkEmailBanner).
   var ewb='<div class="email-warn" id="emailWarn-'+c.id+'" style="display:none">⚠ <b>Email isn’t tracked automatically.</b> To capture '+esc(c.name)+'’s newsletters you must paste our inbox into their email sign-up — a one-time manual step, or no emails come through. <button type="button" class="ew-go" onclick="jumpEmail()">Set it up ↓</button></div>';
+  // Banner to confirm a user-added competitor's socials (a guessed handle can track the wrong profile).
+  var hwb=handlesUnconfirmed(c)?('<div class="email-warn" id="handlesWarn-'+c.id+'">⚠ <b>Confirm '+esc(c.name)+'’s pages.</b> Check we’re tracking the right Facebook, Instagram and TikTok — a guessed handle can pull the wrong profile. <button type="button" class="ew-go" onclick="openConfirmPages(\''+c.id+'\')">Confirm pages</button></div>'):'';
 
   if(lockedComp(c)){
     return '<div class="report">'+head
@@ -1348,13 +1352,13 @@ function report(c){
       +'<button class="btn btn-p" onclick="showUpgrade()">See upgrade options</button></div></div>';
   }
   if(!c.demo){
-    return '<div class="report">'+head+ewb
+    return '<div class="report">'+head+ewb+hwb
       +'<p class="setup-note">Capturing a live baseline of <b>'+esc(c.host)+'</b> now — each channel below populates within a few minutes; day-over-day comparisons build from tomorrow.</p>'
       +'<span class="lbl sec-l">Signal channels</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
   }
 
   var move=c.move?'<div class="move"><span class="lbl">Recommended counter-op</span><p class="move-t">'+esc(c.move)+'</p></div>':'';
-  return '<div class="report'+(state.day?' hist':'')+'">'+head+ewb
+  return '<div class="report'+(state.day?' hist':'')+'">'+head+ewb+hwb
     +'<div class="assess"><span class="lbl">Threat assessment</span><p class="verdict">'+esc(c.verdict)+'</p></div>'
     +move
     +'<span class="lbl sec-l">Intercepted signals</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
@@ -1411,7 +1415,7 @@ function finishDetect(){var b=document.getElementById('cfDetect');b.disabled=fal
 function confirmAdd(){
   var n=document.getElementById('fN').value.trim(),u=normUrl(document.getElementById('fU').value);
   if(!n||!u){continueAdd();return;}
-  var handles={fb:normUrlHandle('facebook',document.getElementById('cfFb').value),ig:normUrlHandle('instagram',document.getElementById('cfIg').value),tt:normUrlHandle('tiktok',document.getElementById('cfTt').value)};
+  var handles={fb:normUrlHandle('facebook',document.getElementById('cfFb').value),ig:normUrlHandle('instagram',document.getElementById('cfIg').value),tt:normUrlHandle('tiktok',document.getElementById('cfTt').value),confirmed:true};
   saveComp({name:n,host:u.hostname.replace(/^www\./,''),url:u.href,country:'ALL',handles:handles});
 }
 // Accept a pasted URL or a bare handle and reduce it to the stored handle form.
@@ -1436,6 +1440,23 @@ function handleToUrl(p,h){
   return '';
 }
 function cfCheck(p){var id={facebook:'cfFb',instagram:'cfIg',tiktok:'cfTt'}[p];var v=document.getElementById(id).value.trim();if(!v)return;var h=normUrlHandle(p,v),url=handleToUrl(p,h)||(/^https?:\/\//i.test(v)?v:'https://'+v);window.open(url,'_blank','noopener');}
+// Re-open the confirm step for an EXISTING competitor, pre-filled with its current pages, so the user can verify/fix and confirm them.
+function openConfirmPages(id){
+  var c=getList().filter(function(x){return x.id===id;})[0];if(!c)return;
+  openModal();
+  document.getElementById('fN').value=c.name||'';
+  document.getElementById('fU').value=c.url||('https://'+(c.host||''));
+  var h=c.handles||{},q=encodeURIComponent;
+  document.getElementById('cfFb').value=h.fb?('facebook.com/'+h.fb):'';
+  document.getElementById('cfIg').value=h.ig?('instagram.com/'+h.ig):'';
+  document.getElementById('cfTt').value=h.tt?('tiktok.com/@'+h.tt):'';
+  document.getElementById('cfFbFind').href='https://www.google.com/search?q='+q('facebook.com '+(c.name||''));
+  document.getElementById('cfIgFind').href='https://www.google.com/search?q='+q('site:instagram.com '+(c.name||''));
+  document.getElementById('cfTtFind').href='https://www.google.com/search?q='+q('site:tiktok.com '+(c.name||''));
+  document.getElementById('confirmPanel').style.display='block';
+  document.getElementById('cfConfirm').style.display='';
+  var dt=document.getElementById('cfDetect');if(dt)dt.textContent='Re-detect';
+}
 function saveComp(body){
   fetch(API+'/api/competitors',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify(body)})
     .then(function(r){if(r.status===401){doSignout(true);throw 0;}return r.json();})
