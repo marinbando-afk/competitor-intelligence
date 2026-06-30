@@ -40,6 +40,16 @@ const INSIGHTS_MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';  // da
 let _client;
 function client() { if (!_client) _client = new Anthropic(); return _client; }
 
+const LAND_MODEL = process.env.LAND_MODEL || 'claude-haiku-4-5';   // landing-page format classifier (cheap)
+const FETCH_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const _landCache = new Map();   // host -> { at, val:{format,note} } — analyzed landing-page formats, cached 24h
+function htmlToText(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ').replace(/<[^>]+>/g, ' ')
+    .replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+}
+
 const oneLine = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
 const dayOf = (s) => String(s || '').split('T')[0].split(' ')[0];
 
@@ -109,9 +119,72 @@ function fmtWeb(d) {
   return `${s.products ?? '?'} products; ${s.onSale || 0} on sale; price range ${s.min ?? '?'}–${s.max ?? '?'}.`;
 }
 
+// ── Landing-page format analysis ───────────────────────────────────────────────
+// Ad landing pages are FETCHED and read, then classified by FORMAT — so we report
+// "pre.smooche.com is a listicle" from the page's actual content, never guessing
+// "staging/pre-launch" from the subdomain name. Cached per host (24h).
+async function classifyUrls(items) {   // items: [{ host, url }]
+  const out = new Map(), toFetch = [];
+  for (const it of items) {
+    const c = _landCache.get(it.host);
+    if (c && Date.now() - c.at < 24 * 60 * 60 * 1000) out.set(it.host, c.val); else toFetch.push(it);
+  }
+  if (!toFetch.length) return out;
+  const fetched = await Promise.all(toFetch.map(async (it) => {
+    try {
+      const r = await fetch(it.url, { redirect: 'follow', headers: { 'User-Agent': FETCH_UA, Accept: 'text/html,application/xhtml+xml' }, signal: AbortSignal.timeout(12000) });
+      if (!r.ok) return { ...it, text: '' };
+      const html = (await r.text()).slice(0, 250000);
+      return { ...it, text: htmlToText(html).slice(0, 3500) };
+    } catch (e) { return { ...it, text: '' }; }
+  }));
+  const withText = fetched.filter((f) => f.text && f.text.length > 80);
+  if (withText.length) {
+    const list = withText.map((f, i) => `[${i + 1}] host=${f.host}\n${f.text}`).join('\n\n=====\n\n');
+    const system =
+      'You are shown the readable text of one or more ad LANDING PAGES. For each, classify its FORMAT as exactly one of: ' +
+      '"listicle", "advertorial", "third-party review", "sales page", "product page", "quiz/survey funnel", "home/category page", "app store", "other". ' +
+      'Judge ONLY from the actual content — does it read like an editorial article or "top N" list or native-news piece (listicle/advertorial), an independent review, a long-form direct-response sales letter, a standard brand product page, or a quiz? Do NOT use the URL. ' +
+      'Add a note of <=12 words on the angle/hook. Return ONLY minified JSON: {"v":[{"i":1,"format":"...","note":"..."}]}.';
+    let arr = [];
+    try {
+      const resp = await client().messages.create({ model: LAND_MODEL, max_tokens: 700, system, messages: [{ role: 'user', content: list }] });
+      const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim().replace(/^```(?:json)?|```$/g, '').trim();
+      const p = JSON.parse(txt); if (Array.isArray(p.v)) arr = p.v;
+    } catch (e) { arr = []; }
+    withText.forEach((f, idx) => {
+      const hit = arr.find((x) => Number(x.i) === idx + 1);
+      const val = hit ? { format: String(hit.format || 'other').slice(0, 40), note: String(hit.note || '').slice(0, 90) } : { format: 'unknown', note: '' };
+      out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val });
+    });
+  }
+  for (const f of fetched) if (!out.has(f.host)) { const val = { format: 'unknown', note: 'page could not be fetched' }; out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val }); }
+  return out;
+}
+
+// Build a context block of analyzed landing-page formats for the distinct hosts in this ad set.
+async function landingFormats(ads) {
+  if (!process.env.ANTHROPIC_API_KEY || !ads || !ads.length) return '';
+  const repByHost = new Map();
+  for (const a of ads) {
+    const u = a && a.landing; if (!u || !/^https?:\/\//i.test(u)) continue;
+    const h = adHost(u); if (!h || repByHost.has(h)) continue;
+    repByHost.set(h, u);
+  }
+  if (!repByHost.size) return '';
+  const items = [...repByHost.entries()].slice(0, 6).map(([host, url]) => ({ host, url }));
+  let results;
+  try { results = await classifyUrls(items); } catch (e) { return ''; }
+  const lines = items.map(({ host }) => {
+    const r = results.get(host);
+    return (r && r.format !== 'unknown') ? `- ${host} → ${r.format}${r.note ? ` (${r.note})` : ''}` : `- ${host} → not analyzable (couldn't fetch the page)`;
+  });
+  return '\n\nLANDING PAGE FORMATS — each page below was FETCHED and read; use these exact formats and never infer format from the URL/subdomain:\n' + lines.join('\n');
+}
+
 // ── per-channel analyst guidance ──────────────────────────────────────────────
 const GUIDE = {
-  ads: 'their Meta/Facebook ads. Use the FUNNEL FACTS block as ground truth for pages and landing domains — NEVER claim there are no third-party pages or off-domain landings unless the facts confirm it; if any THIRD-PARTY page or domain is listed (e.g. a news-publisher advertorial / native ad, an affiliate or media-partner funnel), SURFACE it as a notable tactic. Also surface, only if present: what is NEW vs the previous capture; the HOOKS and ANGLES in the copy; creative FORMATS (video vs image/carousel); whether they test multiple regional own-domains. Do not over-generalize beyond what the facts and sample support.',
+  ads: 'their Meta/Facebook ads. Use the FUNNEL FACTS block as ground truth for pages and landing domains — NEVER claim there are no third-party pages or off-domain landings unless the facts confirm it; if any THIRD-PARTY page or domain is listed (e.g. a news-publisher advertorial / native ad, an affiliate or media-partner funnel), SURFACE it as a notable tactic. LANDING-PAGE FORMAT: when a LANDING PAGE FORMATS block is provided, state each landing page\'s ACTUAL format from it (listicle, advertorial, third-party review, sales page, product page, quiz funnel, etc.) — those were produced by fetching and reading the real page. NEVER infer a landing page\'s format, purpose, or that it is a "staging"/"test"/"pre-launch"/"variant" page from its URL or subdomain name (e.g. do not assume "pre." means pre-launch); if a page is marked not-analyzable, say it wasn\'t read rather than guessing. Also surface, only if present: what is NEW vs the previous capture; the HOOKS and ANGLES in the copy; creative FORMATS (video vs image/carousel); whether they test multiple regional own-domains. Do not over-generalize beyond what the facts and sample support.',
   social: 'their organic social (Instagram / TikTok / Facebook). Engagement counts (views, likes, comments) are CUMULATIVE lifetime totals: they only ever climb, they grow with how long a post has been live, and a post does most of its growth in the first day or two. So a newer post almost always shows fewer than an older one, and that is normal — NOT a decline. NEVER frame a lower count — on a newer post, or versus a previous capture — as a drop, collapse, slump, dip, decay, or "reach/algorithm" problem, and never compute view/like deltas between captures (different posts are not comparable that way). What matters is STACKED engagement. Surface, only if present: which posts have accumulated the most total engagement; what is genuinely NEW since the previous capture (new posts / series); recurring HOOKS / ANGLES / themes; FORMATS (Reel / Carousel / Post); and any product or campaign focus.',
   website: 'their online storefront. Surface what materially CHANGED vs the previous capture: sale scope, prices, products added/removed. If nothing material changed, say that plainly in one line.',
   email: 'their email marketing. Surface: sending CADENCE; OFFER / discount patterns; recurring THEMES and angles; what is newest. Give a real read, not a list of subjects.',
@@ -186,7 +259,10 @@ export async function generateInsights(brand, host) {
 
   try {
     const r = await recentSnapshots(host, 'ads', 2);
-    if (r[0] && r[0].data) out.ads = await ask('ads', brand, fmtAds(r[0].data), r[1] && r[1].data ? fmtAds(r[1].data) : '', me);
+    if (r[0] && r[0].data) {
+      const lf = await landingFormats(r[0].data.ads || []);   // FETCH + read each landing page, classify its format
+      out.ads = await ask('ads', brand, fmtAds(r[0].data) + lf, r[1] && r[1].data ? fmtAds(r[1].data) : '', me);
+    }
   } catch (e) { /* skip */ }
 
   try {
