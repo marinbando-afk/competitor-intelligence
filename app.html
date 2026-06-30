@@ -923,11 +923,12 @@ function subscribeCard(inbox,host){
 function markSub(host){try{localStorage.setItem('ci_sub_'+host,Date.now());}catch(e){}}
 function isSubbed(host){try{var t=+localStorage.getItem('ci_sub_'+host);return !!t&&(Date.now()-t)<7*864e5;}catch(e){return false;}}
 function clearSub(host){try{localStorage.removeItem('ci_sub_'+host);}catch(e){}}
-function undoSub(a,host){clearSub(host);var box=a.closest('.emlbox');if(box){box.dataset.loaded='';loadEmail(box);}return false;}
+function undoSub(a,host){clearSub(host);delete emailPending[host];var box=a.closest('.emlbox');if(box){box.dataset.loaded='';loadEmail(box);}var c=currentComp();if(c)checkEmailBanner(c);return false;}
 function confirmSub(btn){
   var box=btn.closest('.emlbox');if(!box)return;
   var host=box.getAttribute('data-host');
   markSub(host);
+  var c=currentComp();if(c&&c.host===host){emailPending[host]=false;toggleRailFlag(c);checkEmailBanner(c);}   // they've acted — clear the red flags now
   pollForEmail(box,host);
 }
 function pollForEmail(box,host){
@@ -1170,7 +1171,7 @@ function checkEmailBanner(c){
   var el=document.getElementById('emailWarn-'+c.id),cw=document.getElementById('chanWarn-'+c.id);if(!el&&!cw)return;
   if(state.day){if(el)el.style.display='none';if(cw)cw.style.display='none';return;}
   fetch(API+'/api/emails?host='+encodeURIComponent(c.host||'')).then(function(r){return r.json();}).then(function(d){
-    var pending=!!(d&&d.inbox&&!(d.emails&&d.emails.length));
+    var pending=!!(d&&d.inbox&&!(d.emails&&d.emails.length)&&!isSubbed(c.host));   // already subscribed = nothing to do = no red flag
     var e2=document.getElementById('emailWarn-'+c.id);if(e2)e2.style.display=pending?'flex':'none';
     var w2=document.getElementById('chanWarn-'+c.id);if(w2)w2.style.display=pending?'':'none';
     emailPending[c.host]=pending;toggleRailFlag(c);
@@ -1185,7 +1186,7 @@ function checkRailActions(list){
     if(!c||!c.host)return;
     if(emailPending.hasOwnProperty(c.host)){toggleRailFlag(c);return;}
     fetch(API+'/api/emails?host='+encodeURIComponent(c.host)).then(function(r){return r.json();}).then(function(d){
-      emailPending[c.host]=!!(d&&d.inbox&&!(d.emails&&d.emails.length));toggleRailFlag(c);
+      emailPending[c.host]=!!(d&&d.inbox&&!(d.emails&&d.emails.length)&&!isSubbed(c.host));toggleRailFlag(c);
     }).catch(function(){});
   });
 }
