@@ -17,7 +17,7 @@ import { saveSnapshot, latestSnapshot } from './snapshots.js';
 // Brands kept permanently warm (mirrors the app's seeded demos).
 export const TRACKED = [
   { name: 'The Oodie', host: 'theoodie.com', country: 'AU', handles: { ig: 'the_oodie', tt: 'the_oodie', fb: 'theofficialoodie' } },
-  { name: 'Official Hodgetwins', host: 'officialhodgetwins.com', country: 'US', handles: { ig: 'hodgetwins', tt: 'hodgetwins', fb: 'thehodgetwins' } },
+  { name: 'Athletic Greens', host: 'drinkag1.com', country: 'US', handles: { ig: 'drinkag1', tt: 'drinkag1', fb: 'drinkAG1' } },
   { name: 'Smooche', host: 'smooche.com', country: 'US', handles: { ig: 'smooche', tt: 'smooche.com', fb: 'smooche' } },
 ];
 
