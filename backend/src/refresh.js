@@ -84,7 +84,12 @@ export async function refreshAll(force) {
   lastWarm = Date.now();
   lastResult = { ok, fail };
   console.log('✓ pre-warm done: ' + ok + ' ok, ' + fail + ' failed in ' + Math.round((Date.now() - t0) / 1000) + 's');
-  if (force) postDigest(brands).then((r) => console.log('slack digest:', JSON.stringify(r))).catch(() => {}); // daily brief to Slack (only on the scheduled run, best-effort)
+  // Daily brief to Slack — scheduled run only, and only for the user's REAL competitors.
+  // The seeded DEMO brands (TRACKED) are showcase data, so they're never sent to Slack.
+  if (force) {
+    const clientBrands = brands.filter((b) => !TRACKED.some((t) => t.host === b.host));
+    if (clientBrands.length) postDigest(clientBrands).then((r) => console.log('slack digest:', JSON.stringify(r))).catch(() => {});
+  }
   return { ok, fail };
 }
 

@@ -12,7 +12,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { initSchema, pool } from './db.js';
-import { signup, login, requireAuth, changePassword, JWT_IS_DEFAULT } from './auth.js';
+import { signup, login, requireAuth, JWT_IS_DEFAULT } from './auth.js';
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial } from './social.js';
 import { startScheduler, warmStatus, TRACKED, addTracked, warmBrand, allBrands } from './refresh.js';
@@ -307,14 +307,6 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/me', requireAuth, (req, res) => {
   res.json({ user: { id: req.user.uid, email: req.user.email } });
-});
-
-// Change your own password (must supply the current one).
-app.patch('/api/me/password', requireAuth, async (req, res) => {
-  try {
-    const { current, next } = req.body || {};
-    res.json(await changePassword(req.user.uid, current, next));
-  } catch (e) { res.status(e.status || 500).json({ error: e.message || 'Could not change password.' }); }
 });
 
 app.get('/api/competitors', requireAuth, async (req, res) => {

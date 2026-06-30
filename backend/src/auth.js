@@ -55,22 +55,6 @@ export async function login(email, password) {
   return { token: sign(u), user: { id: u.id, email: u.email } };
 }
 
-// Change the password of a logged-in user — verifies the current password first.
-export async function changePassword(uid, current, next) {
-  current = String(current || '');
-  next = String(next || '');
-  if (next.length < 8) {
-    const e = new Error('New password must be at least 8 characters.'); e.status = 400; throw e;
-  }
-  const r = await pool.query('SELECT password_hash FROM users WHERE id = $1', [uid]);
-  const u = r.rows[0];
-  if (!u || !(await bcrypt.compare(current, u.password_hash))) {
-    const e = new Error('Your current password is incorrect.'); e.status = 401; throw e;
-  }
-  await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [await bcrypt.hash(next, 10), uid]);
-  return { ok: true };
-}
-
 // Express middleware — require a valid Bearer token, attach req.user.
 export function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';

@@ -489,18 +489,6 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
   </div>
 </div>
 
-<div class="ov" id="pwOv" onclick="if(event.target===this)closePw()">
-  <div class="modal">
-    <h2>Change password</h2>
-    <p>Choose a new password for your account.</p>
-    <div class="fld"><label for="pwCur">Current password</label><input id="pwCur" type="password" autocomplete="current-password" placeholder="Your current password"/></div>
-    <div class="fld"><label for="pwNew">New password</label><input id="pwNew" type="password" autocomplete="new-password" placeholder="At least 8 characters"/></div>
-    <div class="er" id="pErr" style="display:none"></div>
-    <div id="pwOk" style="display:none;color:var(--quiet);font-size:13px;margin-top:2px">Password updated ✓</div>
-    <div class="m-act"><button class="btn btn-g" onclick="closePw()">Cancel</button><button class="btn btn-p" id="pwGo" onclick="submitPw()">Update password</button></div>
-  </div>
-</div>
-
 <div class="ov" id="brandOv" onclick="if(event.target===this)closeBrand()">
   <div class="modal">
     <h2>Your brand</h2>
@@ -645,7 +633,7 @@ function loadUserComps(cb){
 }
 function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');}catch(e){}paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
 function paintAuth(){var s=document.getElementById('authSlot');if(!s)return;
-  if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML='<span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+'</span><button class="authbtn" onclick="openPw()">Password</button><button class="authbtn" onclick="doSignout()">Sign out</button>';}
+  if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML='<span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
   else{s.innerHTML='<button class="authbtn primary" onclick="openAuth(\'signin\')">Sign in</button>';}
 }
 function openAuth(mode,after){authMode=(mode==='signin')?'login':'signup';pendingAfterAuth=after||null;paintAuthMode();var er=document.getElementById('aErr');if(er)er.style.display='none';document.getElementById('authOv').classList.add('open');setTimeout(function(){document.getElementById('aE').focus();},40);}
@@ -671,19 +659,6 @@ function submitAuth(){
     .catch(function(){go.disabled=false;go.textContent=was;er.textContent='Network error — please try again.';er.style.display='block';});
 }
 
-function openPw(){var er=document.getElementById('pErr'),ok=document.getElementById('pwOk');if(er)er.style.display='none';if(ok)ok.style.display='none';document.getElementById('pwCur').value='';document.getElementById('pwNew').value='';document.getElementById('pwOv').classList.add('open');setTimeout(function(){document.getElementById('pwCur').focus();},40);}
-function closePw(){var o=document.getElementById('pwOv');if(o)o.classList.remove('open');}
-function submitPw(){
-  var cur=document.getElementById('pwCur').value,nw=document.getElementById('pwNew').value,er=document.getElementById('pErr'),ok=document.getElementById('pwOk');
-  if((nw||'').length<8){er.textContent='New password must be at least 8 characters.';er.style.display='block';return;}
-  var go=document.getElementById('pwGo');go.disabled=true;var was=go.textContent;go.textContent='…';er.style.display='none';if(ok)ok.style.display='none';
-  fetch(API+'/api/me/password',{method:'PATCH',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({current:cur,next:nw})})
-    .then(function(r){if(r.status===401){doSignout(true);closePw();throw 0;}return r.json().then(function(d){return {ok:r.ok,d:d};});})
-    .then(function(x){go.disabled=false;go.textContent=was;
-      if(!x.ok){er.textContent=(x.d&&x.d.error)||'Could not change password.';er.style.display='block';return;}
-      document.getElementById('pwCur').value='';document.getElementById('pwNew').value='';if(ok)ok.style.display='block';setTimeout(closePw,1000);})
-    .catch(function(e){if(e===0)return;go.disabled=false;go.textContent=was;er.textContent='Network error — please try again.';er.style.display='block';});
-}
 function load(){try{var r=localStorage.getItem(KEY);if(r)return JSON.parse(r);}catch(e){}return null;}
 function save(l){try{localStorage.setItem(KEY,JSON.stringify(l));}catch(e){}}
 function getList(){return DEMOS.concat(USERCOMPS);}  // demos (open to all) + your saved account competitors
