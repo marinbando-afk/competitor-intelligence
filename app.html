@@ -322,6 +322,10 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .redcall b{color:#ff8a7e}
 .cf-email{margin-top:13px;font-size:12px;color:#ff6b5e;background:rgba(226,85,79,.09);border-left:2px solid var(--clay);padding:9px 11px;border-radius:0 7px 7px 0;line-height:1.55}
 .cf-email b{color:#ff8a7e}
+.email-warn{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0 2px;padding:12px 15px;border-radius:9px;background:rgba(226,85,79,.1);border:1px solid rgba(226,85,79,.42);color:#ff6b5e;font-size:13px;line-height:1.5}
+.email-warn b{color:#ff8a7e}
+.ew-go{margin-left:auto;flex-shrink:0;font-family:var(--mono);font-size:11px;font-weight:600;padding:7px 12px;border-radius:7px;border:1px solid var(--clay);background:rgba(226,85,79,.16);color:#ff8a7e;cursor:pointer;white-space:nowrap}
+.ew-go:hover{background:rgba(226,85,79,.3)}
 .subact{display:flex;align-items:center;gap:10px;margin-top:13px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:wrap}
 .subconfirm{font-size:12px;font-weight:600;color:var(--sage);background:none;border:1px solid var(--sage-d);border-radius:8px;padding:8px 15px;transition:.15s}
 .subconfirm:hover{background:var(--sage-soft)}
@@ -1123,7 +1127,20 @@ function paintAsOf(c){
   var latest=days.slice().sort()[days.length-1],n=new Date(),today=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
   el.innerHTML=' · <span class="asoflbl'+(latest===today?'':' stale')+'" title="The most recent daily capture. A new capture replaces this when it runs.">'+(latest===today?'captured today':'📅 as of '+esc(fmtShortDay(latest)))+'</span>';
 }
-function refreshDateFloat(){var c=currentComp(),f=document.getElementById('dateNavWrap');if(f)f.innerHTML=c?dateNav(c):'';if(c){paintAsOf(c);loadInsights(c);}eagerLoad();}
+function refreshDateFloat(){var c=currentComp(),f=document.getElementById('dateNavWrap');if(f)f.innerHTML=c?dateNav(c):'';if(c){paintAsOf(c);checkEmailBanner(c);loadInsights(c);}eagerLoad();}
+// Top email banner shows only while their emails aren't flowing yet (inbox set, none captured); hides once they arrive.
+function checkEmailBanner(c){
+  var el=c&&document.getElementById('emailWarn-'+c.id);if(!el)return;
+  if(state.day){el.style.display='none';return;}
+  fetch(API+'/api/emails?host='+encodeURIComponent(c.host||'')).then(function(r){return r.json();}).then(function(d){
+    var pending=d&&d.inbox&&!(d.emails&&d.emails.length);var e2=document.getElementById('emailWarn-'+c.id);if(e2)e2.style.display=pending?'flex':'none';
+  }).catch(function(){});
+}
+function jumpEmail(){
+  var ch=document.querySelector('.chan[data-k="email"]');if(!ch)return;
+  if(!ch.classList.contains('open')){var h=ch.querySelector('.chan-head');if(h)tog(h);}
+  ch.scrollIntoView({behavior:'smooth',block:'center'});
+}
 /* Preload every section of the open competitor on render (so nothing waits for a
    click). Only the viewed competitor is loaded — and from the warm daily cache —
    so it never spends extra credits on brands you don't open. */
@@ -1300,6 +1317,8 @@ function report(c){
   else{meta=esc(c.host);}
   var head=back+BOTANICAL+'<div class="rep-head"><span class="rep-badge">'+badge(c)+'</span>'
     +'<div><div class="rep-name">'+esc(c.name)+'</div><div class="rep-meta">'+meta+'</div></div></div>';
+  // Top banner: email is the one channel that needs a manual step — shown until their emails start arriving (toggled by checkEmailBanner).
+  var ewb='<div class="email-warn" id="emailWarn-'+c.id+'" style="display:none">⚠ <b>Email isn’t tracked automatically.</b> To capture '+esc(c.name)+'’s newsletters you must paste our inbox into their email sign-up — a one-time manual step, or no emails come through. <button type="button" class="ew-go" onclick="jumpEmail()">Set it up ↓</button></div>';
 
   if(lockedComp(c)){
     return '<div class="report">'+head
@@ -1309,13 +1328,13 @@ function report(c){
       +'<button class="btn btn-p" onclick="showUpgrade()">See upgrade options</button></div></div>';
   }
   if(!c.demo){
-    return '<div class="report">'+head
+    return '<div class="report">'+head+ewb
       +'<p class="setup-note">Capturing a live baseline of <b>'+esc(c.host)+'</b> now — each channel below populates within a few minutes; day-over-day comparisons build from tomorrow.</p>'
       +'<span class="lbl sec-l">Signal channels</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
   }
 
   var move=c.move?'<div class="move"><span class="lbl">Recommended counter-op</span><p class="move-t">'+esc(c.move)+'</p></div>':'';
-  return '<div class="report'+(state.day?' hist':'')+'">'+head
+  return '<div class="report'+(state.day?' hist':'')+'">'+head+ewb
     +'<div class="assess"><span class="lbl">Threat assessment</span><p class="verdict">'+esc(c.verdict)+'</p></div>'
     +move
     +'<span class="lbl sec-l">Intercepted signals</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
