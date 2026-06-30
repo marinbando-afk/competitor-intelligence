@@ -11,7 +11,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { recentSnapshots, saveSnapshot, latestSnapshot } from './snapshots.js';
 import { getEmails } from './email.js';
-import { diffWebsite } from './website.js';
+import { diffWebsite, siteShot } from './website.js';
 import { getMyBrand } from './brand.js';
 import { transcribeVideo } from './transcribe.js';
 
@@ -45,6 +45,7 @@ const FETCH_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/53
 const _landCache = new Map();   // host -> { at, val:{format,note} } — analyzed landing-page formats, cached 24h
 function htmlToText(html) {
   return String(html || '')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ').replace(/<[^>]+>/g, ' ')
     .replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
@@ -123,6 +124,27 @@ function fmtWeb(d) {
 // Ad landing pages are FETCHED and read, then classified by FORMAT — so we report
 // "pre.smooche.com is a listicle" from the page's actual content, never guessing
 // "staging/pre-launch" from the subdomain name. Cached per host (24h).
+// Classify a JS-rendered or bot-blocked page by RENDERING it (ScreenshotOne) and
+// reading the screenshot with a vision model — handles funnels whose raw HTML is an
+// empty shell (e.g. a React app) or that block plain fetches.
+async function visionClassifyLanding(host, url) {
+  try {
+    const shot = await siteShot(url);
+    const m = shot && shot.match(/^data:(image\/[a-z]+);base64,(.+)$/);
+    if (!m) return { format: 'unknown', note: 'page could not be rendered' };
+    const system =
+      'You are shown a SCREENSHOT of an ad landing page rendered in a real browser. Classify its FORMAT as exactly one of: ' +
+      '"listicle", "advertorial", "third-party review", "sales page", "product page", "quiz/survey funnel", "home/category page", "other". ' +
+      'Judge from how the page LOOKS — an editorial article / numbered "top N" list / fake-news native layout (listicle/advertorial), an independent review, a long-form direct-response sales letter, a normal brand product page, or a quiz. ' +
+      'Add a note of <=12 words. Return ONLY minified JSON: {"format":"...","note":"..."}.';
+    const resp = await client().messages.create({ model: process.env.LAND_VISION_MODEL || INSIGHTS_MODEL, max_tokens: 200, system, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } }, { type: 'text', text: 'host=' + host }] }] });
+    const raw = oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''));
+    let o = null; try { o = JSON.parse(raw); } catch (e) { const mm = raw.match(/\{[\s\S]*\}/); if (mm) { try { o = JSON.parse(mm[0]); } catch (_) { /* noop */ } } }
+    o = o || {};
+    return { format: String(o.format || 'other').slice(0, 40), note: String(o.note || '').slice(0, 90) };
+  } catch (e) { return { format: 'unknown', note: 'page could not be rendered' }; }
+}
+
 async function classifyUrls(items) {   // items: [{ host, url }]
   const out = new Map(), toFetch = [];
   for (const it of items) {
@@ -138,9 +160,10 @@ async function classifyUrls(items) {   // items: [{ host, url }]
       return { ...it, text: htmlToText(html).slice(0, 3500) };
     } catch (e) { return { ...it, text: '' }; }
   }));
-  const withText = fetched.filter((f) => f.text && f.text.length > 80);
-  if (withText.length) {
-    const list = withText.map((f, i) => `[${i + 1}] host=${f.host}\n${f.text}`).join('\n\n=====\n\n');
+  const rich = fetched.filter((f) => f.text && f.text.length >= 600);    // server-rendered → classify from text
+  const thin = fetched.filter((f) => !(f.text && f.text.length >= 600));  // JS-shell / blocked → render + read the screenshot
+  if (rich.length) {
+    const list = rich.map((f, i) => `[${i + 1}] host=${f.host}\n${f.text}`).join('\n\n=====\n\n');
     const system =
       'You are shown the readable text of one or more ad LANDING PAGES. For each, classify its FORMAT as exactly one of: ' +
       '"listicle", "advertorial", "third-party review", "sales page", "product page", "quiz/survey funnel", "home/category page", "app store", "other". ' +
@@ -152,13 +175,17 @@ async function classifyUrls(items) {   // items: [{ host, url }]
       const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim().replace(/^```(?:json)?|```$/g, '').trim();
       const p = JSON.parse(txt); if (Array.isArray(p.v)) arr = p.v;
     } catch (e) { arr = []; }
-    withText.forEach((f, idx) => {
+    rich.forEach((f, idx) => {
       const hit = arr.find((x) => Number(x.i) === idx + 1);
       const val = hit ? { format: String(hit.format || 'other').slice(0, 40), note: String(hit.note || '').slice(0, 90) } : { format: 'unknown', note: '' };
       out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val });
     });
   }
-  for (const f of fetched) if (!out.has(f.host)) { const val = { format: 'unknown', note: 'page could not be fetched' }; out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val }); }
+  for (const f of thin.slice(0, 3)) {   // cap browser renders per run (vision cost)
+    const val = await visionClassifyLanding(f.host, f.url);
+    out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val });
+  }
+  for (const f of thin.slice(3)) { const val = { format: 'unknown', note: 'not analyzed this run' }; out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val }); }
   return out;
 }
 
@@ -179,7 +206,7 @@ async function landingFormats(ads) {
     const r = results.get(host);
     return (r && r.format !== 'unknown') ? `- ${host} → ${r.format}${r.note ? ` (${r.note})` : ''}` : `- ${host} → not analyzable (couldn't fetch the page)`;
   });
-  return '\n\nLANDING PAGE FORMATS — each page below was FETCHED and read; use these exact formats and never infer format from the URL/subdomain:\n' + lines.join('\n');
+  return '\n\nLANDING PAGE FORMATS — each page below was analyzed from its real content (fetched, or rendered in a browser when it is a JS app); use these exact formats and never infer format from the URL/subdomain:\n' + lines.join('\n');
 }
 
 // ── per-channel analyst guidance ──────────────────────────────────────────────
