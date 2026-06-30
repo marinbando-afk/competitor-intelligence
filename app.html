@@ -321,6 +321,8 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .subaddr{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--sage);background:var(--bg);border:1px solid var(--line2);border-radius:8px;padding:8px 11px;flex:1;min-width:190px;overflow:auto;white-space:nowrap}
 .subcopy{font-size:12px;font-weight:600;color:#0b1311;background:var(--sage);border:none;border-radius:8px;padding:9px 17px;flex-shrink:0;transition:.15s}
 .subcopy:hover,.subcopy.ok{background:var(--quiet)}
+.inboxbar{margin-bottom:15px;max-width:760px}
+.inboxbar .ibl{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .substeps{font-size:12.5px;color:var(--muted);line-height:1.55}
 .substeps b{color:var(--text);font-weight:600}
 .substeps a{color:var(--sage);text-decoration:none;font-weight:500}
@@ -949,7 +951,14 @@ function emlHTML(d,host){
   var s=d.summary||{};
   var off=(s.offers&&s.offers.length)?' · offers: '+s.offers.slice(0,3).map(esc).join(' · '):'';
   var sum='<div class="adssum"><b>'+s.count+' email'+(s.count===1?'':'s')+' captured</b>'+(s.perWeek?' · ~'+s.perWeek+'/week':'')+(s.latest?' · latest '+esc(fmtAgo(s.latest)):'')+off+'</div>';
-  return sum+'<div class="emllist">'+d.emails.map(emlRow).join('')+'</div>';
+  var inboxBar=d.inbox?inboxBarHTML(d.inbox):'';
+  return inboxBar+sum+'<div class="emllist">'+d.emails.map(emlRow).join('')+'</div>';
+}
+// Keep the catch-all inbox address visible + copyable even after emails start arriving
+// (so you can subscribe it to more competitors without losing it).
+function inboxBarHTML(inbox){
+  return '<div class="inboxbar"><span class="ibl">Your tracking inbox — paste into any competitor’s newsletter sign-up</span>'
+    +'<div class="subrow" style="margin-bottom:0"><code class="subaddr">'+esc(inbox)+'</code><button class="subcopy" onclick="return copyInbox(this,\''+esc(inbox)+'\')">Copy</button></div></div>';
 }
 function loadEmail(box){
   var host=box.getAttribute('data-host');
