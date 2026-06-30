@@ -898,7 +898,7 @@ function subscribeCard(inbox,host){
   var site='https://'+host;
   return '<div class="subcard"><div class="subcard-h">Track their emails — a 15-second one-time step</div>'
     +'<div class="subrow"><code class="subaddr">'+esc(inbox)+'</code><button class="subcopy" onclick="return copyInbox(this,\''+esc(inbox)+'\')">Copy</button></div>'
-    +'<div class="substeps"><b>1.</b> Open <a href="'+esc(site)+'" target="_blank" rel="noopener">'+esc(host)+' ↗</a> and find their newsletter sign-up (usually in the footer).<span class="redcall">⚠ Step 2 is manual and easy to miss: paste the address above into their <b>email sign-up</b> and hit <b>Submit</b>. Their campaigns won\'t arrive until you do this yourself.</span></div>'
+    +'<div class="substeps"><b>1.</b> Open <a href="'+esc(site)+'" target="_blank" rel="noopener">'+esc(host)+' ↗</a> and find their newsletter sign-up (usually in the footer).<span class="redcall">⚠ Step 2: paste the address above into their email sign-up and hit <b>Submit</b>.</span></div>'
     +'<div class="subact"><button class="subconfirm" onclick="confirmSub(this)">I’ve subscribed — check it worked</button><span class="substat"></span></div></div>';
 }
 function confirmSub(btn){
