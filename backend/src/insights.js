@@ -127,17 +127,17 @@ function fmtWeb(d) {
 // Classify a JS-rendered or bot-blocked page by RENDERING it (ScreenshotOne) and
 // reading the screenshot with a vision model — handles funnels whose raw HTML is an
 // empty shell (e.g. a React app) or that block plain fetches.
-async function visionClassifyLanding(host, url) {
+async function visionClassifyLanding(host, url, adText) {
   try {
     const shot = await siteShot(url);
     const m = shot && shot.match(/^data:(image\/[a-z]+);base64,(.+)$/);
     if (!m) return { format: 'unknown', note: 'page could not be rendered' };
     const system =
-      'You are shown a SCREENSHOT of an ad landing page rendered in a real browser. Classify its FORMAT as exactly one of: ' +
+      'You are shown a SCREENSHOT of the landing page an ad sends people to (rendered in a real browser). Classify its FORMAT as exactly one of: ' +
       '"listicle", "advertorial", "third-party review", "sales page", "product page", "quiz/survey funnel", "home/category page", "other". ' +
-      'Judge from how the page LOOKS — an editorial article / numbered "top N" list / fake-news native layout (listicle/advertorial), an independent review, a long-form direct-response sales letter, a normal brand product page, or a quiz. ' +
+      'An ADVERTORIAL or LISTICLE is a PRE-SELL page framed as EDITORIAL content — a personal story, a "why I switched" / "after decades of…" / "in [country] women do X" narrative, numbered reasons/tips, or a native-news article — that soft-sells before the buy; classify it as advertorial/listicle EVEN IF it also shows reviews, benefit tabs or a buy button. A plain PRODUCT PAGE is a direct product listing (price/variants/add-to-cart) with NO editorial story pre-sell. The AD COPY that drives traffic here is a STRONG hint to the funnel\'s intent. ' +
       'Add a note of <=12 words. Return ONLY minified JSON: {"format":"...","note":"..."}.';
-    const resp = await client().messages.create({ model: process.env.LAND_VISION_MODEL || INSIGHTS_MODEL, max_tokens: 200, system, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } }, { type: 'text', text: 'host=' + host }] }] });
+    const resp = await client().messages.create({ model: process.env.LAND_VISION_MODEL || INSIGHTS_MODEL, max_tokens: 200, system, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } }, { type: 'text', text: 'host=' + host + '\nAD COPY THAT SENDS TRAFFIC HERE: ' + (adText || '(n/a)') }] }] });
     const raw = oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''));
     let o = null; try { o = JSON.parse(raw); } catch (e) { const mm = raw.match(/\{[\s\S]*\}/); if (mm) { try { o = JSON.parse(mm[0]); } catch (_) { /* noop */ } } }
     o = o || {};
@@ -163,11 +163,11 @@ async function classifyUrls(items) {   // items: [{ host, url }]
   const rich = fetched.filter((f) => f.text && f.text.length >= 600);    // server-rendered → classify from text
   const thin = fetched.filter((f) => !(f.text && f.text.length >= 600));  // JS-shell / blocked → render + read the screenshot
   if (rich.length) {
-    const list = rich.map((f, i) => `[${i + 1}] host=${f.host}\n${f.text}`).join('\n\n=====\n\n');
+    const list = rich.map((f, i) => `[${i + 1}] host=${f.host}\nAD COPY THAT SENDS TRAFFIC HERE: ${f.adText || '(n/a)'}\nPAGE CONTENT: ${f.text}`).join('\n\n=====\n\n');
     const system =
-      'You are shown the readable text of one or more ad LANDING PAGES. For each, classify its FORMAT as exactly one of: ' +
+      'You are shown, for each ad LANDING PAGE, the AD COPY that drives traffic to it plus the page\'s readable text. Classify each page\'s FORMAT as exactly one of: ' +
       '"listicle", "advertorial", "third-party review", "sales page", "product page", "quiz/survey funnel", "home/category page", "app store", "other". ' +
-      'Judge ONLY from the actual content — does it read like an editorial article or "top N" list or native-news piece (listicle/advertorial), an independent review, a long-form direct-response sales letter, a standard brand product page, or a quiz? Do NOT use the URL. ' +
+      'An ADVERTORIAL or LISTICLE is a PRE-SELL page framed as EDITORIAL content — a personal story, a "why I switched" / "after decades of…" / "in [country] women do X" narrative, numbered reasons/tips, or a native-news article — that soft-sells before the buy; call it advertorial/listicle EVEN IF it also has reviews, benefits or a buy button. A plain PRODUCT PAGE is a direct product listing with NO editorial story pre-sell. Use the page content AND the ad copy (a strong hint to funnel intent); do NOT use the URL. ' +
       'Add a note of <=12 words on the angle/hook. Return ONLY minified JSON: {"v":[{"i":1,"format":"...","note":"..."}]}.';
     let arr = [];
     try {
@@ -182,7 +182,7 @@ async function classifyUrls(items) {   // items: [{ host, url }]
     });
   }
   for (const f of thin.slice(0, 3)) {   // cap browser renders per run (vision cost)
-    const val = await visionClassifyLanding(f.host, f.url);
+    const val = await visionClassifyLanding(f.host, f.url, f.adText);
     out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val });
   }
   for (const f of thin.slice(3)) { const val = { format: 'unknown', note: 'not analyzed this run' }; out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val }); }
@@ -196,10 +196,10 @@ async function landingFormats(ads) {
   for (const a of ads) {
     const u = a && a.landing; if (!u || !/^https?:\/\//i.test(u)) continue;
     const h = adHost(u); if (!h || repByHost.has(h)) continue;
-    repByHost.set(h, u);
+    repByHost.set(h, { url: u, adText: oneLine((a && a.text) || '').slice(0, 220) });   // ad copy reveals the funnel's intent
   }
   if (!repByHost.size) return '';
-  const items = [...repByHost.entries()].slice(0, 6).map(([host, url]) => ({ host, url }));
+  const items = [...repByHost.entries()].slice(0, 6).map(([host, v]) => ({ host, url: v.url, adText: v.adText }));
   let results;
   try { results = await classifyUrls(items); } catch (e) { return ''; }
   const lines = items.map(({ host }) => {
