@@ -57,6 +57,7 @@ button{font-family:inherit;cursor:pointer}
   .rail:not(:hover) .add-btn{padding:8px}
   .rail:not(:hover) .add-btn .abl{display:none}
   .rail:not(:hover) .row{padding-left:20px}
+  .rail:not(:hover) .rail-group{color:transparent}
 }
 
 /* ── rail ── */
@@ -64,6 +65,10 @@ button{font-family:inherit;cursor:pointer}
 .add-btn{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);background:none;border:1px solid var(--line2);border-radius:20px;padding:6px 13px;transition:.15s}
 .add-btn:hover{border-color:var(--sage-d);background:var(--sage-soft)}
 .rail-list{padding:4px 0}
+.rail-group{padding:14px 20px 6px;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);white-space:nowrap;border-top:1px solid var(--line)}
+.rail-list>.rail-group:first-child{border-top:none}
+.ex-tag{display:inline-block;vertical-align:middle;margin-left:11px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--sage);background:var(--sage-soft);border:1px solid var(--sage-d);border-radius:5px;padding:2px 8px}
+.ex-note{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:7px}
 .row{width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);padding:15px 18px;display:flex;gap:13px;align-items:center;transition:background .12s;position:relative}
 .row:hover{background:var(--panel2)}
 .row.sel{background:var(--panel2)}
@@ -1337,8 +1342,10 @@ function report(c){
   else if(c.live){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Live feed</span><span class="asof" id="asof-'+c.id+'"></span><span class="lr" id="lr-'+c.id+'"></span>';}
   else if(c.demo){meta=esc(c.host)+' · scanned '+ago(c.updatedAt)+' ago';}
   else{meta=esc(c.host);}
+  var exTag=c.demo?'<span class="ex-tag">Example</span>':'';
+  var exNote=c.demo?'<div class="ex-note">A real brand we track as a live example of how IntelAI works — not one of your competitors.</div>':'';
   var head=back+BOTANICAL+'<div class="rep-head"><span class="rep-badge">'+badge(c)+'</span>'
-    +'<div><div class="rep-name">'+esc(c.name)+'</div><div class="rep-meta">'+meta+'</div></div></div>';
+    +'<div><div class="rep-name">'+esc(c.name)+exTag+'</div><div class="rep-meta">'+meta+'</div>'+exNote+'</div></div>';
   // Top banner: email is the one channel that needs a manual step — shown until their emails start arriving (toggled by checkEmailBanner).
   var ewb='<div class="email-warn" id="emailWarn-'+c.id+'" style="display:none">⚠ <b>Email isn’t tracked automatically.</b> To capture '+esc(c.name)+'’s newsletters you must paste our inbox into their email sign-up — a one-time manual step, or no emails come through. <button type="button" class="ew-go" onclick="jumpEmail()">Set it up ↓</button></div>';
   // Banner to confirm a user-added competitor's socials (a guessed handle can track the wrong profile).
@@ -1372,7 +1379,11 @@ function render(){
     setDate();return;
   }
   if(!state.sel||!list.some(function(c){return c.id===state.sel;}))state.sel=list[0].id;
-  document.getElementById('railList').innerHTML=list.map(railRow).join('');
+  var yourC=list.filter(function(c){return !c.demo;}),exC=list.filter(function(c){return c.demo;});
+  var rl='';
+  if(yourC.length)rl+='<div class="rail-group">Your competitors</div>'+yourC.map(railRow).join('');
+  if(exC.length)rl+='<div class="rail-group">Examples — see how it works</div>'+exC.map(railRow).join('');
+  document.getElementById('railList').innerHTML=rl;
   checkRailActions(list);
   var cur=list.find(function(c){return c.id===state.sel;});
   document.getElementById('detail').innerHTML=report(cur);
