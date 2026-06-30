@@ -72,6 +72,8 @@ button{font-family:inherit;cursor:pointer}
 .row-x{position:absolute;top:50%;right:10px;transform:translateY(-50%);width:23px;height:23px;border:none;border-radius:6px;background:rgba(18,26,28,.9);color:var(--muted);font-size:16px;line-height:1;cursor:pointer;opacity:0;transition:opacity .12s,color .12s,background .12s;display:flex;align-items:center;justify-content:center;z-index:3}
 .rowwrap:hover .row-x{opacity:1}
 .row-x:hover{color:#ff6b5e;background:rgba(44,20,20,.95)}
+.badge-wrap{position:relative;flex-shrink:0;display:inline-flex}
+.rail-flag{position:absolute;top:-4px;right:-5px;min-width:15px;height:15px;padding:0 2px;border-radius:3px;background:var(--clay);color:#fff;font-size:11px;font-weight:800;line-height:15px;text-align:center;box-shadow:0 0 0 2px var(--bg);font-family:var(--mono);pointer-events:none}
 .badge{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:600;font-size:14px;color:#16222b;background:#eceff0;border:1px solid var(--line2);overflow:hidden}
 .badge img{width:22px;height:22px;border-radius:50%}
 .row-main{flex:1;min-width:0}
@@ -654,6 +656,7 @@ var DEMOS=[
 var state={sel:null,day:null,open:{}};
 var viewSnap=null,histDays={};
 var liveCache={};
+var emailPending={};   // host -> bool: does this competitor still need the email-subscribe step? (drives the rail flag)
 
 /* ── Accounts: demos are open to everyone; signing in loads & saves YOUR competitors ── */
 var TOKEN=localStorage.getItem('ci_token')||'';
@@ -715,7 +718,7 @@ function railRow(c){
   var t=locked?'<span class="lk">🔒</span>':(c.live?'<span style="color:var(--quiet)">LIVE</span>':ago(c.updatedAt||Date.now()));
   var sub=locked?'Upgrade to monitor':(c.demo?c.oneLiner:'Baseline capturing…');
   var row='<button class="row'+(c.id===state.sel?' sel':'')+(locked?' lockedrow':'')+'" onclick="select(\''+c.id+'\')">'
-    +'<span class="badge">'+badge(c)+'</span>'
+    +'<span class="badge-wrap"><span class="badge">'+badge(c)+'</span><span class="rail-flag" id="railflag-'+c.id+'"'+(emailPending[c.host]?'':' style="display:none"')+' title="Action needed">!</span></span>'
     +'<span class="row-main"><span class="row-top"><span class="row-name">'+esc(c.name)+'</span><span class="row-time">'+t+'</span></span>'
     +'<span class="row-sub">'+esc(sub)+'</span></span></button>';
   // Your own saved competitors get a hover "remove from watchlist" control.
@@ -1136,10 +1139,22 @@ function checkEmailBanner(c){
   var el=document.getElementById('emailWarn-'+c.id),cw=document.getElementById('chanWarn-'+c.id);if(!el&&!cw)return;
   if(state.day){if(el)el.style.display='none';if(cw)cw.style.display='none';return;}
   fetch(API+'/api/emails?host='+encodeURIComponent(c.host||'')).then(function(r){return r.json();}).then(function(d){
-    var pending=d&&d.inbox&&!(d.emails&&d.emails.length);
+    var pending=!!(d&&d.inbox&&!(d.emails&&d.emails.length));
     var e2=document.getElementById('emailWarn-'+c.id);if(e2)e2.style.display=pending?'flex':'none';
     var w2=document.getElementById('chanWarn-'+c.id);if(w2)w2.style.display=pending?'':'none';
+    emailPending[c.host]=pending;toggleRailFlag(c);
   }).catch(function(){});
+}
+// Rail flag: a small red ! on a competitor's icon while it still has an action pending (the email setup).
+function toggleRailFlag(c){var el=c&&document.getElementById('railflag-'+c.id);if(el)el.style.display=emailPending[c.host]?'':'none';}
+function checkRailActions(list){
+  (list||[]).forEach(function(c){
+    if(!c||!c.host)return;
+    if(emailPending.hasOwnProperty(c.host)){toggleRailFlag(c);return;}
+    fetch(API+'/api/emails?host='+encodeURIComponent(c.host)).then(function(r){return r.json();}).then(function(d){
+      emailPending[c.host]=!!(d&&d.inbox&&!(d.emails&&d.emails.length));toggleRailFlag(c);
+    }).catch(function(){});
+  });
 }
 function jumpEmail(){
   var ch=document.querySelector('.chan[data-k="email"]');if(!ch)return;
@@ -1354,6 +1369,7 @@ function render(){
   }
   if(!state.sel||!list.some(function(c){return c.id===state.sel;}))state.sel=list[0].id;
   document.getElementById('railList').innerHTML=list.map(railRow).join('');
+  checkRailActions(list);
   var cur=list.find(function(c){return c.id===state.sel;});
   document.getElementById('detail').innerHTML=report(cur);
   ensureLive(cur);
