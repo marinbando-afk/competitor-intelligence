@@ -318,6 +318,10 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .substeps b{color:var(--text);font-weight:600}
 .substeps a{color:var(--sage);text-decoration:none;font-weight:500}
 .substeps a:hover{color:var(--quiet)}
+.redcall{display:block;margin-top:8px;color:#ff6b5e;font-weight:600;background:rgba(226,85,79,.09);border-left:2px solid var(--clay);padding:8px 11px;border-radius:0 7px 7px 0;line-height:1.5}
+.redcall b{color:#ff8a7e}
+.cf-email{margin-top:13px;font-size:12px;color:#ff6b5e;background:rgba(226,85,79,.09);border-left:2px solid var(--clay);padding:9px 11px;border-radius:0 7px 7px 0;line-height:1.55}
+.cf-email b{color:#ff8a7e}
 .subact{display:flex;align-items:center;gap:10px;margin-top:13px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:wrap}
 .subconfirm{font-size:12px;font-weight:600;color:var(--sage);background:none;border:1px solid var(--sage-d);border-radius:8px;padding:8px 15px;transition:.15s}
 .subconfirm:hover{background:var(--sage-soft)}
@@ -486,6 +490,7 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
       <div class="cf-row"><span class="cf-l">Facebook</span><input id="cfFb" type="text" placeholder="paste their Facebook URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('facebook')">Check ↗</button><a class="cf-act find" id="cfFbFind" target="_blank" rel="noopener">Find ↗</a></div>
       <div class="cf-row"><span class="cf-l">Instagram</span><input id="cfIg" type="text" placeholder="paste their Instagram URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('instagram')">Check ↗</button><a class="cf-act find" id="cfIgFind" target="_blank" rel="noopener">Find ↗</a></div>
       <div class="cf-row"><span class="cf-l">TikTok</span><input id="cfTt" type="text" placeholder="paste their TikTok URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('tiktok')">Check ↗</button><a class="cf-act find" id="cfTtFind" target="_blank" rel="noopener">Find ↗</a></div>
+      <div class="cf-email">📧 <b>Email tracking needs one manual step from you:</b> after you add them, you'll paste our capture address into their newsletter sign-up. We'll show you exactly how — but their emails won't come through until you do it yourself.</div>
     </div>
     <div class="m-act"><button class="btn btn-g" onclick="closeModal()">Cancel</button><button class="btn btn-g" id="cfDetect" onclick="continueAdd()">Detect pages</button><button class="btn btn-p" id="cfConfirm" onclick="confirmAdd()" style="display:none">Confirm &amp; add</button></div>
   </div>
@@ -889,7 +894,7 @@ function subscribeCard(inbox,host){
   var site='https://'+host;
   return '<div class="subcard"><div class="subcard-h">Track their emails — a 15-second one-time step</div>'
     +'<div class="subrow"><code class="subaddr">'+esc(inbox)+'</code><button class="subcopy" onclick="return copyInbox(this,\''+esc(inbox)+'\')">Copy</button></div>'
-    +'<div class="substeps"><b>1.</b> Open <a href="'+esc(site)+'" target="_blank" rel="noopener">'+esc(host)+' ↗</a> &nbsp;·&nbsp; <b>2.</b> paste this into their footer email sign-up &amp; submit.</div>'
+    +'<div class="substeps"><b>1.</b> Open <a href="'+esc(site)+'" target="_blank" rel="noopener">'+esc(host)+' ↗</a> and find their newsletter sign-up (usually in the footer).<span class="redcall">⚠ Step 2 is manual and easy to miss: paste the address above into their <b>email sign-up</b> and hit <b>Submit</b>. Their campaigns won\'t arrive until you do this yourself.</span></div>'
     +'<div class="subact"><button class="subconfirm" onclick="confirmSub(this)">I’ve subscribed — check it worked</button><span class="substat"></span></div></div>';
 }
 function confirmSub(btn){
