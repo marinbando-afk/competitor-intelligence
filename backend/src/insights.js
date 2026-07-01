@@ -282,11 +282,11 @@ async function ask(channel, brand, todayBlock, prevBlock, me) {
 }
 
 // Generate insights for all channels of one brand and cache them as a snapshot.
-export async function generateInsights(brand, host) {
+export async function generateInsights(brand, host, uid) {
   if (!process.env.ANTHROPIC_API_KEY || !host) return null;
   brand = brand || host;
   const out = {};
-  const me = await getMyBrand();
+  const me = await getMyBrand(uid);   // uid unset (e.g. the daily warm) -> the shared/default illustrative brand
 
   try {
     const r = await recentSnapshots(host, 'ads', 2);
@@ -363,10 +363,10 @@ async function fetchImageB64(url) {
 
 // Vision-powered analysis of a single ad/post — sees the actual CREATIVE (image,
 // or a video ad's cover frame) plus the copy → angle, hook, creative read, apply.
-export async function quickAngle(text, kind, image, video) {
+export async function quickAngle(text, kind, image, video, uid) {
   const t = oneLine(text).slice(0, 1400);
   if (!process.env.ANTHROPIC_API_KEY) return { angle: '', hook: '', creative: '', apply: '' };
-  const me = await getMyBrand();
+  const me = await getMyBrand(uid);
   const img = image ? await fetchImageB64(image) : null;
   const script = video ? await transcribeVideo(video) : '';   // spoken hook of a video ad (needs OPENAI_API_KEY)
   const key = (kind || 'ad') + '|' + ((me && me.host) || '') + '|' + (img ? 'V' : 'T') + (script ? 'S' : '') + '|' + String(image || '').slice(0, 70) + '|' + String(video || '').slice(0, 50) + '|' + t.slice(0, 100);
@@ -420,9 +420,9 @@ export async function quickAngle(text, kind, image, video) {
 }
 
 // Read the latest cached insights; generate on demand if missing.
-export async function getInsights(host, name, refresh) {
+export async function getInsights(host, name, refresh, uid) {
   let ins = refresh ? null : await latestSnapshot(host, 'insights');
   const channels = ins ? Object.keys(ins).filter((k) => k !== 'generatedAt' && k !== '__day') : [];
-  if (channels.length === 0 && process.env.ANTHROPIC_API_KEY) ins = await generateInsights(name || host, host);
+  if (channels.length === 0 && process.env.ANTHROPIC_API_KEY) ins = await generateInsights(name || host, host, uid);
   return ins || {};
 }

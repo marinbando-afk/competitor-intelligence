@@ -1,11 +1,14 @@
-// "Your brand" knowledge base — the founder stores their OWN brand once; we scan
-// its storefront to build a concise profile, then use that profile to tailor every
+// "Your brand" knowledge base — EACH ACCOUNT stores their own brand; we scan its
+// storefront to build a concise profile, then use that profile to tailor every
 // competitor insight into a realistic "here's how you'd apply this to your brand".
 //
-//   GET  /api/my-brand                      -> { brand } | { brand: null }
+//   GET  /api/my-brand                      -> { brand } | { brand: null }   (per logged-in account)
 //   POST /api/my-brand { name, website }    -> { brand }   (scans site, builds profile)
 //
-// Stored as a singleton via the snapshots table (host '__mybrand__', channel 'profile').
+// Stored via the snapshots table, one row per account: host `mybrand:<uid>`, channel
+// 'profile'. `uid` is null for the DEFAULT/illustrative bucket (`mybrand:__default__`)
+// used to tailor the shared EXAMPLE brands' "apply" tips during the daily warm, where
+// there is no single logged-in viewer to personalize for.
 
 import { siteSummary } from './website.js';
 import { saveSnapshot, latestSnapshot } from './snapshots.js';
@@ -13,7 +16,8 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const MODEL = process.env.BRAND_MODEL || 'claude-haiku-4-5';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
-const KEY = '__mybrand__';
+const LEGACY_KEY = '__mybrand__';   // pre-multi-tenant singleton — migrated once into the default bucket
+function brandKey(uid) { return uid ? ('mybrand:' + uid) : 'mybrand:__default__'; }
 
 let _client;
 function client() { if (!_client) _client = new Anthropic(); return _client; }
@@ -27,28 +31,46 @@ function stripText(h) {
     .replace(/\s+/g, ' ').trim();
 }
 
-let _cache; // undefined = not loaded, null = none set
-export async function getMyBrand() {
-  if (_cache !== undefined) return _cache;
-  const d = await latestSnapshot(KEY, 'profile');
-  _cache = (d && d.profile) ? d : null;   // a 'cleared' marker has no profile
-  return _cache;
+const _cache = new Map();   // uid (or 'default') -> profile|null, undefined = not loaded
+let _migrated = false;
+// One-time, lazy: carry the old single-tenant brand into the default/illustrative
+// bucket, so the shared EXAMPLE brands keep a sensible "apply" tip after this
+// upgrade, with no manual migration step.
+async function migrateLegacyOnce() {
+  if (_migrated) return;
+  _migrated = true;
+  try {
+    const already = await latestSnapshot(brandKey(null), 'profile');
+    if (already) return;
+    const legacy = await latestSnapshot(LEGACY_KEY, 'profile');
+    if (legacy && legacy.profile) await saveSnapshot(brandKey(null), 'profile', legacy);
+  } catch (e) { /* best effort */ }
 }
 
-export async function clearMyBrand() {
-  await saveSnapshot(KEY, 'profile', { cleared: true, builtAt: new Date().toISOString() });
-  _cache = null;
+export async function getMyBrand(uid) {
+  await migrateLegacyOnce();
+  const ck = uid || 'default';
+  if (_cache.has(ck)) return _cache.get(ck);
+  const d = await latestSnapshot(brandKey(uid), 'profile');
+  const val = (d && d.profile) ? d : null;   // a 'cleared' marker has no profile
+  _cache.set(ck, val);
+  return val;
 }
 
-export async function setMyBrand(name, website, mainProduct) {
+export async function clearMyBrand(uid) {
+  await saveSnapshot(brandKey(uid), 'profile', { cleared: true, builtAt: new Date().toISOString() });
+  _cache.set(uid || 'default', null);
+}
+
+export async function setMyBrand(uid, name, website, mainProduct) {
   const host = cleanHost(website);
   if (!host || host.indexOf('.') < 0) { const e = new Error('Enter a valid website (e.g. mybrand.com).'); e.status = 400; throw e; }
   const url = /^https?:\/\//i.test(website) ? website : ('https://' + host);
   const mp = oneLine(mainProduct).slice(0, 200);
   const { profile, catalog } = await buildProfile(host, url, name, mp);
   const data = { name: oneLine(name) || host, host, url, mainProduct: mp, profile, catalog, builtAt: new Date().toISOString() };
-  await saveSnapshot(KEY, 'profile', data);
-  _cache = data;
+  await saveSnapshot(brandKey(uid), 'profile', data);
+  _cache.set(uid || 'default', data);
   return data;
 }
 

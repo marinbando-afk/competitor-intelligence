@@ -12,15 +12,15 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { initSchema, pool } from './db.js';
-import { signup, login, requireAuth, JWT_IS_DEFAULT } from './auth.js';
+import { signup, login, requireAuth, optionalUid, JWT_IS_DEFAULT } from './auth.js';
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
-import { startScheduler, warmStatus, TRACKED, addTracked, warmBrand, allBrands } from './refresh.js';
+import { startScheduler, warmStatus, addTracked, warmBrand, allBrands } from './refresh.js';
 import { postDigest } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
-import { getInsights, quickAngle, generateInsights, creditStatus } from './insights.js';
+import { getInsights, quickAngle, creditStatus } from './insights.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { snapshotDays, snapshotForDay } from './snapshots.js';
@@ -147,7 +147,7 @@ app.get('/api/email-html', async (req, res) => {
 // AI chat — answer a question grounded in a competitor's captured data.
 app.post('/api/chat', aiLimit, async (req, res) => {
   try {
-    res.json(await chat(req.body));
+    res.json(await chat(req.body, optionalUid(req)));
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }
@@ -182,7 +182,7 @@ app.get('/api/website-compare', async (req, res) => {
 // AI insights — per-channel, context-aware read (cached daily, generated on demand).
 app.get('/api/insights', async (req, res) => {
   try {
-    res.json({ insights: await getInsights(req.query.host, req.query.name, req.query.refresh === '1') });
+    res.json({ insights: await getInsights(req.query.host, req.query.name, req.query.refresh === '1', optionalUid(req)) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -199,32 +199,32 @@ app.get('/api/slack-test', async (req, res) => {
 app.post('/api/angle', aiLimit, async (req, res) => {
   try {
     const { text, kind, image, video } = req.body || {};
-    const r = await quickAngle(text, kind, image, video);
+    const r = await quickAngle(text, kind, image, video, optionalUid(req));
     res.json({ angle: r.angle, hook: r.hook, creative: r.creative, apply: r.apply, script: r.script });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// "Your brand" knowledge base — scanned once, used to tailor every insight.
+// "Your brand" knowledge base — PER ACCOUNT: each customer scans their own brand once,
+// used to tailor every competitor insight into a realistic "apply to your brand" tip.
 app.get('/api/my-brand', async (req, res) => {
-  try { res.json({ brand: await getMyBrand() }); }
-  catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    const uid = optionalUid(req);
+    res.json({ brand: uid ? await getMyBrand(uid) : null });   // anonymous visitors see no brand — never someone else's
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
-app.post('/api/my-brand', async (req, res) => {
+app.post('/api/my-brand', requireAuth, async (req, res) => {
   try {
     const { name, website, mainProduct } = req.body || {};
-    const brand = await setMyBrand(name, website, mainProduct);
+    const brand = await setMyBrand(req.user.uid, name, website, mainProduct);
     res.json({ brand });
-    // Refresh tracked competitors' insights with the new brand context (best-effort, async).
-    Promise.all((TRACKED || []).map((b) => generateInsights(b.name, b.host).catch(() => {}))).catch(() => {});
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
-app.delete('/api/my-brand', async (req, res) => {
+app.delete('/api/my-brand', requireAuth, async (req, res) => {
   try {
-    await clearMyBrand();
+    await clearMyBrand(req.user.uid);
     res.json({ ok: true });
-    Promise.all((TRACKED || []).map((b) => generateInsights(b.name, b.host).catch(() => {}))).catch(() => {});
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

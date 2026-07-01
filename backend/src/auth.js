@@ -66,3 +66,13 @@ export function requireAuth(req, res, next) {
     res.status(401).json({ error: 'Please sign in.' });
   }
 }
+
+// Best-effort: if a valid Bearer token is present, return its uid — otherwise null.
+// Used by OPEN routes (insights/angle/chat/my-brand-read) that work for anonymous
+// demo visitors too, but personalize for a logged-in customer when possible.
+export function optionalUid(req) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  if (!token) return null;
+  try { return jwt.verify(token, JWT_SECRET).uid || null; } catch { return null; }
+}

@@ -683,7 +683,7 @@ function loadUserComps(cb){
     .then(function(d){USERCOMPS=(d.competitors||[]).map(mapServerComp);registerCompetitors();render();if(cb)cb();})
     .catch(function(){if(cb)cb();});
 }
-function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');}catch(e){}paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
+function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');}catch(e){}clearMyBrandLocal();insightsCache={};angleCache={};paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
 function paintAuth(){var s=document.getElementById('authSlot');if(!s)return;
   if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML='<span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
   else{s.innerHTML='<button class="authbtn primary" onclick="openAuth(\'signin\')">Sign in</button>';}
@@ -706,6 +706,7 @@ function submitAuth(){
       if(!x.ok){er.textContent=(x.d&&x.d.error)||'Something went wrong.';er.style.display='block';return;}
       TOKEN=x.d.token;USER=x.d.user;try{localStorage.setItem('ci_token',TOKEN);localStorage.setItem('ci_user',JSON.stringify(USER));}catch(e){}
       paintAuth();closeAuth();document.getElementById('aP').value='';
+      insightsCache={};angleCache={};clearMyBrandLocal();loadMyBrand();   // this account's own brand + tailored tips, never a previous session's
       loadUserComps(function(){var cb=pendingAfterAuth;pendingAfterAuth=null;if(cb)cb();});
     })
     .catch(function(){go.disabled=false;go.textContent=was;er.textContent='Network error — please try again.';er.style.display='block';});
@@ -1226,7 +1227,7 @@ function paintInsights(c,ins){
 function loadInsights(c){
   if(!c||!c.host)return;
   if(insightsCache[c.host]){paintInsights(c,insightsCache[c.host]);return;}
-  fetch(API+'/api/insights?host='+encodeURIComponent(c.host)+'&name='+encodeURIComponent(c.name||'')).then(function(r){return r.json();}).then(function(d){
+  fetch(API+'/api/insights?host='+encodeURIComponent(c.host)+'&name='+encodeURIComponent(c.name||''),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
     var ins=(d&&d.insights)||{};insightsCache[c.host]=ins;paintInsights(c,ins);
   }).catch(function(){});
 }
@@ -1303,7 +1304,7 @@ function loadAngle(text,kind,image,video){
   var el=document.getElementById('angleVal');if(!el)return;
   var key=kind+'|'+String(image||'').slice(0,80)+'|'+String(video||'').slice(0,50)+'|'+String(text||'').slice(0,100);el.dataset.k=key;
   if(angleCache[key]!==undefined){fillAngle(key,angleCache[key]);return;}
-  fetch(API+'/api/angle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text,kind:kind,image:image||'',video:video||''})})
+  fetch(API+'/api/angle',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({text:text,kind:kind,image:image||'',video:video||''})})
     .then(function(r){return r.json();}).then(function(d){var o={angle:(d&&d.angle)||'',hook:(d&&d.hook)||'',creative:(d&&d.creative)||'',apply:(d&&d.apply)||'',script:(d&&d.script)||''};angleCache[key]=o;fillAngle(key,o);})
     .catch(function(){fillAngle(key,{angle:'—',hook:'',creative:'',apply:'',script:''});});
 }
@@ -1509,19 +1510,29 @@ document.addEventListener('click',function(){closeCal();});
 /* ── your brand (apply-to-me knowledge base) ── */
 var myBrand=null;
 function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)return;el.innerHTML=(myBrand&&myBrand.name)?('<span class="mb-dot"></span><span class="mb-lbl">My brand:</span> '+esc(myBrand.name)):'+ Add your brand';el.className='mybrand'+((myBrand&&myBrand.name)?' set':'');}
+// "My brand" is per-account — never trust the local cache across a sign-in/out, always
+// reconcile with what the server says THIS session's account actually owns.
+function clearMyBrandLocal(){myBrand=null;try{localStorage.removeItem('myBrand');}catch(e){}paintBrandChip();}
 function loadMyBrand(){
+  if(!loggedIn()){clearMyBrandLocal();return;}
   try{var s=localStorage.getItem('myBrand');if(s)myBrand=JSON.parse(s);}catch(e){}
   paintBrandChip();
-  fetch(API+'/api/my-brand').then(function(r){return r.json();}).then(function(d){if(d&&d.brand){myBrand=d.brand;try{localStorage.setItem('myBrand',JSON.stringify({name:d.brand.name,host:d.brand.host,url:d.brand.url,mainProduct:d.brand.mainProduct}));}catch(e){}paintBrandChip();}}).catch(function(){});
+  fetch(API+'/api/my-brand',{headers:authH()}).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.brand){myBrand=d.brand;try{localStorage.setItem('myBrand',JSON.stringify({name:d.brand.name,host:d.brand.host,url:d.brand.url,mainProduct:d.brand.mainProduct}));}catch(e){}}
+    else clearMyBrandLocal();
+    paintBrandChip();
+  }).catch(function(){});
 }
-function openBrand(){document.getElementById('bN').value=(myBrand&&myBrand.name)||'';document.getElementById('bU').value=(myBrand&&(myBrand.url||myBrand.host))||'';document.getElementById('bP').value=(myBrand&&myBrand.mainProduct)||'';document.getElementById('bErr').style.display='none';var rm=document.getElementById('bRemove');if(rm)rm.style.display=(myBrand&&myBrand.name)?'':'none';document.getElementById('brandOv').classList.add('open');setTimeout(function(){document.getElementById('bN').focus();},40);}
-function removeBrand(){fetch(API+'/api/my-brand',{method:'DELETE'}).then(function(r){return r.json();}).catch(function(){});myBrand=null;try{localStorage.removeItem('myBrand');}catch(e){}paintBrandChip();closeBrand();insightsCache={};angleCache={};var c=currentComp();if(c){delete insightsCache[c.host];loadInsights(c);}}
+function openBrand(){
+  if(!loggedIn()){openAuth('signup',openBrand);return;}   // your brand is saved to your account
+  document.getElementById('bN').value=(myBrand&&myBrand.name)||'';document.getElementById('bU').value=(myBrand&&(myBrand.url||myBrand.host))||'';document.getElementById('bP').value=(myBrand&&myBrand.mainProduct)||'';document.getElementById('bErr').style.display='none';var rm=document.getElementById('bRemove');if(rm)rm.style.display=(myBrand&&myBrand.name)?'':'none';document.getElementById('brandOv').classList.add('open');setTimeout(function(){document.getElementById('bN').focus();},40);}
+function removeBrand(){fetch(API+'/api/my-brand',{method:'DELETE',headers:authH()}).then(function(r){return r.json();}).catch(function(){});clearMyBrandLocal();closeBrand();insightsCache={};angleCache={};var c=currentComp();if(c){delete insightsCache[c.host];loadInsights(c);}}
 function closeBrand(){var o=document.getElementById('brandOv');if(o)o.classList.remove('open');}
 function saveBrand(){
   var name=document.getElementById('bN').value.trim(),web=document.getElementById('bU').value.trim(),prod=document.getElementById('bP').value.trim(),er=document.getElementById('bErr');
   if(!web||web.indexOf('.')<0){er.textContent='Enter a valid website (e.g. acme.com).';er.style.display='block';return;}
   var btn=document.getElementById('bSave');btn.disabled=true;btn.textContent='Scanning your site…';er.style.display='none';
-  fetch(API+'/api/my-brand',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,website:web,mainProduct:prod})})
+  fetch(API+'/api/my-brand',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({name:name,website:web,mainProduct:prod})})
     .then(function(r){return r.json();}).then(function(d){
       btn.disabled=false;btn.textContent='Scan & save';
       if(!d||d.error){er.textContent=(d&&d.error)||'Couldn’t scan that site.';er.style.display='block';return;}
@@ -1533,7 +1544,7 @@ function saveBrand(){
 }
 function pollPersonalize(tries){
   var c=currentComp();if(!c)return;delete insightsCache[c.host];
-  fetch(API+'/api/insights?host='+encodeURIComponent(c.host)+'&name='+encodeURIComponent(c.name||'')).then(function(r){return r.json();}).then(function(d){
+  fetch(API+'/api/insights?host='+encodeURIComponent(c.host)+'&name='+encodeURIComponent(c.name||'')+'&refresh=1',{headers:authH()}).then(function(r){return r.json();}).then(function(d){
     var ins=(d&&d.insights)||{};insightsCache[c.host]=ins;var cur=currentComp();if(cur&&cur.id===c.id)paintInsights(c,ins);
     var hasApply=['ads','social','website','email'].some(function(k){return ins[k]&&ins[k].apply;});
     if(!hasApply&&tries<6)setTimeout(function(){pollPersonalize(tries+1);},12000);

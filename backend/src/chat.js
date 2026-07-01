@@ -102,7 +102,7 @@ function buildMessages(history, question) {
   return msgs;
 }
 
-export async function chat(body) {
+export async function chat(body, uid) {
   body = body || {};
   const question = oneLine(body.question);
   if (!question) { const e = new Error('Ask a question first.'); e.status = 400; throw e; }
@@ -121,7 +121,7 @@ export async function chat(body) {
   // Load the same insights the user is looking at in-app, so the chat NEVER contradicts the AI-read panel.
   let analysis = '';
   try {
-    const ins = await getInsights(host, name);
+    const ins = await getInsights(host, name, false, uid);
     if (ins) {
       const parts = [];
       for (const [k, label] of [['ads', 'Ads'], ['social', 'Social'], ['website', 'Website'], ['email', 'Email']]) {
