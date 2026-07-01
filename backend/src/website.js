@@ -45,7 +45,8 @@ async function siteBanner(homeText) {
   if (!process.env.ANTHROPIC_API_KEY || !homeText) return '';
   try {
     const system =
-      'You are shown the top of a storefront homepage\'s visible text. If there is an ACTIVE promotion, sale, or offer being advertised (a banner, hero headline, or announcement bar — e.g. a percent-off sale, a named sale event, a free-gift offer, a discount code), quote/state it in <=14 words, plain text. ' +
+      'You are shown the top of a storefront homepage\'s visible text. If there is an ACTIVE promotion, sale, or offer being advertised (a banner, hero headline, or announcement bar — e.g. a percent-off sale, a free-gift offer, a discount code), state it in <=14 words, plain text. ' +
+      'If the promotion has a NAMED OCCASION (e.g. "4th of July Sale", "Black Friday", "Anniversary Sale", "Back to School") — always keep that exact name in what you return; it is the most useful part (it tells us WHEN they run their biggest pushes), so never drop it in favour of just the discount percentage. ' +
       'If there is clearly no active promotion in the text, return an empty string. Only report what is actually stated — never guess or invent one.';
     const resp = await bannerClient().messages.create({ model: BANNER_MODEL, max_tokens: 60, system, messages: [{ role: 'user', content: homeText }] });
     return oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')).slice(0, 160);
