@@ -121,7 +121,13 @@ function fmtEmail(d) {
 function fmtWeb(d) {
   if (!d || !d.summary) return 'No storefront data.';
   const s = d.summary;
-  return `${s.products ?? '?'} products; ${s.onSale || 0} on sale; price range ${s.min ?? '?'}–${s.max ?? '?'}.`;
+  // Sale status leads every time, independent of whether anything changed since the
+  // last capture — an ONGOING sale must never go unmentioned just because it isn't new.
+  const saleLine = s.onSale
+    ? `ACTIVE SALE — ${s.onSale} of ${s.products ?? '?'} products discounted (price range ${s.min ?? '?'}–${s.max ?? '?'}).`
+    : `No sale — ${s.products ?? '?'} products, price range ${s.min ?? '?'}–${s.max ?? '?'}, none discounted.`;
+  const bannerLine = d.banner ? ` Promo headline seen on-site: "${d.banner}".` : '';
+  return saleLine + bannerLine;
 }
 
 // ── Landing-page format analysis ───────────────────────────────────────────────
@@ -217,7 +223,7 @@ async function landingFormats(ads) {
 const GUIDE = {
   ads: 'their Meta/Facebook ads. Use the FUNNEL FACTS block as ground truth for pages and landing domains — NEVER claim there are no third-party pages or off-domain landings unless the facts confirm it; if any THIRD-PARTY page or domain is listed (e.g. a news-publisher advertorial / native ad, an affiliate or media-partner funnel), SURFACE it as a notable tactic. LANDING-PAGE FORMAT: when a LANDING PAGE FORMATS block is provided, state each landing page\'s ACTUAL format from it (listicle, advertorial, third-party review, sales page, product page, quiz funnel, etc.) — those were produced by fetching and reading the real page. NEVER infer a landing page\'s format, purpose, or that it is a "staging"/"test"/"pre-launch"/"variant" page from its URL or subdomain name (e.g. do not assume "pre." means pre-launch); if a page is marked not-analyzable, say it wasn\'t read rather than guessing. Also surface, only if present: what is NEW vs the previous capture; the HOOKS and ANGLES in the copy; creative FORMATS (video vs image/carousel); whether they test multiple regional own-domains. Do not over-generalize beyond what the facts and sample support.',
   social: 'their organic social (Instagram / TikTok / Facebook). Engagement counts (views, likes, comments) are CUMULATIVE lifetime totals: they only ever climb, they grow with how long a post has been live, and a post does most of its growth in the first day or two. So a newer post almost always shows fewer than an older one, and that is normal — NOT a decline. NEVER frame a lower count — on a newer post, or versus a previous capture — as a drop, collapse, slump, dip, decay, or "reach/algorithm" problem, and never compute view/like deltas between captures (different posts are not comparable that way). What matters is STACKED engagement. Surface, only if present: which posts have accumulated the most total engagement; what is genuinely NEW since the previous capture (new posts / series); recurring HOOKS / ANGLES / themes; FORMATS (Reel / Carousel / Post); and any product or campaign focus.',
-  website: 'their online storefront. Surface what materially CHANGED vs the previous capture: sale scope, prices, products added/removed. If nothing material changed, say that plainly in one line.',
+  website: 'their online storefront. ALWAYS lead with whether a sale/promotion is ACTIVE right now (per the ACTIVE SALE / Promo headline facts) — this is independent of whether it changed since the previous capture; an ONGOING, unchanged sale must still be named explicitly (e.g. "still running their 4th of July sale, 60% off"), never omitted just because it isn\'t new. Then surface what materially CHANGED vs the previous capture: sale scope, prices, products added/removed. If nothing changed AND there is no active sale, say that plainly in one line.',
   email: 'their email marketing. Surface: sending CADENCE; OFFER / discount patterns; recurring THEMES and angles; what is newest. Give a real read, not a list of subjects.',
 };
 

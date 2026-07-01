@@ -7,12 +7,49 @@
 //     -> { after:{day,shot,summary}, before:{day,shot,summary}|null, changes:[...] }
 
 import { saveSnapshot, recentSnapshots } from './snapshots.js';
+import Anthropic from '@anthropic-ai/sdk';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
+const BANNER_MODEL = process.env.BANNER_MODEL || 'claude-haiku-4-5';
+let _bc;
+function bannerClient() { if (!_bc) _bc = new Anthropic(); return _bc; }
+const oneLine = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
 
 function money(n) { n = Number(n); if (isNaN(n)) return '?'; return (Math.round(n * 100) / 100).toString(); }
 function cleanHost(host) {
   return String(host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase();
+}
+
+// Fetch the homepage and reduce it to plain visible text (top slice only — banners/hero
+// promos always sit near the top of the page).
+async function fetchHomeText(url) {
+  try {
+    const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'text/html' } });
+    if (!r.ok) return '';
+    const html = await r.text();
+    return html
+      .replace(/<!--[\s\S]*?-->/g, ' ')
+      .replace(/<(script|style|noscript)[\s\S]*?<\/\1>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&[a-z#0-9]+;/gi, ' ')
+      .replace(/\s+/g, ' ').trim()
+      .slice(0, 2500);
+  } catch (e) { return ''; }
+}
+
+// Read the homepage's actual promo/banner headline (if any) — never inferred from
+// numbers alone, so it quotes the real on-site copy ("4th of July Sale: 60% off…").
+// Judgment call (is this text actually a live offer?), so an AI reads it rather than
+// a keyword regex — same reasoning as the ad-attribution and landing-format fixes.
+async function siteBanner(homeText) {
+  if (!process.env.ANTHROPIC_API_KEY || !homeText) return '';
+  try {
+    const system =
+      'You are shown the top of a storefront homepage\'s visible text. If there is an ACTIVE promotion, sale, or offer being advertised (a banner, hero headline, or announcement bar — e.g. a percent-off sale, a named sale event, a free-gift offer, a discount code), quote/state it in <=14 words, plain text. ' +
+      'If there is clearly no active promotion in the text, return an empty string. Only report what is actually stated — never guess or invent one.';
+    const resp = await bannerClient().messages.create({ model: BANNER_MODEL, max_tokens: 60, system, messages: [{ role: 'user', content: homeText }] });
+    return oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')).slice(0, 160);
+  } catch (e) { return ''; }
 }
 
 // A small, diff-friendly summary of the storefront, from Shopify's products.json
@@ -68,8 +105,9 @@ export async function siteShot(url) {
 // Capture today's fingerprint and persist it (one row per host/day; upserts).
 export async function captureWebsite(host, url) {
   const u = url || ('https://' + cleanHost(host));
-  const [summary, shot] = await Promise.all([siteSummary(host), siteShot(u)]);
-  const data = { summary, shot, capturedAt: new Date().toISOString() };
+  const [summary, shot, homeText] = await Promise.all([siteSummary(host), siteShot(u), fetchHomeText(u)]);
+  const banner = await siteBanner(homeText);   // the actual on-site promo headline, if any
+  const data = { summary, shot, banner, capturedAt: new Date().toISOString() };
   await saveSnapshot(host, 'website', data);
   return data;
 }
