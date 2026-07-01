@@ -49,7 +49,11 @@ button{font-family:inherit;cursor:pointer}
 @media(min-width:881px){
   .rail{position:absolute;left:0;top:0;bottom:0;width:76px;z-index:20;overflow-x:hidden;transition:width .24s cubic-bezier(.4,0,.2,1)}
   .rail:hover{width:332px;box-shadow:24px 0 70px rgba(0,0,0,.5)}
-  .detail{margin-left:76px}
+  /* The rail overlays (position:absolute) rather than sitting in flow, so expanding it on
+     hover must also push .detail's margin — otherwise the wider rail silently covers the
+     left edge of the report underneath instead of revealing more of the watchlist. */
+  .detail{margin-left:76px;transition:margin-left .24s cubic-bezier(.4,0,.2,1)}
+  .rail:hover+.detail{margin-left:332px}
   .rail .row-main{opacity:0;transition:opacity .1s}
   .rail:hover .row-main{opacity:1;transition:opacity .2s .1s}
   .rail:not(:hover) .rail-h{justify-content:center}
