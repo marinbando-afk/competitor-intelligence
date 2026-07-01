@@ -93,6 +93,7 @@ export async function siteShot(url) {
     '&url=' + encodeURIComponent(url) +
     '&format=jpg&image_quality=72&viewport_width=1280&viewport_height=800' +
     '&block_cookie_banners=true&block_banners_by_heuristics=true&block_ads=true&block_chats=true' +
+    '&wait_until=networkidle2&delay=3&navigation_timeout=25' +   // give Cloudflare-style JS challenges (e.g. drinkag1.com) time to clear before capturing
     '&cache=true&cache_ttl=82800';
   try {
     const r = await fetch(target, { headers: { 'User-Agent': UA } });
