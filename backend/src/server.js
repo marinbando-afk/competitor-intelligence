@@ -23,7 +23,7 @@ import { websiteCompare } from './website.js';
 import { getInsights, quickAngle, creditStatus } from './insights.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
-import { snapshotDays, snapshotForDay } from './snapshots.js';
+import { snapshotDays, snapshotForDay, recentSnapshots } from './snapshots.js';
 
 const app = express();
 // Emails can be large; also accept form-encoded posts from inbound-email services.
@@ -99,7 +99,23 @@ app.get('/api/ads', async (req, res) => {
 //   GET /api/social?platform=tiktok&host=theoodie.com   (handle auto-resolved)
 app.get('/api/social', async (req, res) => {
   try {
-    res.json(await fetchSocial(req.query.platform, req.query.handle, req.query.host));
+    const platform = req.query.platform;
+    const live = await fetchSocial(platform, req.query.handle, req.query.host);
+    // Live scrape came back empty (flaky platform, rate limit, etc.). Fall back to the last
+    // capture that DID have posts, flagged stale — so the panel shows real content ("no recent
+    // posts, showing last captured") instead of a dead end. Snapshots are only saved when
+    // posts existed, so this stays empty for profiles that genuinely never yielded any.
+    if ((!live || !live.posts || !live.posts.length) && req.query.host && platform) {
+      try {
+        const host = String(req.query.host).replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase();
+        const rows = await recentSnapshots(host, platform, 1);
+        const snap = rows[0] && rows[0].data;
+        if (snap && snap.posts && snap.posts.length) {
+          return res.json({ handle: snap.handle || (live && live.handle) || req.query.handle || '', posts: snap.posts, summary: snap.summary, stale: true, staleDay: rows[0].day });
+        }
+      } catch (e) { /* fallback is best-effort */ }
+    }
+    res.json(live);
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }

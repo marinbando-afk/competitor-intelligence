@@ -320,6 +320,7 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .soc-h{display:flex;align-items:baseline;gap:10px;margin-bottom:11px;flex-wrap:wrap}
 .soc-p{font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--text)}
 .soc-m{font-size:11.5px;color:var(--muted)}
+.soc-stale{font-size:11.5px;color:var(--faint);margin-bottom:9px;font-style:italic}
 .eml{display:flex;gap:15px;padding:13px 0;border-bottom:1px solid var(--line);align-items:baseline}
 .eml:last-child{border-bottom:none}
 .eml-d{font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);width:52px;flex-shrink:0;white-space:nowrap}
@@ -685,7 +686,7 @@ var emailPending={};   // host -> bool: does this competitor still need an email
 var EML_CONFIRM_RE=/(almost there|please confirm|confirm your (subscription|sign\s?-?up|email|newsletter|spot)|confirm (your )?subscription|verify your email|activate your subscription|bestätigen sie ihre anmeldung|anmeldung bestätigen|fast geschafft|abonnement bestätigen|confirmez votre (abonnement|inscription)|confirma tu suscripci)/i;
 function isConfirmEml(e){return EML_CONFIRM_RE.test(String((e&&e.subject)||''));}
 // 'none' = nothing captured · 'confirm' = ONLY confirmation email(s) · 'real' = actual campaigns flowing
-function emlPendingState(d,host){var em=(d&&d.emails)||[];var st=!em.length?'none':(em.some(function(e){return !isConfirmEml(e);})?'real':'confirm');return {st:st,pending:st==='confirm'||(st==='none'&&!!(d&&d.inbox)&&!isSubbed(host))};}
+function emlPendingState(d,host){var em=(d&&d.emails)||[];var st=!em.length?'none':(em.some(function(e){return !isConfirmEml(e);})?'real':'confirm');var pending=(st==='confirm'&&!isEmlConfirmed(host))||(st==='none'&&!!(d&&d.inbox)&&!isSubbed(host));return {st:st,pending:pending};}
 
 /* ── Accounts: demos are open to everyone; signing in loads & saves YOUR competitors ── */
 var TOKEN=localStorage.getItem('ci_token')||'';
@@ -874,20 +875,28 @@ function socThumb(p,handle,platform){
   if(p.url)SOC_SHOWN[p.url]={post:p,handle:handle||'',platform:platform||''};
   return postCard({link:p.url,image:p.image?API+'/api/img?u='+encodeURIComponent(p.image):'',tl:tl,stats:st.join(''),cap:String(p.text||''),click:p.url?'openSoc(this)':'',url:p.url});
 }
+function socName(p){return {instagram:'Instagram',tiktok:'TikTok',facebook:'Facebook'}[p]||p;}
 function renderSoc(el,d){
-  var body=el.querySelector('.soc-body'),met=el.querySelector('.soc-m');
+  var body=el.querySelector('.soc-body'),met=el.querySelector('.soc-m'),platform=el.getAttribute('data-platform');
   if(d&&d.error){
     if(met)met.textContent='taking a moment…';
     if(body)body.innerHTML='<div class="adsempty">This scraper is a little slow — <a href="#" class="rtry" onclick="retrySoc(this);return false;">try again</a>.</div>';return;
   }
+  var handle=d&&d.handle,purl=handleToUrl(platform,handle);
   if(!d||!d.posts||!d.posts.length){
-    if(met)met.textContent=(d&&d.handle)?'@'+d.handle+' · no recent posts':'no public profile found';
-    if(body)body.innerHTML='<div class="adsempty">No recent posts found.</div>';return;
+    if(met)met.textContent=handle?'@'+handle+' · no recent posts':'no public profile found';
+    if(body)body.innerHTML='<div class="adsempty">No recent posts we could capture'+(purl?' — <a href="'+esc(purl)+'" target="_blank" rel="noopener">view their '+socName(platform)+' ↗</a>':'.')+'</div>';return;
   }
   var s=d.summary||{};
   var top=s.topValue?' · top '+fmtNum(s.topValue)+' '+(s.metric==='views'?'views':'likes'):'';
-  if(met)met.innerHTML='@'+esc(d.handle)+' · '+d.posts.length+' recent'+top;
-  if(body)body.innerHTML='<div class="adstrip">'+d.posts.map(function(p){return socThumb(p,d.handle,el.getAttribute('data-platform'));}).join('')+'</div>';
+  var strip='<div class="adstrip">'+d.posts.map(function(p){return socThumb(p,handle,platform);}).join('')+'</div>';
+  if(d.stale){   // live scrape was empty — showing the last capture that had posts
+    if(met)met.innerHTML='@'+esc(handle)+' · no recent posts';
+    if(body)body.innerHTML='<div class="soc-stale">No new posts recently — showing their last '+d.posts.length+' captured'+(d.staleDay?' '+esc(fmtAgo(d.staleDay)):'')+'.</div>'+strip;
+    return;
+  }
+  if(met)met.innerHTML='@'+esc(handle)+' · '+d.posts.length+' recent'+top;
+  if(body)body.innerHTML=strip;
 }
 function loadOneSoc(el){
   var platform=el.getAttribute('data-platform'),handle=el.getAttribute('data-handle'),host=el.getAttribute('data-host');
@@ -945,6 +954,13 @@ function markSub(host){try{localStorage.setItem('ci_sub_'+host,Date.now());}catc
 function isSubbed(host){try{var t=+localStorage.getItem('ci_sub_'+host);return !!t&&(Date.now()-t)<7*864e5;}catch(e){return false;}}
 function clearSub(host){try{localStorage.removeItem('ci_sub_'+host);}catch(e){}}
 function undoSub(a,host){clearSub(host);delete emailPending[host];var box=a.closest('.emlbox');if(box){box.dataset.loaded='';loadEmail(box);}var c=currentComp();if(c)checkEmailBanner(c);return false;}
+// "I've clicked the confirm link in the email" — once they've done that, a confirmation
+// email is NO LONGER an action item; clear the red flags and just wait for the first campaign.
+function markConfirmed(host){try{localStorage.setItem('ci_conf_'+host,Date.now());}catch(e){}}
+function isEmlConfirmed(host){try{var t=+localStorage.getItem('ci_conf_'+host);return !!t&&(Date.now()-t)<14*864e5;}catch(e){return false;}}
+function clearConfirmed(host){try{localStorage.removeItem('ci_conf_'+host);}catch(e){}}
+function confirmDone(btn,host){markConfirmed(host);var box=btn.closest('.emlbox');var c=currentComp();if(c&&c.host===host)emailPending[host]=false;if(box){box.dataset.loaded='';loadEmail(box);}if(c){toggleRailFlag(c);checkEmailBanner(c);}return false;}
+function undoConfirm(a,host){clearConfirmed(host);var box=a.closest('.emlbox');if(box){box.dataset.loaded='';loadEmail(box);}var c=currentComp();if(c)checkEmailBanner(c);return false;}
 function confirmSub(btn){
   var box=btn.closest('.emlbox');if(!box)return;
   var host=box.getAttribute('data-host');
@@ -961,7 +977,7 @@ function pollForEmail(box,host){
       if(!document.body.contains(box))return;
       if(d&&d.emails&&d.emails.length){
         var real=d.emails.some(function(e){return !isConfirmEml(e);});
-        if(real)clearSub(host);   // a confirmation email alone doesn't finish the job — keep the subscribed marker
+        if(real){clearSub(host);clearConfirmed(host);}   // a confirmation email alone doesn't finish the job — keep the markers until a REAL campaign lands
         box.innerHTML=(real?'<div class="subok">✓ Confirmed — we just received their first email. You’re tracking '+esc(host)+'.</div>':'')+emlHTML(d,host);
         var sm=box.closest('.chan').querySelector('.chan-sum');if(sm)sm.innerHTML='<b style="color:var(--text);font-weight:600">'+d.emails.length+'</b> email'+(d.emails.length===1?'':'s')+' · <span class="flag">seeded inbox</span>';
         var cc=currentComp();if(cc)checkEmailBanner(cc);
@@ -991,10 +1007,16 @@ function emlHTML(d,host){
   var s=d.summary||{};
   var off=(s.offers&&s.offers.length)?' · offers: '+s.offers.slice(0,3).map(esc).join(' · '):'';
   var sum='<div class="adssum"><b>'+s.count+' email'+(s.count===1?'':'s')+' captured</b>'+(s.perWeek?' · ~'+s.perWeek+'/week':'')+(s.latest?' · latest '+esc(fmtAgo(s.latest)):'')+off+'</div>';
-  var inboxBar=d.inbox?inboxBarHTML(d.inbox):'';
-  // Only confirmation email(s) so far → the user still has to click confirm inside it.
-  var confirmNote=d.emails.every(function(e){return isConfirmEml(e);})?'<div class="email-warn" style="margin:0 0 14px">⚠ <b>One click left:</b> open the confirmation email below and hit its confirm button — their campaigns only start arriving after you confirm.</div>':'';
-  return inboxBar+confirmNote+sum+'<div class="emllist">'+d.emails.map(emlRow).join('')+'</div>';
+  // Once ANY email has arrived, drop the "paste this address" helper — it's done its job for
+  // this competitor and only causes confusion now. (Still shown on competitors with none yet.)
+  var allConfirm=d.emails.every(function(e){return isConfirmEml(e);});
+  var confirmNote='';
+  if(allConfirm){
+    confirmNote=isEmlConfirmed(host)
+      ? '<div class="subok">✓ Confirmation clicked — waiting for their first campaign (usually within 24h). We’re checking automatically. <a href="#" class="rtry" style="font-weight:500" onclick="return undoConfirm(this,\''+esc(host)+'\')">Didn’t work?</a></div>'
+      : '<div class="email-warn" style="margin:0 0 14px">⚠ <b>One click left:</b> open the confirmation email below and hit its confirm button — their campaigns only start arriving after you confirm.<button type="button" class="ew-go" onclick="return confirmDone(this,\''+esc(host)+'\')">I’ve clicked confirm ✓</button></div>';
+  }
+  return confirmNote+sum+'<div class="emllist">'+d.emails.map(emlRow).join('')+'</div>';
 }
 // Keep the catch-all inbox address visible + copyable even after emails start arriving
 // (so you can subscribe it to more competitors without losing it).
@@ -1006,7 +1028,7 @@ function loadEmail(box){
   if(state.day){box.innerHTML=emlHTML((viewSnap&&viewSnap.email)||{storage:true,emails:[],inbox:''},host);return;}
   fetch(API+'/api/emails?host='+encodeURIComponent(host)).then(function(r){return r.json();}).then(function(d){
     box.innerHTML=emlHTML(d,host);
-    if(d&&d.emails&&d.emails.length){if(d.emails.some(function(e){return !isConfirmEml(e);}))clearSub(host);var sm=box.closest('.chan').querySelector('.chan-sum');if(sm)sm.innerHTML='<b style="color:var(--text);font-weight:600">'+d.emails.length+'</b> email'+(d.emails.length===1?'':'s')+' · <span class="flag">seeded inbox</span>';}
+    if(d&&d.emails&&d.emails.length){if(d.emails.some(function(e){return !isConfirmEml(e);})){clearSub(host);clearConfirmed(host);}var sm=box.closest('.chan').querySelector('.chan-sum');if(sm)sm.innerHTML='<b style="color:var(--text);font-weight:600">'+d.emails.length+'</b> email'+(d.emails.length===1?'':'s')+' · <span class="flag">seeded inbox</span>';}
     else if(isSubbed(host)){pollForEmail(box,host);}   // resume the "watching" state after you navigated away and came back
   }).catch(function(){box.innerHTML='<div class="adsempty">Couldn’t load email activity — try again shortly.</div>';});
 }
