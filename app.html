@@ -1584,7 +1584,9 @@ function openChat(){var c=currentComp();if(!c)return;document.getElementById('ch
 function closeChat(){var p=document.getElementById('chatPanel');if(p)p.classList.remove('open');}
 function syncChat(c){var p=document.getElementById('chatPanel');if(c&&p&&p.classList.contains('open')){document.getElementById('chatSub').textContent='about '+c.name;renderChat(c);}}
 function linkify(t){
-  var s=esc(String(t==null?'':t)).replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>').replace(/(^|\n)\s*[-•]\s+/g,'$1• ');
+  // **bold** first, then any remaining single-asterisk *emphasis* also renders bold —
+  // the AI mixes both, and raw asterisks must never reach the user.
+  var s=esc(String(t==null?'':t)).replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*\n]+)\*/g,'<strong>$1</strong>').replace(/(^|\n)\s*[-•]\s+/g,'$1• ');
   // Hyperlink full URLs AND bare domains (e.g. 7news.com.au, theoodie.co.nz) — single pass, TLD-gated so prose like "e.g." / "etc." is left alone.
   var re=/(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"\]]|\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|co|ai|app|store|shop|me|tv|news|info|biz|eu|us|uk|au|nz|ca)(?:\.(?:au|nz|uk|us|ca))?(?:\/[^\s<>()]*[a-z0-9\/])?)/gi;
   return s.replace(re,function(m){var href=/^https?:\/\//i.test(m)?m:'https://'+m;return '<a href="'+href+'" target="_blank" rel="noopener">'+m+'</a>';});
