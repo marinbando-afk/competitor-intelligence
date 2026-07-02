@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Competitor Intelligence AI — Every competitor move, on your desk by morning</title>
-<meta name="description" content="Surveillance-grade competitor intelligence for DTC brands. We watch every rival's ads, social, email and storefront daily — then hand you what changed and the exact play to counter it."/>
+<title>Competitor Intelligence AI — Never get blindsided by a competitor again</title>
+<meta name="description" content="The first autonomous competitor-intelligence analyst for eCommerce. Daily surveillance of every rival's ads, funnels, prices and emails — decoded by AI into the exact counter-move for your brand. Private beta, limited founding seats."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
@@ -175,6 +175,20 @@ section{padding:64px 0; position:relative}
 .sc-h{font-family:var(--mono); font-size:11px; letter-spacing:.04em; color:var(--sage); padding:11px 15px; border-bottom:1px solid var(--line); background:var(--panel)}
 .sc-b{padding:15px; font-size:13px; line-height:1.75; color:var(--muted)}
 .sc-b b{color:var(--text)}
+/* pain timeline */
+.pstep.hot{border-color:rgba(226,85,79,.32)}
+.pstep.hot .pn{background:rgba(226,85,79,.08); border-color:rgba(226,85,79,.45); color:var(--clay); font-family:var(--mono); font-weight:700; font-size:11.5px}
+.cost-punch{text-align:center; font-size:clamp(17px,2.4vw,21px); color:var(--text); max-width:56ch; margin:36px auto 0; line-height:1.55}
+.cost-punch b{color:var(--clay)}
+/* single-column offer stack */
+.plans.one{grid-template-columns:1fr; max-width:660px}
+/* early-access form */
+.access-form{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:4px auto 0; max-width:680px}
+.access-form input{flex:1; min-width:230px; background:var(--bg); border:1px solid var(--line2); border-radius:6px; color:var(--text); font-family:var(--mono); font-size:13px; padding:13px 14px; outline:none; transition:border-color .15s}
+.access-form input:focus{border-color:var(--sage-d)}
+.access-form input::placeholder{color:var(--faint)}
+.al-note{margin-top:15px; font-family:var(--mono); font-size:10.5px; letter-spacing:.05em; color:var(--faint)}
+.al-ok{margin-top:18px; color:var(--quiet); font-size:15px}
 footer{border-top:1px solid var(--line2); margin-top:60px; padding:30px 0}
 .foot-in{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap}
 .foot-in .lbl{color:var(--faint)}
@@ -203,15 +217,14 @@ html.js .reveal.in{opacity:1; transform:none}
       <b>Competitor Intelligence AI</b>
     </a>
     <div class="nav-links">
+      <a href="#cost">Why now</a>
       <a href="#how">How it works</a>
-      <a href="#tech">The technology</a>
-      <a href="#channels">Coverage</a>
-      <a href="#pricing">Pricing</a>
+      <a href="#stack">What you get</a>
       <a href="blog.html">Blog</a>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <a class="btn btn-ghost" href="app.html?signin=1">Sign in</a>
-      <a class="btn btn-primary" href="#pricing">Get started</a>
+      <a class="btn btn-primary" href="#access">Request access</a>
     </div>
   </div>
 </nav>
@@ -219,14 +232,14 @@ html.js .reveal.in{opacity:1; transform:none}
 <div id="top"></div>
 
 <header class="hero wrap">
-  <span class="tag"><span class="dot"></span>Field intelligence for DTC &amp; eCommerce brands</span>
-  <h1>Every competitor move, on your desk <span class="hl">by morning</span>.</h1>
-  <p class="lede">We keep every rival under watch — their <b>ads, social, email and storefront</b> — every single day. Then our AI hands you what changed, why it works, and <b>the exact play to counter it</b>.</p>
+  <span class="tag"><span class="dot"></span>Private beta · limited founding seats</span>
+  <h1>Never get blindsided by a <span class="hl">competitor</span> again.</h1>
+  <p class="lede">The first autonomous competitor-intelligence analyst for eCommerce. Every morning it hands you what every rival changed yesterday — <b>ads, funnels, prices, emails</b> — why it's working, and <b>the exact counter-move for your brand</b>.</p>
   <div class="cta-row">
-    <a class="btn btn-primary" href="#pricing">Get started — $149/mo</a>
-    <a class="btn btn-ghost" data-demo href="#book">Book a demo</a>
+    <a class="btn btn-primary" href="#access">Request early access</a>
+    <a class="btn btn-ghost" href="#cost">Why this exists</a>
   </div>
-  <div class="hero-note">Self-serve in minutes — or book a walkthrough first. Cancel anytime.</div>
+  <div class="hero-note">Nothing to install · 10-minute setup · your first dossier within 24 hours</div>
 
   <div class="dossier reveal">
     <div class="dossier-top">
@@ -255,6 +268,23 @@ html.js .reveal.in{opacity:1; transform:none}
     </div>
   </div>
 </header>
+
+<!-- ── THE REAL COST ── -->
+<section id="cost" class="wrap">
+  <div class="sec-head">
+    <div class="rule"></div>
+    <span class="lbl" style="display:block;margin-top:14px">The real cost</span>
+    <h2>You always find out. Just three weeks too late.</h2>
+    <p>Every operator knows this story by heart — because it keeps happening:</p>
+  </div>
+  <div class="process">
+    <div class="pstep hot reveal"><span class="pn">D1</span><div><b>Monday.</b> A competitor quietly launches a new advertorial funnel and cuts their hero product 30%. No announcement, no press. You're busy running your own brand.</div></div>
+    <div class="pstep hot reveal"><span class="pn">D4</span><div><b>Your ROAS starts slipping.</b> You blame creative fatigue. New ads go into testing. Spend keeps running at full budget.</div></div>
+    <div class="pstep hot reveal"><span class="pn">D12</span><div><b>CPAs are up 40%.</b> The team audits pixels, landing pages, offers. Everything on your side checks out — which is exactly the problem.</div></div>
+    <div class="pstep hot reveal"><span class="pn">D21</span><div><b>Someone finally opens their ad library.</b> There it is. They've been taking your market share for three weeks — while you paid full price for traffic that stopped converting on day one.</div></div>
+  </div>
+  <p class="cost-punch reveal">You never had a performance problem. You had a <b>visibility problem</b> — and every single day of it was paid for in ad spend and market share.</p>
+</section>
 
 <!-- ── FOUNDER STORY ── -->
 <section id="origin" class="wrap">
@@ -341,8 +371,8 @@ html.js .reveal.in{opacity:1; transform:none}
   <div class="sec-head">
     <div class="rule"></div>
     <span class="lbl" style="display:block;margin-top:14px">Inside the machine</span>
-    <h2>The technology behind the watch</h2>
-    <p>Built on advanced AI that doesn't skim the surface — it sees, reads and reasons the way your sharpest strategist would, at a scale no team could match.</p>
+    <h2>Not a dashboard. An analyst.</h2>
+    <p>Spy tools hand you raw screenshots and leave the thinking to you. This has never existed before: an autonomous analyst that sees, reads and reasons the way your sharpest strategist would — at a scale no human team could match.</p>
   </div>
   <div class="tech">
     <div class="tcard reveal">
@@ -415,55 +445,59 @@ html.js .reveal.in{opacity:1; transform:none}
   </div>
 </section>
 
-<!-- ── PRICING ── -->
-<section id="pricing" class="wrap">
+<!-- ── THE OFFER STACK ── -->
+<section id="stack" class="wrap">
   <div class="sec-head">
     <div class="rule"></div>
-    <span class="lbl" style="display:block;margin-top:14px">Pricing</span>
-    <h2>Start watching today</h2>
-    <p>Sign up and you're live in minutes — no setup, no contracts. Need more firepower? Let's talk.</p>
+    <span class="lbl" style="display:block;margin-top:14px">Founding access</span>
+    <h2>Everything below. Running for you, daily.</h2>
+    <p>Not a tool you'll have to learn — a fully-run intelligence operation on every competitor you name, personalised to your brand from day one.</p>
   </div>
-  <div class="plans">
+  <div class="plans one">
     <div class="plan feat reveal">
-      <span class="pl-badge">Self-serve</span>
-      <span class="pl-name">Starter</span>
-      <div class="price">$149<small> / month</small></div>
-      <div class="pl-sub">Two competitors under full daily watch.</div>
+      <span class="pl-badge">The founding watchlist</span>
+      <span class="pl-name">What you get</span>
+      <div class="pl-sub" style="margin-top:14px">Every capability, on every competitor you name:</div>
       <ul>
-        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>2 competitors, watched every single day</li>
-        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>All four channels — ads, social, email &amp; storefront</li>
-        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Daily briefing, in your timezone</li>
-        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>AI insights + a play for your own brand</li>
-        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Creative &amp; video decoded · change alerts · ask-anything chat</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>A daily intelligence dossier on each competitor — ads, organic social, email &amp; storefront in one briefing</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>What-changed alerts: price moves to the cent, sales starting and ending, new products, new funnels</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Every ad decoded — video scripts transcribed, hooks and angles named, any language</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Landing pages read and classified — hidden advertorial &amp; affiliate funnels exposed</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>“Apply to your brand”: every insight turned into a concrete play using your real products and prices</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>An ask-anything analyst — every answer backed by the captured evidence, receipts linked</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Before/after storefront evidence — dated screenshots you can drop straight into any deck</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>The morning brief in Slack — know in ten seconds whether anything deserves your attention</li>
       </ul>
-      <a class="btn btn-primary" data-checkout href="#pricing">Sign up &amp; pay</a>
-      <div class="pl-foot">Secure checkout · cancel anytime</div>
+      <a class="btn btn-primary" href="#access">Request early access</a>
+      <div class="pl-foot">Founding terms locked in before public launch</div>
     </div>
-    <div class="plan reveal">
-      <span class="pl-name">Scale</span>
-      <div class="price">Custom</div>
-      <div class="pl-sub">More competitors, markets and hands-on help.</div>
-      <ul>
-        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Everything in Starter</li>
-        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Five, ten or unlimited competitors</li>
-        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Multiple markets &amp; your own brand tracked</li>
-        <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Priority onboarding &amp; support</li>
-      </ul>
-      <a class="btn btn-ghost" data-demo href="#book">Book a demo</a>
-      <div class="pl-foot">Tailored to your watchlist</div>
-    </div>
+  </div>
+</section>
+
+<!-- ── ACCESS ── -->
+<section id="access" class="wrap">
+  <div class="close reveal">
+    <span class="lbl" style="color:var(--sage)">Private beta</span>
+    <h2>Request access</h2>
+    <p>We onboard a small batch of founding brands at a time — each one set up personally by the founder, so every watchlist is airtight. Leave your email and we'll reach out when your seat opens.</p>
+    <form class="access-form" id="accessForm" onsubmit="return joinList(event)">
+      <input type="email" id="alEmail" required placeholder="you@yourbrand.com" autocomplete="email"/>
+      <input type="text" id="alStore" placeholder="Your store URL — optional, moves you up the list" autocomplete="off"/>
+      <button class="btn btn-primary" type="submit" id="alGo">Request early access</button>
+    </form>
+    <div class="al-note" id="alNote">No spam. No card. Your first dossier lands within 24 hours of onboarding.</div>
+    <div class="al-ok" id="alOk" style="display:none">✓ You're on the list — watch your inbox. Founding seats are released in small batches, store URLs first.</div>
   </div>
 </section>
 
 <!-- ── CLOSE ── -->
 <section id="book" class="wrap">
   <div class="close reveal">
-    <span class="lbl" style="color:var(--sage)">Get started</span>
+    <span class="lbl" style="color:var(--clay)">One more thing</span>
     <h2>They're watching you, too.</h2>
-    <p>The sharpest brands in your category already track every move you make. Watch back — and stop finding out last.</p>
+    <p>The sharpest brands in your category already track every move you make. Watch back — and stop being the last to find out.</p>
     <div class="cta-row" style="margin-top:6px">
-      <a class="btn btn-primary" data-checkout href="#pricing" style="padding:15px 30px; font-size:13px">Sign up &amp; pay</a>
-      <a class="btn btn-ghost" data-demo href="#book" style="padding:15px 30px; font-size:13px">Book a demo</a>
+      <a class="btn btn-primary" href="#access" style="padding:15px 30px; font-size:13px">Request early access</a>
     </div>
   </div>
 </section>
@@ -479,20 +513,31 @@ html.js .reveal.in{opacity:1; transform:none}
 </footer>
 
 <script>
-// ── Book-a-demo destination. Replace DEMO_LINK with your Calendly / Cal.com link
-//    (e.g. "https://calendly.com/your-handle/demo") when ready. Until then it opens
-//    a pre-filled email so demo requests still reach you.
-var DEMO_LINK = "mailto:marin.bando@gmail.com?subject=Demo%20request%20%E2%80%94%20Competitor%20Intelligence%20AI&body=Hi%2C%20I'd%20like%20a%20demo.%20The%20two%20competitors%20I%20want%20to%20watch%20are%3A%0A%0A1.%20%0A2.%20";
-document.querySelectorAll('[data-demo]').forEach(function(a){ a.setAttribute('href', DEMO_LINK); });
-
-// ── Sign-up checkout. Paste your Stripe payment link (https://buy.stripe.com/...) into
-//    CHECKOUT_LINK once created. Until then, the button opens a pre-filled signup email.
-var CHECKOUT_LINK = "";
-var SIGNUP_FALLBACK = "mailto:marin.bando@gmail.com?subject=Sign%20up%20%E2%80%94%20Starter%20%24149%2Fmo&body=Hi%2C%20I'd%20like%20to%20sign%20up%20for%20the%20%24149%2Fmo%20plan.%20The%20two%20competitors%20I%20want%20to%20watch%20are%3A%0A%0A1.%20%0A2.%20";
-document.querySelectorAll('[data-checkout]').forEach(function(a){ a.setAttribute('href', CHECKOUT_LINK || SIGNUP_FALLBACK); });
+// ── Early-access list. Requests land in the feedback inbox (tagged [EARLY ACCESS]) —
+//    the founder reads them in-app via the admin "View submissions" panel.
+var API = 'https://competitor-intelligence-production-2629.up.railway.app';
+function joinList(e){
+  e.preventDefault();
+  var em = document.getElementById('alEmail').value.trim();
+  var st = document.getElementById('alStore').value.trim();
+  if(!em || em.indexOf('@') < 1) return false;
+  var go = document.getElementById('alGo'); go.disabled = true; var was = go.textContent; go.textContent = 'Requesting…';
+  fetch(API + '/api/feedback', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name:'[EARLY ACCESS]', email: em, message:'[EARLY ACCESS] Waitlist request from the landing page.' + (st ? ' Store: ' + st : '')})})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d && d.ok){
+        document.getElementById('accessForm').style.display = 'none';
+        document.getElementById('alNote').style.display = 'none';
+        document.getElementById('alOk').style.display = 'block';
+      } else { go.disabled = false; go.textContent = was; }
+    })
+    .catch(function(){ go.disabled = false; go.textContent = was; });
+  return false;
+}
 
 // smooth-scroll for same-page anchors
-document.querySelectorAll('a[href^="#"]:not([data-demo]):not([data-checkout])').forEach(function(a){
+document.querySelectorAll('a[href^="#"]').forEach(function(a){
   a.addEventListener('click', function(e){
     var t = document.querySelector(a.getAttribute('href'));
     if(t){ e.preventDefault(); t.scrollIntoView({behavior:'smooth', block:'start'}); }
