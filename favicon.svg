@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- WatchBack — the eye that watches back: eye + scope reticle, target-acquired red dot -->
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="#0c1216" stroke="#2c3f47" stroke-width="1.5"/>
+  <g fill="none" stroke="#57d2cf" stroke-linecap="round">
+    <path d="M8 32 C17.6 17.9, 46.4 17.9, 56 32 C46.4 46.1, 17.6 46.1, 8 32 Z" stroke-width="4.2"/>
+    <circle cx="32" cy="32" r="9.3" stroke-width="4.2"/>
+    <path d="M32 22.6v18.8M22.6 32h18.8" stroke-width="3"/>
+  </g>
+  <circle cx="32" cy="32" r="3" fill="#e2554f"/>
+</svg>
