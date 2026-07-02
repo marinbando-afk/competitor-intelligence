@@ -1,4 +1,4 @@
-// Competitor Intelligence AI — accounts API.
+// WatchBack — accounts API.
 // Endpoints:
 //   GET  /api/health
 //   POST /api/signup           { email, password }  -> { token, user }

@@ -12,7 +12,7 @@ export function slackEnabled() { return !!process.env.SLACK_WEBHOOK_URL; }
 // Build the Slack message (mrkdwn): a header, then one line per channel per brand.
 export async function buildDigest(brands) {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-  const out = ['*🛰️ IntelAI — Daily competitor brief* · ' + today];
+  const out = ['*🛰️ WatchBack — Daily competitor brief* · ' + today];
   for (const b of (brands || [])) {
     let ins = null;
     try { ins = await getInsights(b.host, b.name); } catch (e) { /* skip this brand */ }

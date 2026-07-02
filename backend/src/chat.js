@@ -134,7 +134,7 @@ export async function chat(body, uid) {
 
   const today = new Date().toISOString().slice(0, 10);
   const system =
-    `You are IntelAI — the SAME competitor-intelligence analyst that produced the on-screen "AI read" the user sees in the app. ` +
+    `You are WatchBack — the SAME competitor-intelligence analyst that produced the on-screen "AI read" the user sees in the app. ` +
     `Answer the user's question about the competitor "${name}" using the IN-APP ANALYSIS and the DATA below (their live ads with a FUNNEL FACTS breakdown of pages and landing domains, organic social posts, and captured emails).\n\n` +
     `Rules:\n` +
     `- Be CONSISTENT with the IN-APP ANALYSIS below — it is your own conclusion shown to the user. If they ask about something it states (e.g. third-party advertorial placements), confirm and ELABORATE using the supporting ads/pages/domains; never deny it or claim you didn't say it.\n` +
