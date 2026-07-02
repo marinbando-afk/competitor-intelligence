@@ -675,7 +675,14 @@ var DEMOS=[
 var state={sel:null,day:null,open:{}};
 var viewSnap=null,histDays={};
 var liveCache={};
-var emailPending={};   // host -> bool: does this competitor still need the email-subscribe step? (drives the rail flag)
+var emailPending={};   // host -> bool: does this competitor still need an email action? (drives the rail flag)
+// Double opt-in confirmation emails (any language) — mirrors the backend's CONFIRM_RE.
+// A competitor whose ONLY captured email is a confirmation still needs the user to act:
+// they must open it and click confirm before real campaigns start arriving.
+var EML_CONFIRM_RE=/(almost there|please confirm|confirm your (subscription|sign\s?-?up|email|newsletter|spot)|confirm (your )?subscription|verify your email|activate your subscription|bestätigen sie ihre anmeldung|anmeldung bestätigen|fast geschafft|abonnement bestätigen|confirmez votre (abonnement|inscription)|confirma tu suscripci)/i;
+function isConfirmEml(e){return EML_CONFIRM_RE.test(String((e&&e.subject)||''));}
+// 'none' = nothing captured · 'confirm' = ONLY confirmation email(s) · 'real' = actual campaigns flowing
+function emlPendingState(d,host){var em=(d&&d.emails)||[];var st=!em.length?'none':(em.some(function(e){return !isConfirmEml(e);})?'real':'confirm');return {st:st,pending:st==='confirm'||(st==='none'&&!!(d&&d.inbox)&&!isSubbed(host))};}
 
 /* ── Accounts: demos are open to everyone; signing in loads & saves YOUR competitors ── */
 var TOKEN=localStorage.getItem('ci_token')||'';
@@ -950,8 +957,9 @@ function pollForEmail(box,host){
     fetch(API+'/api/emails?host='+encodeURIComponent(host)).then(function(r){return r.json();}).then(function(d){
       if(!document.body.contains(box))return;
       if(d&&d.emails&&d.emails.length){
-        clearSub(host);
-        box.innerHTML='<div class="subok">✓ Confirmed — we just received their first email. You’re tracking '+esc(host)+'.</div>'+emlHTML(d,host);
+        var real=d.emails.some(function(e){return !isConfirmEml(e);});
+        if(real)clearSub(host);   // a confirmation email alone doesn't finish the job — keep the subscribed marker
+        box.innerHTML=(real?'<div class="subok">✓ Confirmed — we just received their first email. You’re tracking '+esc(host)+'.</div>':'')+emlHTML(d,host);
         var sm=box.closest('.chan').querySelector('.chan-sum');if(sm)sm.innerHTML='<b style="color:var(--text);font-weight:600">'+d.emails.length+'</b> email'+(d.emails.length===1?'':'s')+' · <span class="flag">seeded inbox</span>';
         var cc=currentComp();if(cc)checkEmailBanner(cc);
         return;
@@ -981,7 +989,9 @@ function emlHTML(d,host){
   var off=(s.offers&&s.offers.length)?' · offers: '+s.offers.slice(0,3).map(esc).join(' · '):'';
   var sum='<div class="adssum"><b>'+s.count+' email'+(s.count===1?'':'s')+' captured</b>'+(s.perWeek?' · ~'+s.perWeek+'/week':'')+(s.latest?' · latest '+esc(fmtAgo(s.latest)):'')+off+'</div>';
   var inboxBar=d.inbox?inboxBarHTML(d.inbox):'';
-  return inboxBar+sum+'<div class="emllist">'+d.emails.map(emlRow).join('')+'</div>';
+  // Only confirmation email(s) so far → the user still has to click confirm inside it.
+  var confirmNote=d.emails.every(function(e){return isConfirmEml(e);})?'<div class="email-warn" style="margin:0 0 14px">⚠ <b>One click left:</b> open the confirmation email below and hit its confirm button — their campaigns only start arriving after you confirm.</div>':'';
+  return inboxBar+confirmNote+sum+'<div class="emllist">'+d.emails.map(emlRow).join('')+'</div>';
 }
 // Keep the catch-all inbox address visible + copyable even after emails start arriving
 // (so you can subscribe it to more competitors without losing it).
@@ -993,7 +1003,7 @@ function loadEmail(box){
   if(state.day){box.innerHTML=emlHTML((viewSnap&&viewSnap.email)||{storage:true,emails:[],inbox:''},host);return;}
   fetch(API+'/api/emails?host='+encodeURIComponent(host)).then(function(r){return r.json();}).then(function(d){
     box.innerHTML=emlHTML(d,host);
-    if(d&&d.emails&&d.emails.length){clearSub(host);var sm=box.closest('.chan').querySelector('.chan-sum');if(sm)sm.innerHTML='<b style="color:var(--text);font-weight:600">'+d.emails.length+'</b> email'+(d.emails.length===1?'':'s')+' · <span class="flag">seeded inbox</span>';}
+    if(d&&d.emails&&d.emails.length){if(d.emails.some(function(e){return !isConfirmEml(e);}))clearSub(host);var sm=box.closest('.chan').querySelector('.chan-sum');if(sm)sm.innerHTML='<b style="color:var(--text);font-weight:600">'+d.emails.length+'</b> email'+(d.emails.length===1?'':'s')+' · <span class="flag">seeded inbox</span>';}
     else if(isSubbed(host)){pollForEmail(box,host);}   // resume the "watching" state after you navigated away and came back
   }).catch(function(){box.innerHTML='<div class="adsempty">Couldn’t load email activity — try again shortly.</div>';});
 }
@@ -1182,8 +1192,12 @@ function checkEmailBanner(c){
   var el=document.getElementById('emailWarn-'+c.id),cw=document.getElementById('chanWarn-'+c.id);if(!el&&!cw)return;
   if(state.day){if(el)el.style.display='none';if(cw)cw.style.display='none';return;}
   fetch(API+'/api/emails?host='+encodeURIComponent(c.host||'')).then(function(r){return r.json();}).then(function(d){
-    var pending=!!(d&&d.inbox&&!(d.emails&&d.emails.length)&&!isSubbed(c.host));   // already subscribed = nothing to do = no red flag
-    var e2=document.getElementById('emailWarn-'+c.id);if(e2)e2.style.display=pending?'flex':'none';
+    var ps=emlPendingState(d,c.host),pending=ps.pending;   // subscribed+waiting = no flag; confirmation waiting for a click = FLAG
+    var e2=document.getElementById('emailWarn-'+c.id);
+    if(e2){
+      if(ps.st==='confirm')e2.innerHTML='⚠ <b>One click left.</b> '+esc(c.name)+' sent a confirmation email — open it and hit its confirm button, or their newsletters won’t start arriving. <button type="button" class="ew-go" onclick="jumpEmail()">Open it ↓</button>';
+      e2.style.display=pending?'flex':'none';
+    }
     var w2=document.getElementById('chanWarn-'+c.id);if(w2)w2.style.display=pending?'':'none';
     emailPending[c.host]=pending;toggleRailFlag(c);
   }).catch(function(){});
@@ -1197,7 +1211,7 @@ function checkRailActions(list){
     if(!c||!c.host)return;
     if(emailPending.hasOwnProperty(c.host)){toggleRailFlag(c);return;}
     fetch(API+'/api/emails?host='+encodeURIComponent(c.host)).then(function(r){return r.json();}).then(function(d){
-      emailPending[c.host]=!!(d&&d.inbox&&!(d.emails&&d.emails.length)&&!isSubbed(c.host));toggleRailFlag(c);
+      emailPending[c.host]=emlPendingState(d,c.host).pending;toggleRailFlag(c);
     }).catch(function(){});
   });
 }
