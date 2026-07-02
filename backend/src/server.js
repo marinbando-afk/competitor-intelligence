@@ -64,7 +64,19 @@ app.get('/api/health', (req, res) => res.json({ ok: true, ...warmStatus() }));
 //   GET /api/ads?brand=The%20Oodie&country=AU  -> { count, ads: [{ text, image, page, started, link }] }
 app.get('/api/ads', async (req, res) => {
   try {
-    const data = await fetchAds(req.query.brand, req.query.country, req.query.force === '1');
+    // One competitor = one dataset. If this host is already tracked (by any customer or
+    // as a demo), scrape under its CANONICAL name + country — so two customers who typed
+    // slightly different names for the same competitor share one cache entry (the same
+    // one the nightly warm keeps hot) instead of triggering duplicate Apify scrapes.
+    let brand = req.query.brand, country = req.query.country;
+    const qh = String(req.query.host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase();
+    if (qh) {
+      try {
+        const t = (await allBrands()).find((b) => b.host === qh);
+        if (t) { brand = t.name; country = t.country; }
+      } catch (e) { /* canonicalization is best-effort */ }
+    }
+    const data = await fetchAds(brand, country, req.query.force === '1');
     const out = { active: data.active, newest: data.newest, platforms: data.platforms, country: data.country, ads: (data.ads || []).slice(0, 30) };
     if (req.query.host) {
       try {
