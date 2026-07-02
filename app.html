@@ -122,8 +122,11 @@ button{font-family:inherit;cursor:pointer}
 .rep-status{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0}
 .rep-status .s{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:7px}
 .live{display:inline-flex;align-items:center;gap:5px;color:var(--quiet)}
-.livedot{width:6px;height:6px;border-radius:50%;background:var(--quiet);box-shadow:0 0 0 3px rgba(98,189,126,.22);animation:lp 2.2s ease-in-out infinite}
+.livedot{width:6px;height:6px;border-radius:50%;background:var(--quiet);box-shadow:0 0 0 3px rgba(98,189,126,.22);animation:dotpulse 2.2s ease-in-out infinite}
 @keyframes lp{0%,100%{opacity:1}50%{opacity:.4}}
+/* gentle "live" breathe for glowing status dots (scale carries the glow with it) */
+@keyframes dotpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.22)}}
+@media(prefers-reduced-motion:reduce){.livedot,.mb-dot{animation:none}}
 .lr{color:var(--faint)}
 
 .assess{margin-bottom:34px;position:relative;z-index:1}
@@ -276,7 +279,7 @@ a.adrow-v:hover{text-decoration:underline}
 .mybrand{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--muted);background:none;border:1px solid var(--line2);border-radius:20px;padding:5px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:.15s}
 .mybrand:hover{border-color:var(--sage-d);color:var(--text)}
 .mybrand.set{color:var(--text);border-color:var(--sage-d)}
-.mb-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);box-shadow:0 0 6px var(--sage)}
+.mb-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);box-shadow:0 0 6px var(--sage);animation:dotpulse 2.6s ease-in-out infinite}
 .mb-lbl{color:var(--muted);font-weight:400}
 .datenav .dlabel{cursor:pointer}
 .dcar{font-size:9px;color:var(--muted)}
