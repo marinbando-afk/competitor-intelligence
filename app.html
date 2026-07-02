@@ -127,8 +127,8 @@ button{font-family:inherit;cursor:pointer}
 .live{display:inline-flex;align-items:center;gap:5px;color:var(--quiet)}
 .livedot{width:6px;height:6px;border-radius:50%;background:var(--quiet);box-shadow:0 0 0 3px rgba(98,189,126,.22);animation:dotpulse 1.1s ease-in-out infinite}
 @keyframes lp{0%,100%{opacity:1}50%{opacity:.4}}
-/* quick "live" pulse for glowing status dots (scale carries the glow with it) */
-@keyframes dotpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(1.55)}}
+/* quick "live" pulse for glowing status dots — opacity only, size stays fixed */
+@keyframes dotpulse{0%,100%{opacity:1}50%{opacity:.3}}
 @media(prefers-reduced-motion:reduce){.livedot,.mb-dot{animation:none}}
 .lr{color:var(--faint)}
 
