@@ -328,7 +328,7 @@ export async function generateInsights(brand, host, uid) {
     const real = all.filter((e) => !isConfirmEmail(e));   // ignore opt-in confirmations
     if (all.length && !real.length) {
       // Only a sign-up confirmation so far — nothing to analyse. Don't invent cadence/offers/suggestions.
-      out.email = { summary: 'Only the sign-up confirmation captured so far — their first newsletter can take up to 24 hours to arrive.', bullets: [] };
+      out.email = { summary: 'Only the sign-up confirmation captured so far — their first newsletter lands with their next campaign, usually within a day or two.', bullets: [] };
     } else if (real.length) {
       out.email = await ask('email', brand, fmtEmail({ emails: real, summary: em.summary }), '', me);
     }

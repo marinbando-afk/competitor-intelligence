@@ -947,7 +947,7 @@ function subscribeCard(inbox,host){
   var site='https://'+host;
   if(isSubbed(host)){
     return '<div class="subcard"><div class="subcard-h">✓ You’ve subscribed to '+esc(host)+' — waiting for their first email</div>'
-      +'<div class="substeps">Their campaigns usually arrive within a day; we check automatically. <span style="color:var(--muted)">Form didn’t go through / want to redo it? <a href="#" class="rtry" onclick="return undoSub(this,\''+esc(host)+'\')">start over</a></span></div>'
+      +'<div class="substeps">Their first email lands with their next campaign — usually within a day or two; we check automatically. <span style="color:var(--muted)">Form didn’t go through / want to redo it? <a href="#" class="rtry" onclick="return undoSub(this,\''+esc(host)+'\')">start over</a></span></div>'
       +'<div class="subact"><span class="spin"></span><span class="substat">Watching for their first email…</span></div></div>';
   }
   return '<div class="subcard"><div class="subcard-h">Track their emails — a 15-second one-time step</div>'
@@ -1008,7 +1008,7 @@ function emlHTML(d,host){
   if(!d||d.error)return '<div class="adsempty">Couldn’t load email activity — try again shortly.</div>';
   if(!d.storage)return '<div class="adsempty">Email monitoring is switching on — competitor campaigns will appear here as they’re captured.</div>';
   if(!d.emails||!d.emails.length){
-    return subscribeCard(d.inbox,host)+'<div class="adsempty" style="padding-top:4px">No emails captured yet — once you’ve subscribed (above), their campaigns appear here within a day.</div>';
+    return subscribeCard(d.inbox,host)+'<div class="adsempty" style="padding-top:4px">No emails captured yet — once you’ve subscribed (above), their campaigns appear here with their next send, usually within a day or two.</div>';
   }
   var s=d.summary||{};
   var off=(s.offers&&s.offers.length)?' · offers: '+s.offers.slice(0,3).map(esc).join(' · '):'';
@@ -1019,7 +1019,7 @@ function emlHTML(d,host){
   var confirmNote='';
   if(allConfirm){
     confirmNote=isEmlConfirmed(host)
-      ? '<div class="subok">✓ Confirmation clicked — waiting for their first campaign (usually within 24h). We’re checking automatically. <a href="#" class="rtry" style="font-weight:500" onclick="return undoConfirm(this,\''+esc(host)+'\')">Didn’t work?</a></div>'
+      ? '<div class="subok">✓ Confirmation clicked — you’re on their list. Their first email lands with their next campaign, usually within a day or two; we’re checking automatically. <a href="#" class="rtry" style="font-weight:500" onclick="return undoConfirm(this,\''+esc(host)+'\')">Didn’t work?</a></div>'
       : '<div class="email-warn" style="margin:0 0 14px">⚠ <b>One click left:</b> open the confirmation email below and hit its confirm button — their campaigns only start arriving after you confirm.<button type="button" class="ew-go" onclick="return confirmDone(this,\''+esc(host)+'\')">I’ve clicked confirm ✓</button></div>';
   }
   return confirmNote+sum+'<div class="emllist">'+d.emails.map(emlRow).join('')+'</div>';
