@@ -118,16 +118,35 @@ function fmtEmail(d) {
   d.emails.slice(0, 14).forEach((e) => out.push(`- [${dayOf(e.date)}] ${oneLine(e.subject).slice(0, 130)}${e.offer ? ` [offer: ${e.offer}]` : ''}`));
   return out.join('\n');
 }
+// Sanity-checked pricing view. Raw Shopify feeds include $0 giveaway entries, ~$1
+// shipping-protection micro-SKUs and joke/PR listings at absurd prices (Liquid Death
+// lists a $5.2M novelty) — a literal min–max like "price range $0–$5.2M" is meaningless.
+// Use the 10th–90th percentile of real (>$1) prices as the TYPICAL range; name extremes
+// separately as what they are.
+function priceView(s) {
+  const prices = Object.values(s.items || {}).map((i) => +i.price).filter((p) => p > 1).sort((a, b) => a - b);
+  if (prices.length < 4) return { line: `price range ${s.min ?? '?'}–${s.max ?? '?'}`, note: '' };
+  const q = (f) => prices[Math.max(0, Math.min(prices.length - 1, Math.round(f * (prices.length - 1))))];
+  const lo = q(0.1), hi = q(0.9);
+  const extremes = [];
+  if (s.max != null && s.max > hi * 5) extremes.push(`novelty/PR listings priced up to ${s.max}`);
+  if (s.min != null && s.min <= 1) extremes.push('free/giveaway or micro-fee entries near $0');
+  return {
+    line: `typical price range ${lo}–${hi}`,
+    note: extremes.length ? ` (Catalogue also contains ${extremes.join(' and ')} — marketing stunts/utility SKUs, NOT real pricing; never quote them as the price range.)` : '',
+  };
+}
 function fmtWeb(d) {
   if (!d || !d.summary) return 'No storefront data.';
   const s = d.summary;
+  const pv = priceView(s);
   // Sale status leads every time, independent of whether anything changed since the
   // last capture — an ONGOING sale must never go unmentioned just because it isn't new.
   const saleLine = s.onSale
-    ? `ACTIVE SALE — ${s.onSale} of ${s.products ?? '?'} products discounted (price range ${s.min ?? '?'}–${s.max ?? '?'}).`
-    : `No sale — ${s.products ?? '?'} products, price range ${s.min ?? '?'}–${s.max ?? '?'}, none discounted.`;
+    ? `ACTIVE SALE — ${s.onSale} of ${s.products ?? '?'} products discounted (${pv.line}).`
+    : `No sale — ${s.products ?? '?'} products, ${pv.line}, none discounted.`;
   const bannerLine = d.banner ? ` Promo headline seen on-site: "${d.banner}".` : '';
-  return saleLine + bannerLine;
+  return saleLine + pv.note + bannerLine;
 }
 
 // ── Landing-page format analysis ───────────────────────────────────────────────
@@ -272,6 +291,7 @@ async function ask(channel, brand, todayBlock, prevBlock, me) {
     `You are WatchBack, a sharp eCommerce competitor-intelligence analyst. Analyze ${brand}'s ${channel} — ${GUIDE[channel]}\n\n` +
     `Use ONLY the DATA the user provides. Be specific: cite dates, numbers, offers, domains, handles, formats. ` +
     `Read every move as a DELIBERATE choice by a competent operator, with the BROADER CONTEXT in mind — give the strategic rationale and what it implies competitively, never a naive or dismissive take. A different channel, marketplace, funnel or price is a strategy with tradeoffs: explain the thinking behind it; do NOT frame an intentional choice as a failure, a gap, or "not doing X". ` +
+    `SANITY-CHECK every number and claim before printing it: ask "would this look obviously wrong or absurd to this brand's own marketer?" Raw feeds contain $0 giveaway entries, ~$1 utility SKUs (shipping protection) and joke/PR listings at absurd prices — quote TYPICAL values and name extremes as the stunts they are; a meaningless literal like "price range $0–$5.2M" must never appear. If a figure doesn't make sense for this brand in this context, reinterpret it or leave it out. ` +
     `Compare TODAY against the PREVIOUS capture and lead with what is NEW or CHANGED — do not just restate static facts or repeat an unchanging description. ` +
     `If something isn't supported by the data, leave it out — never invent. Write for a busy marketer. Keep every bullet and the apply SHORT and COMPLETE — a finished thought that never trails off mid-sentence; if a point won't fit concisely, drop detail rather than cut the ending.\n\n`;
   if (me && me.profile) {
