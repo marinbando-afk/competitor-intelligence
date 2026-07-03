@@ -89,12 +89,39 @@ export async function warmBrand(b, force) {
   return { ok, fail };
 }
 
+// Self-healing enrolment: reconcile the warm list against what customers ACTUALLY have.
+// - Adds competitor hosts that never made it in (e.g. added while MAX_USER_BRANDS was 0,
+//   or a track call that failed) — up to the cap.
+// - Prunes entries no customer has anymore (deleted competitors, old test brands) so we
+//   never pay to scrape a brand nobody is watching.
+async function syncTracked() {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    const items = await getTracked();
+    const r = await pool.query('SELECT DISTINCT host FROM competitors');
+    const wanted = new Set(r.rows.map((x) => cleanHost(x.host)).filter(Boolean));
+    const demo = new Set(TRACKED.map((t) => t.host));
+    const next = items.filter((t) => wanted.has(t.host));
+    for (const h of wanted) {
+      if (demo.has(h) || next.some((t) => t.host === h)) continue;
+      if (next.length >= MAX_USER) { console.warn('syncTracked: cap reached, not enrolling ' + h); continue; }
+      const c = await pool.query('SELECT name, host, url, country, handles FROM competitors WHERE host = $1 ORDER BY created_at ASC LIMIT 1', [h]);
+      if (c.rows[0]) next.push({ name: String(c.rows[0].name || h).slice(0, 120), host: h, url: c.rows[0].url || ('https://' + h), country: String(c.rows[0].country || 'ALL').toUpperCase(), handles: c.rows[0].handles || {} });
+    }
+    if (JSON.stringify(next) !== JSON.stringify(items)) {
+      await saveSnapshot(TKEY, 'list', { items: next.slice(-200) });
+      console.log('✓ syncTracked: warm list reconciled — ' + items.length + ' → ' + next.length + ' user brand(s)');
+    }
+  } catch (e) { console.warn('syncTracked:', e.message); }
+}
+
 export async function refreshAll(force) {
   if (running) { console.log('refresh already in progress — skipping'); return { skipped: true }; }
   running = true;
   const t0 = Date.now();
   let ok = 0, fail = 0, brands = [];
   try {
+    await syncTracked();
     brands = await allBrands();
     for (const b of brands) { const r = await warmBrand(b, force); ok += r.ok; fail += r.fail; }
   } finally {
