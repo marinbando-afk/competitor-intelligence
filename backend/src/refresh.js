@@ -13,6 +13,7 @@ import { captureWebsiteFull } from './website.js';
 import { generateInsights } from './insights.js';
 import { postDigest } from './slack.js';
 import { saveSnapshot, latestSnapshot } from './snapshots.js';
+import { pool } from './db.js';
 
 // Brands kept permanently warm (mirrors the app's seeded demos).
 export const TRACKED = [
@@ -79,6 +80,12 @@ export async function warmBrand(b, force) {
   try { const em = await getEmails(b.host); if (em && em.storage) await saveSnapshot(b.host, 'email', em); } catch (e) { /* best-effort */ }
   try { await captureWebsiteFull(b.host, b.url || ('https://' + b.host)); ok++; } catch (e) { fail++; console.warn('warm website ' + b.name + ':', e.message); }
   try { await generateInsights(b.name, b.host); ok++; } catch (e) { fail++; console.warn('warm insights ' + b.name + ':', e.message); }
+  // Advance every customer's row for this host: fresh capture = status 'watching' and
+  // updated_at = capture time, so the app's "scanned X ago" reflects DATA freshness,
+  // not when the user last edited the competitor.
+  try {
+    if (process.env.DATABASE_URL) await pool.query(`UPDATE competitors SET status = 'watching', updated_at = now() WHERE host = $1`, [b.host]);
+  } catch (e) { /* best-effort */ }
   return { ok, fail };
 }
 

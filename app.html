@@ -751,7 +751,7 @@ function badge(c){return '<img src="'+fav(c.host)+'" onerror="this.style.display
 function railRow(c){
   var locked=lockedComp(c);
   var t=locked?'<span class="lk">🔒</span>':(c.live?'<span style="color:var(--quiet)">LIVE</span>':ago(c.updatedAt||Date.now()));
-  var sub=locked?'Upgrade to monitor':(c.demo?c.oneLiner:'Baseline capturing…');
+  var sub=locked?'Upgrade to monitor':(c.demo?c.oneLiner:(c.status==='watching'?'Under daily watch':'Baseline capturing…'));
   var row='<button class="row'+(c.id===state.sel?' sel':'')+(locked?' lockedrow':'')+'" onclick="select(\''+c.id+'\')">'
     +'<span class="badge-wrap"><span class="badge">'+badge(c)+'</span><span class="rail-flag" id="railflag-'+c.id+'"'+(needsAction(c)?'':' style="display:none"')+' title="Action needed">!</span></span>'
     +'<span class="row-main"><span class="row-top"><span class="row-name">'+esc(c.name)+'</span><span class="row-time">'+t+'</span></span>'
@@ -1422,6 +1422,7 @@ function report(c){
   if(state.day){meta=esc(c.host)+' · <span class="snaplbl">📅 viewing '+esc(fmtFullDay(state.day))+'</span>';}
   else if(c.live){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Live feed</span><span class="asof" id="asof-'+c.id+'"></span><span class="lr" id="lr-'+c.id+'"></span>';}
   else if(c.demo){meta=esc(c.host)+' · scanned '+ago(c.updatedAt)+' ago';}
+  else if(c.status==='watching'){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Watched daily</span> · scanned '+ago(c.updatedAt)+' ago';}
   else{meta=esc(c.host);}
   var exTag=c.demo?'<span class="ex-tag">Example</span>':'';
   var exNote=c.demo?'<div class="ex-note">A real brand we track as a live example of how WatchBack works — not one of your competitors.</div>':'';
@@ -1440,8 +1441,8 @@ function report(c){
       +'<button class="btn btn-p" onclick="showUpgrade()">See upgrade options</button></div></div>';
   }
   if(!c.demo){
-    return '<div class="report">'+head+ewb+hwb
-      +'<p class="setup-note">Capturing a live baseline of <b>'+esc(c.host)+'</b> now — each channel below populates within a few minutes; day-over-day comparisons build from tomorrow.</p>'
+    var note=c.status==='watching'?'':'<p class="setup-note">Capturing a live baseline of <b>'+esc(c.host)+'</b> now — each channel below populates within a few minutes; day-over-day comparisons build from tomorrow.</p>';
+    return '<div class="report'+(state.day?' hist':'')+'">'+head+ewb+hwb+note
       +'<span class="lbl sec-l">Signal channels</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
   }
 
