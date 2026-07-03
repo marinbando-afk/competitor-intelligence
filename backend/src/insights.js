@@ -354,10 +354,42 @@ export async function generateInsights(brand, host, uid) {
     }
   } catch (e) { /* skip */ }
 
+  // Top-of-report brief: THREAT ASSESSMENT + RECOMMENDED COUNTER-OP, synthesized
+  // across all channels — user-added competitors get the same dossier treatment as
+  // the curated demos.
+  try {
+    const b = await makeBrief(brand, out, me);
+    if (b) out.brief = b;
+  } catch (e) { /* brief is best-effort */ }
+
   // Drop empty channels.
   Object.keys(out).forEach((k) => { if (!out[k]) delete out[k]; });
   if (Object.keys(out).length) { out.generatedAt = new Date().toISOString(); await saveSnapshot(host, 'insights', out); }
   return out;
+}
+
+// Cross-channel synthesis for the report header. Same discipline as the channel
+// reads: grounded, sanity-checked, strategic — never naive or dismissive.
+async function makeBrief(brand, out, me) {
+  const parts = [];
+  for (const [k, label] of [['ads', 'ADS'], ['social', 'SOCIAL'], ['website', 'WEBSITE'], ['email', 'EMAIL']]) {
+    const c = out[k];
+    if (!c || !(c.summary || (c.bullets && c.bullets.length))) continue;
+    parts.push(`${label}: ${c.summary || ''}${(c.bullets && c.bullets.length) ? ' — ' + c.bullets.join(' · ') : ''}`);
+  }
+  if (!parts.length) return null;
+  const system =
+    `You are WatchBack, a sharp eCommerce competitor-intelligence analyst. From the per-channel reads below, write the top-of-report brief on "${brand}". ` +
+    `Same discipline as always: use only what the reads support, sanity-check every number, and read deliberate moves as strategy with a rationale — never a naive or dismissive take.\n` +
+    `Return ONLY minified JSON, no markdown: {"verdict":"<THREAT ASSESSMENT: 2 complete sentences, <=55 words — the single most important strategic read of this competitor right now, concrete and specific>","move":"<RECOMMENDED COUNTER-OP: 2 complete sentences, <=55 words — ${me && me.profile ? `the concrete, realistic counter for ${me.name}, grounded in their profile below` : 'the concrete, realistic counter-move for a brand competing with them'}>"}` +
+    (me && me.profile ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}` : '');
+  const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 400, system, messages: [{ role: 'user', content: parts.join('\n') }] });
+  const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+  try {
+    const j = JSON.parse(txt.replace(/^```json?\s*/i, '').replace(/\s*```$/, ''));
+    if (j && j.verdict) return { verdict: oneLine(j.verdict).slice(0, 400), move: oneLine(j.move || '').slice(0, 400) };
+  } catch (e) { /* malformed = no brief this cycle */ }
+  return null;
 }
 
 // A one-line marketing ANGLE for a single ad/post, generated on demand (cheap,

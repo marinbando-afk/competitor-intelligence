@@ -1265,6 +1265,13 @@ function eagerLoad(){
 /* ── AI insights (per-channel, context-aware) ── */
 var insightsCache={};
 function paintInsights(c,ins){
+  // User-added competitors: fill the AI-generated Threat assessment + Counter-op
+  // (demos keep their curated versions rendered directly in report()).
+  var ub=document.getElementById('ubrief-'+c.id);
+  if(ub&&ins&&ins.brief&&ins.brief.verdict){
+    ub.innerHTML='<div class="assess"><span class="lbl">Threat assessment</span><p class="verdict">'+linkify(ins.brief.verdict)+'</p></div>'
+      +(ins.brief.move?'<div class="move"><span class="lbl">Recommended counter-op</span><p class="move-t">'+linkify(ins.brief.move)+'</p></div>':'');
+  }
   ['ads','social','website','email'].forEach(function(k){
     var o=ins&&ins[k];if(!o||!(o.summary||(o.bullets&&o.bullets.length)))return;
     var sum=document.getElementById('csum-'+k+'-'+c.id);
@@ -1443,7 +1450,8 @@ function report(c){
   if(!c.demo){
     var note=c.status==='watching'?'':'<p class="setup-note">Capturing a live baseline of <b>'+esc(c.host)+'</b> now — each channel below populates within a few minutes; day-over-day comparisons build from tomorrow.</p>';
     return '<div class="report'+(state.day?' hist':'')+'">'+head+ewb+hwb+note
-      +'<span class="lbl sec-l">Signal channels</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
+      +'<div id="ubrief-'+c.id+'"></div>'
+      +'<span class="lbl sec-l">Intercepted signals</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
   }
 
   var move=c.move?'<div class="move"><span class="lbl">Recommended counter-op</span><p class="move-t">'+esc(c.move)+'</p></div>':'';
