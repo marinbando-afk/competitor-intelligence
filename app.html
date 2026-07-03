@@ -1431,7 +1431,7 @@ function report(c){
   else if(c.demo){meta=esc(c.host)+' · scanned '+ago(c.updatedAt)+' ago';}
   else if(c.status==='watching'){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Watched daily</span> · scanned '+ago(c.updatedAt)+' ago';}
   else{meta=esc(c.host);}
-  var exTag=c.demo?'<span class="ex-tag">Example</span>':'';
+  var exTag=c.demo?'<span class="ex-tag">Real example</span>':'';
   var exNote=c.demo?'<div class="ex-note">A real brand we track as a live example of how WatchBack works — not one of your competitors.</div>':'';
   var head=back+'<div class="rep-head"><span class="rep-badge">'+badge(c)+'</span>'
     +'<div><div class="rep-name">'+esc(c.name)+exTag+'</div><div class="rep-meta">'+meta+'</div>'+exNote+'</div></div>';
@@ -1472,7 +1472,7 @@ function render(){
   var yourC=list.filter(function(c){return !c.demo;}),exC=list.filter(function(c){return c.demo;});
   var rl='';
   if(yourC.length)rl+='<div class="rail-group">Your competitors</div>'+yourC.map(railRow).join('');
-  if(exC.length)rl+='<div class="rail-group">Examples — see how it works</div>'+exC.map(railRow).join('');
+  if(exC.length)rl+='<div class="rail-group">Real examples — live data, not a mock-up</div>'+exC.map(railRow).join('');
   document.getElementById('railList').innerHTML=rl;
   checkRailActions(list);
   var cur=list.find(function(c){return c.id===state.sel;});
