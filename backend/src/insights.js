@@ -251,6 +251,11 @@ function clip(s, n) {
   s = oneLine(s);
   if (s.length <= n) return s;
   const cut = s.slice(0, n);
+  // Prefer ending on a COMPLETE thought: cut at the last sentence/clause boundary
+  // (". ", "; ", " — ") when one exists past halfway — never trail off mid-phrase.
+  const bounds = [cut.lastIndexOf('. '), cut.lastIndexOf('; '), cut.lastIndexOf(' — ')];
+  const b = Math.max(...bounds);
+  if (b > n * 0.35) return cut.slice(0, b + 1).replace(/[\s;,—-]+$/, '.').replace(/\.\.$/, '.');
   const sp = cut.lastIndexOf(' ');
   return (sp > n * 0.5 ? cut.slice(0, sp) : cut).replace(/[\s.,;:!?'"\-—]+$/, '') + '…';
 }
