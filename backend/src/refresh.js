@@ -47,6 +47,17 @@ export async function addTracked(comp, admin) {
   await saveSnapshot(TKEY, 'list', { items: items.slice(-200) });
   return { added: true, comp: norm };
 }
+// Drop a host from the daily warm (called when the LAST customer tracking it deletes
+// it — otherwise the nightly scrape keeps paying for a brand nobody watches).
+export async function removeTracked(host) {
+  host = cleanHost(host);
+  if (!host) return { removed: false };
+  const items = await getTracked();
+  const next = items.filter((t) => t.host !== host);
+  if (next.length === items.length) return { removed: false };
+  await saveSnapshot(TKEY, 'list', { items: next });
+  return { removed: true };
+}
 export async function allBrands() {
   const seen = new Set(TRACKED.map((t) => t.host));
   return TRACKED.concat((await getTracked()).filter((t) => t && t.host && !seen.has(t.host)));

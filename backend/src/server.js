@@ -15,7 +15,7 @@ import { initSchema, pool } from './db.js';
 import { signup, login, requireAuth, optionalUid, JWT_IS_DEFAULT } from './auth.js';
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
-import { startScheduler, warmStatus, addTracked, warmBrand, allBrands } from './refresh.js';
+import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands } from './refresh.js';
 import { postDigest } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
@@ -58,7 +58,11 @@ function rateLimit(max, windowMs) {
 app.use('/api/', rateLimit(200, 60000));
 const aiLimit = rateLimit(30, 60000);
 
-app.get('/api/health', (req, res) => res.json({ ok: true, ...warmStatus() }));
+app.get('/api/health', async (req, res) => {
+  let userTracked = null;
+  try { userTracked = (await getTracked()).length; } catch (e) { /* db optional */ }
+  res.json({ ok: true, ...warmStatus(), userTracked });
+});
 
 // Ads intelligence — a competitor's live ads from the Meta Ad Library (via Apify).
 //   GET /api/ads?brand=The%20Oodie&country=AU  -> { count, ads: [{ text, image, page, started, link }] }
@@ -394,8 +398,17 @@ app.patch('/api/competitors/:id', requireAuth, async (req, res) => {
 
 app.delete('/api/competitors/:id', requireAuth, async (req, res) => {
   try {
-    await pool.query('DELETE FROM competitors WHERE id = $1 AND user_id = $2', [req.params.id, req.user.uid]);
+    const r = await pool.query('DELETE FROM competitors WHERE id = $1 AND user_id = $2 RETURNING host', [req.params.id, req.user.uid]);
     res.json({ ok: true });
+    // Stop the daily warm for this host once NO customer tracks it anymore ("one
+    // competitor = one dataset" — keep scraping while any other account still has it).
+    const host = r.rows[0] && r.rows[0].host;
+    if (host) {
+      try {
+        const still = await pool.query('SELECT 1 FROM competitors WHERE host = $1 LIMIT 1', [host]);
+        if (!still.rowCount) await removeTracked(host);
+      } catch (e) { /* cleanup is best-effort */ }
+    }
   } catch (e) {
     res.status(500).json({ error: 'Could not remove competitor.' });
   }
