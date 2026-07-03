@@ -116,7 +116,7 @@ button{font-family:inherit;cursor:pointer}
 .back-btn{display:none}
 .report{max-width:1480px;margin:0 auto;padding:40px 60px 96px;position:relative;z-index:1}
 @media(max-width:560px){.report{padding:24px 20px 70px}}
-.botanical{position:absolute;top:24px;right:30px;width:118px;opacity:.07;pointer-events:none;z-index:0}
+.botanical{position:absolute;top:-72px;right:14px;width:330px;opacity:.045;pointer-events:none;z-index:0}
 .rep-head{display:flex;align-items:flex-start;gap:16px;padding-bottom:26px;border-bottom:1px solid var(--line2);margin-bottom:32px;position:relative;z-index:1}
 .rep-badge{width:54px;height:54px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:600;font-size:19px;color:#16222b;background:#eceff0;border:1px solid var(--line2);overflow:hidden}
 .rep-badge img{width:34px;height:34px;border-radius:50%}
@@ -481,7 +481,7 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 
 @media(max-width:880px){
   .rail{width:100%}
-  .mast,.div,.top-date{display:none}
+  .mast,.div,.top-date,.botanical{display:none}
   .app[data-view="list"] .detail{display:none}
   .app[data-view="detail"] .rail{display:none}
   .back-btn{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:none;border:none;padding:0;margin:0 0 22px}
@@ -619,7 +619,9 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 <script>
 var KEY='intelai_v5';
 var API='https://competitor-intelligence-production-2629.up.railway.app';
-var BOTANICAL='<svg class="botanical" viewBox="0 0 130 130" fill="none" stroke="#3f9d9b" stroke-width="1"><circle cx="65" cy="65" r="58"/><circle cx="65" cy="65" r="38"/><circle cx="65" cy="65" r="3.5"/><path d="M65 2v26M65 102v26M2 65h26M102 65h26" stroke-linecap="round"/><path d="M30 30l12 12M100 30L88 42M30 100l12-12M100 100L88 88" stroke-linecap="round" opacity="0.6"/></svg>';
+// The watcher in the background — the brand eye, huge and cropped by the top edge,
+// faint enough to be felt rather than noticed.
+var BOTANICAL='<svg class="botanical" viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M8 32 C17.6 17.9, 46.4 17.9, 56 32 C46.4 46.1, 17.6 46.1, 8 32 Z" stroke="#57d2cf" stroke-width="1.1"/><circle cx="32" cy="32" r="9.3" stroke="#57d2cf" stroke-width="1.1"/><path d="M32 22.6v18.8M22.6 32h18.8" stroke="#57d2cf" stroke-width="0.8"/><circle cx="32" cy="32" r="3" fill="#57d2cf"/></svg>';
 
 var CH=[{k:'ads',label:'Ads'},{k:'social',label:'Organic Social'},{k:'website',label:'Website'},{k:'email',label:'Email'}];
 var PRIO={act:{l:'Active'},watch:{l:'Monitoring'},quiet:{l:'Dormant'},setup:{l:'Acquiring'}};
