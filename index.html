@@ -36,9 +36,6 @@ body::before{
     linear-gradient(90deg, rgba(120,170,180,.045) 1px, transparent 1px) 0 0/46px 100%;
 }
 .wrap{position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:0 24px}
-/* the watcher in the background — the brand eye, huge, cropped off-canvas, felt not noticed */
-.bg-eye{position:fixed; right:-360px; top:110px; width:880px; height:880px; opacity:.5; z-index:0; pointer-events:none}   /* TEMP: 50% placement test — dial back after review */
-@media(max-width:880px){.bg-eye{display:none}}
 a{color:inherit; text-decoration:none}
 .mono{font-family:var(--mono)}
 .lbl{font-family:var(--mono); font-size:10.5px; font-weight:500; letter-spacing:.22em; text-transform:uppercase; color:var(--sage)}
@@ -220,7 +217,6 @@ html.js .reveal.in{opacity:1; transform:none}
 </head>
 <body>
 <script>document.documentElement.className='js';</script>
-<svg class="bg-eye" viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M8 32 C17.6 17.9, 46.4 17.9, 56 32 C46.4 46.1, 17.6 46.1, 8 32 Z" stroke="#57d2cf" stroke-width="1.1"/><circle cx="32" cy="32" r="9.3" stroke="#57d2cf" stroke-width="1.1"/><path d="M32 22.6v18.8M22.6 32h18.8" stroke="#57d2cf" stroke-width="0.8"/><circle cx="32" cy="32" r="3" fill="#57d2cf"/></svg>
 
 <nav class="nav">
   <div class="nav-in">
