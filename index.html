@@ -91,14 +91,14 @@ h1 .hl{color:var(--sage)}
 .st-sep{color:var(--faint)}
 .st-live{display:inline-flex; align-items:center; gap:6px; color:var(--faint); font-size:10px; letter-spacing:.1em; text-transform:uppercase; margin-left:6px}
 .st-dot{width:5px; height:5px; border-radius:50%; background:var(--quiet); box-shadow:0 0 6px var(--quiet); animation:dotpulse 1.2s ease-in-out infinite}
-/* proof link under the intercept card — the live demo IS the pitch */
-.proof-link{text-align:center; margin-top:18px}
-.proof-link a{font-family:var(--mono); font-size:12px; letter-spacing:.04em; color:var(--sage); border-bottom:1px dotted var(--sage-d); padding-bottom:2px; transition:.15s}
-.proof-link a:hover{color:#7ee6e3; border-bottom-style:solid}
-.demo-chips{display:flex; justify-content:center; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px}
-.demo-chips a{font-family:var(--mono); font-size:11.5px; letter-spacing:.04em; color:var(--text); border:1px solid var(--line2); border-radius:20px; padding:6px 14px; transition:.15s}
-.demo-chips a:hover{border-color:var(--sage-d); color:var(--sage)}
-.dc-note{font-family:var(--mono); font-size:10px; letter-spacing:.05em; color:var(--faint); flex-basis:100%; text-align:center; margin-top:4px}
+/* live-demo panel — the demo IS the pitch, so it sits right under the CTAs */
+.demo-cta{max-width:620px; margin:28px auto 0; border:1px solid var(--sage-d); border-radius:13px; background:linear-gradient(180deg,rgba(87,210,207,.09),var(--panel)); padding:20px 22px 16px; box-shadow:0 22px 60px -40px rgba(87,210,207,.5)}
+.demo-cta-l{display:flex; align-items:center; justify-content:center; gap:9px; font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--sage); margin-bottom:14px}
+.dcdot{width:6px; height:6px; border-radius:50%; background:var(--quiet); box-shadow:0 0 8px var(--quiet); animation:dotpulse 1.2s ease-in-out infinite}
+.demo-btns{display:flex; gap:10px; flex-wrap:wrap}
+.demo-btn{flex:1; min-width:140px; text-align:center; font-family:var(--mono); font-size:12.5px; letter-spacing:.03em; color:var(--text); border:1px solid var(--line2); border-radius:9px; padding:13px 12px; background:var(--panel); transition:.15s}
+.demo-btn:hover{border-color:var(--sage); color:var(--sage); transform:translateY(-1px)}
+.demo-note{margin-top:12px; text-align:center; font-family:var(--mono); font-size:10px; letter-spacing:.05em; color:var(--faint)}
 
 /* dossier card under hero */
 .dossier{margin:54px auto 0; max-width:880px; border:1px solid var(--line2); border-radius:12px; background:linear-gradient(180deg,var(--panel2),var(--panel)); overflow:hidden; box-shadow:0 30px 80px -40px rgba(0,0,0,.8)}
@@ -226,16 +226,6 @@ section{padding:64px 0; position:relative}
 .pstep.hot .pn{background:rgba(226,85,79,.08); border-color:rgba(226,85,79,.45); color:var(--clay); font-family:var(--mono); font-weight:700; font-size:11.5px}
 .cost-punch{text-align:center; font-size:clamp(17px,2.4vw,21px); color:var(--text); max-width:56ch; margin:36px auto 0; line-height:1.55}
 .cost-punch b{color:var(--clay)}
-/* cost-of-blindness calculator */
-.calc{max-width:660px; margin:40px auto 0; border:1px solid var(--line2); border-left:3px solid var(--clay); border-radius:13px; background:linear-gradient(180deg,var(--panel2),var(--panel)); padding:30px 32px}
-.calc h3{font-family:var(--disp); font-weight:600; font-size:22px; color:#eef3f4; margin:10px 0 22px}
-.calc label{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:10px}
-.calc input[type=range]{width:100%; accent-color:var(--sage); cursor:pointer}
-.calc-spend{font-family:var(--mono); font-size:14px; color:var(--sage); margin-top:8px; text-align:right}
-.calc-out{margin-top:20px; font-size:16.5px; color:var(--text); line-height:1.55}
-.calc-out b{font-family:var(--disp); font-weight:700; font-size:30px; color:var(--clay); padding:0 3px}
-.calc-note{margin-top:14px; font-family:var(--mono); font-size:10.5px; line-height:1.6; color:var(--faint)}
-@media(max-width:560px){.calc{padding:22px 20px}}
 /* single-column offer stack */
 .plans.one{grid-template-columns:1fr; max-width:660px}
 /* early-access form */
@@ -298,6 +288,16 @@ html.js .reveal.in{opacity:1; transform:none}
   </div>
   <div class="hero-note">Private beta · limited founding seats · nothing to install · first dossier within 24 hours</div>
 
+  <div class="demo-cta reveal">
+    <span class="demo-cta-l"><span class="dcdot"></span>See it live right now — 3 real dossiers, open view access</span>
+    <div class="demo-btns">
+      <a class="demo-btn" href="app.html?c=theoodie.com">The Oodie&nbsp;↗</a>
+      <a class="demo-btn" href="app.html?c=liquiddeath.com">Liquid Death&nbsp;↗</a>
+      <a class="demo-btn" href="app.html?c=smooche.com">Smooche&nbsp;↗</a>
+    </div>
+    <div class="demo-note">no sign-up · read-only · the exact product founding customers get</div>
+  </div>
+
   <div class="dossier reveal">
     <div class="dossier-top">
       <span class="lbl">Subject file · live intercept</span>
@@ -324,13 +324,6 @@ html.js .reveal.in{opacity:1; transform:none}
       </div>
     </div>
   </div>
-  <div class="proof-link"><a href="app.html">Don't take our word for it — open the live dossiers on 3 real brands, no sign-up&nbsp;↗</a></div>
-  <div class="demo-chips">
-    <a href="app.html?c=theoodie.com">The Oodie</a>
-    <a href="app.html?c=liquiddeath.com">Liquid Death</a>
-    <a href="app.html?c=smooche.com">Smooche</a>
-    <span class="dc-note">read-only · an account is only needed to add your own competitors</span>
-  </div>
   <div class="statband" id="statband" style="display:none" title="Live counts from the capture database — nothing simulated">
     <span><b id="st-signals">0</b> competitor signals intercepted</span>
     <span class="st-sep">·</span>
@@ -356,15 +349,6 @@ html.js .reveal.in{opacity:1; transform:none}
     <div class="pstep hot reveal"><span class="pn">D21</span><div><b>Someone finally opens their ad library.</b> There it is. They've been taking your market share for three weeks — while you paid full price for traffic that stopped converting on day one.</div></div>
   </div>
   <p class="cost-punch reveal">You never had a performance problem. You had a <b>visibility problem</b> — and every single day of it was paid for in ad spend and market share.</p>
-  <div class="calc reveal">
-    <span class="lbl">Field exercise — run your own number</span>
-    <h3>What would three blind weeks cost you?</h3>
-    <label for="calcSpend">Your monthly ad spend</label>
-    <input type="range" id="calcSpend" min="5000" max="300000" step="5000" value="30000" oninput="calcCost()"/>
-    <div class="calc-spend" id="calcSpendVal">$30,000 / month</div>
-    <div class="calc-out">One missed competitor move ≈ <b id="calcOut">$4,200</b> of ad spend burned before you'd catch it manually.</div>
-    <div class="calc-note">Illustration, not a promise: assumes a strong competitor move degrades your paid efficiency ~20% for the ~21 days it typically takes to notice one by hand. Your real number depends on your margins and mix — which is rather the point of not finding out late.</div>
-  </div>
 </section>
 
 <!-- ── FOUNDER STORY ── -->
@@ -711,14 +695,6 @@ function joinList(e){
     })
     .catch(function(){ go.disabled = false; go.textContent = was; });
   return false;
-}
-
-// ── Cost-of-blindness calculator (illustration; assumptions stated in the note).
-function calcCost(){
-  var v = +document.getElementById('calcSpend').value;
-  document.getElementById('calcSpendVal').textContent = '$' + v.toLocaleString('en-US') + ' / month';
-  var burned = Math.round(v * 0.20 * (21/30) / 100) * 100;   // ~20% efficiency hit × 21 days
-  document.getElementById('calcOut').textContent = '$' + burned.toLocaleString('en-US');
 }
 
 // ── Live proof band: REAL counts from the capture database. If the API is

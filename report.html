@@ -60,6 +60,10 @@ h1{font-family:var(--disp); font-weight:600; font-size:clamp(30px,5.4vw,44px); l
 section{padding:34px 0 0}
 h2{font-family:var(--disp); font-weight:600; font-size:21px; color:#eaf0f1; margin:10px 0 16px}
 .summary{border-left:3px solid var(--sage); background:linear-gradient(180deg,var(--panel2),var(--panel)); border-radius:0 12px 12px 0; padding:22px 24px; font-size:16px; line-height:1.7; color:var(--text)}
+.sum-l{list-style:none; margin:0; padding:0}
+.sum-l li{position:relative; padding-left:24px; margin-bottom:12px; font-size:15.5px; line-height:1.6}
+.sum-l li:last-child{margin-bottom:0}
+.sum-l li::before{content:''; position:absolute; left:3px; top:9px; width:6px; height:6px; border-radius:50%; background:var(--sage); box-shadow:0 0 6px var(--sage)}
 
 .tl{list-style:none; margin:0; padding:0}
 .tl li{display:flex; gap:14px; padding:12px 0; border-bottom:1px solid var(--line); font-size:14.5px; line-height:1.55}
@@ -114,6 +118,18 @@ function copyLink(){
   }).catch(function(){ prompt('Copy this link:', u); });
 }
 
+// New reports carry the summary as bullet ARRAY; older ones as a paragraph — split
+// those into sentences so every report reads as a scannable list.
+function sumItems(s){
+  if(Array.isArray(s)) return s.filter(Boolean);
+  var out=[], buf='';
+  String(s||'').split(/([.!?]+\s+)/).forEach(function(part){
+    buf += part;
+    if(/[.!?]+\s+$/.test(part)){ if(buf.trim().length>3) out.push(buf.trim()); buf=''; }
+  });
+  if(buf.trim().length>3) out.push(buf.trim());
+  return out.length ? out : [String(s||'')];
+}
 function render(d){
   var r = d.report || {};
   document.title = d.brand + ' — Weekly report · WatchBack';
@@ -142,7 +158,7 @@ function render(d){
     + '<p class="headline"><b>' + esc(r.headline || '') + '</b></p>'
     + '<div class="statrow">' + stats + '</div>'
     + '</div>'
-    + '<section><span class="lbl">Executive summary</span><h2 style="display:none"></h2><div class="summary">' + esc(r.summary || '') + '</div></section>'
+    + '<section><span class="lbl">Executive summary</span><div class="summary"><ul class="sum-l">' + sumItems(r.summary).map(function(s){ return '<li>' + esc(s) + '</li>'; }).join('') + '</ul></div></section>'
     + (tl ? '<section><span class="lbl">The week, as it happened</span><ul class="tl" style="margin-top:14px">' + tl + '</ul></section>' : '')
     + (chans ? '<section><span class="lbl">Intercepted signals</span><div style="margin-top:14px">' + chans + '</div></section>' : '')
     + (r.move ? '<section><div class="move"><span class="lbl">Recommended counter-op</span><p>' + esc(r.move) + '</p></div></section>' : '')

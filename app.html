@@ -1667,6 +1667,17 @@ function linkify(t){
 }
 function renderChat(c){
   var box=document.getElementById('chatMsgs'),thread=chatThreads[c.id]||[];
+  var inp=document.getElementById('chatInput'),sb=document.querySelector('.chat-send');
+  // The AI analyst costs real money per question — account holders only.
+  if(!loggedIn()){
+    box.innerHTML='<div class="cmsg sys">🔒 The AI analyst is available to account holders — sign in to interrogate '+esc(c.name)+'’s captured data. Every answer cites the exact ad, post or email it came from.<br><button class="btn btn-p" style="margin-top:10px" onclick="openAuth(\'signin\')">Sign in</button></div>';
+    document.getElementById('chatChips').innerHTML='';
+    if(inp){inp.disabled=true;inp.placeholder='Sign in to ask the analyst…';}
+    if(sb)sb.disabled=true;
+    return;
+  }
+  if(inp){inp.disabled=false;inp.placeholder='Ask about their ads, offers, emails…';}
+  if(sb)sb.disabled=false;
   box.innerHTML='';
   if(!thread.length){var s=document.createElement('div');s.className='cmsg sys';s.textContent='Ask me anything about '+c.name+' — I answer from their real ads, posts and emails we’ve captured.';box.appendChild(s);}
   else{thread.forEach(function(m){var d=document.createElement('div');d.className='cmsg '+(m.role==='assistant'?'ai':'user');if(m.role==='assistant')d.innerHTML=linkify(m.content);else d.textContent=m.content;box.appendChild(d);});}
@@ -1675,6 +1686,7 @@ function renderChat(c){
 }
 function askChip(b){document.getElementById('chatInput').value=b.textContent;sendChat();}
 function sendChat(){
+  if(!loggedIn()){openAuth('signin');return;}
   var c=currentComp();if(!c)return;
   var inp=document.getElementById('chatInput'),q=(inp.value||'').trim();if(!q)return;
   inp.value='';document.getElementById('chatChips').innerHTML='';
@@ -1682,7 +1694,7 @@ function sendChat(){
   var um=document.createElement('div');um.className='cmsg user';um.textContent=q;box.appendChild(um);
   var thread=chatThreads[c.id]||(chatThreads[c.id]=[]),hist=thread.slice();thread.push({role:'user',content:q});
   var typ=document.createElement('div');typ.className='ctyping';typ.innerHTML='<span class="spin"></span> WatchBack is reading the data…';box.appendChild(typ);box.scrollTop=box.scrollHeight;
-  fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:c.name,host:c.host||'',country:c.country||'ALL',handles:c.handles||{},context:chatCtx(c),question:q,messages:hist})})
+  fetch(API+'/api/chat',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({name:c.name,host:c.host||'',country:c.country||'ALL',handles:c.handles||{},context:chatCtx(c),question:q,messages:hist})})
     .then(function(r){return r.json();}).then(function(d){
       typ.remove();var am=document.createElement('div');am.className='cmsg ai';if(d&&d.error){am.textContent='⚠ '+d.error;}else{am.innerHTML=linkify((d&&d.answer)||'(no answer)');}box.appendChild(am);box.scrollTop=box.scrollHeight;
       if(d&&!d.error&&d.answer)thread.push({role:'assistant',content:d.answer});

@@ -192,7 +192,10 @@ app.get('/api/email-html', async (req, res) => {
 // AI chat — answer a question grounded in a competitor's captured data.
 app.post('/api/chat', aiLimit, async (req, res) => {
   try {
-    res.json(await chat(req.body, optionalUid(req)));
+    // Each question is a real AI spend — account holders only.
+    const uid = optionalUid(req);
+    if (!uid) return res.status(401).json({ error: 'Sign in to use the AI analyst.' });
+    res.json(await chat(req.body, uid));
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }
