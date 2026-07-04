@@ -14,6 +14,8 @@ import { generateInsights } from './insights.js';
 import { postDigest } from './slack.js';
 import { saveSnapshot, latestSnapshot } from './snapshots.js';
 import { pool } from './db.js';
+import { ensureWeeklies } from './weekly.js';
+import { postText } from './slack.js';
 
 // Brands kept permanently warm (mirrors the app's seeded demos).
 export const TRACKED = [
@@ -136,6 +138,16 @@ export async function refreshAll(force) {
     const clientBrands = brands.filter((b) => !TRACKED.some((t) => t.host === b.host));
     if (clientBrands.length) postDigest(clientBrands).then((r) => console.log('slack digest:', JSON.stringify(r))).catch(() => {});
   }
+  // Weekly reports: Monday (in CRON_TZ) regenerates the completed week for every brand;
+  // other days backfill a current-week draft for brands that don't have one yet.
+  try {
+    const isMonday = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: process.env.CRON_TZ || 'UTC' }).format(new Date()) === 'Mon';
+    const made = await ensureWeeklies(brands, isMonday && force);
+    if (isMonday && force && made.length) {
+      postText('📊 *Weekly competitor reports are ready* (' + made[0].week.label + '):\n' +
+        made.map((m) => '• ' + m.brand + ' — https://watchback.ai/report.html?host=' + m.host).join('\n')).catch(() => {});
+    }
+  } catch (e) { console.warn('weeklies:', e.message); }
   return { ok, fail };
 }
 

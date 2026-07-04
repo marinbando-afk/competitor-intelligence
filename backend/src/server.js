@@ -24,6 +24,7 @@ import { getInsights, quickAngle, creditStatus } from './insights.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { systemStats } from './stats.js';
+import { getWeekly } from './weekly.js';
 import { snapshotDays, snapshotForDay, recentSnapshots } from './snapshots.js';
 
 const app = express();
@@ -68,6 +69,12 @@ app.get('/api/health', async (req, res) => {
 // Real capture counts for the landing page's proof band (never invented — see stats.js).
 app.get('/api/stats', async (req, res) => {
   try { res.json(await systemStats()); } catch (e) { res.json({ available: false }); }
+});
+
+// Weekly intelligence report (shareable page: report.html?host=…).
+app.get('/api/weekly', async (req, res) => {
+  try { res.json({ report: await getWeekly(req.query.host, req.query.week || null) }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Ads intelligence — a competitor's live ads from the Meta Ad Library (via Apify).

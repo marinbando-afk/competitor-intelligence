@@ -27,6 +27,18 @@ export async function buildDigest(brands) {
   return out.join('\n');
 }
 
+// Plain mrkdwn post to the founder webhook (used for weekly-report links etc.).
+export async function postText(text) {
+  if (!slackEnabled()) return { sent: false, reason: 'SLACK_WEBHOOK_URL not set' };
+  try {
+    const r = await fetch(process.env.SLACK_WEBHOOK_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, mrkdwn: true }),
+    });
+    return { sent: r.ok };
+  } catch (e) { return { sent: false, error: e.message }; }
+}
+
 export async function postDigest(brands) {
   if (!slackEnabled()) return { sent: false, reason: 'SLACK_WEBHOOK_URL not set' };
   const text = await buildDigest(brands);

@@ -121,6 +121,8 @@ button{font-family:inherit;cursor:pointer}
 .rep-badge img{width:34px;height:34px;border-radius:50%}
 .rep-name{font-family:'Oswald',sans-serif;font-weight:600;font-size:28px;letter-spacing:-.01em;line-height:1.08;margin-top:2px}
 .rep-meta{font-family:var(--mono);font-size:11px;font-weight:400;letter-spacing:.05em;color:var(--muted);margin-top:8px}
+.wklink{color:var(--sage);border-bottom:1px dotted var(--sage-d)}
+.wklink:hover{border-bottom-style:solid}
 .rep-status{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0}
 .rep-status .s{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:7px}
 .live{display:inline-flex;align-items:center;gap:5px;color:var(--quiet)}
@@ -1443,10 +1445,11 @@ function report(c){
   var p=c.demo?c.priority:'setup';
   var back='<button class="back-btn" onclick="back()"><svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Watchlist</button>';
   var meta;
+  var wk=' · <a class="wklink" href="report.html?host='+encodeURIComponent(c.host)+'" target="_blank" rel="noopener" title="This week\'s shareable intelligence report">Weekly report ↗</a>';
   if(state.day){meta=esc(c.host)+' · <span class="snaplbl">📅 viewing '+esc(fmtFullDay(state.day))+'</span>';}
-  else if(c.live){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Live feed</span><span class="asof" id="asof-'+c.id+'"></span><span class="lr" id="lr-'+c.id+'"></span>';}
-  else if(c.demo){meta=esc(c.host)+' · scanned '+ago(c.updatedAt)+' ago';}
-  else if(c.status==='watching'){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Watched daily</span> · scanned '+ago(c.updatedAt)+' ago';}
+  else if(c.live){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Live feed</span><span class="asof" id="asof-'+c.id+'"></span><span class="lr" id="lr-'+c.id+'"></span>'+wk;}
+  else if(c.demo){meta=esc(c.host)+' · scanned '+ago(c.updatedAt)+' ago'+wk;}
+  else if(c.status==='watching'){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Watched daily</span> · scanned '+ago(c.updatedAt)+' ago'+wk;}
   else{meta=esc(c.host);}
   var exTag=c.demo?'<span class="ex-tag">Real example</span>':'';
   var exNote=c.demo?'<div class="ex-note">A real brand we track as a live example of how WatchBack works — not one of your competitors.</div>':'';
