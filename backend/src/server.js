@@ -23,6 +23,7 @@ import { websiteCompare } from './website.js';
 import { getInsights, quickAngle, creditStatus } from './insights.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
+import { systemStats } from './stats.js';
 import { snapshotDays, snapshotForDay, recentSnapshots } from './snapshots.js';
 
 const app = express();
@@ -62,6 +63,11 @@ app.get('/api/health', async (req, res) => {
   let userTracked = null;
   try { userTracked = (await getTracked()).length; } catch (e) { /* db optional */ }
   res.json({ ok: true, ...warmStatus(), userTracked });
+});
+
+// Real capture counts for the landing page's proof band (never invented — see stats.js).
+app.get('/api/stats', async (req, res) => {
+  try { res.json(await systemStats()); } catch (e) { res.json({ available: false }); }
 });
 
 // Ads intelligence — a competitor's live ads from the Meta Ad Library (via Apify).

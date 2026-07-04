@@ -85,6 +85,12 @@ h1 .hl{color:var(--sage)}
 .cta-row{display:flex; gap:13px; justify-content:center; flex-wrap:wrap; margin-top:34px}
 .cta-row .btn{padding:14px 24px; font-size:12.5px}
 .hero-note{margin-top:16px; font-family:var(--mono); font-size:11px; letter-spacing:.05em; color:var(--faint)}
+/* live proof band — REAL counts from the capture DB, animated once on load */
+.statband{margin-top:22px; display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap; font-family:var(--mono); font-size:11.5px; letter-spacing:.04em; color:var(--muted)}
+.statband b{color:var(--sage); font-weight:700}
+.st-sep{color:var(--faint)}
+.st-live{display:inline-flex; align-items:center; gap:6px; color:var(--faint); font-size:10px; letter-spacing:.1em; text-transform:uppercase; margin-left:6px}
+.st-dot{width:5px; height:5px; border-radius:50%; background:var(--quiet); box-shadow:0 0 6px var(--quiet); animation:dotpulse 1.2s ease-in-out infinite}
 /* proof link under the intercept card — the live demo IS the pitch */
 .proof-link{text-align:center; margin-top:18px}
 .proof-link a{font-family:var(--mono); font-size:12px; letter-spacing:.04em; color:var(--sage); border-bottom:1px dotted var(--sage-d); padding-bottom:2px; transition:.15s}
@@ -216,6 +222,16 @@ section{padding:64px 0; position:relative}
 .pstep.hot .pn{background:rgba(226,85,79,.08); border-color:rgba(226,85,79,.45); color:var(--clay); font-family:var(--mono); font-weight:700; font-size:11.5px}
 .cost-punch{text-align:center; font-size:clamp(17px,2.4vw,21px); color:var(--text); max-width:56ch; margin:36px auto 0; line-height:1.55}
 .cost-punch b{color:var(--clay)}
+/* cost-of-blindness calculator */
+.calc{max-width:660px; margin:40px auto 0; border:1px solid var(--line2); border-left:3px solid var(--clay); border-radius:13px; background:linear-gradient(180deg,var(--panel2),var(--panel)); padding:30px 32px}
+.calc h3{font-family:var(--disp); font-weight:600; font-size:22px; color:#eef3f4; margin:10px 0 22px}
+.calc label{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:10px}
+.calc input[type=range]{width:100%; accent-color:var(--sage); cursor:pointer}
+.calc-spend{font-family:var(--mono); font-size:14px; color:var(--sage); margin-top:8px; text-align:right}
+.calc-out{margin-top:20px; font-size:16.5px; color:var(--text); line-height:1.55}
+.calc-out b{font-family:var(--disp); font-weight:700; font-size:30px; color:var(--clay); padding:0 3px}
+.calc-note{margin-top:14px; font-family:var(--mono); font-size:10.5px; line-height:1.6; color:var(--faint)}
+@media(max-width:560px){.calc{padding:22px 20px}}
 /* single-column offer stack */
 .plans.one{grid-template-columns:1fr; max-width:660px}
 /* early-access form */
@@ -305,6 +321,14 @@ html.js .reveal.in{opacity:1; transform:none}
     </div>
   </div>
   <div class="proof-link"><a href="app.html">Don't take our word for it — open the live dossiers on 3 real brands, no sign-up&nbsp;↗</a></div>
+  <div class="statband" id="statband" style="display:none" title="Live counts from the capture database — nothing simulated">
+    <span><b id="st-signals">0</b> competitor signals intercepted</span>
+    <span class="st-sep">·</span>
+    <span><b id="st-ads">0</b> ads decoded</span>
+    <span class="st-sep">·</span>
+    <span><b id="st-caps">0</b> daily captures run</span>
+    <span class="st-live"><span class="st-dot"></span>live from the system</span>
+  </div>
 </header>
 
 <!-- ── THE REAL COST ── -->
@@ -322,6 +346,15 @@ html.js .reveal.in{opacity:1; transform:none}
     <div class="pstep hot reveal"><span class="pn">D21</span><div><b>Someone finally opens their ad library.</b> There it is. They've been taking your market share for three weeks — while you paid full price for traffic that stopped converting on day one.</div></div>
   </div>
   <p class="cost-punch reveal">You never had a performance problem. You had a <b>visibility problem</b> — and every single day of it was paid for in ad spend and market share.</p>
+  <div class="calc reveal">
+    <span class="lbl">Field exercise — run your own number</span>
+    <h3>What would three blind weeks cost you?</h3>
+    <label for="calcSpend">Your monthly ad spend</label>
+    <input type="range" id="calcSpend" min="5000" max="300000" step="5000" value="30000" oninput="calcCost()"/>
+    <div class="calc-spend" id="calcSpendVal">$30,000 / month</div>
+    <div class="calc-out">One missed competitor move ≈ <b id="calcOut">$4,200</b> of ad spend burned before you'd catch it manually.</div>
+    <div class="calc-note">Illustration, not a promise: assumes a strong competitor move degrades your paid efficiency ~20% for the ~21 days it typically takes to notice one by hand. Your real number depends on your margins and mix — which is rather the point of not finding out late.</div>
+  </div>
 </section>
 
 <!-- ── FOUNDER STORY ── -->
@@ -669,6 +702,34 @@ function joinList(e){
     .catch(function(){ go.disabled = false; go.textContent = was; });
   return false;
 }
+
+// ── Cost-of-blindness calculator (illustration; assumptions stated in the note).
+function calcCost(){
+  var v = +document.getElementById('calcSpend').value;
+  document.getElementById('calcSpendVal').textContent = '$' + v.toLocaleString('en-US') + ' / month';
+  var burned = Math.round(v * 0.20 * (21/30) / 100) * 100;   // ~20% efficiency hit × 21 days
+  document.getElementById('calcOut').textContent = '$' + burned.toLocaleString('en-US');
+}
+
+// ── Live proof band: REAL counts from the capture database. If the API is
+//    unreachable the band simply stays hidden — never a fabricated number.
+(function(){
+  fetch(API + '/api/stats').then(function(r){ return r.json(); }).then(function(s){
+    if(!s || !s.available || !s.signals) return;
+    var band = document.getElementById('statband');
+    band.style.display = 'flex';
+    [['st-signals', s.signals], ['st-ads', s.adsDecoded], ['st-caps', s.capturesRun]].forEach(function(pair){
+      var el = document.getElementById(pair[0]), target = pair[1], t0 = null;
+      function step(ts){
+        if(!t0) t0 = ts;
+        var p = Math.min(1, (ts - t0) / 1400);
+        el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))).toLocaleString('en-US');
+        if(p < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    });
+  }).catch(function(){});
+})();
 
 // smooth-scroll for same-page anchors
 document.querySelectorAll('a[href^="#"]').forEach(function(a){
