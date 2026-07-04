@@ -118,7 +118,7 @@ export async function generateWeekly(host, name, weekStart) {
   const system =
     `You are WatchBack, a sharp eCommerce competitor-intelligence analyst writing the WEEKLY report on "${name}" for the week ${fmtDay(weekStart)}–${fmtDay(end)}. ` +
     `Rules, same as always: use ONLY the week's data below; cite dates, numbers, offers; every claim must trace to the data. Engagement counts are cumulative lifetime totals — a newer post showing fewer is normal, never a decline. Read deliberate moves as strategy with rationale; marketplace funnels are a channel choice, not a weakness. MATERIALITY: tiny fluctuations (an ad or two, one post) are routine rotation — never call them a pullback or strategic shift; reserve interpretation for material moves. Sanity-check every number ("would this look absurd to their own marketer?"). Complete sentences that never trail off.\n` +
-    `Return ONLY minified JSON, no markdown: {"headline":"<the week in <=14 words>","summary":["<one complete, punchy takeaway, <=20 words>", ...4 to 6 bullets — the week's most important developments in priority order, each self-contained],"timeline":[{"day":"Mon 29 Jun","channel":"ads|social|website|email","event":"<one dated, real event, <=22 words>"}, ...only real dated events from the data, max 8, chronological],"channels":{"ads":{"summary":"<=20 words","bullets":["<=22 words each", ...max 3]},"social":{...same},"website":{...same},"email":{...same}},"move":"<${me && me.profile ? 'ONE concrete counter-move for ' + me.name + ' grounded in their profile below, realistic about cost/effort' : 'ONE concrete, realistic counter-move for a brand competing with them'}, 2 sentences max>"}` +
+    `Return ONLY minified JSON, no markdown: {"headline":"<the week in <=14 words>","summary":["<one takeaway, <=12 words, telegraphic — lead with the fact, drop filler words>", ...4 to 6 bullets, the week's most important developments in priority order],"timeline":[{"day":"Mon 29 Jun","channel":"ads|social|website|email","event":"<one dated, real event, <=22 words>"}, ...only real dated events from the data, max 8, chronological],"channels":{"ads":{"summary":"<=20 words","bullets":["<=22 words each", ...max 3]},"social":{...same},"website":{...same},"email":{...same}},"move":"<${me && me.profile ? 'ONE concrete counter-move for ' + me.name + ' grounded in their profile below, realistic about cost/effort' : 'ONE concrete, realistic counter-move for a brand competing with them'}, 2 sentences max>"}` +
     (me && me.profile ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}` : '');
 
   const resp = await client().messages.create({ model: MODEL, max_tokens: 1600, system, messages: [{ role: 'user', content: digest.text }] });
@@ -149,9 +149,14 @@ export async function ensureWeeklies(brands, isMonday) {
         const prevMon = addDays(curMon, -7);
         const r = await generateWeekly(b.host, b.name, prevMon);
         if (r) out.push(r);
-      } else if (!(await getWeekly(b.host, curMon))) {
-        const r = await generateWeekly(b.host, b.name, curMon);
-        if (r) out.push(r);
+      } else {
+        const cur = await getWeekly(b.host, curMon);
+        // Missing, or stored in the old paragraph-summary format → (re)generate in the
+        // current short-bullet format. One-time self-migration; no-op once converted.
+        if (!cur || !Array.isArray(cur.report && cur.report.summary)) {
+          const r = await generateWeekly(b.host, b.name, curMon);
+          if (r) out.push(r);
+        }
       }
     } catch (e) { console.warn('weekly ' + b.host + ':', e.message); }
   }
