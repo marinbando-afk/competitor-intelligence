@@ -549,6 +549,7 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
     <div class="fld"><label for="aE">Email</label><input id="aE" type="email" autocomplete="email" placeholder="you@brand.com"/></div>
     <div class="fld"><label for="aP">Password</label><input id="aP" type="password" autocomplete="current-password" placeholder="At least 8 characters"/></div>
     <div class="er" id="aErr" style="display:none"></div>
+    <div style="font-family:var(--mono);font-size:10.5px;line-height:1.6;color:var(--faint);margin:2px 0 4px">Private beta — new accounts are reviewed and activated personally before first sign-in.</div>
     <div class="m-act"><button class="btn btn-g" id="authToggle" onclick="toggleAuthMode()">Have an account? Sign in</button><button class="btn btn-p" id="authGo" onclick="submitAuth()">Create account</button></div>
   </div>
 </div>
@@ -723,6 +724,8 @@ function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.remo
 function paintAuth(){var s=document.getElementById('authSlot');if(!s)return;
   if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML='<span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
   else{s.innerHTML='<button class="authbtn primary" onclick="openAuth(\'signin\')">Sign in</button>';}
+  var ab=document.querySelector('.add-btn');if(ab)ab.title=loggedIn()?'Add a competitor to your watchlist':'Add your own competitor — sign in required';
+  paintBrandChip();
 }
 function openAuth(mode,after){authMode=(mode==='signin')?'login':'signup';pendingAfterAuth=after||null;paintAuthMode();var er=document.getElementById('aErr');if(er)er.style.display='none';document.getElementById('authOv').classList.add('open');setTimeout(function(){document.getElementById('aE').focus();},40);}
 function closeAuth(){var o=document.getElementById('authOv');if(o)o.classList.remove('open');}
@@ -739,7 +742,13 @@ function submitAuth(){
   fetch(API+'/api/'+(authMode==='signup'?'signup':'login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,password:pass})})
     .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
     .then(function(x){go.disabled=false;go.textContent=was;
-      if(!x.ok){er.textContent=(x.d&&x.d.error)||'Something went wrong.';er.style.display='block';return;}
+      if(!x.ok){er.textContent=(x.d&&x.d.error)||'Something went wrong.';er.style.color='';er.style.display='block';return;}
+      if(x.d&&x.d.pending){
+        er.textContent='✓ Account created. During the private beta every account is activated personally — you’ll get an email as soon as yours is live.';
+        er.style.color='var(--quiet)';er.style.display='block';
+        document.getElementById('aP').value='';
+        return;
+      }
       TOKEN=x.d.token;USER=x.d.user;try{localStorage.setItem('ci_token',TOKEN);localStorage.setItem('ci_user',JSON.stringify(USER));}catch(e){}
       paintAuth();closeAuth();document.getElementById('aP').value='';
       insightsCache={};angleCache={};clearMyBrandLocal();loadMyBrand();   // this account's own brand + tailored tips, never a previous session's
@@ -1144,6 +1153,9 @@ function loadWeb(box){
         chg='<div class="wchg">'+d.changes.map(function(s){return '<div class="wchg-row"><span class="wchg-dot"></span><span>'+esc(s)+'</span></div>';}).join('')+'</div>';
       }else if(hist){
         chg='<div class="wbase"><b>'+esc(fmtShortDay((d.after&&d.after.day)||d.day))+'.</b> '+(d.before?'No price or product changes detected vs the previous capture.':'First website capture — no earlier day to compare against yet.')+'</div>';
+      }else if(d.before){
+        // Watched daily with history — today simply matched yesterday. Say THAT, not "baseline".
+        chg='<div class="wbase"><b>No changes since the last capture.</b> Compared '+esc(fmtShortDay(d.before.day))+' → '+esc(fmtShortDay(d.after.day))+': prices, products and sale scope are unchanged. Any move shows up here with a before/after slider.</div>';
       }else{
         var day=(d.after&&d.after.day)?fmtShortDay(d.after.day):'today';
         chg='<div class="wbase"><b>Baseline captured ('+esc(day)+').</b> This storefront is now watched daily — the next time a price moves, a sale starts, or products change, it shows up here with a before/after slider. The first comparison appears on the next daily capture.</div>';
@@ -1591,7 +1603,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal(
 document.addEventListener('click',function(){closeCal();});
 /* ── your brand (apply-to-me knowledge base) ── */
 var myBrand=null;
-function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)return;el.innerHTML=(myBrand&&myBrand.name)?('<span class="mb-dot"></span><span class="mb-lbl">My brand:</span> '+esc(myBrand.name)):'+ Add your brand';el.className='mybrand'+((myBrand&&myBrand.name)?' set':'');}
+function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)return;el.innerHTML=(myBrand&&myBrand.name)?('<span class="mb-dot"></span><span class="mb-lbl">My brand:</span> '+esc(myBrand.name)):('+ Add your brand'+(loggedIn()?'':' <span style="color:var(--faint)">· sign in</span>'));el.className='mybrand'+((myBrand&&myBrand.name)?' set':'');el.title=loggedIn()?'Your brand — powers the “apply to you” suggestions':'Sign in to add your brand — it powers the “apply to you” suggestions';}
 // "My brand" is per-account — never trust the local cache across a sign-in/out, always
 // reconcile with what the server says THIS session's account actually owns.
 function clearMyBrandLocal(){myBrand=null;try{localStorage.removeItem('myBrand');}catch(e){}paintBrandChip();}
@@ -1673,7 +1685,7 @@ function sendChat(){
     }).catch(function(){typ.remove();var am=document.createElement('div');am.className='cmsg ai';am.textContent='Couldn’t reach the AI just now — try again in a moment.';box.appendChild(am);box.scrollTop=box.scrollHeight;});
 }
 
-function trackComp(c){if(!c||c.demo||!c.host)return;fetch(API+'/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:c.name,host:c.host,url:c.url,country:c.country||'ALL',key:adminKey()})}).catch(function(){});}
+function trackComp(c){if(!c||c.demo||!c.host)return;fetch(API+'/api/track',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({name:c.name,host:c.host,url:c.url,country:c.country||'ALL',key:adminKey()})}).catch(function(){});}
 function registerCompetitors(){getList().forEach(function(c){if(c&&!c.demo)trackComp(c);});}
 /* ── plan tier (Starter): the 2 seeded demos are monitored; added competitors lock until upgrade ── */
 var PLAN={ads:20,competitors:2};
@@ -1758,6 +1770,11 @@ loadMyBrand();
 paintAuth();
 if(TOKEN)loadUserComps();   // restore the signed-in user's saved competitors
 if(!TOKEN&&/[?&]signin=1/.test(location.search))openAuth('signin');  // arriving from the site's "Sign in"
+// Deep link from the landing page: app.html?c=theoodie.com opens that dossier directly.
+(function(){try{
+  var qc=(new URLSearchParams(location.search).get('c')||'').toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*$/,'').replace(/^www\./,'');
+  if(qc){var m=getList().find(function(x){return x.host===qc;});if(m)select(m.id);}
+}catch(e){}})();
 </script>
 </body>
 </html>

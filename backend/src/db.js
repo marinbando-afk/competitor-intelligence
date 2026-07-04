@@ -72,5 +72,9 @@ export async function initSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     ALTER TABLE feedback ADD COLUMN IF NOT EXISTS image TEXT;
+    -- Private beta: new accounts need the founder's approval before first sign-in
+    -- (customers are onboarded + charged manually). The founder account is always approved.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS approved BOOLEAN NOT NULL DEFAULT FALSE;
+    UPDATE users SET approved = TRUE WHERE email = 'marin.bando@gmail.com';
   `);
 }

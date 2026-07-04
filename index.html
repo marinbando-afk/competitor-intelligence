@@ -95,6 +95,10 @@ h1 .hl{color:var(--sage)}
 .proof-link{text-align:center; margin-top:18px}
 .proof-link a{font-family:var(--mono); font-size:12px; letter-spacing:.04em; color:var(--sage); border-bottom:1px dotted var(--sage-d); padding-bottom:2px; transition:.15s}
 .proof-link a:hover{color:#7ee6e3; border-bottom-style:solid}
+.demo-chips{display:flex; justify-content:center; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px}
+.demo-chips a{font-family:var(--mono); font-size:11.5px; letter-spacing:.04em; color:var(--text); border:1px solid var(--line2); border-radius:20px; padding:6px 14px; transition:.15s}
+.demo-chips a:hover{border-color:var(--sage-d); color:var(--sage)}
+.dc-note{font-family:var(--mono); font-size:10px; letter-spacing:.05em; color:var(--faint); flex-basis:100%; text-align:center; margin-top:4px}
 
 /* dossier card under hero */
 .dossier{margin:54px auto 0; max-width:880px; border:1px solid var(--line2); border-radius:12px; background:linear-gradient(180deg,var(--panel2),var(--panel)); overflow:hidden; box-shadow:0 30px 80px -40px rgba(0,0,0,.8)}
@@ -321,6 +325,12 @@ html.js .reveal.in{opacity:1; transform:none}
     </div>
   </div>
   <div class="proof-link"><a href="app.html">Don't take our word for it — open the live dossiers on 3 real brands, no sign-up&nbsp;↗</a></div>
+  <div class="demo-chips">
+    <a href="app.html?c=theoodie.com">The Oodie</a>
+    <a href="app.html?c=liquiddeath.com">Liquid Death</a>
+    <a href="app.html?c=smooche.com">Smooche</a>
+    <span class="dc-note">read-only · an account is only needed to add your own competitors</span>
+  </div>
   <div class="statband" id="statband" style="display:none" title="Live counts from the capture database — nothing simulated">
     <span><b id="st-signals">0</b> competitor signals intercepted</span>
     <span class="st-sep">·</span>

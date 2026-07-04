@@ -16,7 +16,7 @@ import { signup, login, requireAuth, optionalUid, JWT_IS_DEFAULT } from './auth.
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
 import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands } from './refresh.js';
-import { postDigest } from './slack.js';
+import { postDigest, postText } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
@@ -278,6 +278,8 @@ app.post('/api/track', async (req, res) => {
   try {
     const { name, host, url, country, key } = req.body || {};
     const admin = !!(process.env.ADMIN_KEY && key === process.env.ADMIN_KEY);   // owner bypass
+    // Enrolment costs money (daily scraping) — only signed-in customers or the owner.
+    if (!admin && !optionalUid(req)) return res.status(401).json({ error: 'Sign in required.' });
     const r = await addTracked({ name, host, url, country }, admin);
     res.json({ ok: true, added: !!(r && r.added), limited: !!(r && r.limited) });
     if (r && r.added) warmBrand(r.comp, false).catch(() => {});   // immediate baseline (async)
@@ -345,10 +347,36 @@ app.get('/api/shot', aiLimit, async (req, res) => {
 app.post('/api/signup', async (req, res) => {
   try {
     const { email, password } = req.body || {};
-    res.json(await signup(email, password));
+    const r = await signup(email, password);
+    res.json(r);
+    // Ping the founder so pending accounts get approved fast (manual billing model).
+    if (r && r.pending) {
+      postText('👤 *New WatchBack signup awaiting approval:* ' + r.email +
+        '\nApprove: https://competitor-intelligence-production-2629.up.railway.app/api/admin/approve?email=' + encodeURIComponent(r.email) + '&key=YOUR_ADMIN_KEY' +
+        '\nAll pending: …/api/admin/users?key=YOUR_ADMIN_KEY').catch(() => {});
+    }
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }
+});
+
+// ── Owner-only account approval (private beta, manual billing) ────────────────
+app.get('/api/admin/users', async (req, res) => {
+  if (!process.env.ADMIN_KEY || req.query.key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Owner key required.' });
+  try {
+    const r = await pool.query('SELECT id, email, approved, created_at FROM users ORDER BY id DESC LIMIT 200');
+    res.json({ users: r.rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get('/api/admin/approve', async (req, res) => {
+  if (!process.env.ADMIN_KEY || req.query.key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Owner key required.' });
+  try {
+    const email = String(req.query.email || '').trim().toLowerCase();
+    const approved = req.query.revoke === '1' ? false : true;
+    const r = await pool.query('UPDATE users SET approved = $2 WHERE email = $1 RETURNING id, email, approved', [email, approved]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'No account with that email.' });
+    res.json({ ok: true, user: r.rows[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/login', async (req, res) => {

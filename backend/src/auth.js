@@ -32,7 +32,9 @@ export async function signup(email, password) {
       [email, hash],
     );
     const user = r.rows[0];
-    return { token: sign(user), user: { id: user.id, email: user.email } };
+    // Private beta: accounts are created PENDING and activated personally by the
+    // founder (manual billing) — no session until approved.
+    return { pending: true, email: user.email };
   } catch (err) {
     if (err.code === '23505') { // unique_violation
       const e = new Error('An account with that email already exists.'); e.status = 409; throw e;
@@ -45,12 +47,15 @@ export async function login(email, password) {
   email = String(email || '').trim().toLowerCase();
   password = String(password || '');
   const r = await pool.query(
-    'SELECT id, email, password_hash FROM users WHERE email = $1',
+    'SELECT id, email, password_hash, approved FROM users WHERE email = $1',
     [email],
   );
   const u = r.rows[0];
   if (!u || !(await bcrypt.compare(password, u.password_hash))) {
     const e = new Error('Wrong email or password.'); e.status = 401; throw e;
+  }
+  if (!u.approved) {
+    const e = new Error('Your account is awaiting activation — founding accounts are approved personally during the private beta. You’ll hear from us shortly.'); e.status = 403; throw e;
   }
   return { token: sign(u), user: { id: u.id, email: u.email } };
 }
