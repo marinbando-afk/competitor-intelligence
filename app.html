@@ -775,7 +775,7 @@ function railRow(c){
   var row='<button class="row'+(c.id===state.sel?' sel':'')+(locked?' lockedrow':'')+'" onclick="select(\''+c.id+'\')">'
     +'<span class="badge-wrap"><span class="badge">'+badge(c)+'</span><span class="rail-flag" id="railflag-'+c.id+'"'+(needsAction(c)?'':' style="display:none"')+' title="Action needed">!</span></span>'
     +'<span class="row-main"><span class="row-top"><span class="row-name">'+esc(c.name)+'</span><span class="row-time">'+t+'</span></span>'
-    +'<span class="row-sub">'+esc(sub)+'</span></span></button>';
+    +'<span class="row-sub" id="rsub-'+c.id+'">'+esc(sub)+'</span></span></button>';
   // Your own saved competitors get a hover "remove from watchlist" control.
   if(c.account)return '<div class="rowwrap">'+row+'<button class="row-x" title="Remove from your watchlist" aria-label="Remove '+esc(c.name)+'" onclick="removeComp(\''+c.id+'\',event)">×</button></div>';
   return row;
@@ -1297,6 +1297,9 @@ function briefHTML(b){
 function paintInsights(c,ins){
   var ub=document.getElementById('ubrief-'+c.id);
   if(ub&&ins&&ins.brief&&ins.brief.verdict)ub.innerHTML=briefHTML(ins.brief);
+  // Keep the rail one-liner live too: first sentence of today's AI verdict.
+  var rs=document.getElementById('rsub-'+c.id);
+  if(rs&&ins&&ins.brief&&ins.brief.verdict){var v=ins.brief.verdict,di=v.indexOf('. ');rs.textContent=di>20?v.slice(0,di+1):v;}
   ['ads','social','website','email'].forEach(function(k){
     var o=ins&&ins[k];if(!o||!(o.summary||(o.bullets&&o.bullets.length)))return;
     var sum=document.getElementById('csum-'+k+'-'+c.id);
@@ -1486,10 +1489,11 @@ function report(c){
       +'<span class="lbl sec-l">Intercepted signals</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
   }
 
-  var move=c.move?'<div class="move"><span class="lbl">Recommended counter-op</span><p class="move-t">'+esc(c.move)+'</p></div>':'';
+  // Demos are REAL examples — their threat assessment + counter-op are the same
+  // daily AI brief customers get, never hand-written showcase text.
+  var dBrief=state.day?'':'<div id="ubrief-'+c.id+'">'+briefHTML(insightsCache[c.host]&&insightsCache[c.host].brief)+'</div>';
   return '<div class="report'+(state.day?' hist':'')+'">'+head+ewb+hwb
-    +'<div class="assess"><span class="lbl">Threat assessment</span><p class="verdict">'+esc(c.verdict)+'</p></div>'
-    +move
+    +dBrief
     +'<span class="lbl sec-l">Intercepted signals</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
 }
 
@@ -1649,7 +1653,7 @@ function pollPersonalize(tries){
 var chatThreads={};
 var CHAT_CHIPS=['When did they launch their current sale?','What offer are they pushing hardest?','How often do they email — and about what?','What angle do their top posts use?'];
 function currentComp(){var l=getList();return l.find(function(c){return c.id===state.sel;})||l[0];}
-function chatCtx(c){var p=[];if(c.oneLiner)p.push(c.oneLiner);if(c.verdict)p.push(c.verdict);var w=c.channels&&c.channels.website;if(w){if(w.stats)p.push('Website: '+w.stats);if(w.changes)w.changes.forEach(function(d){p.push('• '+d.s+': '+String(d.d).replace(/<[^>]+>/g,''));});}return p.join(' · ');}
+function chatCtx(c){var p=[];var lb=insightsCache[c.host]&&insightsCache[c.host].brief;if(lb&&lb.verdict)p.push(lb.verdict);else if(c.verdict)p.push(c.verdict);else if(c.oneLiner)p.push(c.oneLiner);var w=c.channels&&c.channels.website;if(w){if(w.stats)p.push('Website: '+w.stats);if(w.changes)w.changes.forEach(function(d){p.push('• '+d.s+': '+String(d.d).replace(/<[^>]+>/g,''));});}return p.join(' · ');}
 function openChat(){var c=currentComp();if(!c)return;document.getElementById('chatSub').textContent='about '+c.name;document.getElementById('chatPanel').classList.add('open');renderChat(c);setTimeout(function(){document.getElementById('chatInput').focus();},150);}
 function closeChat(){var p=document.getElementById('chatPanel');if(p)p.classList.remove('open');}
 function syncChat(c){var p=document.getElementById('chatPanel');if(c&&p&&p.classList.contains('open')){document.getElementById('chatSub').textContent='about '+c.name;renderChat(c);}}
@@ -1769,6 +1773,7 @@ render();
 loadMyBrand();
 paintAuth();
 if(TOKEN)loadUserComps();   // restore the signed-in user's saved competitors
+DEMOS.forEach(function(c){loadInsights(c);});   // live rail one-liners + instant briefs on the demos
 if(!TOKEN&&/[?&]signin=1/.test(location.search))openAuth('signin');  // arriving from the site's "Sign in"
 // Deep link from the landing page: app.html?c=theoodie.com opens that dossier directly.
 (function(){try{
