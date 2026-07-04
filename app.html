@@ -115,7 +115,7 @@ button{font-family:inherit;cursor:pointer}
 /* ── report ── */
 .back-btn{display:none}
 .report{max-width:1480px;margin:0 auto;padding:40px 60px 96px;position:relative;z-index:1}
-@media(max-width:560px){.report{padding:24px 20px 70px}}
+@media(max-width:560px){.report{padding:24px 20px 130px}}   /* extra bottom room so the floating pills never cover the last channel */
 .rep-head{display:flex;align-items:flex-start;gap:16px;padding-bottom:26px;border-bottom:1px solid var(--line2);margin-bottom:32px;position:relative;z-index:1}
 .rep-badge{width:54px;height:54px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:600;font-size:19px;color:#16222b;background:#eceff0;border:1px solid var(--line2);overflow:hidden}
 .rep-badge img{width:34px;height:34px;border-radius:50%}
@@ -140,6 +140,14 @@ button{font-family:inherit;cursor:pointer}
 .move::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--sage)}
 .move .lbl{display:block;margin-bottom:12px;color:var(--sage-d)}
 .move-t{font-size:15.5px;line-height:1.62;color:var(--text);margin:0;max-width:760px}
+/* Phone: stack + centre the report header — the side-by-side layout leaves a cramped,
+   ragged text column next to the avatar. (Placed AFTER the base rules so it wins.) */
+@media(max-width:560px){
+  .rep-head{flex-direction:column;align-items:center;text-align:center;gap:12px}
+  .rep-name{font-size:24px}
+  .ex-note{max-width:36ch;margin-left:auto;margin-right:auto}
+  .verdict{font-size:17px}
+}
 
 .sec-l{display:block;margin-bottom:2px;padding-bottom:15px;border-bottom:1px solid var(--line2);position:relative;z-index:1}
 .chans{position:relative;z-index:1}
@@ -480,7 +488,8 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 
 @media(max-width:880px){
   .rail{width:100%}
-  .mast,.div,.top-date{display:none}
+  .mast,.div{display:none}
+  .top-date{font-size:10px}   /* keep the capture date visible on mobile — users must know how fresh the data is */
   .app[data-view="list"] .detail{display:none}
   .app[data-view="detail"] .rail{display:none}
   .back-btn{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:none;border:none;padding:0;margin:0 0 22px}
