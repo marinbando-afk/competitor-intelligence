@@ -128,7 +128,7 @@ button{font-family:inherit;cursor:pointer}
 @keyframes lp{0%,100%{opacity:1}50%{opacity:.4}}
 /* quick "live" pulse for glowing status dots — opacity only, size stays fixed */
 @keyframes dotpulse{0%,100%{opacity:1}50%{opacity:.3}}
-@media(prefers-reduced-motion:reduce){.livedot,.mb-dot{animation:none}}
+@media(prefers-reduced-motion:reduce){.livedot,.mb-dot,.intel-dot{animation:none}}
 .lr{color:var(--faint)}
 
 .assess{margin-bottom:34px;position:relative;z-index:1}
@@ -234,7 +234,7 @@ button{font-family:inherit;cursor:pointer}
 .intel{border-left:2px solid var(--sage-d);padding:11px 0 1px 15px;margin:0 0 17px;background:linear-gradient(90deg,var(--sage-soft),transparent 80%)}
 .intel:empty{display:none}
 .intel-h{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--sage);margin:0 0 8px}
-.intel-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);box-shadow:0 0 7px var(--sage)}
+.intel-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);box-shadow:0 0 7px var(--sage);animation:dotpulse 1.2s ease-in-out infinite}
 .intel-s{font-size:14px;line-height:1.5;color:var(--text);font-weight:500;margin:0 0 10px}
 .intel-l{margin:0 0 12px;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px}
 .intel-l li{position:relative;padding-left:15px;font-size:12.5px;line-height:1.5;color:var(--muted)}
