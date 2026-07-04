@@ -198,6 +198,19 @@ section{padding:64px 0; position:relative}
 .sc-h{font-family:var(--mono); font-size:11px; letter-spacing:.04em; color:var(--sage); padding:11px 15px; border-bottom:1px solid var(--line); background:var(--panel)}
 .sc-b{padding:15px; font-size:13px; line-height:1.75; color:var(--muted)}
 .sc-b b{color:var(--text)}
+/* FAQ */
+.faq{max-width:860px; margin:0 auto}
+.faq details{border:1px solid var(--line2); border-radius:11px; background:var(--panel); margin-bottom:12px; overflow:hidden}
+.faq summary{cursor:pointer; list-style:none; padding:18px 22px; font-weight:600; font-size:15.5px; color:var(--text); display:flex; justify-content:space-between; align-items:center; gap:14px; transition:color .15s}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:'+'; font-family:var(--mono); font-size:18px; color:var(--sage); flex:none}
+.faq details[open] summary::after{content:'–'}
+.faq details[open] summary{color:var(--sage)}
+.faq-a{padding:0 22px 20px; color:var(--muted); font-size:14.5px; line-height:1.7}
+.faq-a p{margin:0 0 12px}
+.faq-a p:last-child{margin-bottom:0}
+.faq-a b{color:var(--text)}
+.faq-a a{color:var(--sage); border-bottom:1px dotted var(--sage-d)}
 /* pain timeline */
 .pstep.hot{border-color:rgba(226,85,79,.32)}
 .pstep.hot .pn{background:rgba(226,85,79,.08); border-color:rgba(226,85,79,.45); color:var(--clay); font-family:var(--mono); font-weight:700; font-size:11.5px}
@@ -243,6 +256,7 @@ html.js .reveal.in{opacity:1; transform:none}
       <a href="#cost">Why now</a>
       <a href="#how">How it works</a>
       <a href="#stack">What you get</a>
+      <a href="#faq">FAQ</a>
       <a href="blog.html">Blog</a>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
@@ -495,6 +509,102 @@ html.js .reveal.in{opacity:1; transform:none}
       <a class="btn btn-primary" href="#access">Request early access</a>
       <div class="pl-foot">Founding terms locked in before public launch</div>
     </div>
+  </div>
+</section>
+
+<!-- ── FAQ ── -->
+<section id="faq" class="wrap">
+  <div class="sec-head">
+    <div class="rule"></div>
+    <span class="lbl" style="display:block;margin-top:14px">The debrief</span>
+    <h2>Questions sharp operators ask</h2>
+    <p>Straight answers — held to the same standard we hold the analyst to.</p>
+  </div>
+  <div class="faq">
+    <details class="reveal">
+      <summary>Isn't this just generic AI making things up?</summary>
+      <div class="faq-a">
+        <p>No — and this is the difference the whole system is built around. The AI is never asked to "share thoughts about your competitor" from its general knowledge. It reads <b>only what we captured from that competitor</b> — their actual live ads, their actual posts, the actual emails they sent, their storefront as it looked that morning — and every insight is tied to the exact ad, price or post it came from, with a link to the source. <b>If it can't point to it, it doesn't say it.</b></p>
+        <p>It's also trained on judgment, not just data: an ongoing sale gets called out even when nothing changed, prices are read as the typical range a marketer would quote (not raw feed junk like a $5M novelty listing), and small fluctuations are never dressed up as strategy. A one-ad change is rotation, not a "pullback" — the analyst knows the difference.</p>
+        <p>Don't take the claim on faith: <a href="app.html">open the live dossiers</a> and judge the reads yourself.</p>
+      </div>
+    </details>
+    <details class="reveal">
+      <summary>How accurate is the data itself?</summary>
+      <div class="faq-a">
+        <p><b>Captured, not estimated.</b> Their live ads come from the public ad library — the same ads they're paying to run right now, including the video creative (we transcribe the spoken script). Storefront prices are read to the cent, with dated before/after screenshots you can check with your own eyes. Emails are the real campaigns they sent. Social posts carry their real engagement numbers.</p>
+        <p>And when something genuinely can't be captured — a private profile, a page that yields nothing — the dossier says exactly that instead of guessing. Silence is reported as silence, never filled with invention.</p>
+      </div>
+    </details>
+    <details class="reveal">
+      <summary>Where does the data come from — and is this legal?</summary>
+      <div class="faq-a">
+        <p>Everything comes from <b>public, openly available materials</b>: public ad libraries (ad platforms publish every active ad, by law and by policy), public social profiles, the competitor's own public storefront, and marketing emails they send to their subscriber list. Nothing behind logins, no private data, no access to anyone's internal systems.</p>
+        <p>Reviewing a competitor's public marketing is ordinary competitive research — every serious brand does it, including to you. WatchBack just does it systematically, every day, instead of "when someone remembers to check."</p>
+      </div>
+    </details>
+    <details class="reveal">
+      <summary>What exactly gets monitored?</summary>
+      <div class="faq-a">
+        <p>Four channels per competitor, captured daily:</p>
+        <p><b>Paid ads</b> — every live ad, new launches, killed creatives, hooks and angles named, video scripts transcribed, and each landing page opened and read so hidden advertorial or affiliate funnels get exposed for what they are.<br>
+        <b>Organic social</b> — Instagram, TikTok and Facebook posts with real engagement, what's landing and what themes they're pushing.<br>
+        <b>Email</b> — their actual campaigns: offers, cadence, discount codes.<br>
+        <b>Storefront</b> — full product catalogue with prices to the cent, sales starting and ending, new products, with dated before/after screenshots as evidence.</p>
+      </div>
+    </details>
+    <details class="reveal">
+      <summary>What do I have to set up?</summary>
+      <div class="faq-a">
+        <p>Almost nothing — there's <b>no install, no pixel, no access to your ad accounts</b>. You name your competitors, confirm we've matched the right social pages (two minutes, so a guessed handle never tracks the wrong profile), and do one 15-second newsletter sign-up per competitor so their emails flow in. That's the whole job.</p>
+        <p>From there it runs itself: your first dossier lands within 24 hours, and every morning after that the day's changes are waiting — in the app, and in Slack if you connect it.</p>
+      </div>
+    </details>
+    <details class="reveal">
+      <summary>How are the recommendations specific to MY brand?</summary>
+      <div class="faq-a">
+        <p>At onboarding we scan <b>your</b> store too — your products, real price points, bundles. Every insight then comes with an "apply to your brand" move that names your actual products and prices, not fortune-cookie advice. If a play needs real budget or effort, it says so; if a competitor's tactic doesn't fit your positioning, it says that too.</p>
+        <p>Think of it as a director of growth who has memorised your catalogue and reads your competitors' every move each morning.</p>
+      </div>
+    </details>
+    <details class="reveal">
+      <summary>Will my competitors know I'm watching them?</summary>
+      <div class="faq-a">
+        <p>No. Everything we observe is public-facing material, gathered the way any visitor or subscriber would see it — there's nothing to detect and no trace on their side. Your watchlist, your brand profile and your dossiers are private to your account.</p>
+        <p>Worth repeating the uncomfortable part: the sharpest brands in your category already run this playbook on you, manually. You just haven't seen it.</p>
+      </div>
+    </details>
+    <details class="reveal">
+      <summary>What if a competitor barely advertises, or never emails?</summary>
+      <div class="faq-a">
+        <p>Then that's what your dossier will say — which is itself intelligence. A competitor with no active ads, a dark channel, or a first newsletter that never comes tells you where they're <b>not</b> fighting. Channels only ever show what was genuinely captured; an empty channel is never padded with filler insights.</p>
+      </div>
+    </details>
+    <details class="reveal">
+      <summary>How is this different from ad-spy tools?</summary>
+      <div class="faq-a">
+        <p>Spy tools hand you a dashboard of raw screenshots and leave the analysis — the actual work — to you. WatchBack is the analyst: it reads everything captured, compares it to yesterday, and tells you <b>what changed, why it's working, and the exact counter-move for your brand</b>, every day, with receipts linked.</p>
+        <p>It's also the full playbook in one place — ads, organic, email and storefront together. A price cut plus an urgency email plus a new advertorial is one coordinated push; you only see that when the channels are read side by side.</p>
+      </div>
+    </details>
+    <details class="reveal">
+      <summary>Which countries and languages does it cover?</summary>
+      <div class="faq-a">
+        <p>Any market where your competitor has a public ad presence — you choose the country focus per competitor (US, UK, AU, EU markets and beyond). Creative gets decoded regardless of language: a German video ad or a French advertorial is read and reported back to you in plain English.</p>
+      </div>
+    </details>
+    <details class="reveal">
+      <summary>How much does it cost?</summary>
+      <div class="faq-a">
+        <p>We're in private beta and onboarding founding brands in small batches — pricing is shared on your onboarding call, and <b>founding terms are locked in before public launch</b>. That's deliberately part of the deal for joining early.</p>
+      </div>
+    </details>
+    <details class="reveal">
+      <summary>Can I see it working before I request access?</summary>
+      <div class="faq-a">
+        <p>Yes — that's the point. <a href="app.html">Open the live dossiers</a> on three real brands (The Oodie, Liquid Death, Smooche), no sign-up required. Real captured data, real daily AI reads, exactly what you'd get on your own competitors.</p>
+      </div>
+    </details>
   </div>
 </section>
 
