@@ -91,14 +91,21 @@ h1 .hl{color:var(--sage)}
 .st-sep{color:var(--faint)}
 .st-live{display:inline-flex; align-items:center; gap:6px; color:var(--faint); font-size:10px; letter-spacing:.1em; text-transform:uppercase; margin-left:6px}
 .st-dot{width:5px; height:5px; border-radius:50%; background:var(--quiet); box-shadow:0 0 6px var(--quiet); animation:dotpulse 1.2s ease-in-out infinite}
-/* live-demo panel — the demo IS the pitch, so it sits right under the CTAs */
-.demo-cta{max-width:620px; margin:28px auto 0; border:1px solid var(--sage-d); border-radius:13px; background:linear-gradient(180deg,rgba(87,210,207,.09),var(--panel)); padding:20px 22px 16px; box-shadow:0 22px 60px -40px rgba(87,210,207,.5)}
-.demo-cta-l{display:flex; align-items:center; justify-content:center; gap:9px; font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--sage); margin-bottom:14px}
-.dcdot{width:6px; height:6px; border-radius:50%; background:var(--quiet); box-shadow:0 0 8px var(--quiet); animation:dotpulse 1.2s ease-in-out infinite}
-.demo-btns{display:flex; gap:10px; flex-wrap:wrap}
-.demo-btn{flex:1; min-width:140px; text-align:center; font-family:var(--mono); font-size:12.5px; letter-spacing:.03em; color:var(--text); border:1px solid var(--line2); border-radius:9px; padding:13px 12px; background:var(--panel); transition:.15s}
-.demo-btn:hover{border-color:var(--sage); color:var(--sage); transform:translateY(-1px)}
-.demo-note{margin-top:12px; text-align:center; font-family:var(--mono); font-size:10px; letter-spacing:.05em; color:var(--faint)}
+/* live-demo panel — the demo IS the pitch, so it's a prominent glowing block right under the CTAs */
+.demo-cta{max-width:700px; margin:34px auto 0; text-align:center; border:1.5px solid var(--sage-d); border-radius:16px; background:linear-gradient(180deg,rgba(87,210,207,.13),var(--panel)); padding:26px 28px 20px; animation:demoglow 3s ease-in-out infinite}
+@keyframes demoglow{0%,100%{box-shadow:0 0 0 1px rgba(87,210,207,.1), 0 28px 66px -40px rgba(87,210,207,.45)} 50%{box-shadow:0 0 0 1px rgba(87,210,207,.32), 0 30px 80px -26px rgba(87,210,207,.8)}}
+@media(prefers-reduced-motion:reduce){.demo-cta{animation:none}}
+.demo-tag{display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:10.5px; font-weight:500; letter-spacing:.16em; text-transform:uppercase; color:var(--clay); border:1px solid rgba(226,85,79,.42); padding:4px 12px; border-radius:3px; background:rgba(226,85,79,.08); margin-bottom:16px}
+.dcdot{width:6px; height:6px; border-radius:50%; background:var(--clay); box-shadow:0 0 8px var(--clay); animation:dotpulse 1.2s ease-in-out infinite}
+.demo-h{font-family:var(--disp); font-weight:600; font-size:clamp(21px,3.4vw,29px); line-height:1.14; color:#eff4f5; margin:0 0 20px}
+.demo-btns{display:flex; gap:11px; flex-wrap:wrap}
+.demo-btn{flex:1; min-width:150px; display:flex; flex-direction:column; gap:4px; text-align:center; border:1px solid var(--line2); border-radius:11px; padding:15px 12px; background:var(--panel); transition:.16s}
+.demo-btn b{font-family:var(--disp); font-weight:600; font-size:16.5px; color:var(--text); letter-spacing:.005em}
+.demo-btn span{font-family:var(--mono); font-size:10px; letter-spacing:.05em; color:var(--faint)}
+.demo-btn:hover{border-color:var(--sage); transform:translateY(-2px); box-shadow:0 14px 28px -18px rgba(87,210,207,.75)}
+.demo-btn:hover b{color:var(--sage)}
+.demo-btn:hover span{color:var(--sage-d)}
+.demo-note{margin-top:15px; font-family:var(--mono); font-size:10px; letter-spacing:.05em; color:var(--faint)}
 
 /* dossier card under hero */
 .dossier{margin:54px auto 0; max-width:880px; border:1px solid var(--line2); border-radius:12px; background:linear-gradient(180deg,var(--panel2),var(--panel)); overflow:hidden; box-shadow:0 30px 80px -40px rgba(0,0,0,.8)}
@@ -289,13 +296,14 @@ html.js .reveal.in{opacity:1; transform:none}
   <div class="hero-note">Private beta · limited founding seats · nothing to install · first dossier within 24 hours</div>
 
   <div class="demo-cta reveal">
-    <span class="demo-cta-l"><span class="dcdot"></span>See it live right now — 3 real dossiers, open view access</span>
+    <span class="demo-tag"><span class="dcdot"></span>Live demo · no sign-up</span>
+    <h3 class="demo-h">See 3 real competitors being watched — right now.</h3>
     <div class="demo-btns">
-      <a class="demo-btn" href="app.html?c=theoodie.com">The Oodie&nbsp;↗</a>
-      <a class="demo-btn" href="app.html?c=liquiddeath.com">Liquid Death&nbsp;↗</a>
-      <a class="demo-btn" href="app.html?c=smooche.com">Smooche&nbsp;↗</a>
+      <a class="demo-btn" href="app.html?c=theoodie.com"><b>The Oodie</b><span>open dossier&nbsp;↗</span></a>
+      <a class="demo-btn" href="app.html?c=liquiddeath.com"><b>Liquid Death</b><span>open dossier&nbsp;↗</span></a>
+      <a class="demo-btn" href="app.html?c=smooche.com"><b>Smooche</b><span>open dossier&nbsp;↗</span></a>
     </div>
-    <div class="demo-note">no sign-up · read-only · the exact product founding customers get</div>
+    <div class="demo-note">Real captured data · read-only · the exact product founding customers get</div>
   </div>
 
   <div class="dossier reveal">
