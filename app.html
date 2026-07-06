@@ -779,6 +779,7 @@ function submitAuth(){
       TOKEN=x.d.token;USER=x.d.user;try{localStorage.setItem('ci_token',TOKEN);localStorage.setItem('ci_user',JSON.stringify(USER));}catch(e){}
       paintAuth();closeAuth();document.getElementById('aP').value='';
       insightsCache={};angleCache={};clearMyBrandLocal();loadMyBrand();   // this account's own brand + tailored tips, never a previous session's
+      var cp=document.getElementById('chatPanel');if(cp&&cp.classList.contains('open')){var cc=currentComp();if(cc)renderChat(cc);}   // clear the sign-in gate on an already-open chat
       loadUserComps(function(){var cb=pendingAfterAuth;pendingAfterAuth=null;if(cb)cb();});
     })
     .catch(function(){go.disabled=false;go.textContent=was;er.textContent='Network error — please try again.';er.style.display='block';});
