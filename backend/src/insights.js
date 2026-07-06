@@ -441,7 +441,10 @@ export async function quickAngle(text, kind, image, video, uid) {
   const me = await getMyBrand(uid);
   const img = image ? await fetchImageB64(image) : null;
   const script = video ? await transcribeVideo(video) : '';   // spoken hook of a video ad (needs OPENAI_API_KEY)
-  const key = (kind || 'ad') + '|' + ((me && me.host) || '') + '|' + (img ? 'V' : 'T') + (script ? 'S' : '') + '|' + String(image || '').slice(0, 70) + '|' + String(video || '').slice(0, 50) + '|' + t.slice(0, 100);
+  // Key MUST include the viewer's uid: the "apply" field is tailored to THIS account's own
+  // brand/catalogue, so two accounts that happen to share a brand host must not read each
+  // other's cached result. (angle/hook/creative are creative-specific, but apply is not.)
+  const key = (kind || 'ad') + '|' + (uid || '') + '|' + ((me && me.host) || '') + '|' + (img ? 'V' : 'T') + (script ? 'S' : '') + '|' + String(image || '').slice(0, 70) + '|' + String(video || '').slice(0, 50) + '|' + t.slice(0, 100);
   if (_angleCache.has(key)) return _angleCache.get(key);
   const what = kind === 'post' ? 'organic social post' : 'ad';
   const visual = (img

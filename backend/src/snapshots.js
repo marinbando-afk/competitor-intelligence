@@ -6,6 +6,21 @@ import { pool } from './db.js';
 
 const ok = () => !!process.env.DATABASE_URL;
 
+// Reserved/internal snapshot buckets must NEVER be served through the public,
+// unauthenticated history endpoints (/api/history, /api/snapshot): the cross-tenant
+// competitor union (__tracked__) and each account's private brand profile (mybrand:<uid>)
+// both live in this same table. A real competitor host is a bare public domain, so reject
+// anything with a ':' (mybrand:*), any '__' bucket (__tracked__, __mybrand__), or anything
+// not domain-shaped. Returning empty (not an error) keeps it indistinguishable from an
+// unknown host, so it can't be used as a tenant-existence oracle either.
+export function isPublicHost(h) {
+  h = String(h || '').toLowerCase();
+  if (!h || h.length > 255) return false;
+  if (h.indexOf(':') >= 0 || h.indexOf('__') >= 0) return false;
+  if (h.indexOf('.') < 0) return false;
+  return /^[a-z0-9.-]+$/.test(h);
+}
+
 export async function saveSnapshot(host, channel, data) {
   if (!ok() || !host || !data) return;
   try {
@@ -34,7 +49,7 @@ export async function latestSnapshot(host, channel) {
 
 // Distinct days we have any snapshot for (newest first) — powers the date switcher.
 export async function snapshotDays(host) {
-  if (!ok() || !host) return [];
+  if (!ok() || !host || !isPublicHost(host)) return [];
   try {
     const r = await pool.query(
       `SELECT DISTINCT day FROM snapshots WHERE host = $1 ORDER BY day DESC LIMIT 60`,
@@ -60,7 +75,7 @@ export async function recentSnapshots(host, channel, limit) {
 
 // All channels captured for a host on a given day.
 export async function snapshotForDay(host, day) {
-  if (!ok() || !host || !day) return {};
+  if (!ok() || !host || !day || !isPublicHost(host)) return {};
   try {
     const r = await pool.query(
       `SELECT channel, data FROM snapshots WHERE host = $1 AND day = $2`,
