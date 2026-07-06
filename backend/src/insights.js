@@ -290,6 +290,14 @@ function parseOut(txt) {
   return { summary: clip(raw, 240), bullets: [], apply: '' };
 }
 
+// Normalize a field that should be a short bullet LIST into a clean array — accepts an
+// array, or a legacy prose string (split on sentence boundaries so old cached data still
+// renders as bullets). Each bullet trimmed to a word boundary; capped at `max`.
+function toBullets(v, max) {
+  const arr = Array.isArray(v) ? v : (typeof v === 'string' && v.trim() ? v.split(/(?<=[.!?])\s+/) : []);
+  return arr.map((s) => clip(s, 180)).filter(Boolean).slice(0, max || 3);
+}
+
 async function ask(channel, brand, todayBlock, prevBlock, me) {
   if (!todayBlock || !todayBlock.trim()) return null;
   let system =
@@ -394,13 +402,14 @@ async function makeBrief(brand, out, me) {
     `You are WatchBack, a sharp eCommerce competitor-intelligence analyst. From the per-channel reads below, write the top-of-report brief on "${brand}". ` +
     `Same discipline as always: use only what the reads support, sanity-check every number, and read deliberate moves as strategy with a rationale — never a naive or dismissive take. ` +
     `Ignore noise: tiny count fluctuations (an ad or two, a single post) are routine rotation — never present them as strategic moves.\n` +
-    `Return ONLY minified JSON, no markdown: {"verdict":"<THREAT ASSESSMENT: 2 complete sentences, <=55 words — the single most important strategic read of this competitor right now, concrete and specific>","move":"<RECOMMENDED COUNTER-OP: 2 complete sentences, <=55 words — ${me && me.profile ? `the concrete, realistic counter for ${me.name}, grounded in their profile below` : 'the concrete, realistic counter-move for a brand competing with them'}>"}` +
+    `Return ONLY minified JSON, no markdown, as SHORT BULLET POINTS (not paragraphs): {"verdict":["<THREAT ASSESSMENT — 2 to 3 bullets, each ONE tight, complete, self-contained point ≤ 18 words: the most important strategic reads of this competitor right now, concrete and specific>", ...],"move":["<RECOMMENDED COUNTER-OP — 2 to 3 bullets, each ONE concrete, realistic ${me && me.profile ? `move for ${me.name} grounded in their profile below` : 'move for a brand competing with them'}, ≤ 18 words, start with a verb>", ...]}` +
     (me && me.profile ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}` : '');
-  const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 400, system, messages: [{ role: 'user', content: parts.join('\n') }] });
+  const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 500, system, messages: [{ role: 'user', content: parts.join('\n') }] });
   const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
   try {
     const j = JSON.parse(txt.replace(/^```json?\s*/i, '').replace(/\s*```$/, ''));
-    if (j && j.verdict) return { verdict: oneLine(j.verdict).slice(0, 400), move: oneLine(j.move || '').slice(0, 400) };
+    const verdict = toBullets(j && j.verdict, 3);
+    if (verdict.length) return { verdict, move: toBullets(j && j.move, 3) };
   } catch (e) { /* malformed = no brief this cycle */ }
   return null;
 }
@@ -516,12 +525,12 @@ async function applyOverlay(host, uid, neutral) {
     const c = neutral[k];
     if (c && (c.summary || (c.bullets && c.bullets.length))) parts.push(`${k} | ${label}: ${c.summary || ''}${(c.bullets && c.bullets.length) ? ' — ' + c.bullets.join(' · ') : ''}`);
   }
-  const verdict = (neutral.brief && neutral.brief.verdict) || '';
+  const verdict = toBullets(neutral.brief && neutral.brief.verdict, 3).join('; ');
   if (!parts.length && !verdict) return null;
   const system =
-    `You are ${me.name}'s DIRECTOR OF GROWTH. Below are per-channel intelligence reads on a COMPETITOR (with the top-line THREAT). For EACH channel present, turn its most important takeaway into ONE realistic, specific move ${me.name} could actually make — grounded in their REAL products/prices/bundles below, naming a real one where you can; if a move needs real spend/effort, name it briefly; if a channel's takeaway genuinely doesn't fit their catalogue, give a one-line honest note instead of forcing it. Start each with a verb, ≤ 34 words, finish the sentence. Also write "move": ONE concrete counter-op for ${me.name} against this competitor (2 sentences, ≤ 55 words), grounded in their profile.\n` +
+    `You are ${me.name}'s DIRECTOR OF GROWTH. Below are per-channel intelligence reads on a COMPETITOR (with the top-line THREAT). For EACH channel present, turn its most important takeaway into ONE realistic, specific move ${me.name} could actually make — grounded in their REAL products/prices/bundles below, naming a real one where you can; if a move needs real spend/effort, name it briefly; if a channel's takeaway genuinely doesn't fit their catalogue, give a one-line honest note instead of forcing it. Start each with a verb, ≤ 34 words, finish the sentence. Also write "move": 2 to 3 SHORT BULLET POINTS, each ONE concrete counter-op for ${me.name} against this competitor (each ≤ 18 words, start with a verb), grounded in their profile.\n` +
     `ADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}${me.catalog ? '\nTHEIR CATALOGUE (real products, prices, bundles): ' + me.catalog : ''}\n` +
-    `Return ONLY minified JSON, no markdown: {"channels":{"ads":"<move or ''>","social":"...","website":"...","email":"..."},"move":"<counter-op>"}. Include ONLY the channel keys that appear in the input.`;
+    `Return ONLY minified JSON, no markdown: {"channels":{"ads":"<move or ''>","social":"...","website":"...","email":"..."},"move":["<counter-op bullet>", ...]}. Include ONLY the channel keys that appear in the input.`;
   try {
     const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 700, system, messages: [{ role: 'user', content: (verdict ? 'THREAT: ' + verdict + '\n' : '') + parts.join('\n') }] });
     const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
@@ -529,7 +538,7 @@ async function applyOverlay(host, uid, neutral) {
     if (!o || typeof o !== 'object') return null;
     const channels = {};
     for (const k of ['ads', 'social', 'website', 'email']) if (o.channels && o.channels[k]) channels[k] = clip(o.channels[k], 260);
-    const result = { channels, move: clip(o.move || '', 400), base, brandAt, builtAt: new Date().toISOString() };
+    const result = { channels, move: toBullets(o.move, 3), base, brandAt, builtAt: new Date().toISOString() };
     await saveSnapshot(key, 'overlay', result);
     return result;
   } catch (e) { return null; }
@@ -552,7 +561,7 @@ export async function getInsights(host, name, refresh, uid) {
         for (const k of ['ads', 'social', 'website', 'email']) {
           if (ins[k] && ov.channels[k]) ins[k] = Object.assign({}, ins[k], { apply: ov.channels[k] });
         }
-        if (ov.move && ins.brief) ins.brief = Object.assign({}, ins.brief, { move: ov.move });
+        if (ov.move && ov.move.length && ins.brief) ins.brief = Object.assign({}, ins.brief, { move: ov.move });
       }
     } catch (e) { /* fall back to the neutral read */ }
   }
