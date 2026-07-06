@@ -38,27 +38,27 @@ export async function buildDigest(brands) {
 export async function buildDailyBrief(brands) {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   const head = '🛰️ *WatchBack daily* · ' + today;
+  if (!(brands || []).length) return head + '\nNo competitors on the watchlist yet.';
   const parts = [];
   for (const b of (brands || [])) {
+    let block = 'BRAND "' + b.name + '": (nothing captured today)';
     try {
       const ins = await getInsights(b.host, b.name);
-      if (!ins) continue;
       const ch = [];
       for (const k of ['ads', 'social', 'website', 'email']) {
-        const c = ins[k];
+        const c = ins && ins[k];
         if (c && (c.summary || (c.bullets || []).length)) ch.push(k.toUpperCase() + ': ' + (c.summary || '') + ((c.bullets || []).length ? ' — ' + c.bullets.join(' · ') : ''));
       }
-      if (ch.length) parts.push('BRAND "' + b.name + '":\n' + ch.join('\n'));
-    } catch (e) { /* skip brand */ }
+      if (ch.length) block = 'BRAND "' + b.name + '":\n' + ch.join('\n');
+    } catch (e) { /* keep placeholder */ }
+    parts.push(block);
   }
-  if (!parts.length) return head + '\nAll quiet — nothing captured for your watched competitors today.';
-  if (!process.env.ANTHROPIC_API_KEY) return head + '\nDaily check complete — open the app for today’s dossiers.';
+  if (!process.env.ANTHROPIC_API_KEY) return head + '\n' + brands.map((b) => '• *' + b.name + '* — daily check complete, open the app for the dossier.').join('\n');
   const system =
-    'You write WatchBack\'s DAILY Slack brief for a busy eCommerce founder. SUPER SHORT is the whole point. ' +
+    'You write WatchBack\'s DAILY Slack brief for a busy eCommerce founder. SUPER SHORT is the whole point, and EVERY watched competitor must be visibly accounted for. ' +
     'From the per-brand channel reads below, call out ONLY what is MATERIAL and NEW TODAY: a sale starting, ending or changing; real price moves; a burst of new ads or a new funnel/landing type; new products; email campaigns sent. ' +
-    'Ongoing unchanged states (a sale still running, the same ad set continuing) and tiny fluctuations (an ad or two, a single post) are NOT daily news — omit them. ' +
-    'Output Slack mrkdwn only, no header: at most ONE line per brand, exactly "• *Brand* — <the material thing(s), <=18 words>". OMIT brands with nothing material. ' +
-    'If NOTHING material happened for any brand, output EXACTLY this single line: "All quiet — no material competitor moves today." Never invent; use only the reads.';
+    'Ongoing unchanged states (a sale still running, the same ad set continuing) and tiny fluctuations (an ad or two, a single post) are NOT daily news — those brands are quiet. ' +
+    'Output Slack mrkdwn only, no header: EXACTLY one line per brand, same order as given, never omit or add a brand. Format: "• *Brand* — <the material thing(s), <=18 words>" — or "• *Brand* — all quiet." when nothing material happened for it. Never invent; use only the reads.';
   try {
     const resp = await briefClient().messages.create({ model: BRIEF_MODEL, max_tokens: 300, system, messages: [{ role: 'user', content: parts.join('\n\n') }] });
     const txt = (resp.content || []).filter((x) => x.type === 'text').map((x) => x.text).join('').trim();
