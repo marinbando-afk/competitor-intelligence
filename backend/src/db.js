@@ -75,6 +75,9 @@ export async function initSchema() {
     -- Private beta: new accounts need the founder's approval before first sign-in
     -- (customers are onboarded + charged manually). The founder account is always approved.
     ALTER TABLE users ADD COLUMN IF NOT EXISTS approved BOOLEAN NOT NULL DEFAULT FALSE;
-    UPDATE users SET approved = TRUE WHERE email = 'marin.bando@gmail.com';
+    -- The founder account is the standing admin: normal login unlocks approvals,
+    -- unlimited competitors and the submissions inbox.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS admin BOOLEAN NOT NULL DEFAULT FALSE;
+    UPDATE users SET approved = TRUE, admin = TRUE WHERE email = 'marin.bando@gmail.com';
   `);
 }

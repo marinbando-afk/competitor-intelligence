@@ -412,6 +412,18 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .fb-list{display:flex;flex-direction:column;gap:9px;max-height:300px;overflow-y:auto}
 .fb-item{border:1px solid var(--line2);border-radius:9px;padding:10px 12px;background:var(--bg)}
 .fb-meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:5px}
+.admin-modal{max-width:600px}
+.admin-tabs{display:flex;gap:8px;margin:4px 0 16px}
+.atab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:7px 13px;border-radius:7px;border:1px solid var(--line2);background:none;color:var(--muted);cursor:pointer}
+.atab.on{border-color:var(--sage-d);color:var(--sage);background:var(--sage-soft)}
+#adminBody{max-height:380px;overflow-y:auto}
+.au-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line2);border-radius:9px;padding:11px 13px;margin-bottom:8px}
+.au-em{font-size:13.5px;color:var(--text);word-break:break-all}
+.au-sub{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:3px}
+.au-pill{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:5px;flex:none}
+.au-pill.ok{color:var(--quiet);border:1px solid var(--quiet)}
+.au-approve{font-family:var(--mono);font-size:11px;font-weight:600;padding:7px 13px;border-radius:7px;border:1px solid var(--sage-d);background:var(--sage-soft);color:var(--sage);cursor:pointer;flex:none}
+.au-approve:disabled{opacity:.5}
 .fb-msg{font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap;word-break:break-word}
 .fb-shot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .fb-attbtn{font-size:12px;color:var(--text);background:var(--raised);border:1px solid var(--line2);border-radius:7px;padding:7px 12px;cursor:pointer}
@@ -597,6 +609,18 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
   </div>
 </div>
 
+<div class="ov" id="adminOv" onclick="if(event.target===this)closeAdmin()">
+  <div class="modal admin-modal">
+    <h2>⚙ Admin panel</h2>
+    <div class="admin-tabs">
+      <button class="atab on" id="atab-users" onclick="adminTab('users')">Signups</button>
+      <button class="atab" id="atab-subs" onclick="adminTab('subs')">Submissions</button>
+    </div>
+    <div id="adminBody"><div class="adsload" style="padding:16px 0"><span class="spin"></span>Loading…</div></div>
+    <div class="m-act"><button class="btn btn-g" onclick="closeAdmin()">Close</button></div>
+  </div>
+</div>
+
 <button class="chatfab" id="chatFab" onclick="openChat()" title="Ask the AI about this competitor">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.2l1.7 4.6 4.6 1.7-4.6 1.7L8 13.8 6.3 9.2 1.7 7.5l4.6-1.7L8 1.2Z" fill="#0b1311"/></svg><span>Ask AI</span>
 </button>
@@ -721,8 +745,8 @@ function loadUserComps(cb){
     .catch(function(){if(cb)cb();});
 }
 function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');}catch(e){}clearMyBrandLocal();insightsCache={};angleCache={};paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
-function paintAuth(){var s=document.getElementById('authSlot');if(!s)return;
-  if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML='<span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
+function paintAuth(){refreshAdmin();var s=document.getElementById('authSlot');if(!s)return;
+  if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML=(ADMIN?'<button class="authbtn" onclick="openAdmin()" title="Admin panel">⚙ Admin</button>':'')+'<span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+(ADMIN?' · admin':'')+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
   else{s.innerHTML='<button class="authbtn primary" onclick="openAuth(\'signin\')">Sign in</button>';}
   var ab=document.querySelector('.add-btn');if(ab)ab.title=loggedIn()?'Add a competitor to your watchlist':'Add your own competitor — sign in required';
   paintBrandChip();
@@ -1707,7 +1731,11 @@ function registerCompetitors(){getList().forEach(function(c){if(c&&!c.demo)track
 var PLAN={ads:20,competitors:2};
 (function(){var m=location.search.match(/[?&]admin=([^&]+)/);if(m){try{localStorage.setItem('adminKey',decodeURIComponent(m[1]));}catch(e){}try{history.replaceState(null,'',location.pathname);}catch(e){}}})();
 function adminKey(){try{return localStorage.getItem('adminKey')||'';}catch(e){return '';}}
-var ADMIN=!!adminKey();
+// Admin = the legacy URL key OR a signed-in admin account (the founder). USER.admin
+// comes from /api/login and /api/me, refreshed on every auth change.
+function isAdmin(){return !!adminKey()||!!(USER&&USER.admin);}
+var ADMIN=isAdmin();
+function refreshAdmin(){ADMIN=isAdmin();}
 function lockedComp(c){return !ADMIN && !!(c&&!c.demo&&!c.account);}  // your own saved competitors are never locked
 function addOrUpgrade(){
   if(!loggedIn()){openAuth('signup',openModal);return;}                       // need an account to add your own
@@ -1727,7 +1755,7 @@ function openFeedback(kind){
   var er=document.getElementById('fbErr');if(er){er.style.display='none';er.style.color='';}
   fbClearShot();
   var b=document.getElementById('fbSend');if(b){b.disabled=false;b.textContent='Send';}
-  var a=document.getElementById('fbAdmin');if(a)a.innerHTML=ADMIN?'<button class="fb-viewbtn" onclick="loadFeedback()">View submissions ↓</button>':'';
+  var a=document.getElementById('fbAdmin');if(a)a.innerHTML=ADMIN?'<button class="fb-viewbtn" onclick="closeFeedback();openAdmin()">Open admin panel ↗</button>':'';
   document.getElementById('fbOv').classList.add('open');
   setTimeout(function(){var t=document.getElementById('fbMsg');if(t)t.focus();},40);
 }
@@ -1773,18 +1801,51 @@ function sendFeedback(){
     })
     .catch(function(){btn.disabled=false;btn.textContent='Send';er.style.color='';er.textContent='Couldn’t send — try again in a moment.';er.style.display='block';});
 }
-function loadFeedback(){
-  var a=document.getElementById('fbAdmin');a.innerHTML='<div class="adsload" style="padding:14px 0"><span class="spin"></span>Loading submissions…</div>';
-  fetch(API+'/api/feedback?key='+encodeURIComponent(adminKey())).then(function(r){return r.json();}).then(function(d){
+function loadFeedbackInto(targetId){
+  var a=document.getElementById(targetId);a.innerHTML='<div class="adsload" style="padding:14px 0"><span class="spin"></span>Loading submissions…</div>';
+  // Admin auth = login token (admin account) AND/OR the legacy URL key — send both.
+  fetch(API+'/api/feedback'+(adminKey()?'?key='+encodeURIComponent(adminKey()):''),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
     if(!d||d.error){a.innerHTML='<div class="fb-empty">'+esc((d&&d.error)||'Couldn’t load.')+'</div>';return;}
     var list=d.feedback||[];
     a.innerHTML='<div class="fb-list-h">'+list.length+' submission'+(list.length===1?'':'s')+'</div>'+(list.length?'<div class="fb-list">'+list.map(function(f){return '<div class="fb-item"><div class="fb-meta">'+esc(f.name||'anonymous')+(f.email?' · '+esc(f.email):'')+' · '+esc(fmtDay(f.created_at))+'</div><div class="fb-msg">'+esc(f.message)+'</div>'+(f.image?'<img class="zoomable fb-thumb" src="'+esc(f.image)+'" alt="bug screenshot">':'')+'</div>';}).join('')+'</div>':'<div class="fb-empty">No submissions yet.</div>');
   }).catch(function(){a.innerHTML='<div class="fb-empty">Couldn’t load.</div>';});
 }
+function loadFeedback(){loadFeedbackInto('fbAdmin');}
+/* ── Admin panel: signups (approve) + submissions ── */
+function openAdmin(){if(!ADMIN)return;document.getElementById('adminOv').classList.add('open');adminTab('users');}
+function closeAdmin(){document.getElementById('adminOv').classList.remove('open');}
+function adminTab(t){
+  document.getElementById('atab-users').classList.toggle('on',t==='users');
+  document.getElementById('atab-subs').classList.toggle('on',t==='subs');
+  document.getElementById('adminBody').innerHTML='<div class="adsload" style="padding:16px 0"><span class="spin"></span>Loading…</div>';
+  if(t==='users')loadAdminUsers();else loadFeedbackInto('adminBody');
+}
+function loadAdminUsers(){
+  var b=document.getElementById('adminBody');
+  fetch(API+'/api/admin/users'+(adminKey()?'?key='+encodeURIComponent(adminKey()):''),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
+    if(!d||d.error){b.innerHTML='<div class="fb-empty">'+esc((d&&d.error)||'Couldn’t load.')+'</div>';return;}
+    var us=d.users||[],pending=us.filter(function(u){return !u.approved;});
+    b.innerHTML='<div class="fb-list-h">'+(pending.length?pending.length+' awaiting approval':'No pending signups')+' · '+us.length+' total</div>'
+      +us.map(function(u){
+        return '<div class="au-row"><div style="min-width:0"><div class="au-em">'+esc(u.email)+(u.admin?' <span class="au-sub" style="display:inline">· admin</span>':'')+'</div><div class="au-sub">joined '+esc(fmtDay(u.created_at))+'</div></div>'
+          +(u.approved?'<span class="au-pill ok">Approved</span>':'<button class="au-approve" onclick="approveUser(this,\''+esc(u.email)+'\')">Approve</button>')+'</div>';
+      }).join('');
+  }).catch(function(){b.innerHTML='<div class="fb-empty">Couldn’t load.</div>';});
+}
+function approveUser(btn,email){
+  btn.disabled=true;btn.textContent='…';
+  fetch(API+'/api/admin/approve?email='+encodeURIComponent(email)+(adminKey()?'&key='+encodeURIComponent(adminKey()):''),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.ok){var row=btn.closest('.au-row');if(row){var bt=row.querySelector('.au-approve');if(bt)bt.outerHTML='<span class="au-pill ok">Approved ✓</span>';}}
+    else{btn.disabled=false;btn.textContent='Approve';}
+  }).catch(function(){btn.disabled=false;btn.textContent='Approve';});
+}
 render();
 loadMyBrand();
 paintAuth();
-if(TOKEN)loadUserComps();   // restore the signed-in user's saved competitors
+if(TOKEN){loadUserComps();
+  // Refresh the stored profile (picks up the admin flag for sessions from before it existed).
+  fetch(API+'/api/me',{headers:authH()}).then(function(r){return r.ok?r.json():null;}).then(function(d){if(d&&d.user){USER=d.user;try{localStorage.setItem('ci_user',JSON.stringify(USER));}catch(e){}paintAuth();}}).catch(function(){});
+}
 DEMOS.forEach(function(c){loadInsights(c);});   // live rail one-liners + instant briefs on the demos
 if(!TOKEN&&/[?&]signin=1/.test(location.search))openAuth('signin');  // arriving from the site's "Sign in"
 // Deep link from the landing page: app.html?c=theoodie.com opens that dossier directly.

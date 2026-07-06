@@ -60,6 +60,17 @@ function rateLimit(max, windowMs) {
 app.use('/api/', rateLimit(200, 60000));
 const aiLimit = rateLimit(30, 60000);
 
+// Admin = the legacy ADMIN_KEY (query/body) OR a signed-in account with the admin
+// flag (the founder). DB-checked per call so it works with older tokens and revokes
+// take effect immediately.
+async function isAdminReq(req) {
+  if (process.env.ADMIN_KEY && (req.query.key === process.env.ADMIN_KEY || (req.body && req.body.key) === process.env.ADMIN_KEY)) return true;
+  const uid = optionalUid(req);
+  if (!uid) return false;
+  try { const r = await pool.query('SELECT admin FROM users WHERE id = $1', [uid]); return !!(r.rows[0] && r.rows[0].admin); }
+  catch (e) { return false; }
+}
+
 app.get('/api/health', async (req, res) => {
   let userTracked = null;
   try { userTracked = (await getTracked()).length; } catch (e) { /* db optional */ }
@@ -241,7 +252,7 @@ app.get('/api/insights', async (req, res) => {
 app.get('/api/credits', async (req, res) => { res.json(await creditStatus(req.query.fresh === '1')); });
 // Send the Slack daily brief now (on-demand / for testing). Posts only to your SLACK_WEBHOOK_URL.
 app.get('/api/slack-test', async (req, res) => {
-  if (!process.env.ADMIN_KEY || req.query.key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Owner key required.' });
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   const clientBrands = (await allBrands()).filter((b) => !TRACKED.some((t) => t.host === b.host));
   res.json(await postDailyBrief(clientBrands.length ? clientBrands : await allBrands()));
 });
@@ -293,7 +304,7 @@ app.delete('/api/my-brand', requireAuth, async (req, res) => {
 app.post('/api/track', async (req, res) => {
   try {
     const { name, host, url, country, key } = req.body || {};
-    const admin = !!(process.env.ADMIN_KEY && key === process.env.ADMIN_KEY);   // owner bypass
+    const admin = await isAdminReq(req);   // owner bypass (key or admin login)
     // Enrolment costs money (daily scraping) — only signed-in customers or the owner.
     if (!admin && !optionalUid(req)) return res.status(401).json({ error: 'Sign in required.' });
     const r = await addTracked({ name, host, url, country }, admin);
@@ -310,7 +321,7 @@ app.post('/api/feedback', async (req, res) => {
 });
 app.get('/api/feedback', async (req, res) => {
   try {
-    if (!process.env.ADMIN_KEY || req.query.key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Owner key required.' });
+    if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
     res.json({ feedback: await listFeedback() });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -378,14 +389,14 @@ app.post('/api/signup', async (req, res) => {
 
 // ── Owner-only account approval (private beta, manual billing) ────────────────
 app.get('/api/admin/users', async (req, res) => {
-  if (!process.env.ADMIN_KEY || req.query.key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Owner key required.' });
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   try {
-    const r = await pool.query('SELECT id, email, approved, created_at FROM users ORDER BY id DESC LIMIT 200');
+    const r = await pool.query('SELECT id, email, approved, admin, created_at FROM users ORDER BY id DESC LIMIT 200');
     res.json({ users: r.rows });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.get('/api/admin/approve', async (req, res) => {
-  if (!process.env.ADMIN_KEY || req.query.key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Owner key required.' });
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   try {
     const email = String(req.query.email || '').trim().toLowerCase();
     const approved = req.query.revoke === '1' ? false : true;
@@ -404,8 +415,10 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-app.get('/api/me', requireAuth, (req, res) => {
-  res.json({ user: { id: req.user.uid, email: req.user.email } });
+app.get('/api/me', requireAuth, async (req, res) => {
+  let admin = false;
+  try { const r = await pool.query('SELECT admin FROM users WHERE id = $1', [req.user.uid]); admin = !!(r.rows[0] && r.rows[0].admin); } catch (e) { /* default false */ }
+  res.json({ user: { id: req.user.uid, email: req.user.email, admin } });
 });
 
 app.get('/api/competitors', requireAuth, async (req, res) => {
