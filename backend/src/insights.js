@@ -9,7 +9,7 @@
 // ANTHROPIC_API_KEY (falls back to no insights if absent).
 
 import Anthropic from '@anthropic-ai/sdk';
-import { recentSnapshots, saveSnapshot, latestSnapshot } from './snapshots.js';
+import { recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost } from './snapshots.js';
 import { getEmails } from './email.js';
 import { diffWebsite, siteShot } from './website.js';
 import { getMyBrand } from './brand.js';
@@ -494,11 +494,67 @@ export async function quickAngle(text, kind, image, video, uid) {
   }
 }
 
-// Read the latest cached insights; generate on demand if missing.
-export async function getInsights(host, name, refresh) {
+// Per-VIEWER "apply to your brand" overlay. The shared per-host insights snapshot is
+// tenant-neutral (see generateInsights). When a SIGNED-IN client who has set up their own
+// brand reads a competitor, we layer THEIR tailored apply-moves + counter-op on top —
+// generated from the neutral summaries + their brand profile, and cached under a PRIVATE
+// per-user key ('applyov:<uid>:<host>'). That key contains ':' so isPublicHost rejects it,
+// and it is read only via latestSnapshot — it is NEVER written to the shared host snapshot
+// nor returned by the public /api/snapshot|/api/history routes, so nothing crosses tenants.
+async function applyOverlay(host, uid, neutral) {
+  if (!uid || !neutral || !process.env.ANTHROPIC_API_KEY) return null;
+  const me = await getMyBrand(uid);
+  if (!me || !me.profile) return null;   // no brand set → nothing to tailor; show the neutral read
+  const key = 'applyov:' + uid + ':' + host;
+  const base = neutral.generatedAt || '';   // regenerate whenever the underlying neutral read changes
+  const brandAt = me.builtAt || '';         // …or whenever the client re-scans / changes their own brand
+  try { const cached = await latestSnapshot(key, 'overlay'); if (cached && cached.base === base && cached.brandAt === brandAt && cached.channels) return cached; }
+  catch (e) { /* regenerate */ }
+
+  const parts = [];
+  for (const [k, label] of [['ads', 'ADS'], ['social', 'SOCIAL'], ['website', 'WEBSITE'], ['email', 'EMAIL']]) {
+    const c = neutral[k];
+    if (c && (c.summary || (c.bullets && c.bullets.length))) parts.push(`${k} | ${label}: ${c.summary || ''}${(c.bullets && c.bullets.length) ? ' — ' + c.bullets.join(' · ') : ''}`);
+  }
+  const verdict = (neutral.brief && neutral.brief.verdict) || '';
+  if (!parts.length && !verdict) return null;
+  const system =
+    `You are ${me.name}'s DIRECTOR OF GROWTH. Below are per-channel intelligence reads on a COMPETITOR (with the top-line THREAT). For EACH channel present, turn its most important takeaway into ONE realistic, specific move ${me.name} could actually make — grounded in their REAL products/prices/bundles below, naming a real one where you can; if a move needs real spend/effort, name it briefly; if a channel's takeaway genuinely doesn't fit their catalogue, give a one-line honest note instead of forcing it. Start each with a verb, ≤ 34 words, finish the sentence. Also write "move": ONE concrete counter-op for ${me.name} against this competitor (2 sentences, ≤ 55 words), grounded in their profile.\n` +
+    `ADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}${me.catalog ? '\nTHEIR CATALOGUE (real products, prices, bundles): ' + me.catalog : ''}\n` +
+    `Return ONLY minified JSON, no markdown: {"channels":{"ads":"<move or ''>","social":"...","website":"...","email":"..."},"move":"<counter-op>"}. Include ONLY the channel keys that appear in the input.`;
+  try {
+    const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 700, system, messages: [{ role: 'user', content: (verdict ? 'THREAT: ' + verdict + '\n' : '') + parts.join('\n') }] });
+    const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+    let o; try { o = JSON.parse(txt.replace(/^```json?\s*/i, '').replace(/\s*```$/, '')); } catch (e) { return null; }
+    if (!o || typeof o !== 'object') return null;
+    const channels = {};
+    for (const k of ['ads', 'social', 'website', 'email']) if (o.channels && o.channels[k]) channels[k] = clip(o.channels[k], 260);
+    const result = { channels, move: clip(o.move || '', 400), base, brandAt, builtAt: new Date().toISOString() };
+    await saveSnapshot(key, 'overlay', result);
+    return result;
+  } catch (e) { return null; }
+}
+
+// Read the latest cached insights; generate on demand if missing. When a signed-in client
+// (uid) has their own brand, layer their per-viewer apply-moves on top of the tenant-neutral
+// shared read — without ever mutating or re-saving the shared snapshot.
+export async function getInsights(host, name, refresh, uid) {
   let ins = refresh ? null : await latestSnapshot(host, 'insights');
   const channels = ins ? Object.keys(ins).filter((k) => k !== 'generatedAt' && k !== '__day') : [];
   // Cold-gen produces the shared, tenant-neutral snapshot (no viewer uid) — see generateInsights.
   if (channels.length === 0 && process.env.ANTHROPIC_API_KEY) ins = await generateInsights(name || host, host);
+  if (!ins) return {};
+  if (uid && isPublicHost(host)) {
+    try {
+      const ov = await applyOverlay(host, uid, ins);
+      if (ov) {
+        ins = Object.assign({}, ins);   // shallow copy — NEVER mutate the shared cached object
+        for (const k of ['ads', 'social', 'website', 'email']) {
+          if (ins[k] && ov.channels[k]) ins[k] = Object.assign({}, ins[k], { apply: ov.channels[k] });
+        }
+        if (ov.move && ins.brief) ins.brief = Object.assign({}, ins.brief, { move: ov.move });
+      }
+    } catch (e) { /* fall back to the neutral read */ }
+  }
   return ins || {};
 }
