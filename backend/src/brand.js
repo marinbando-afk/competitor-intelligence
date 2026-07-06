@@ -6,9 +6,10 @@
 //   POST /api/my-brand { name, website }    -> { brand }   (scans site, builds profile)
 //
 // Stored via the snapshots table, one row per account: host `mybrand:<uid>`, channel
-// 'profile'. `uid` is null for the DEFAULT/illustrative bucket (`mybrand:__default__`)
-// used to tailor the shared EXAMPLE brands' "apply" tips during the daily warm, where
-// there is no single logged-in viewer to personalize for.
+// 'profile'. There is NO default/illustrative brand: getMyBrand(falsy) returns null, so
+// the shared per-host insights/weekly and all anonymous output stay brand-NEUTRAL (generic
+// wording, no brand name). Per-account tailoring happens only for a real signed-in uid
+// (per-viewer, via the applyOverlay in insights.js) — never baked into shared data.
 
 import { siteSummary } from './website.js';
 import { saveSnapshot, latestSnapshot } from './snapshots.js';
@@ -16,8 +17,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const MODEL = process.env.BRAND_MODEL || 'claude-haiku-4-5';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
-const LEGACY_KEY = '__mybrand__';   // pre-multi-tenant singleton — migrated once into the default bucket
-function brandKey(uid) { return uid ? ('mybrand:' + uid) : 'mybrand:__default__'; }
+function brandKey(uid) { return 'mybrand:' + uid; }
 
 let _client;
 function client() { if (!_client) _client = new Anthropic(); return _client; }
@@ -31,35 +31,25 @@ function stripText(h) {
     .replace(/\s+/g, ' ').trim();
 }
 
-const _cache = new Map();   // uid (or 'default') -> profile|null, undefined = not loaded
-let _migrated = false;
-// One-time, lazy: carry the old single-tenant brand into the default/illustrative
-// bucket, so the shared EXAMPLE brands keep a sensible "apply" tip after this
-// upgrade, with no manual migration step.
-async function migrateLegacyOnce() {
-  if (_migrated) return;
-  _migrated = true;
-  try {
-    const already = await latestSnapshot(brandKey(null), 'profile');
-    if (already) return;
-    const legacy = await latestSnapshot(LEGACY_KEY, 'profile');
-    if (legacy && legacy.profile) await saveSnapshot(brandKey(null), 'profile', legacy);
-  } catch (e) { /* best effort */ }
-}
+const _cache = new Map();   // uid -> profile|null, undefined = not loaded
 
 export async function getMyBrand(uid) {
-  await migrateLegacyOnce();
-  const ck = uid || 'default';
-  if (_cache.has(ck)) return _cache.get(ck);
+  // No uid → NO brand. There is deliberately no default/illustrative brand any more:
+  // shared per-host insights/weekly and all anonymous output stay brand-NEUTRAL (generic
+  // wording, no brand name — the founder asked to remove their own brand from anything a
+  // client/prospect sees). Tailoring happens ONLY for a real signed-in uid, via the
+  // per-viewer overlay. See [[shared-snapshots-tenant-neutral]] / my-brand-apply.
+  if (!uid) return null;
+  if (_cache.has(uid)) return _cache.get(uid);
   const d = await latestSnapshot(brandKey(uid), 'profile');
   const val = (d && d.profile) ? d : null;   // a 'cleared' marker has no profile
-  _cache.set(ck, val);
+  _cache.set(uid, val);
   return val;
 }
 
 export async function clearMyBrand(uid) {
   await saveSnapshot(brandKey(uid), 'profile', { cleared: true, builtAt: new Date().toISOString() });
-  _cache.set(uid || 'default', null);
+  _cache.set(uid, null);
 }
 
 export async function setMyBrand(uid, name, website, mainProduct) {
@@ -70,7 +60,7 @@ export async function setMyBrand(uid, name, website, mainProduct) {
   const { profile, catalog } = await buildProfile(host, url, name, mp);
   const data = { name: oneLine(name) || host, host, url, mainProduct: mp, profile, catalog, builtAt: new Date().toISOString() };
   await saveSnapshot(brandKey(uid), 'profile', data);
-  _cache.set(uid || 'default', data);
+  _cache.set(uid, data);
   return data;
 }
 

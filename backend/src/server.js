@@ -20,11 +20,11 @@ import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo } fro
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
-import { getInsights, quickAngle, creditStatus } from './insights.js';
+import { getInsights, generateInsights, quickAngle, creditStatus } from './insights.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { systemStats } from './stats.js';
-import { getWeekly } from './weekly.js';
+import { getWeekly, generateWeekly, mondayOf } from './weekly.js';
 import { snapshotDays, snapshotForDay, recentSnapshots } from './snapshots.js';
 
 const app = express();
@@ -415,6 +415,30 @@ app.get('/api/admin/delete-user', async (req, res) => {
     if (!r.rows[0]) return res.status(404).json({ error: 'No non-admin account with that email.' });
     res.json({ ok: true, deleted: email });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+// Force-regenerate the tenant-neutral insights + current-week weekly for every brand now
+// (e.g. after a change to how the shared reads are generated). Runs in the background so
+// the request returns immediately; overlays are per-viewer and regenerate lazily on read.
+let _adminRefreshing = false;
+app.post('/api/admin/refresh', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  if (_adminRefreshing) return res.json({ ok: true, already: true });
+  _adminRefreshing = true;
+  res.json({ ok: true, started: true });
+  (async () => {
+    let n = 0;
+    try {
+      const brands = await allBrands();
+      const curMon = mondayOf(new Date().toISOString().slice(0, 10));
+      for (const b of brands) {
+        try { await generateInsights(b.name, b.host); } catch (e) { /* best-effort */ }
+        try { await generateWeekly(b.host, b.name, curMon); } catch (e) { /* best-effort */ }
+        n++;
+      }
+      console.log('✓ admin refresh: regenerated insights+weekly for ' + n + ' brand(s)');
+    } catch (e) { console.warn('admin refresh:', e.message); }
+    finally { _adminRefreshing = false; }
+  })();
 });
 
 app.post('/api/login', async (req, res) => {
