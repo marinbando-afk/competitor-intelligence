@@ -79,5 +79,8 @@ export async function initSchema() {
     -- unlimited competitors and the submissions inbox.
     ALTER TABLE users ADD COLUMN IF NOT EXISTS admin BOOLEAN NOT NULL DEFAULT FALSE;
     UPDATE users SET approved = TRUE, admin = TRUE WHERE email = 'marin.bando@gmail.com';
+    -- Per-account Slack: users paste their own Incoming Webhook to get their daily brief
+    -- + weekly report links in their own channel.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS slack_webhook TEXT;
   `);
 }

@@ -16,7 +16,7 @@ import { signup, login, requireAuth, optionalUid, JWT_IS_DEFAULT } from './auth.
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
 import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, TRACKED } from './refresh.js';
-import { postText, postDailyBrief, buildDailyBrief } from './slack.js';
+import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
@@ -427,9 +427,39 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.get('/api/me', requireAuth, async (req, res) => {
-  let admin = false;
-  try { const r = await pool.query('SELECT admin FROM users WHERE id = $1', [req.user.uid]); admin = !!(r.rows[0] && r.rows[0].admin); } catch (e) { /* default false */ }
-  res.json({ user: { id: req.user.uid, email: req.user.email, admin } });
+  let admin = false, slack = false;
+  try { const r = await pool.query('SELECT admin, slack_webhook FROM users WHERE id = $1', [req.user.uid]); admin = !!(r.rows[0] && r.rows[0].admin); slack = !!(r.rows[0] && r.rows[0].slack_webhook); } catch (e) { /* defaults */ }
+  res.json({ user: { id: req.user.uid, email: req.user.email, admin, slack } });
+});
+
+// ── Per-account Slack connection ──────────────────────────────────────────────
+app.get('/api/slack', requireAuth, async (req, res) => {
+  try { const r = await pool.query('SELECT slack_webhook FROM users WHERE id=$1', [req.user.uid]); res.json({ connected: !!(r.rows[0] && r.rows[0].slack_webhook) }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/slack', requireAuth, async (req, res) => {
+  try {
+    const url = String((req.body && req.body.webhook) || '').trim();
+    if (!isSlackWebhook(url)) return res.status(400).json({ error: 'That doesn’t look like a Slack Incoming Webhook (it should start with https://hooks.slack.com/services/).' });
+    const ping = await postTo(url, '✅ *WatchBack connected.* Your daily competitor brief will land here every morning — plus weekly report links on Mondays.');
+    if (!ping.sent) return res.status(400).json({ error: 'Slack rejected that webhook — double-check you copied the full URL.' });
+    await pool.query('UPDATE users SET slack_webhook=$2 WHERE id=$1', [req.user.uid, url]);
+    res.json({ ok: true, connected: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/slack/test', aiLimit, requireAuth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT slack_webhook FROM users WHERE id=$1', [req.user.uid]);
+    const w = r.rows[0] && r.rows[0].slack_webhook;
+    if (!w) return res.status(400).json({ error: 'No Slack connected yet.' });
+    const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id=$1 ORDER BY created_at ASC', [req.user.uid]);
+    const s = await postTo(w, await buildDailyBrief(cs.rows));
+    res.json({ sent: s.sent });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/slack', requireAuth, async (req, res) => {
+  try { await pool.query('UPDATE users SET slack_webhook=NULL WHERE id=$1', [req.user.uid]); res.json({ ok: true, connected: false }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/competitors', requireAuth, async (req, res) => {
@@ -465,15 +495,32 @@ app.post('/api/competitors', requireAuth, async (req, res) => {
 // Update a competitor's watch status (setup -> baseline -> watching), per user.
 app.patch('/api/competitors/:id', requireAuth, async (req, res) => {
   try {
-    const { status } = req.body || {};
+    const b = req.body || {};
+    // Status-only update (the lifecycle path) keeps its narrow query.
+    if (b.status !== undefined && b.name === undefined && b.handles === undefined && b.url === undefined && b.country === undefined) {
+      const r = await pool.query(
+        'UPDATE competitors SET status = $1, updated_at = now() WHERE id = $2 AND user_id = $3 RETURNING id, status, updated_at',
+        [String(b.status || 'setup').slice(0, 24), req.params.id, req.user.uid]);
+      if (!r.rows[0]) return res.status(404).json({ error: 'Not found.' });
+      return res.json({ competitor: r.rows[0] });
+    }
+    // Full edit: name / url / country / handles. Host (identity) is NOT changed here —
+    // a different domain is a different competitor (the app deletes + re-adds for that).
     const r = await pool.query(
-      'UPDATE competitors SET status = $1, updated_at = now() WHERE id = $2 AND user_id = $3 RETURNING id, status, updated_at',
-      [String(status || 'setup').slice(0, 24), req.params.id, req.user.uid],
-    );
+      `UPDATE competitors SET
+         name = COALESCE($1, name), url = COALESCE($2, url), country = COALESCE($3, country),
+         handles = COALESCE($4, handles), updated_at = now()
+       WHERE id = $5 AND user_id = $6
+       RETURNING id, name, host, url, country, status, handles, created_at, updated_at`,
+      [b.name != null ? String(b.name).slice(0, 120) : null,
+       b.url != null ? String(b.url).slice(0, 500) : null,
+       b.country != null ? String(b.country).slice(0, 8).toUpperCase() : null,
+       b.handles != null ? JSON.stringify(b.handles) : null,
+       req.params.id, req.user.uid]);
     if (!r.rows[0]) return res.status(404).json({ error: 'Not found.' });
     res.json({ competitor: r.rows[0] });
   } catch (e) {
-    res.status(500).json({ error: 'Could not update status.' });
+    res.status(500).json({ error: 'Could not update competitor.' });
   }
 });
 

@@ -246,9 +246,9 @@ button{font-family:inherit;cursor:pointer}
 .intel-h{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--sage);margin:0 0 8px}
 .intel-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);box-shadow:0 0 7px var(--sage);animation:dotpulse 1.2s ease-in-out infinite}
 .intel-s{font-size:14px;line-height:1.5;color:var(--text);font-weight:500;margin:0 0 10px}
-.intel-l{margin:0 0 12px;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px}
-.intel-l li{position:relative;padding-left:15px;font-size:12.5px;line-height:1.5;color:var(--muted)}
-.intel-l li::before{content:'›';position:absolute;left:2px;top:-1px;color:var(--sage);font-weight:700}
+.intel-l{margin:0 0 12px;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+.intel-l li{position:relative;padding-left:17px;font-size:13px;line-height:1.55;color:var(--muted)}
+.intel-l li::before{content:'';position:absolute;left:2px;top:7px;width:5px;height:5px;border-radius:50%;background:var(--sage-d)}
 .emlov{position:fixed;inset:0;z-index:80;background:rgba(4,7,9,.72);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:24px}
 .emlov.open{display:flex}
 .emlmodal{width:680px;max-width:96vw;height:84vh;max-height:860px;background:var(--panel);border:1px solid var(--line2);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.6)}
@@ -400,10 +400,14 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .up-rows{display:flex;flex-direction:column;gap:1px;background:var(--line2);border:1px solid var(--line2);border-radius:10px;overflow:hidden;margin:18px 0 22px;text-align:left}
 .up-row{display:flex;justify-content:space-between;gap:12px;padding:11px 14px;background:var(--panel);font-size:13px;color:var(--muted)}
 .up-row b{color:var(--sage);white-space:nowrap}
-.fbfab{position:fixed;left:22px;bottom:22px;z-index:40;display:inline-flex;align-items:center;gap:7px;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:24px;padding:10px 16px;font-size:12.5px;font-weight:500;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.35);transition:.15s}
-.fbfab.bug{bottom:68px;border-color:rgba(226,85,79,.4)}
+/* Collapsed to an icon; the label slides open on hover so they don't hog space. */
+.fbfab{position:fixed;left:22px;bottom:22px;z-index:40;display:inline-flex;align-items:center;height:42px;padding:0;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:21px;font-size:12.5px;font-weight:500;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.35);overflow:hidden;transition:border-color .15s,transform .15s,box-shadow .15s}
+.fbfab.bug{bottom:74px;border-color:rgba(226,85,79,.4)}
 .fbfab.bug:hover{border-color:var(--clay)}
-.fbfab:hover{border-color:var(--sage-d);transform:translateY(-2px)}
+.fbfab .fbic{flex:none;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.fbfab .fblabel{max-width:0;opacity:0;white-space:nowrap;transition:max-width .22s ease,opacity .16s,padding .22s}
+.fbfab:hover{border-color:var(--sage-d);transform:translateY(-2px);box-shadow:0 12px 28px rgba(0,0,0,.45)}
+.fbfab:hover .fblabel{max-width:160px;opacity:1;padding-right:17px}
 .fld textarea{width:100%;background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:12px 14px;color:var(--text);font-family:inherit;font-size:14px;line-height:1.5;outline:none;resize:vertical;min-height:90px;transition:.15s}
 .fld textarea:focus{border-color:var(--sage);box-shadow:0 0 0 3px var(--sage-soft)}
 .fb-viewbtn{margin-top:18px;width:100%;background:none;border:1px dashed var(--line2);border-radius:9px;padding:9px;color:var(--sage);font-family:var(--mono);font-size:11px;letter-spacing:.05em;cursor:pointer}
@@ -412,6 +416,9 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .fb-list{display:flex;flex-direction:column;gap:9px;max-height:300px;overflow-y:auto}
 .fb-item{border:1px solid var(--line2);border-radius:9px;padding:10px 12px;background:var(--bg)}
 .fb-meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:5px}
+.slack-steps{margin:0 0 18px;padding-left:20px;color:var(--muted);font-size:13.5px;line-height:1.6}
+.slack-steps li{margin-bottom:7px}
+.slack-steps b{color:var(--text)}
 .admin-modal{max-width:600px}
 .admin-tabs{display:flex;gap:8px;margin:4px 0 16px}
 .atab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:7px 13px;border-radius:7px;border:1px solid var(--line2);background:none;color:var(--muted);cursor:pointer}
@@ -542,8 +549,8 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 
 <div class="ov" id="ov" onclick="if(event.target===this)closeModal()">
   <div class="modal">
-    <h2>Add a competitor</h2>
-    <p>We'll observe their ads, social, website, and email — then tell you what it means and what to do.</p>
+    <h2 id="ovTitle">Add a competitor</h2>
+    <p id="ovIntro">We'll observe their ads, social, website, and email — then tell you what it means and what to do.</p>
     <div class="fld"><label for="fN">Brand name</label><input id="fN" type="text" placeholder="e.g. The Oodie" autocomplete="off"/><div class="er" id="eN">Please enter a name.</div></div>
     <div class="fld"><label for="fU">Website</label><input id="fU" type="text" placeholder="e.g. theoodie.com" autocomplete="off"/><div class="er" id="eU">Please enter a valid website.</div></div>
     <div id="confirmPanel" style="display:none">
@@ -580,6 +587,25 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
   </div>
 </div>
 
+<div class="ov" id="slackOv" onclick="if(event.target===this)closeSlack()">
+  <div class="modal">
+    <h2>⚡ Daily brief in Slack</h2>
+    <p>Get your one-line-per-competitor brief every morning — plus weekly report links on Mondays — posted straight to a Slack channel.</p>
+    <div id="slackConnected" style="display:none">
+      <div class="subok" style="margin-bottom:16px">✓ Slack is connected. Your daily brief posts every morning.</div>
+      <div class="m-act"><button class="btn btn-g" onclick="slackTest(this)">Send a test now</button><button class="btn btn-g" id="slkDisc" onclick="slackDisconnect(this)">Disconnect</button><button class="btn btn-p" onclick="closeSlack()">Done</button></div>
+    </div>
+    <div id="slackForm">
+      <ol class="slack-steps">
+        <li>In Slack, open <b>Apps</b> → add <b>Incoming Webhooks</b> → <b>Add to Slack</b>, pick the channel, and copy the <b>Webhook URL</b>.</li>
+        <li>Paste it below — we'll send a test ping to confirm.</li>
+      </ol>
+      <div class="fld"><label for="slkUrl">Slack Incoming Webhook URL</label><input id="slkUrl" type="text" placeholder="https://hooks.slack.com/services/…" autocomplete="off"/><div class="er" id="slkErr"></div></div>
+      <div class="m-act"><button class="btn btn-g" onclick="closeSlack()">Cancel</button><button class="btn btn-p" id="slkGo" onclick="slackConnect()">Connect Slack</button></div>
+    </div>
+  </div>
+</div>
+
 <div class="ov" id="upOv" onclick="if(event.target===this)closeUpgrade()">
   <div class="modal">
     <h2>Upgrade your plan</h2>
@@ -593,8 +619,8 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
   </div>
 </div>
 
-<button class="fbfab" id="fbFab" onclick="openFeedback('feature')" title="Want a new feature? Let us know"><span>💡</span> Want a feature?</button>
-<button class="fbfab bug" id="bugFab" onclick="openFeedback('bug')" title="Found a bug? Tell us"><span>🐞</span> Report a bug</button>
+<button class="fbfab" id="fbFab" onclick="openFeedback('feature')" title="Want a new feature? Let us know"><span class="fbic">💡</span><span class="fblabel">Want a feature?</span></button>
+<button class="fbfab bug" id="bugFab" onclick="openFeedback('bug')" title="Found a bug? Tell us"><span class="fbic">🐞</span><span class="fblabel">Report a bug</span></button>
 <div class="ov" id="fbOv" onclick="if(event.target===this)closeFeedback()">
   <div class="modal" id="fbModal">
     <h2 id="fbTitle">Want a new feature? Let us know</h2>
@@ -749,13 +775,29 @@ function loadUserComps(cb){
 }
 function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');}catch(e){}clearMyBrandLocal();insightsCache={};angleCache={};paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
 function paintAuth(){refreshAdmin();var s=document.getElementById('authSlot');if(!s)return;
-  if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML=(ADMIN?'<button class="authbtn" onclick="openAdmin()" title="Admin panel">⚙ Admin</button>':'')+'<span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+(ADMIN?' · admin':'')+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
+  if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML=(ADMIN?'<button class="authbtn" onclick="openAdmin()" title="Admin panel">⚙ Admin</button>':'')+'<button class="authbtn" onclick="openSlack()" title="Get your daily brief in Slack">⚡ Slack'+((USER&&USER.slack)?' ✓':'')+'</button><span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+(ADMIN?' · admin':'')+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
   else{s.innerHTML='<button class="authbtn primary" onclick="openAuth(\'signin\')">Sign in</button>';}
   var ab=document.querySelector('.add-btn');if(ab)ab.title=loggedIn()?'Add a competitor to your watchlist':'Add your own competitor — sign in required';
   paintBrandChip();
 }
 function openAuth(mode,after){authMode=(mode==='signin')?'login':'signup';pendingAfterAuth=after||null;paintAuthMode();var er=document.getElementById('aErr');if(er)er.style.display='none';document.getElementById('authOv').classList.add('open');setTimeout(function(){document.getElementById('aE').focus();},40);}
 function closeAuth(){var o=document.getElementById('authOv');if(o)o.classList.remove('open');}
+/* ── Per-account Slack connection ── */
+function openSlack(){if(!loggedIn()){openAuth('signin',openSlack);return;}document.getElementById('slkErr').style.display='none';document.getElementById('slackOv').classList.add('open');renderSlack(!!(USER&&USER.slack));fetch(API+'/api/slack',{headers:authH()}).then(function(r){return r.json();}).then(function(d){renderSlack(!!(d&&d.connected));}).catch(function(){});}
+function closeSlack(){document.getElementById('slackOv').classList.remove('open');}
+function renderSlack(connected){document.getElementById('slackConnected').style.display=connected?'':'none';document.getElementById('slackForm').style.display=connected?'none':'';}
+function setUserSlack(v){if(USER){USER.slack=v;try{localStorage.setItem('ci_user',JSON.stringify(USER));}catch(e){}}paintAuth();}
+function slackConnect(){
+  var url=document.getElementById('slkUrl').value.trim(),er=document.getElementById('slkErr'),go=document.getElementById('slkGo');
+  er.style.display='none';go.disabled=true;var was=go.textContent;go.textContent='Connecting…';
+  fetch(API+'/api/slack',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({webhook:url})}).then(function(r){return r.json();}).then(function(d){
+    go.disabled=false;go.textContent=was;
+    if(d&&d.ok){setUserSlack(true);renderSlack(true);}
+    else{er.textContent=(d&&d.error)||'Couldn’t connect.';er.style.display='block';}
+  }).catch(function(){go.disabled=false;go.textContent=was;er.textContent='Network error — try again.';er.style.display='block';});
+}
+function slackTest(btn){btn.disabled=true;var w=btn.textContent;btn.textContent='Sending…';fetch(API+'/api/slack/test',{method:'POST',headers:authH()}).then(function(r){return r.json();}).then(function(d){btn.textContent=(d&&d.sent)?'Sent ✓':'Failed — check Slack';setTimeout(function(){btn.disabled=false;btn.textContent=w;},2000);}).catch(function(){btn.disabled=false;btn.textContent=w;});}
+function slackDisconnect(btn){btn.disabled=true;fetch(API+'/api/slack',{method:'DELETE',headers:authH()}).then(function(r){return r.json();}).then(function(){setUserSlack(false);renderSlack(false);btn.disabled=false;}).catch(function(){btn.disabled=false;});}
 function toggleAuthMode(){authMode=(authMode==='signup')?'login':'signup';paintAuthMode();}
 function paintAuthMode(){var t=document.getElementById('authTitle'),s=document.getElementById('authSub'),go=document.getElementById('authGo'),tg=document.getElementById('authToggle');if(!t)return;
   if(authMode==='signup'){t.textContent='Create your account';s.textContent='Save your competitors and pick up where you left off — on any device.';go.textContent='Create account';tg.textContent='Have an account? Sign in';}
@@ -1337,9 +1379,11 @@ function paintInsights(c,ins){
     if(sum&&o.summary){sum.className='chan-sum ai';sum.innerHTML=linkify(o.summary);}
     var box=document.getElementById('intel-'+k+'-'+c.id);
     if(box){
+      // The summary already shows in the collapsed row — don't repeat it here. The
+      // expanded AI box adds only the detail bullets + the tailored apply move.
       var bl=(o.bullets&&o.bullets.length)?'<ul class="intel-l">'+o.bullets.map(function(b){return '<li>'+linkify(b)+'</li>';}).join('')+'</ul>':'';
       var ap=o.apply?'<div class="intel-apply"><span class="ia-h">↳ Apply to '+esc((myBrand&&myBrand.name)||'your brand')+'</span>'+linkify(o.apply)+'</div>':'';
-      box.innerHTML='<div class="intel-h"><span class="intel-dot"></span>AI read</div>'+(o.summary?'<div class="intel-s">'+linkify(o.summary)+'</div>':'')+bl+ap;
+      box.innerHTML=(bl||ap)?('<div class="intel-h"><span class="intel-dot"></span>AI read</div>'+bl+ap):'';
     }
   });
 }
@@ -1492,11 +1536,12 @@ function report(c){
   var back='<button class="back-btn" onclick="back()"><svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Watchlist</button>';
   var meta;
   var wk=' · <a class="wklink" href="report.html?host='+encodeURIComponent(c.host)+'" target="_blank" rel="noopener" title="This week\'s shareable intelligence report">Weekly report ↗</a>';
+  var ed=c.account?' · <a class="wklink" href="#" onclick="openConfirmPages(\''+c.id+'\');return false" title="Edit name, social pages, or replace this competitor">✎ Edit</a>':'';
   if(state.day){meta=esc(c.host)+' · <span class="snaplbl">📅 viewing '+esc(fmtFullDay(state.day))+'</span>';}
   else if(c.live){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Live feed</span><span class="asof" id="asof-'+c.id+'"></span><span class="lr" id="lr-'+c.id+'"></span>'+wk;}
   else if(c.demo){meta=esc(c.host)+' · scanned '+ago(c.updatedAt)+' ago'+wk;}
-  else if(c.status==='watching'){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Watched daily</span> · scanned '+ago(c.updatedAt)+' ago'+wk;}
-  else{meta=esc(c.host);}
+  else if(c.status==='watching'){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Watched daily</span> · scanned '+ago(c.updatedAt)+' ago'+wk+ed;}
+  else{meta=esc(c.host)+ed;}
   var exTag=c.demo?'<span class="ex-tag">Real example</span>':'';
   var exNote=c.demo?'<div class="ex-note">A real brand we track as a live example of how WatchBack works — not one of your competitors.</div>':'';
   var head=back+'<div class="rep-head"><span class="rep-badge">'+badge(c)+'</span>'
@@ -1565,7 +1610,7 @@ function select(id){
 function back(){document.getElementById('app').dataset.view='list';}
 
 function openModal(){document.getElementById('ov').classList.add('open');setTimeout(function(){document.getElementById('fN').focus();},40);}
-function closeModal(){document.getElementById('ov').classList.remove('open');document.getElementById('eN').style.display='none';document.getElementById('eU').style.display='none';document.getElementById('fN').value='';document.getElementById('fU').value='';resetConfirm();}
+function closeModal(){document.getElementById('ov').classList.remove('open');document.getElementById('eN').style.display='none';document.getElementById('eU').style.display='none';document.getElementById('fN').value='';document.getElementById('fU').value='';editingComp=null;document.getElementById('ovTitle').textContent='Add a competitor';document.getElementById('ovIntro').textContent="We'll observe their ads, social, website, and email — then tell you what it means and what to do.";var cfc=document.getElementById('cfConfirm');if(cfc)cfc.textContent='Confirm & add';resetConfirm();}
 function resetConfirm(){var p=document.getElementById('confirmPanel');if(p)p.style.display='none';['cfFb','cfIg','cfTt'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});var d=document.getElementById('cfDetect'),c=document.getElementById('cfConfirm');if(d){d.style.display='';d.textContent='Detect pages';d.disabled=false;}if(c)c.style.display='none';}
 function normUrl(v){v=(v||'').trim();if(!v)return null;if(!/^https?:\/\//i.test(v))v='https://'+v;try{var u=new URL(v);if(!u.hostname.includes('.'))return null;return u;}catch(e){return null;}}
 // Step 1 → detect their social pages from the website so the user can confirm them.
@@ -1593,8 +1638,23 @@ function finishDetect(){var b=document.getElementById('cfDetect');b.disabled=fal
 function confirmAdd(){
   var n=document.getElementById('fN').value.trim(),u=normUrl(document.getElementById('fU').value);
   if(!n||!u){continueAdd();return;}
+  var newHost=u.hostname.replace(/^www\./,'');
   var handles={fb:normUrlHandle('facebook',document.getElementById('cfFb').value),ig:normUrlHandle('instagram',document.getElementById('cfIg').value),tt:normUrlHandle('tiktok',document.getElementById('cfTt').value),confirmed:true};
-  saveComp({name:n,host:u.hostname.replace(/^www\./,''),url:u.href,country:'ALL',handles:handles});
+  if(editingComp){
+    if(newHost===editingComp.host){patchComp(editingComp.dbId,{name:n,url:u.href,handles:handles});return;}   // same site → update in place (keeps its history)
+    var oldId=editingComp.dbId;   // different site → replace: add the new one, drop the old
+    saveComp({name:n,host:newHost,url:u.href,country:'ALL',handles:handles},function(){fetch(API+'/api/competitors/'+oldId,{method:'DELETE',headers:authH()}).then(function(){USERCOMPS=USERCOMPS.filter(function(x){return x.dbId!==oldId;});registerCompetitors();}).catch(function(){});});
+    return;
+  }
+  saveComp({name:n,host:newHost,url:u.href,country:'ALL',handles:handles});
+}
+function patchComp(dbId,body){
+  fetch(API+'/api/competitors/'+dbId,{method:'PATCH',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify(body)})
+    .then(function(r){if(r.status===401){doSignout(true);throw 0;}return r.json();})
+    .then(function(d){
+      if(d&&d.competitor){var c=mapServerComp(d.competitor);USERCOMPS=USERCOMPS.map(function(x){return x.dbId===c.dbId?c:x;});trackComp(c);editingComp=null;closeModal();state.sel=c.id;document.getElementById('app').dataset.view='detail';delete insightsCache[c.host];render();}
+      else{var eU=document.getElementById('eU');eU.textContent=(d&&d.error)||'Could not save — please try again.';eU.style.display='block';}
+    }).catch(function(){});
 }
 // Accept a pasted URL or a bare handle and reduce it to the stored handle form.
 function normUrlHandle(p,val){
@@ -1618,10 +1678,16 @@ function handleToUrl(p,h){
   return '';
 }
 function cfCheck(p){var id={facebook:'cfFb',instagram:'cfIg',tiktok:'cfTt'}[p];var v=document.getElementById(id).value.trim();if(!v)return;var h=normUrlHandle(p,v),url=handleToUrl(p,h)||(/^https?:\/\//i.test(v)?v:'https://'+v);window.open(url,'_blank','noopener');}
-// Re-open the confirm step for an EXISTING competitor, pre-filled with its current pages, so the user can verify/fix and confirm them.
+// EDIT / confirm the pages of an EXISTING competitor, pre-filled with its current
+// details, so the user can fix a wrong Facebook/Instagram/TikTok, rename it, or
+// point it at a different site (a domain change = replace).
+var editingComp=null;
 function openConfirmPages(id){
-  var c=getList().filter(function(x){return x.id===id;})[0];if(!c)return;
+  var c=getList().filter(function(x){return x.id===id;})[0];if(!c||c.demo)return;
+  editingComp={id:c.id,dbId:c.dbId,host:c.host};
   openModal();
+  document.getElementById('ovTitle').textContent='Edit '+(c.name||'competitor');
+  document.getElementById('ovIntro').textContent='Fix a wrong social page, rename it, or point it at a different site. Changing the website replaces it with the new competitor.';
   document.getElementById('fN').value=c.name||'';
   document.getElementById('fU').value=c.url||('https://'+(c.host||''));
   var h=c.handles||{},q=encodeURIComponent;
@@ -1632,14 +1698,14 @@ function openConfirmPages(id){
   document.getElementById('cfIgFind').href='https://www.google.com/search?q='+q('site:instagram.com '+(c.name||''));
   document.getElementById('cfTtFind').href='https://www.google.com/search?q='+q('site:tiktok.com '+(c.name||''));
   document.getElementById('confirmPanel').style.display='block';
-  document.getElementById('cfConfirm').style.display='';
+  var cfc=document.getElementById('cfConfirm');cfc.style.display='';cfc.textContent='Save changes';
   var dt=document.getElementById('cfDetect');if(dt)dt.textContent='Re-detect';
 }
-function saveComp(body){
+function saveComp(body,after){
   fetch(API+'/api/competitors',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify(body)})
     .then(function(r){if(r.status===401){doSignout(true);throw 0;}return r.json();})
     .then(function(d){
-      if(d&&d.competitor){var c=mapServerComp(d.competitor);USERCOMPS=USERCOMPS.filter(function(x){return x.dbId!==c.dbId;});USERCOMPS.unshift(c);trackComp(c);state.sel=c.id;closeModal();document.getElementById('app').dataset.view='detail';render();}
+      if(d&&d.competitor){var c=mapServerComp(d.competitor);USERCOMPS=USERCOMPS.filter(function(x){return x.dbId!==c.dbId;});USERCOMPS.unshift(c);trackComp(c);editingComp=null;state.sel=c.id;closeModal();document.getElementById('app').dataset.view='detail';delete insightsCache[c.host];render();if(after)after();}
       else{var eU=document.getElementById('eU');eU.textContent=(d&&d.error)||'Could not save — please try again.';eU.style.display='block';}
     })
     .catch(function(){});

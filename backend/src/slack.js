@@ -77,13 +77,55 @@ export async function postDailyBrief(brands) {
 // Plain mrkdwn post to the founder webhook (used for weekly-report links etc.).
 export async function postText(text) {
   if (!slackEnabled()) return { sent: false, reason: 'SLACK_WEBHOOK_URL not set' };
+  return postTo(process.env.SLACK_WEBHOOK_URL, text);
+}
+
+// Post to ANY Slack Incoming Webhook (per-user briefs). Validates the URL shape so a
+// pasted junk string can't hit an arbitrary host.
+export function isSlackWebhook(url) { return /^https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9/_-]+$/.test(String(url || '')); }
+export async function postTo(webhook, text) {
+  if (!isSlackWebhook(webhook)) return { sent: false, error: 'Invalid Slack webhook URL.' };
   try {
-    const r = await fetch(process.env.SLACK_WEBHOOK_URL, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, mrkdwn: true }),
-    });
-    return { sent: r.ok };
+    const r = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, mrkdwn: true }) });
+    return { sent: r.ok, status: r.status };
   } catch (e) { return { sent: false, error: e.message }; }
+}
+
+// Per-account daily briefs: every user who connected Slack gets THEIR OWN competitors'
+// brief in THEIR channel. (The env webhook, if set, still gets the founder's roll-up.)
+export async function sendUserDailyBriefs(pool) {
+  if (!pool) return;
+  let sent = 0;
+  try {
+    const us = await pool.query(`SELECT id, slack_webhook FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
+    for (const u of us.rows) {
+      try {
+        const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [u.id]);
+        if (!cs.rows.length) continue;
+        const text = await buildDailyBrief(cs.rows);
+        const r = await postTo(u.slack_webhook, text);
+        if (r.sent) sent++;
+      } catch (e) { /* skip this user */ }
+    }
+  } catch (e) { console.warn('sendUserDailyBriefs:', e.message); }
+  if (sent) console.log('✓ per-user Slack daily briefs sent: ' + sent);
+}
+
+// Monday: each user with Slack gets links to THEIR competitors' weekly reports.
+export async function sendUserWeeklyLinks(pool, weekLabel) {
+  if (!pool) return;
+  try {
+    const us = await pool.query(`SELECT id, slack_webhook FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
+    for (const u of us.rows) {
+      try {
+        const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [u.id]);
+        if (!cs.rows.length) continue;
+        const text = '📊 *Weekly competitor reports are ready* (' + weekLabel + '):\n' +
+          cs.rows.map((c) => '• ' + c.name + ' — https://watchback.ai/report.html?host=' + c.host).join('\n');
+        await postTo(u.slack_webhook, text);
+      } catch (e) { /* skip this user */ }
+    }
+  } catch (e) { console.warn('sendUserWeeklyLinks:', e.message); }
 }
 
 export async function postDigest(brands) {
