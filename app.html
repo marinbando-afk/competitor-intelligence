@@ -1252,7 +1252,10 @@ function ensureHist(c){
   histDays[c.host]=[];
   fetch(API+'/api/history?host='+encodeURIComponent(c.host||'')).then(function(r){return r.json();}).then(function(d){
     histDays[c.host]=(d.days||[]).map(function(x){return String(x).slice(0,10);});
-    if(state.sel===c.id)refreshDateFloat();
+    if(state.sel===c.id){
+      if(state.day&&histDays[c.host].indexOf(state.day)<0)goToday();   // carried a date this competitor never captured → snap to today
+      else refreshDateFloat();
+    }
   }).catch(function(){});
 }
 // Stamp the live header with the date of the latest capture, so "Live feed" is never
@@ -1548,7 +1551,17 @@ function render(){
   syncChat(cur);
 }
 function setDate(){var d=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];document.getElementById('topDate').textContent=days[d.getDay()]+' '+String(d.getDate()).padStart(2,'0')+' '+mo[d.getMonth()]+' '+d.getFullYear();}
-function select(id){state.sel=id;state.day=null;viewSnap=null;document.getElementById('app').dataset.view='detail';render();document.getElementById('detail').scrollTop=0;}
+function select(id){
+  state.sel=id;viewSnap=null;
+  document.getElementById('app').dataset.view='detail';
+  // Keep the viewed date when switching competitors — but only if the new one actually
+  // captured it (known history); otherwise fall back to today. (Unknown history is
+  // validated once it loads, in ensureHist.)
+  var c=getList().find(function(x){return x.id===id;});
+  if(state.day&&c&&histDays[c.host]&&histDays[c.host].indexOf(state.day)<0)state.day=null;
+  render();document.getElementById('detail').scrollTop=0;
+  if(state.day)goDay(state.day);   // reload this competitor's snapshot for the kept date
+}
 function back(){document.getElementById('app').dataset.view='list';}
 
 function openModal(){document.getElementById('ov').classList.add('open');setTimeout(function(){document.getElementById('fN').focus();},40);}
