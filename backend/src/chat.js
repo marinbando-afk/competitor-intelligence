@@ -121,7 +121,7 @@ export async function chat(body, uid) {
   // Load the same insights the user is looking at in-app, so the chat NEVER contradicts the AI-read panel.
   let analysis = '';
   try {
-    const ins = await getInsights(host, name, false, uid);
+    const ins = await getInsights(host, name, false);   // shared, tenant-neutral snapshot (no per-viewer tailoring)
     if (ins) {
       const parts = [];
       for (const [k, label] of [['ads', 'Ads'], ['social', 'Social'], ['website', 'Website'], ['email', 'Email']]) {

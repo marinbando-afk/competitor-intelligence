@@ -80,17 +80,10 @@ export async function warmBrand(b, force) {
   }
   try { const em = await getEmails(b.host); if (em && em.storage) await saveSnapshot(b.host, 'email', em); } catch (e) { /* best-effort */ }
   try { await captureWebsiteFull(b.host, b.url || ('https://' + b.host)); ok++; } catch (e) { fail++; console.warn('warm website ' + b.name + ':', e.message); }
-  // Tailor the insights (apply tips + counter-op) to the brand of the account that
-  // OWNS this competitor — so a client's competitors advise THEIR brand, not the
-  // default. First owner wins (consistent with one-competitor-one-dataset).
-  let ownerUid = null;
-  try {
-    if (process.env.DATABASE_URL) {
-      const o = await pool.query('SELECT user_id FROM competitors WHERE host = $1 ORDER BY created_at ASC LIMIT 1', [b.host]);
-      ownerUid = (o.rows[0] && o.rows[0].user_id) || null;
-    }
-  } catch (e) { /* default-bucket tailoring */ }
-  try { await generateInsights(b.name, b.host, ownerUid); ok++; } catch (e) { fail++; console.warn('warm insights ' + b.name + ':', e.message); }
+  // Insights live in ONE shared per-host snapshot that every co-watching account (and
+  // anonymous demo/report visitors) reads, so they're generated tenant-neutral — the
+  // "apply" tips use the default illustrative brand, never a customer's private one.
+  try { await generateInsights(b.name, b.host); ok++; } catch (e) { fail++; console.warn('warm insights ' + b.name + ':', e.message); }
   // Advance every customer's row for this host: fresh capture = status 'watching' and
   // updated_at = capture time, so the app's "scanned X ago" reflects DATA freshness,
   // not when the user last edited the competitor.

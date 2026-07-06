@@ -114,14 +114,12 @@ export async function generateWeekly(host, name, weekStart) {
   const digest = await weekDigest(host, weekStart, end);
   if (!digest) return null;
 
-  // Advise the brand of the account that OWNS this competitor (first owner wins);
-  // hosts nobody owns (the demos) fall back to the default illustrative brand.
-  let ownerUid = null;
-  try {
-    const o = await pool.query('SELECT user_id FROM competitors WHERE host = $1 ORDER BY created_at ASC LIMIT 1', [host]);
-    ownerUid = (o.rows[0] && o.rows[0].user_id) || null;
-  } catch (e) { /* default-bucket tailoring */ }
-  const me = await getMyBrand(ownerUid);
+  // The weekly report is a SINGLE shared per-host row, served UNAUTHENTICATED at a
+  // shareable link (report.html?host=…) and read by every co-watching account — so the
+  // counter-op must be tenant-neutral. Advise the default illustrative brand, never a
+  // real customer's (that would leak one client's brand and strategy to anyone with the
+  // link, including other clients who track the same competitor).
+  const me = await getMyBrand();
   const system =
     `You are WatchBack, a sharp eCommerce competitor-intelligence analyst writing the WEEKLY report on "${name}" for the week ${fmtDay(weekStart)}–${fmtDay(end)}. ` +
     `Rules, same as always: use ONLY the week's data below; cite dates, numbers, offers; every claim must trace to the data. Engagement counts are cumulative lifetime totals — a newer post showing fewer is normal, never a decline. Read deliberate moves as strategy with rationale; marketplace funnels are a channel choice, not a weakness. MATERIALITY: tiny fluctuations (an ad or two, one post) are routine rotation — never call them a pullback or strategic shift; reserve interpretation for material moves. Sanity-check every number ("would this look absurd to their own marketer?"). Complete sentences that never trail off.\n` +

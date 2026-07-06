@@ -1642,6 +1642,11 @@ function confirmAdd(){
   var handles={fb:normUrlHandle('facebook',document.getElementById('cfFb').value),ig:normUrlHandle('instagram',document.getElementById('cfIg').value),tt:normUrlHandle('tiktok',document.getElementById('cfTt').value),confirmed:true};
   if(editingComp){
     if(newHost===editingComp.host){patchComp(editingComp.dbId,{name:n,url:u.href,handles:handles});return;}   // same site → update in place (keeps its history)
+    // Guard: replacing with a site you ALREADY track would silently overwrite that OTHER
+    // competitor (the server upserts on host) and then delete this one — refuse instead.
+    if(USERCOMPS.some(function(x){return x.dbId!==editingComp.dbId&&x.host===newHost;})){
+      var eDup=document.getElementById('eU');eDup.textContent='You already track '+newHost+' as another competitor. Delete that one first, or point this at a different site.';eDup.style.display='block';return;
+    }
     var oldId=editingComp.dbId;   // different site → replace: add the new one, drop the old
     saveComp({name:n,host:newHost,url:u.href,country:'ALL',handles:handles},function(){fetch(API+'/api/competitors/'+oldId,{method:'DELETE',headers:authH()}).then(function(){USERCOMPS=USERCOMPS.filter(function(x){return x.dbId!==oldId;});registerCompetitors();}).catch(function(){});});
     return;

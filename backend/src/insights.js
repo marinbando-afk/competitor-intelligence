@@ -315,11 +315,17 @@ async function ask(channel, brand, todayBlock, prevBlock, me) {
 }
 
 // Generate insights for all channels of one brand and cache them as a snapshot.
-export async function generateInsights(brand, host, uid) {
+export async function generateInsights(brand, host) {
   if (!process.env.ANTHROPIC_API_KEY || !host) return null;
   brand = brand || host;
   const out = {};
-  const me = await getMyBrand(uid);   // uid unset (e.g. the daily warm) -> the shared/default illustrative brand
+  // The insights snapshot is a SINGLE shared row per host (snapshots key on host+channel,
+  // no uid) read by every co-watching account AND by anonymous demo/report visitors — so
+  // it MUST be tenant-neutral. Always tailor the "apply"/counter-op to the DEFAULT
+  // illustrative brand, NEVER a real customer's (that would leak one client's brand name,
+  // catalogue and prices to every other viewer). Per-viewer "apply to you" is done live in
+  // /api/angle, which is returned to the caller and never cached to a shared snapshot.
+  const me = await getMyBrand(null);
 
   try {
     const r = await recentSnapshots(host, 'ads', 2);
@@ -486,9 +492,10 @@ export async function quickAngle(text, kind, image, video, uid) {
 }
 
 // Read the latest cached insights; generate on demand if missing.
-export async function getInsights(host, name, refresh, uid) {
+export async function getInsights(host, name, refresh) {
   let ins = refresh ? null : await latestSnapshot(host, 'insights');
   const channels = ins ? Object.keys(ins).filter((k) => k !== 'generatedAt' && k !== '__day') : [];
-  if (channels.length === 0 && process.env.ANTHROPIC_API_KEY) ins = await generateInsights(name || host, host, uid);
+  // Cold-gen produces the shared, tenant-neutral snapshot (no viewer uid) — see generateInsights.
+  if (channels.length === 0 && process.env.ANTHROPIC_API_KEY) ins = await generateInsights(name || host, host);
   return ins || {};
 }
