@@ -424,6 +424,9 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .au-pill.ok{color:var(--quiet);border:1px solid var(--quiet)}
 .au-approve{font-family:var(--mono);font-size:11px;font-weight:600;padding:7px 13px;border-radius:7px;border:1px solid var(--sage-d);background:var(--sage-soft);color:var(--sage);cursor:pointer;flex:none}
 .au-approve:disabled{opacity:.5}
+.au-del{font-family:var(--mono);font-size:11px;font-weight:600;padding:7px 11px;border-radius:7px;border:1px solid rgba(226,85,79,.4);background:rgba(226,85,79,.08);color:var(--clay);cursor:pointer;flex:none}
+.au-del:hover{background:rgba(226,85,79,.16)}
+.au-del:disabled{opacity:.5}
 .fb-msg{font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap;word-break:break-word}
 .fb-shot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .fb-attbtn{font-size:12px;color:var(--text);background:var(--raised);border:1px solid var(--line2);border-radius:7px;padding:7px 12px;cursor:pointer}
@@ -1827,8 +1830,10 @@ function loadAdminUsers(){
     var us=d.users||[],pending=us.filter(function(u){return !u.approved;});
     b.innerHTML='<div class="fb-list-h">'+(pending.length?pending.length+' awaiting approval':'No pending signups')+' · '+us.length+' total</div>'
       +us.map(function(u){
-        return '<div class="au-row"><div style="min-width:0"><div class="au-em">'+esc(u.email)+(u.admin?' <span class="au-sub" style="display:inline">· admin</span>':'')+'</div><div class="au-sub">joined '+esc(fmtDay(u.created_at))+'</div></div>'
-          +(u.approved?'<span class="au-pill ok">Approved</span>':'<button class="au-approve" onclick="approveUser(this,\''+esc(u.email)+'\')">Approve</button>')+'</div>';
+        var actions=u.admin?'<span class="au-pill ok">Admin</span>'
+          :(u.approved?'<span class="au-pill ok">Approved</span>':'<button class="au-approve" onclick="approveUser(this,\''+esc(u.email)+'\')">Approve</button>')
+            +'<button class="au-del" title="Reject &amp; delete this account" onclick="deleteUser(this,\''+esc(u.email)+'\')">Reject</button>';
+        return '<div class="au-row"><div style="min-width:0"><div class="au-em">'+esc(u.email)+(u.admin?' <span class="au-sub" style="display:inline">· admin</span>':'')+'</div><div class="au-sub">joined '+esc(fmtDay(u.created_at))+'</div></div><div style="display:flex;gap:7px;align-items:center;flex:none">'+actions+'</div></div>';
       }).join('');
   }).catch(function(){b.innerHTML='<div class="fb-empty">Couldn’t load.</div>';});
 }
@@ -1838,6 +1843,14 @@ function approveUser(btn,email){
     if(d&&d.ok){var row=btn.closest('.au-row');if(row){var bt=row.querySelector('.au-approve');if(bt)bt.outerHTML='<span class="au-pill ok">Approved ✓</span>';}}
     else{btn.disabled=false;btn.textContent='Approve';}
   }).catch(function(){btn.disabled=false;btn.textContent='Approve';});
+}
+function deleteUser(btn,email){
+  if(!confirm('Reject and permanently delete '+email+'? This removes their account and any competitors they added.'))return;
+  btn.disabled=true;btn.textContent='…';
+  fetch(API+'/api/admin/delete-user?email='+encodeURIComponent(email)+(adminKey()?'&key='+encodeURIComponent(adminKey()):''),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.ok){var row=btn.closest('.au-row');if(row){row.style.transition='opacity .2s';row.style.opacity='.4';row.querySelector('div:last-child').innerHTML='<span class="au-sub">rejected ✓</span>';}}
+    else{btn.disabled=false;btn.textContent='Reject';alert((d&&d.error)||'Couldn’t delete.');}
+  }).catch(function(){btn.disabled=false;btn.textContent='Reject';});
 }
 render();
 loadMyBrand();

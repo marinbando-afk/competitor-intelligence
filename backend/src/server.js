@@ -405,6 +405,17 @@ app.get('/api/admin/approve', async (req, res) => {
     res.json({ ok: true, user: r.rows[0] });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+// Reject/delete a signup entirely (their competitors cascade-delete). Admins can't
+// delete another admin or themselves, as a guardrail.
+app.get('/api/admin/delete-user', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const email = String(req.query.email || '').trim().toLowerCase();
+    const r = await pool.query('DELETE FROM users WHERE email = $1 AND admin = FALSE RETURNING id', [email]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'No non-admin account with that email.' });
+    res.json({ ok: true, deleted: email });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 app.post('/api/login', async (req, res) => {
   try {
