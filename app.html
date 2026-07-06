@@ -1234,7 +1234,7 @@ function ensureLive(c){
 function fmtFullDay(s){var p=String(s).split('-');if(p.length!==3)return s;var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],d=new Date(+p[0],+p[1]-1,+p[2]);return days[d.getDay()]+' '+(+p[2])+' '+mo[+p[1]-1]+' '+p[0];}
 function fmtShortDay(s){var p=String(s).split('-');if(p.length!==3)return s;var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return (+p[2])+' '+mo[+p[1]-1];}
 function dateNav(c){
-  var days=histDays[c.host];if(days===undefined||!(c.demo||c.live))return '';
+  var days=histDays[c.host];if(days===undefined||!(c.demo||c.live||c.account))return '';   // account = user's own watched competitor (now builds daily history too)
   var today=new Date().toISOString().slice(0,10),past=days.filter(function(d){return d<today;});
   if(!past.length&&!state.day)return '';                       // no history yet → hide the control entirely
   var tl=[null].concat(past),live=!state.day,idx=live?0:Math.max(0,past.indexOf(state.day)+1);
@@ -1247,7 +1247,7 @@ function dateNav(c){
     +'</div>';
 }
 function ensureHist(c){
-  if(!c||!(c.demo||c.live)||histDays[c.host]!==undefined)return;
+  if(!c||!(c.demo||c.live||c.account)||histDays[c.host]!==undefined)return;
   histDays[c.host]=[];
   fetch(API+'/api/history?host='+encodeURIComponent(c.host||'')).then(function(r){return r.json();}).then(function(d){
     histDays[c.host]=(d.days||[]).map(function(x){return String(x).slice(0,10);});
