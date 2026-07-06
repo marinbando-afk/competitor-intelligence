@@ -15,8 +15,8 @@ import { initSchema, pool } from './db.js';
 import { signup, login, requireAuth, optionalUid, JWT_IS_DEFAULT } from './auth.js';
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
-import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands } from './refresh.js';
-import { postDigest, postText } from './slack.js';
+import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, TRACKED } from './refresh.js';
+import { postText, postDailyBrief, buildDailyBrief } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
@@ -242,7 +242,20 @@ app.get('/api/credits', async (req, res) => { res.json(await creditStatus(req.qu
 // Send the Slack daily brief now (on-demand / for testing). Posts only to your SLACK_WEBHOOK_URL.
 app.get('/api/slack-test', async (req, res) => {
   if (!process.env.ADMIN_KEY || req.query.key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Owner key required.' });
-  res.json(await postDigest(await allBrands()));
+  const clientBrands = (await allBrands()).filter((b) => !TRACKED.some((t) => t.host === b.host));
+  res.json(await postDailyBrief(clientBrands.length ? clientBrands : await allBrands()));
+});
+
+// Preview today's daily brief without posting (same text the Slack message carries).
+let _briefCache = { at: 0, val: null };
+app.get('/api/daily-brief', aiLimit, async (req, res) => {
+  try {
+    if (_briefCache.val && Date.now() - _briefCache.at < 30 * 60 * 1000 && req.query.fresh !== '1') return res.json({ text: _briefCache.val, cached: true });
+    const clientBrands = (await allBrands()).filter((b) => !TRACKED.some((t) => t.host === b.host));
+    const text = await buildDailyBrief(clientBrands);
+    _briefCache = { at: Date.now(), val: text };
+    res.json({ text });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.post('/api/angle', aiLimit, async (req, res) => {
   try {

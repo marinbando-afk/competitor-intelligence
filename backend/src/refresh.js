@@ -11,11 +11,10 @@ import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
 import { captureWebsiteFull } from './website.js';
 import { generateInsights } from './insights.js';
-import { postDigest } from './slack.js';
 import { saveSnapshot, latestSnapshot } from './snapshots.js';
 import { pool } from './db.js';
 import { ensureWeeklies } from './weekly.js';
-import { postText } from './slack.js';
+import { postText, postDailyBrief } from './slack.js';
 
 // Brands kept permanently warm (mirrors the app's seeded demos).
 export const TRACKED = [
@@ -136,7 +135,7 @@ export async function refreshAll(force) {
   // The seeded DEMO brands (TRACKED) are showcase data, so they're never sent to Slack.
   if (force) {
     const clientBrands = brands.filter((b) => !TRACKED.some((t) => t.host === b.host));
-    if (clientBrands.length) postDigest(clientBrands).then((r) => console.log('slack digest:', JSON.stringify(r))).catch(() => {});
+    if (clientBrands.length) postDailyBrief(clientBrands).then((r) => console.log('slack daily brief:', JSON.stringify(r))).catch(() => {});
   }
   // Weekly reports: Monday (in CRON_TZ) regenerates the completed week for every brand;
   // other days backfill a current-week draft for brands that don't have one yet.
