@@ -407,8 +407,10 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .up-row{display:flex;justify-content:space-between;gap:12px;padding:11px 14px;background:var(--panel);font-size:13px;color:var(--muted)}
 .up-row b{color:var(--sage);white-space:nowrap}
 /* Collapsed to an icon; the label slides open on hover so they don't hog space. */
-.fbfab{position:fixed;left:22px;bottom:22px;z-index:40;display:inline-flex;align-items:center;height:42px;padding:0;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:21px;font-size:12.5px;font-weight:500;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.35);overflow:hidden;transition:border-color .15s,transform .15s,box-shadow .15s}
-.fbfab.bug{bottom:74px;border-color:rgba(226,85,79,.4)}
+/* Bottom-right action bar: feedback icons sit just left of the Ask AI button */
+.actionbar{position:fixed;right:22px;bottom:22px;z-index:40;display:flex;align-items:center;gap:10px}
+.fbfab{display:inline-flex;align-items:center;height:42px;padding:0;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:21px;font-size:12.5px;font-weight:500;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.35);overflow:hidden;transition:border-color .15s,transform .15s,box-shadow .15s}
+.fbfab.bug{border-color:rgba(226,85,79,.4)}
 .fbfab.bug:hover{border-color:var(--clay)}
 .fbfab .fbic{flex:none;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:16px}
 .fbfab .fblabel{max-width:0;opacity:0;white-space:nowrap;transition:max-width .22s ease,opacity .16s,padding .22s}
@@ -472,7 +474,7 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .fld .er{color:var(--act);font-size:12px;margin-top:6px;display:none}
 .m-act{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
 /* ── AI chat ── */
-.chatfab{position:fixed;bottom:22px;right:22px;z-index:40;display:inline-flex;align-items:center;gap:8px;background:var(--sage);color:#0b1311;border:none;border-radius:24px;padding:12px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 12px 30px rgba(0,0,0,.42);transition:.15s}
+.chatfab{display:inline-flex;align-items:center;gap:8px;background:var(--sage);color:#0b1311;border:none;border-radius:24px;padding:12px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 12px 30px rgba(0,0,0,.42);transition:.15s}
 #dateNavWrap .datenav{margin-bottom:0}
 .chatfab:hover{background:var(--quiet);transform:translateY(-2px)}
 .chatpanel{position:fixed;top:0;right:0;bottom:0;width:412px;max-width:93vw;z-index:60;background:var(--panel);border-left:1px solid var(--line2);box-shadow:-24px 0 70px rgba(0,0,0,.5);display:flex;flex-direction:column;transform:translateX(101%);transition:transform .26s cubic-bezier(.4,0,.2,1)}
@@ -625,8 +627,6 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
   </div>
 </div>
 
-<button class="fbfab" id="fbFab" onclick="openFeedback('feature')" title="Want a new feature? Let us know"><span class="fbic">💡</span><span class="fblabel">Want a feature?</span></button>
-<button class="fbfab bug" id="bugFab" onclick="openFeedback('bug')" title="Found a bug? Tell us"><span class="fbic">🐞</span><span class="fblabel">Report a bug</span></button>
 <div class="ov" id="fbOv" onclick="if(event.target===this)closeFeedback()">
   <div class="modal" id="fbModal">
     <h2 id="fbTitle">Want a new feature? Let us know</h2>
@@ -656,9 +656,13 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
   </div>
 </div>
 
-<button class="chatfab" id="chatFab" onclick="openChat()" title="Ask the AI about this competitor">
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.2l1.7 4.6 4.6 1.7-4.6 1.7L8 13.8 6.3 9.2 1.7 7.5l4.6-1.7L8 1.2Z" fill="#0b1311"/></svg><span>Ask AI</span>
-</button>
+<div class="actionbar">
+  <button class="fbfab bug" id="bugFab" onclick="openFeedback('bug')" title="Found a bug? Tell us"><span class="fbic">🐞</span><span class="fblabel">Report a bug</span></button>
+  <button class="fbfab" id="fbFab" onclick="openFeedback('feature')" title="Want a new feature? Let us know"><span class="fbic">💡</span><span class="fblabel">Want a feature?</span></button>
+  <button class="chatfab" id="chatFab" onclick="openChat()" title="Ask the AI about this competitor">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.2l1.7 4.6 4.6 1.7-4.6 1.7L8 13.8 6.3 9.2 1.7 7.5l4.6-1.7L8 1.2Z" fill="#0b1311"/></svg><span>Ask AI</span>
+  </button>
+</div>
 <div class="emlov" id="emlOv" onclick="if(event.target===this)closeEml()" aria-hidden="true">
   <div class="emlmodal">
     <div class="emlmodal-h"><div class="emlmodal-meta"><div class="emlmodal-from" id="emlFrom"></div><div class="emlmodal-sub" id="emlSub"></div></div><button class="emlmodal-tab" id="emlTab" onclick="openEmlTab()" title="Open this email in a new browser tab" style="display:none">Open ↗</button><button class="emlmodal-x" onclick="closeEml()" aria-label="Close">✕</button></div>
