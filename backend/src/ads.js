@@ -18,7 +18,7 @@ let _ac;
 function aiClient() { if (!_ac) _ac = new Anthropic(); return _ac; }
 const _verdict = new Map();   // 'brand|advertiser|domain' -> { at, val } — cached AI brand-identity verdicts
 
-export async function fetchAds(brand, country, force, cacheOnly) {
+export async function fetchAds(brand, country, force, cacheOnly, host) {
   brand = String(brand || '').trim();
   country = String(country || 'ALL').trim().toUpperCase();
   if (!brand) { const e = new Error('Missing brand.'); e.status = 400; throw e; }
@@ -62,7 +62,7 @@ export async function fetchAds(brand, country, force, cacheOnly) {
     e.status = 502; throw e;
   }
   const items = await res.json();
-  const data = await normalize(Array.isArray(items) ? items : [], brand, country);
+  const data = await normalize(Array.isArray(items) ? items : [], brand, country, host);
   cache.set(key, { at: Date.now(), data });
   return data;
 }
@@ -118,10 +118,11 @@ async function sameBrandVerdicts(brand, hint, distinct) {
     const rows = ask.map((d, i) => `${i + 1}. advertiser="${d.advertiser || '(unknown)'}" landing="${d.domain || '(none)'}"`).join('\n');
     const system =
       `Decide for each row whether the ADVERTISER is the SAME brand as the target, or a DIFFERENT company. ` +
-      `Target brand: "${brand}"${hint ? ` (official site ${hint})` : ''}. ` +
+      `Target brand: "${brand}"${hint ? `. Its OFFICIAL SITE is ${hint} — treat that domain as the brand's ground-truth identity` : ''}. ` +
       `SAME = the brand itself — including its regional pages/stores and its OWN advertorial or native-ad funnels (the advertiser is the brand even when the landing page is a news site or partner domain). ` +
-      `DIFFERENT = a separate company: a competitor, reseller, affiliate, fan account, or an unrelated brand that merely name-drops the target. ` +
-      `Judge by the advertiser name and landing domain. Do NOT call it the same just because the brand's letters appear inside another word (e.g. "Super Hoodie" and "Foodie Flavours" are DIFFERENT from "The Oodie"). ` +
+      `DIFFERENT = a separate company: a competitor, reseller, affiliate, fan account, or an unrelated business that merely SHARES A NAME, WORD OR SURNAME with the target. ` +
+      `Judge advertiser name + landing domain against the official site. Do NOT call it the same just because the brand's letters appear inside another word (e.g. "Super Hoodie"/"Foodie Flavours" are DIFFERENT from "The Oodie"). ` +
+      `A local or regional business on a DIFFERENT domain and in a different industry that just happens to share the target's name is DIFFERENT — e.g. "Campbells of Deal" (a UK car garage, campbellsofdeal.co.uk) is NOT "Campbell's" the food brand at campbells.com. When the advertiser's domain and industry clearly don't match the official site, answer DIFFERENT. ` +
       `Return ONLY minified JSON: {"v":[{"i":1,"same":true|false}, ...]}, one entry per row.`;
     const resp = await aiClient().messages.create({ model: BRAND_MATCH_MODEL, max_tokens: 1000, system, messages: [{ role: 'user', content: rows }] });
     const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim().replace(/^```(?:json)?|```$/g, '').trim();
@@ -140,17 +141,24 @@ async function sameBrandVerdicts(brand, hint, distinct) {
 
 // Keep only the ads that really belong to `brand`. The AI decides per distinct
 // advertiser; whole-word string rules are the fallback when no key / on error.
-async function filterToBrand(brand, ads) {
+async function filterToBrand(brand, ads, hostDom) {
   if (!ads.length) return ads;
   const keys = brandKeys(brand);
+  if (hostDom) brandTokens(hostDom).forEach((k) => keys.add(k));   // the brand's OWN domain label is a strong identity key
   const stringKeep = (a) => (!keys.size ? true : adMatchesBrand(a, keys));
   if (!process.env.ANTHROPIC_API_KEY) return ads.filter(stringKeep);
   const idOf = (a) => (a.advertiser || '') + '|' + (adDomain(a.landing) || '');
   const distinct = [...new Map(ads.map((a) => [idOf(a), { id: idOf(a), advertiser: a.advertiser || '', domain: adDomain(a.landing) || '' }])).values()];
-  // Hint the model with the most common brand-looking landing domain (usually the official site).
-  const own = {};
-  ads.forEach((a) => { const dm = adDomain(a.landing); if (dm && keys.size && adMatchesBrand(a, keys)) own[dm] = (own[dm] || 0) + 1; });
-  const hint = (Object.entries(own).sort((a, b) => b[1] - a[1])[0] || [''])[0];
+  // The brand's REAL domain is the ground-truth identity hint. Only when we don't know it
+  // do we GUESS the most common brand-looking landing domain from the ads themselves —
+  // which is dangerous when a keyword search returns a same-named different company (the
+  // guess would then be the impostor's domain and the model would confirm it).
+  let hint = hostDom;
+  if (!hint) {
+    const own = {};
+    ads.forEach((a) => { const dm = adDomain(a.landing); if (dm && keys.size && adMatchesBrand(a, keys)) own[dm] = (own[dm] || 0) + 1; });
+    hint = (Object.entries(own).sort((a, b) => b[1] - a[1])[0] || [''])[0];
+  }
   try {
     const verdict = await sameBrandVerdicts(brand, hint, distinct);
     return ads.filter((a) => { const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
@@ -183,7 +191,7 @@ function dedupeAds(ads) {
 // Map the Facebook Ad Library actor's items to a clean, display-ready shape.
 // Many eComm ads are dynamic catalog ads whose body is a "{{product.brand}}"
 // template — the real copy and creative then live in the per-product `cards` array.
-async function normalize(items, brand, country) {
+async function normalize(items, brand, country, host) {
   const ads = items.map((it) => {
     const snap = it.snapshot || {};
     const cards = Array.isArray(snap.cards) ? snap.cards : [];
@@ -227,12 +235,16 @@ async function normalize(items, brand, country) {
     };
   }).filter((a) => a.text || a.image);
 
-  // Drop unrelated advertisers that keyword-search dragged in (keep all if a brand
-  // word is too generic to match, so we never wipe a legitimate result set).
-  // Decide which ads are really THIS brand's — the AI makes the call per distinct
-  // advertiser (string rules are the fallback inside filterToBrand). Then dedupe.
-  let kept = await filterToBrand(brand, ads);
-  if (!kept.length) kept = ads;     // never blank the panel if the model rejected everything
+  // Decide which ads are really THIS brand's — the AI judges each distinct advertiser
+  // against the brand's OWN domain (string rules are the fallback inside filterToBrand).
+  const hostDom = hostToDomain(host);
+  let kept = await filterToBrand(brand, ads, hostDom);
+  if (!kept.length) {
+    // Attribution kept nothing. Rather than resurface unrelated advertisers a keyword
+    // search dragged in (e.g. "Campbells of Deal" for campbells.com), keep ONLY ads that
+    // land on the brand's OWN domain when we know it; with no known domain, keep all.
+    kept = hostDom ? ads.filter((a) => { const d = adDomain(a.landing); return d && (d === hostDom || d.endsWith('.' + hostDom)); }) : ads;
+  }
   const unique = dedupeAds(kept);   // never show the same creative twice
 
   const platforms = [...new Set(unique.flatMap((a) => a.platforms))];
@@ -253,6 +265,8 @@ async function normalize(items, brand, country) {
 // (new landing page / domain, new Facebook page, new creative format). ──
 function adKey(a) { return a.id || a.link || a.image || ((a.page || '') + '|' + String(a.text || '').slice(0, 40)); }
 function adDomain(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
+// A competitor's own host (e.g. "campbells.com" or "https://campbells.com/x") → bare domain.
+function hostToDomain(h) { h = String(h || '').trim(); if (!h) return ''; return adDomain(/^https?:\/\//i.test(h) ? h : ('https://' + h)); }
 function fmtOf(a) { return a.hasVideo ? 'video' : (a.format && /carousel/i.test(a.format) ? 'carousel' : 'image'); }
 
 // A "landing" worth surfacing as a clickable funnel: a real, openable web page —

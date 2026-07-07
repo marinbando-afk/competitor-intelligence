@@ -25,7 +25,7 @@ import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { systemStats } from './stats.js';
 import { getWeekly, generateWeekly, mondayOf } from './weekly.js';
-import { snapshotDays, snapshotForDay, recentSnapshots } from './snapshots.js';
+import { snapshotDays, snapshotForDay, recentSnapshots, saveSnapshot } from './snapshots.js';
 
 const app = express();
 // Emails can be large; also accept form-encoded posts from inbound-email services.
@@ -104,7 +104,10 @@ app.get('/api/ads', async (req, res) => {
         if (t) { brand = t.name; country = t.country; }
       } catch (e) { /* canonicalization is best-effort */ }
     }
-    const data = await fetchAds(brand, country, req.query.force === '1');
+    const data = await fetchAds(brand, country, req.query.force === '1', false, qh);
+    // On an explicit force-refresh of a tracked competitor, persist the fresh capture so the
+    // AI-read/insights (which read the saved 'ads' snapshot) reflect the same attribution.
+    if (qh && req.query.force === '1' && data.ads && data.ads.length) { try { await saveSnapshot(qh, 'ads', data); } catch (e) { /* best-effort */ } }
     const out = { active: data.active, newest: data.newest, platforms: data.platforms, country: data.country, ads: (data.ads || []).slice(0, 30) };
     if (req.query.host) {
       try {

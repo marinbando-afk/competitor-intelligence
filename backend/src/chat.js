@@ -45,7 +45,7 @@ async function assembleContext({ name, host, country, handles }) {
   const out = [];
   try {
     let a = await latestSnapshot(host, 'ads');               // persisted daily snapshot (complete)
-    if (!a || !a.ads || !a.ads.length) a = await fetchAds(name, country, false, true); // fallback: warm cache
+    if (!a || !a.ads || !a.ads.length) a = await fetchAds(name, country, false, true, host); // fallback: warm cache
     if (a && a.ads && a.ads.length) {
       out.push(`META ADS (${a.country || country}): ${a.active} active across ${(a.platforms || []).join(', ')}; newest ${a.newest}.`);
       const ff = funnelFacts(a.ads, name);

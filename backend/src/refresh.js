@@ -72,7 +72,7 @@ export function warmStatus() { return { warmedAt: lastWarm, last: lastResult, ru
 // One brand's full capture: ads + social + email + website + insights.
 export async function warmBrand(b, force) {
   let ok = 0, fail = 0;
-  try { const a = await fetchAds(b.name, b.country, force); ok++; if (a && a.ads && a.ads.length) await saveSnapshot(b.host, 'ads', a); }
+  try { const a = await fetchAds(b.name, b.country, force, false, b.host); ok++; if (a && a.ads && a.ads.length) await saveSnapshot(b.host, 'ads', a); }
   catch (e) { fail++; console.warn('warm ads ' + b.name + ':', e.message); }
   for (const [pf, hk] of PLATFORMS) {
     try { const s = await fetchSocial(pf, b.handles && b.handles[hk], b.host, force); ok++; if (s && s.posts && s.posts.length) await saveSnapshot(b.host, pf, s); }
