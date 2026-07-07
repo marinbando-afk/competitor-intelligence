@@ -427,6 +427,16 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .slack-steps{margin:0 0 18px;padding-left:20px;color:var(--muted);font-size:13.5px;line-height:1.6}
 .slack-steps li{margin-bottom:7px}
 .slack-steps b{color:var(--text)}
+/* Slack daily-brief preview (shown whether or not Slack is connected) */
+.slack-preview{margin-top:20px;border-top:1px solid var(--line2);padding-top:16px}
+.sp-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.sp-head .lbl{color:var(--sage-d)}
+.sp-toggle{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none}
+.sp-toggle input{accent-color:var(--sage);cursor:pointer;width:15px;height:15px}
+.sp-box{background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.6;color:var(--text);white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere;max-height:300px;overflow:auto}
+.sp-box strong{color:#eaf2f3;font-weight:600}
+.sp-empty{color:var(--muted);font-style:italic}
+.sp-note{font-size:11.5px;color:var(--faint);margin:9px 0 0}
 .admin-modal{max-width:600px}
 .admin-tabs{display:flex;gap:8px;margin:4px 0 16px}
 .atab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:7px 13px;border-radius:7px;border:1px solid var(--line2);background:none;color:var(--muted);cursor:pointer}
@@ -614,6 +624,11 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
       <div class="fld"><label for="slkUrl">Slack Incoming Webhook URL</label><input id="slkUrl" type="text" placeholder="https://hooks.slack.com/services/…" autocomplete="off"/><div class="er" id="slkErr"></div></div>
       <div class="m-act"><button class="btn btn-g" onclick="closeSlack()">Cancel</button><button class="btn btn-p" id="slkGo" onclick="slackConnect()">Connect Slack</button></div>
     </div>
+    <div class="slack-preview">
+      <div class="sp-head"><span class="lbl">Preview — your daily brief</span><label class="sp-toggle"><input type="checkbox" id="spDemos" onchange="loadSlackPreview()"/> Include demo competitors</label></div>
+      <div class="sp-box" id="spBox"><span class="sp-empty">Building preview…</span></div>
+      <p class="sp-note">Exactly what posts to your Slack each morning — shown whether or not Slack is connected. Covers every competitor you've added.</p>
+    </div>
   </div>
 </div>
 
@@ -796,9 +811,22 @@ function paintAuth(){refreshAdmin();var s=document.getElementById('authSlot');if
 function openAuth(mode,after){authMode=(mode==='signin')?'login':'signup';pendingAfterAuth=after||null;paintAuthMode();var er=document.getElementById('aErr');if(er)er.style.display='none';document.getElementById('authOv').classList.add('open');setTimeout(function(){document.getElementById('aE').focus();},40);}
 function closeAuth(){var o=document.getElementById('authOv');if(o)o.classList.remove('open');}
 /* ── Per-account Slack connection ── */
-function openSlack(){if(!loggedIn()){openAuth('signin',openSlack);return;}document.getElementById('slkErr').style.display='none';document.getElementById('slackOv').classList.add('open');renderSlack(!!(USER&&USER.slack));fetch(API+'/api/slack',{headers:authH()}).then(function(r){return r.json();}).then(function(d){renderSlack(!!(d&&d.connected));}).catch(function(){});}
+function openSlack(){if(!loggedIn()){openAuth('signin',openSlack);return;}document.getElementById('slkErr').style.display='none';document.getElementById('slackOv').classList.add('open');renderSlack(!!(USER&&USER.slack));fetch(API+'/api/slack',{headers:authH()}).then(function(r){return r.json();}).then(function(d){renderSlack(!!(d&&d.connected));}).catch(function(){});var sp=document.getElementById('spDemos');if(sp)sp.checked=false;slackPreviewCache={};loadSlackPreview();}
 function closeSlack(){document.getElementById('slackOv').classList.remove('open');}
 function renderSlack(connected){document.getElementById('slackConnected').style.display=connected?'':'none';document.getElementById('slackForm').style.display=connected?'none':'';}
+// Preview the exact daily brief (own competitors, optionally + demos). Cached per demos-state
+// so toggling doesn't re-hit the AI; cache is cleared each time the modal opens.
+var slackPreviewCache={};
+function loadSlackPreview(){
+  var box=document.getElementById('spBox');if(!box)return;
+  var demos=(document.getElementById('spDemos')||{}).checked?1:0;
+  if(slackPreviewCache[demos]!=null){box.innerHTML=linkify(slackPreviewCache[demos]);return;}
+  box.innerHTML='<span class="sp-empty">Building preview…</span>';
+  fetch(API+'/api/slack/preview?demos='+demos,{headers:authH()}).then(function(r){return r.json();}).then(function(d){
+    if(d&&typeof d.text==='string'){slackPreviewCache[demos]=d.text;box.innerHTML=linkify(d.text);}
+    else{box.innerHTML='<span class="sp-empty">'+esc((d&&d.error)||'Could not build the preview right now.')+'</span>';}
+  }).catch(function(){box.innerHTML='<span class="sp-empty">Could not build the preview right now.</span>';});
+}
 function setUserSlack(v){if(USER){USER.slack=v;try{localStorage.setItem('ci_user',JSON.stringify(USER));}catch(e){}}paintAuth();}
 function slackConnect(){
   var url=document.getElementById('slkUrl').value.trim(),er=document.getElementById('slkErr'),go=document.getElementById('slkGo');

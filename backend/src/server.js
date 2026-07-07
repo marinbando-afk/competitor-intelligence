@@ -485,6 +485,20 @@ app.delete('/api/slack', requireAuth, async (req, res) => {
   try { await pool.query('UPDATE users SET slack_webhook=NULL WHERE id=$1', [req.user.uid]); res.json({ ok: true, connected: false }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
+// Preview the EXACT daily brief that would post to Slack — built from THIS account's own
+// competitors, optionally plus the demo brands (?demos=1) — so the user can see what gets
+// sent even before connecting Slack.
+app.get('/api/slack/preview', aiLimit, requireAuth, async (req, res) => {
+  try {
+    const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id=$1 ORDER BY created_at ASC', [req.user.uid]);
+    const mine = cs.rows.map((c) => ({ name: c.name, host: c.host }));
+    const seen = new Set(mine.map((c) => c.host));
+    const demos = req.query.demos === '1' ? TRACKED.filter((t) => !seen.has(t.host)).map((t) => ({ name: t.name, host: t.host })) : [];
+    const brands = mine.concat(demos);
+    const text = await buildDailyBrief(brands);
+    res.json({ text, count: brands.length, mine: mine.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 app.get('/api/competitors', requireAuth, async (req, res) => {
   try {
