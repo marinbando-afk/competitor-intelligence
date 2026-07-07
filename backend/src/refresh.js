@@ -10,7 +10,7 @@ import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
 import { captureWebsiteFull } from './website.js';
-import { generateInsights, enrichCreativeHooks, newHookBudget } from './insights.js';
+import { generateInsights, enrichCreativeHooks } from './insights.js';
 import { saveSnapshot, latestSnapshot } from './snapshots.js';
 import { pool } from './db.js';
 import { ensureWeeklies } from './weekly.js';
@@ -72,14 +72,24 @@ export function warmStatus() { return { warmedAt: lastWarm, last: lastResult, ru
 // One brand's full capture: ads + social + email + website + insights.
 export async function warmBrand(b, force) {
   let ok = 0, fail = 0;
-  // One creative-hook budget shared across this competitor's ads + social this run (cost cap).
-  // Ads run first so they consume the budget before social — the primary "hooks in chat" case.
-  const hookBudget = newHookBudget();
-  try { const a = await fetchAds(b.name, b.country, force, false, b.host); ok++; if (a && a.ads && a.ads.length) { await enrichCreativeHooks(b.host, 'ads', 'ad', a.ads, hookBudget); await saveSnapshot(b.host, 'ads', a); } }
+  // Creative-hook budgets (separate so neither starves the other): ADS get full coverage;
+  // SOCIAL gets its top-N recent posts per platform (organic captions already carry most of a
+  // post's hook, and posts are numerous — this keeps the vision cost within ~$2/mo/competitor).
+  // Both are cached per creative, so only genuinely NEW creatives cost a vision call.
+  const adBudget = { left: Number(process.env.AD_HOOK_CAP) || 40 };
+  const socialBudget = { left: Number(process.env.SOCIAL_HOOK_CAP) || 18 };
+  const POST_PER = Number(process.env.SOCIAL_HOOK_PER) || 6;
+  try { const a = await fetchAds(b.name, b.country, force, false, b.host); ok++; if (a && a.ads && a.ads.length) { await enrichCreativeHooks(b.host, 'ads', 'ad', a.ads, adBudget); await saveSnapshot(b.host, 'ads', a); } }
   catch (e) { fail++; console.warn('warm ads ' + b.name + ':', e.message); }
   for (const [pf, hk] of PLATFORMS) {
-    try { const s = await fetchSocial(pf, b.handles && b.handles[hk], b.host, force); ok++; if (s && s.posts && s.posts.length) { await enrichCreativeHooks(b.host, pf, 'post', s.posts, hookBudget); await saveSnapshot(b.host, pf, s); } }
-    catch (e) { fail++; console.warn('warm ' + pf + ' ' + b.name + ':', e.message); }
+    try {
+      const s = await fetchSocial(pf, b.handles && b.handles[hk], b.host, force); ok++;
+      if (s && s.posts && s.posts.length) {
+        const top = [...s.posts].sort((x, y) => String(y.date || '').localeCompare(String(x.date || ''))).slice(0, POST_PER);   // enrich the newest posts (refs into s.posts, so hooks land on the saved objects)
+        await enrichCreativeHooks(b.host, pf, 'post', top, socialBudget);
+        await saveSnapshot(b.host, pf, s);
+      }
+    } catch (e) { fail++; console.warn('warm ' + pf + ' ' + b.name + ':', e.message); }
   }
   try { const em = await getEmails(b.host); if (em && em.storage) await saveSnapshot(b.host, 'email', em); } catch (e) { /* best-effort */ }
   try { await captureWebsiteFull(b.host, b.url || ('https://' + b.host)); ok++; } catch (e) { fail++; console.warn('warm website ' + b.name + ':', e.message); }
