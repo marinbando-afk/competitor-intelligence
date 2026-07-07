@@ -118,11 +118,11 @@ async function sameBrandVerdicts(brand, hint, distinct) {
     const rows = ask.map((d, i) => `${i + 1}. advertiser="${d.advertiser || '(unknown)'}" landing="${d.domain || '(none)'}"`).join('\n');
     const system =
       `Decide for each row whether the ADVERTISER is the SAME brand as the target, or a DIFFERENT company. ` +
-      `Target brand: "${brand}"${hint ? `. Its OFFICIAL SITE is ${hint} — treat that domain as the brand's ground-truth identity` : ''}. ` +
-      `SAME = the brand itself — including its regional pages/stores and its OWN advertorial or native-ad funnels (the advertiser is the brand even when the landing page is a news site or partner domain). ` +
-      `DIFFERENT = a separate company: a competitor, reseller, affiliate, fan account, or an unrelated business that merely SHARES A NAME, WORD OR SURNAME with the target. ` +
-      `Judge advertiser name + landing domain against the official site. Do NOT call it the same just because the brand's letters appear inside another word (e.g. "Super Hoodie"/"Foodie Flavours" are DIFFERENT from "The Oodie"). ` +
-      `A local or regional business on a DIFFERENT domain and in a different industry that just happens to share the target's name is DIFFERENT — e.g. "Campbells of Deal" (a UK car garage, campbellsofdeal.co.uk) is NOT "Campbell's" the food brand at campbells.com. When the advertiser's domain and industry clearly don't match the official site, answer DIFFERENT. ` +
+      `Target brand: "${brand}"${hint ? `. Its OFFICIAL SITE is ${hint} — that domain AND its subdomains are the brand's ground-truth identity` : ''}. ` +
+      `SAME = the brand itself: its own site/subdomains, its GENUINE regional stores (the same brand on a country version of ITS site), and its OWN advertorial/native-ad funnels (the advertiser is the brand even when the landing is a news/partner domain). ` +
+      `DIFFERENT = a separate company: a competitor, reseller, affiliate, fan account, or an unrelated business that merely SHARES A NAME, WORD or SURNAME with the target — INCLUDING one on a DIFFERENT REGISTRABLE DOMAIN (e.g. a foreign ccTLD). Many businesses worldwide share a generic word (e.g. "brodo" means "broth" in Italian). ` +
+      `A same-name ad on a DIFFERENT registrable domain than the official site is DIFFERENT unless there is clear evidence it is the target's OWN regional site — e.g. "brodo.ma" (a Morocco domain) is NOT "brodo.com" (a NYC bone-broth brand); "Campbells of Deal" (campbellsofdeal.co.uk, a UK car garage) is NOT "campbells.com". ` +
+      `Do NOT call it the same just because the brand's letters appear inside another word ("Super Hoodie"/"Foodie Flavours" are DIFFERENT from "The Oodie"). When the advertiser's domain/industry doesn't clearly match the official site, answer DIFFERENT. ` +
       `Return ONLY minified JSON: {"v":[{"i":1,"same":true|false}, ...]}, one entry per row.`;
     const resp = await aiClient().messages.create({ model: BRAND_MATCH_MODEL, max_tokens: 1000, system, messages: [{ role: 'user', content: rows }] });
     const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim().replace(/^```(?:json)?|```$/g, '').trim();
@@ -145,7 +145,10 @@ async function filterToBrand(brand, ads, hostDom) {
   if (!ads.length) return ads;
   const keys = brandKeys(brand);
   if (hostDom) brandTokens(hostDom).forEach((k) => keys.add(k));   // the brand's OWN domain label is a strong identity key
-  const stringKeep = (a) => (!keys.size ? true : adMatchesBrand(a, keys));
+  // An ad landing on the brand's OWN domain (or a subdomain, e.g. drink.brodo.com for
+  // brodo.com) is DEFINITIVELY the brand's — never let fuzzy matching drop it.
+  const onOwnDomain = (a) => { if (!hostDom) return false; const d = adDomain(a.landing); return !!d && (d === hostDom || d.endsWith('.' + hostDom)); };
+  const stringKeep = (a) => onOwnDomain(a) || (!keys.size ? true : adMatchesBrand(a, keys));
   if (!process.env.ANTHROPIC_API_KEY) return ads.filter(stringKeep);
   const idOf = (a) => (a.advertiser || '') + '|' + (adDomain(a.landing) || '');
   const distinct = [...new Map(ads.map((a) => [idOf(a), { id: idOf(a), advertiser: a.advertiser || '', domain: adDomain(a.landing) || '' }])).values()];
@@ -161,7 +164,10 @@ async function filterToBrand(brand, ads, hostDom) {
   }
   try {
     const verdict = await sameBrandVerdicts(brand, hint, distinct);
-    return ads.filter((a) => { const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
+    // Own-domain ads are ALWAYS kept; off-domain ads follow the AI verdict — so a same-name
+    // ad on a DIFFERENT registrable domain (brodo.ma vs brodo.com) is dropped, while the
+    // brand's own funnels (drink.brodo.com) always survive.
+    return ads.filter((a) => { if (onOwnDomain(a)) return true; const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
   } catch (e) {
     return ads.filter(stringKeep);   // AI unavailable/error → whole-word rules
   }
