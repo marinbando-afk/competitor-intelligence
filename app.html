@@ -1418,9 +1418,16 @@ function briefHTML(b){
   return '<div class="assess"><span class="lbl">Threat assessment</span><ul class="brief-l">'+v.map(li).join('')+'</ul></div>'
     +(m.length?'<div class="move"><span class="lbl">Recommended counter-op</span><ul class="brief-l">'+m.map(li).join('')+'</ul></div>':'');
 }
+// The Threat assessment + counter-op take a few seconds to generate on first load — show a
+// clear loading state (labelled, with a spinner) instead of a blank gap that just vanishes.
+function briefLoadingHTML(){return '<div class="assess"><span class="lbl">Threat assessment</span><div class="adsload" style="padding:2px 0 6px"><span class="spin"></span>Reading the latest capture…</div></div>';}
+function briefFinalHTML(ins){return (ins&&ins.brief&&asBullets(ins.brief.verdict).length)?briefHTML(ins.brief):'';}
+// What to render in the brief slot at report()-time: the brief if we already have it,
+// otherwise the loading state (loadInsights fetches it and paints the final result).
+function briefSlotHTML(c){var ins=insightsCache[c.host];return ins?briefFinalHTML(ins):briefLoadingHTML();}
 function paintInsights(c,ins){
   var ub=document.getElementById('ubrief-'+c.id);
-  if(ub&&ins&&ins.brief&&ins.brief.verdict)ub.innerHTML=briefHTML(ins.brief);
+  if(ub)ub.innerHTML=briefFinalHTML(ins);   // resolve the slot: the brief, or empty — never leave it spinning
   // Keep the rail one-liner live too: the first point of today's AI threat read.
   var rs=document.getElementById('rsub-'+c.id);
   if(rs&&ins&&ins.brief){var vb=asBullets(ins.brief.verdict);if(vb.length)rs.textContent=vb[0];}
@@ -1447,9 +1454,12 @@ function loadInsights(c){
     // Threat assessment appears without needing a page reload.
     if(c.demo||cached.brief)return;
   }
+  // About to (re)fetch and we don't have a brief yet → show a loading state so the Threat
+  // assessment / counter-op area doesn't just vanish while it generates.
+  var ub=document.getElementById('ubrief-'+c.id);if(ub)ub.innerHTML=briefLoadingHTML();
   fetch(API+'/api/insights?host='+encodeURIComponent(c.host)+'&name='+encodeURIComponent(c.name||''),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
     var ins=(d&&d.insights)||{};insightsCache[c.host]=ins;paintInsights(c,ins);
-  }).catch(function(){});
+  }).catch(function(){var e=document.getElementById('ubrief-'+c.id);if(e)e.innerHTML=briefFinalHTML(insightsCache[c.host]);});
 }
 /* ── email full preview ── */
 var _emlHtml='';
@@ -1612,13 +1622,13 @@ function report(c){
   if(!c.demo){
     var note=c.status==='watching'?'':'<p class="setup-note">Capturing a live baseline of <b>'+esc(c.host)+'</b> now — each channel below populates within a few minutes; day-over-day comparisons build from tomorrow.</p>';
     return '<div class="report'+(state.day?' hist':'')+'">'+head+ewb+hwb+note
-      +'<div id="ubrief-'+c.id+'">'+briefHTML(insightsCache[c.host]&&insightsCache[c.host].brief)+'</div>'
+      +'<div id="ubrief-'+c.id+'">'+briefSlotHTML(c)+'</div>'
       +'<span class="lbl sec-l">Intercepted signals</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
   }
 
   // Demos are REAL examples — their threat assessment + counter-op are the same
   // daily AI brief customers get, never hand-written showcase text.
-  var dBrief=state.day?'':'<div id="ubrief-'+c.id+'">'+briefHTML(insightsCache[c.host]&&insightsCache[c.host].brief)+'</div>';
+  var dBrief=state.day?'':'<div id="ubrief-'+c.id+'">'+briefSlotHTML(c)+'</div>';
   return '<div class="report'+(state.day?' hist':'')+'">'+head+ewb+hwb
     +dBrief
     +'<span class="lbl sec-l">Intercepted signals</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
