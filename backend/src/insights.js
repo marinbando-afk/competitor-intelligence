@@ -417,6 +417,8 @@ async function makeBrief(brand, out, me) {
 // A one-line marketing ANGLE for a single ad/post, generated on demand (cheap,
 // cached) when the user opens its preview.
 const _angleCache = new Map();
+const ANGLE_CACHE_MAX = 3000;   // bound the in-memory creative-read cache (warm now fills it for every ad/post)
+function _angleSet(key, val) { _angleCache.set(key, val); if (_angleCache.size > ANGLE_CACHE_MAX) _angleCache.delete(_angleCache.keys().next().value); }
 const UA_IMG = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 // Fetch a creative image as a base64 block for the multimodal model (skips non-images / oversized).
 // Detect the true image type from magic bytes (CDNs often mislabel webp as jpeg,
@@ -494,11 +496,11 @@ export async function quickAngle(text, kind, image, video, uid) {
   };
   try {
     const out = await run(true);
-    _angleCache.set(key, out);
+    _angleSet(key, out);
     return out;
   } catch (e) {
     console.warn('quickAngle vision failed (' + e.message + ') — retrying copy-only');
-    if (img) { try { const out = await run(false); _angleCache.set(key, out); return out; } catch (e2) { /* fall through */ } }
+    if (img) { try { const out = await run(false); _angleSet(key, out); return out; } catch (e2) { /* fall through */ } }
     return { angle: '', hook: '', creative: '', apply: '' };
   }
 }
