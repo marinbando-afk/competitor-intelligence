@@ -10,7 +10,7 @@ import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
 import { captureWebsiteFull } from './website.js';
-import { generateInsights } from './insights.js';
+import { generateInsights, enrichCreativeHooks, newHookBudget } from './insights.js';
 import { saveSnapshot, latestSnapshot } from './snapshots.js';
 import { pool } from './db.js';
 import { ensureWeeklies } from './weekly.js';
@@ -72,10 +72,13 @@ export function warmStatus() { return { warmedAt: lastWarm, last: lastResult, ru
 // One brand's full capture: ads + social + email + website + insights.
 export async function warmBrand(b, force) {
   let ok = 0, fail = 0;
-  try { const a = await fetchAds(b.name, b.country, force, false, b.host); ok++; if (a && a.ads && a.ads.length) await saveSnapshot(b.host, 'ads', a); }
+  // One creative-hook budget shared across this competitor's ads + social this run (cost cap).
+  // Ads run first so they consume the budget before social — the primary "hooks in chat" case.
+  const hookBudget = newHookBudget();
+  try { const a = await fetchAds(b.name, b.country, force, false, b.host); ok++; if (a && a.ads && a.ads.length) { await enrichCreativeHooks(b.host, 'ads', 'ad', a.ads, hookBudget); await saveSnapshot(b.host, 'ads', a); } }
   catch (e) { fail++; console.warn('warm ads ' + b.name + ':', e.message); }
   for (const [pf, hk] of PLATFORMS) {
-    try { const s = await fetchSocial(pf, b.handles && b.handles[hk], b.host, force); ok++; if (s && s.posts && s.posts.length) await saveSnapshot(b.host, pf, s); }
+    try { const s = await fetchSocial(pf, b.handles && b.handles[hk], b.host, force); ok++; if (s && s.posts && s.posts.length) { await enrichCreativeHooks(b.host, pf, 'post', s.posts, hookBudget); await saveSnapshot(b.host, pf, s); } }
     catch (e) { fail++; console.warn('warm ' + pf + ' ' + b.name + ':', e.message); }
   }
   try { const em = await getEmails(b.host); if (em && em.storage) await saveSnapshot(b.host, 'email', em); } catch (e) { /* best-effort */ }

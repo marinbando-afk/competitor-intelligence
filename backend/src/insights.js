@@ -503,6 +503,39 @@ export async function quickAngle(text, kind, image, video, uid) {
   }
 }
 
+// Pre-compute each ad/post's creative HOOK + ANGLE + CREATIVE read (vision, plus video
+// transcription) DURING the daily capture and store it on the item — so the chat has the
+// visual-level hooks for every ad/post without the user ever opening one. Optimized:
+//   • cached per CREATIVE — carries forward the read from recent snapshots for unchanged
+//     creatives, so only genuinely NEW creatives cost a vision call;
+//   • uid=null → tenant-neutral (no per-viewer "apply"), so it's safe to bake into the
+//     shared snapshot the chat reads;
+//   • a per-competitor run BUDGET caps how many new reads happen per warm (bounds cost;
+//     leftover new creatives get their read on the next run). Ads consume the budget first.
+export function newHookBudget() { return { left: Number(process.env.AD_HOOK_CAP) || 30 }; }
+function creativeKey(a) { return String((a && (a.id || a.image || a.video || a.link)) || '').slice(0, 220); }
+export async function enrichCreativeHooks(host, channel, kind, items, budget) {
+  if (!process.env.ANTHROPIC_API_KEY || !Array.isArray(items) || !items.length) return;
+  budget = budget || newHookBudget();
+  const prior = new Map();
+  try {
+    for (const s of await recentSnapshots(host, channel, 3)) {
+      for (const a of ((s.data && (s.data.ads || s.data.posts)) || [])) {
+        if (a && a.hook) prior.set(creativeKey(a), { hook: a.hook, angle: a.angle || '', creative: a.creative || '' });
+      }
+    }
+  } catch (e) { /* no prior read to reuse */ }
+  for (const it of items) {
+    const hit = prior.get(creativeKey(it));
+    if (hit) { it.hook = hit.hook; it.angle = hit.angle; it.creative = hit.creative; continue; }
+    if (budget.left <= 0) continue;   // cost cap reached — the rest get their read next run
+    try {
+      const r = await quickAngle(it.text || it.title || '', kind, it.image, it.video, null);
+      if (r && (r.hook || r.angle)) { it.hook = r.hook; it.angle = r.angle; it.creative = r.creative; budget.left--; }
+    } catch (e) { /* skip this creative */ }
+  }
+}
+
 // Per-VIEWER "apply to your brand" overlay. The shared per-host insights snapshot is
 // tenant-neutral (see generateInsights). When a SIGNED-IN client who has set up their own
 // brand reads a competitor, we layer THEIR tailored apply-moves + counter-op on top —

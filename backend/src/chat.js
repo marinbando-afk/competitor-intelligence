@@ -53,7 +53,7 @@ async function assembleContext({ name, host, country, handles }) {
       // surface every third-party ad (the publisher advertorials), then a sample of own-page ads
       const third = a.ads.filter(ff.isThird), first = a.ads.filter((x) => !ff.isThird(x));
       const sample = third.slice(0, 8).concat(first.slice(0, Math.max(10, 24 - Math.min(third.length, 8))));
-      sample.forEach((ad) => out.push(`  • ad ${ad.started} [${ad.hasVideo ? 'video' : 'image'}]${ff.isThird(ad) ? ' (3RD-PARTY PLACEMENT)' : ''}${ad.page ? ` page:${ad.page}` : ''}: ${oneLine(ad.text).slice(0, 150)}${ad.cta ? ` [CTA ${ad.cta}]` : ''}${ad.landing ? ` -> lands ${ad.landing}` : ''}${ad.link ? ` | ${ad.link}` : ''}`));
+      sample.forEach((ad) => out.push(`  • ad ${ad.started} [${ad.hasVideo ? 'video' : 'image'}]${ff.isThird(ad) ? ' (3RD-PARTY PLACEMENT)' : ''}${ad.page ? ` page:${ad.page}` : ''}: ${oneLine(ad.text).slice(0, 150)}${ad.hook ? ` | HOOK: ${oneLine(ad.hook)}` : ''}${ad.angle ? ` · ANGLE: ${oneLine(ad.angle)}` : ''}${ad.creative ? ` · CREATIVE: ${oneLine(ad.creative)}` : ''}${ad.cta ? ` [CTA ${ad.cta}]` : ''}${ad.landing ? ` -> lands ${ad.landing}` : ''}${ad.link ? ` | ${ad.link}` : ''}`));
     }
   } catch (e) { /* skip channel on error */ }
 
@@ -68,7 +68,7 @@ async function assembleContext({ name, host, country, handles }) {
         out.push(`${label} @${hh || h || '?'} — ${posts.length} posts captured (recent window, newest first; each has engagement + link):`);
         posts.slice(0, 20).forEach((p) => {
           const eng = [p.views != null ? `${p.views} views` : '', p.likes != null ? `${p.likes} likes` : '', p.comments != null ? `${p.comments} comments` : '', p.shares != null ? `${p.shares} shares` : ''].filter(Boolean).join(', ');
-          out.push(`  • ${dayOf(p.date)} ${p.kind || 'post'}: ${oneLine(p.text).slice(0, 110)} | ${eng}${p.url ? ` | ${p.url}` : ''}`);
+          out.push(`  • ${dayOf(p.date)} ${p.kind || 'post'}: ${oneLine(p.text).slice(0, 110)}${p.hook ? ` | HOOK: ${oneLine(p.hook)}` : ''}${p.angle ? ` · ANGLE: ${oneLine(p.angle)}` : ''} | ${eng}${p.url ? ` | ${p.url}` : ''}`);
         });
       }
     } catch (e) { /* skip platform on error */ }
