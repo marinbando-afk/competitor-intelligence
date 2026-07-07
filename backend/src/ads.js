@@ -109,11 +109,11 @@ async function siteDescriptor(host) {
   try {
     const w = await latestSnapshot(host, 'website');
     const items = (w && w.summary && w.summary.items) ? Object.values(w.summary.items) : [];
-    const titles = items.map((i) => clean(i && i.title)).filter(Boolean).slice(0, 8);
+    const titles = items.map((i) => clean(i && i.title).replace(/["\\]/g, '')).filter(Boolean).slice(0, 8);
     const bits = [];
     if (titles.length) bits.push('sells: ' + titles.join(', '));
     else if (w && w.summary && w.summary.products) bits.push('has ' + w.summary.products + ' products');
-    if (w && w.banner) bits.push('on-site promo: "' + clean(w.banner) + '"');
+    if (w && w.banner) bits.push('on-site promo: ' + clean(w.banner).replace(/["\\]/g, ''));
     return bits.join('; ').slice(0, 320);
   } catch (e) { return ''; }
 }
@@ -170,7 +170,7 @@ async function filterToBrand(brand, ads, hostDom, desc) {
   const idOf = (a) => (a.advertiser || '') + '|' + (adDomain(a.landing) || '');
   // Attach a sample of each distinct advertiser's ad copy so the AI can sanity-check the
   // ADS against the brand's website business (not just match the name/domain).
-  const distinct = [...new Map(ads.map((a) => [idOf(a), { id: idOf(a), advertiser: a.advertiser || '', domain: adDomain(a.landing) || '', sample: clean(a.text || a.title || '').slice(0, 140) }])).values()];
+  const distinct = [...new Map(ads.map((a) => [idOf(a), { id: idOf(a), advertiser: a.advertiser || '', domain: adDomain(a.landing) || '', sample: clean(a.text || a.title || '').replace(/["\\]/g, '').slice(0, 140) }])).values()];
   // The brand's REAL domain is the ground-truth identity hint. Only when we don't know it
   // do we GUESS the most common brand-looking landing domain from the ads themselves —
   // which is dangerous when a keyword search returns a same-named different company (the
@@ -188,7 +188,10 @@ async function filterToBrand(brand, ads, hostDom, desc) {
     // brand's own funnels (drink.brodo.com) always survive.
     return ads.filter((a) => { if (onOwnDomain(a)) return true; const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
   } catch (e) {
-    return ads.filter(stringKeep);   // AI unavailable/error → whole-word rules
+    // AI error → be CONSERVATIVE when we know the brand's domain: keep only its own-domain
+    // ads (whole-word name matching is unreliable for a generic name like "Brodo", which
+    // matches BRODO Footwear, brodo.ma, etc.). Only with no known domain fall back to names.
+    return ads.filter((a) => hostDom ? onOwnDomain(a) : stringKeep(a));
   }
 }
 
