@@ -143,7 +143,8 @@ async function sameBrandVerdicts(brand, hint, distinct, desc) {
       `SAME = the brand itself: its own site/subdomains, its GENUINE regional stores (the same brand on a country version of ITS site), and its OWN advertorial/native-ad funnels (the advertiser is the brand even when the landing is a news/partner domain). ` +
       `DIFFERENT = a separate company: a competitor, reseller, affiliate, fan account, or an unrelated business that merely SHARES A NAME, WORD or SURNAME with the target — INCLUDING one on a DIFFERENT REGISTRABLE DOMAIN (e.g. a foreign ccTLD). Many businesses worldwide share a generic word (e.g. "brodo" means "broth" in Italian). ` +
       `A same-name ad on a DIFFERENT registrable domain than the official site is DIFFERENT unless there is clear evidence it is the target's OWN regional site — e.g. "brodo.ma" (a Morocco domain) is NOT "brodo.com" (a NYC bone-broth brand); "Campbells of Deal" (campbellsofdeal.co.uk, a UK car garage) is NOT "campbells.com". ` +
-      `Do NOT call it the same just because the brand's letters appear inside another word ("Super Hoodie"/"Foodie Flavours" are DIFFERENT from "The Oodie"). When the advertiser's domain/industry doesn't clearly match the official site, answer DIFFERENT. ` +
+      `Do NOT call it the same just because the brand's letters appear inside another word ("Super Hoodie"/"Foodie Flavours" are DIFFERENT from "The Oodie"). ` +
+      `PRECISION FIRST: it is far better to MISS one of the brand's ads than to include a DIFFERENT company's ad. When you are not confident it's the target brand, answer DIFFERENT. When the advertiser's domain/industry doesn't clearly match the official site, answer DIFFERENT. ` +
       `Return ONLY minified JSON: {"v":[{"i":1,"same":true|false}, ...]}, one entry per row.`;
     const resp = await aiClient().messages.create({ model: BRAND_MATCH_MODEL, max_tokens: 1000, system, messages: [{ role: 'user', content: rows }] });
     const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim().replace(/^```(?:json)?|```$/g, '').trim();
@@ -178,7 +179,12 @@ async function filterToBrand(brand, ads, hostDom, desc) {
   for (const a of ads) { const p = a.pageId; if (!p) continue; (pg[p] = pg[p] || { total: 0, own: 0 }).total++; if (onOwnDomain(a)) pg[p].own++; }
   const brandPages = new Set(Object.keys(pg).filter((p) => pg[p].own > 0 && pg[p].own * 2 >= pg[p].total));
   const onBrandPage = (a) => !!(a.pageId && brandPages.has(a.pageId));
-  const stringKeep = (a) => onOwnDomain(a) || onBrandPage(a) || (!keys.size ? true : adMatchesBrand(a, keys));
+  // Precision first (founder rule: NEVER show a random business — better to miss a brand ad
+  // than show a different company's). When we know the brand's domain, keep ONLY its own-domain
+  // ads, its own-page ads, and AI-confirmed ones — bare brand-NAME matching is disabled (it's
+  // what let "brodo.ma"/"BRODO Footwear" through). Name matching only fills in when we have NO
+  // domain to anchor on (fail-open so a domain-less brand isn't blanked).
+  const stringKeep = (a) => onOwnDomain(a) || onBrandPage(a) || (hostDom ? false : (!keys.size ? true : adMatchesBrand(a, keys)));
   if (!process.env.ANTHROPIC_API_KEY) return ads.filter(stringKeep);
   const idOf = (a) => (a.advertiser || '') + '|' + (adDomain(a.landing) || '');
   // Attach a sample of each distinct advertiser's ad copy so the AI can sanity-check the
