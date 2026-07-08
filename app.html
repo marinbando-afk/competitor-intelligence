@@ -1511,7 +1511,7 @@ function openAd(i){
   if(a.link)rows+='<div class="adrow"><span class="adrow-k">Source</span><a class="adrow-v" href="'+esc(a.link)+'" target="_blank" rel="noopener">Open in Meta Ad Library ↗</a></div>';
   document.getElementById('adBody').innerHTML=media+copy+(rows?'<div class="adrows">'+rows+'</div>':'');
   ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
-  if(a.text||a.title||a.image)loadAngle(a.text||a.title||'','ad',a.image,a.video);
+  if(a.text||a.title||a.image)loadAngle(a.text||a.title||'','ad',a.image,a.video,a);
 }
 function closeAd(){var ov=document.getElementById('adOv');if(!ov)return;ov.classList.remove('open');ov.setAttribute('aria-hidden','true');document.body.style.overflow='';}
 var angleCache={};
@@ -1530,12 +1530,17 @@ function fillAngle(key,o){
   row('angleCreativeRow','angleCreative',o.creative);
   row('angleApplyRow','angleApply',o.apply);
 }
-function loadAngle(text,kind,image,video){
+function loadAngle(text,kind,image,video,item){
   var el=document.getElementById('angleVal');if(!el)return;
   var key=kind+'|'+String(image||'').slice(0,80)+'|'+String(video||'').slice(0,50)+'|'+String(text||'').slice(0,100);el.dataset.k=key;
   if(angleCache[key]!==undefined){fillAngle(key,angleCache[key]);return;}
+  // INSTANT: the creative was already analysed during the daily warm (hook/angle/creative
+  // stored on the ad/post) — show it immediately instead of the "analyzing…" wait. We only
+  // still call /api/angle to add the per-brand "For you" tip; with no brand set, we're done.
+  var pre=item&&(item.angle||item.hook||item.creative)?{angle:item.angle||'',hook:item.hook||'',creative:item.creative||'',apply:'',script:''}:null;
+  if(pre){fillAngle(key,pre);if(!(typeof myBrand!=='undefined'&&myBrand&&myBrand.name)){angleCache[key]=pre;return;}}
   fetch(API+'/api/angle',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({text:text,kind:kind,image:image||'',video:video||''})})
-    .then(function(r){return r.json();}).then(function(d){var o={angle:(d&&d.angle)||'',hook:(d&&d.hook)||'',creative:(d&&d.creative)||'',apply:(d&&d.apply)||'',script:(d&&d.script)||''};angleCache[key]=o;fillAngle(key,o);})
+    .then(function(r){return r.json();}).then(function(d){var o={angle:(d&&d.angle)||(pre&&pre.angle)||'',hook:(d&&d.hook)||(pre&&pre.hook)||'',creative:(d&&d.creative)||(pre&&pre.creative)||'',apply:(d&&d.apply)||'',script:(d&&d.script)||''};angleCache[key]=o;fillAngle(key,o);})
     .catch(function(){fillAngle(key,{angle:'—',hook:'',creative:'',apply:'',script:''});});
 }
 function openSoc(el){
@@ -1558,7 +1563,7 @@ function openSoc(el){
   if(p.url)rows+='<div class="adrow"><span class="adrow-k">Source</span><a class="adrow-v" href="'+esc(p.url)+'" target="_blank" rel="noopener">Open original post ↗</a></div>';
   document.getElementById('adBody').innerHTML=media+copy+(rows?'<div class="adrows">'+rows+'</div>':'');
   ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
-  if(p.text||p.image)loadAngle(p.text||'','post',p.image);
+  if(p.text||p.image)loadAngle(p.text||'','post',p.image,p.video,p);
 }
 function goDay(day){
   var c=currentComp();if(!c)return;state.day=day;viewSnap=null;
