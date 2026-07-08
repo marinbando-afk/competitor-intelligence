@@ -25,7 +25,7 @@ import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { systemStats } from './stats.js';
 import { getWeekly, generateWeekly, mondayOf } from './weekly.js';
-import { snapshotDays, snapshotForDay, recentSnapshots, saveSnapshot } from './snapshots.js';
+import { snapshotDays, snapshotForDay, recentSnapshots, saveSnapshot, latestSnapshot } from './snapshots.js';
 
 const app = express();
 // Emails can be large; also accept form-encoded posts from inbound-email services.
@@ -92,22 +92,30 @@ app.get('/api/weekly', async (req, res) => {
 //   GET /api/ads?brand=The%20Oodie&country=AU  -> { count, ads: [{ text, image, page, started, link }] }
 app.get('/api/ads', async (req, res) => {
   try {
-    // One competitor = one dataset. If this host is already tracked (by any customer or
-    // as a demo), scrape under its CANONICAL name + country — so two customers who typed
-    // slightly different names for the same competitor share one cache entry (the same
-    // one the nightly warm keeps hot) instead of triggering duplicate Apify scrapes.
-    let brand = req.query.brand, country = req.query.country;
     const qh = String(req.query.host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase();
-    if (qh) {
-      try {
-        const t = (await allBrands()).find((b) => b.host === qh);
-        if (t) { brand = t.name; country = t.country; }
-      } catch (e) { /* canonicalization is best-effort */ }
+    const force = req.query.force === '1';
+    let data = null;
+    // FAST PATH: serve the PERSISTED daily capture (Postgres, survives restarts) so a
+    // pre-warmed competitor's ads appear instantly — instead of waiting on a live scrape
+    // whenever the in-memory cache is cold (every deploy resets it). It's the same capture
+    // the AI-read uses, so the panel and the read stay consistent. force=1 always re-scrapes.
+    if (qh && !force) {
+      try { const snap = await latestSnapshot(qh, 'ads'); if (snap && Array.isArray(snap.ads) && snap.ads.length) data = snap; } catch (e) { /* fall through to live */ }
     }
-    const data = await fetchAds(brand, country, req.query.force === '1', false, qh);
-    // On an explicit force-refresh of a tracked competitor, persist the fresh capture so the
-    // AI-read/insights (which read the saved 'ads' snapshot) reflect the same attribution.
-    if (qh && req.query.force === '1' && data.ads && data.ads.length) { try { await saveSnapshot(qh, 'ads', data); } catch (e) { /* best-effort */ } }
+    if (!data) {
+      // One competitor = one dataset. If this host is already tracked (by any customer or
+      // as a demo), scrape under its CANONICAL name + country so slightly different names
+      // for the same competitor share one cache entry (the one the nightly warm keeps hot).
+      let brand = req.query.brand, country = req.query.country;
+      if (qh) {
+        try { const t = (await allBrands()).find((b) => b.host === qh); if (t) { brand = t.name; country = t.country; } }
+        catch (e) { /* canonicalization is best-effort */ }
+      }
+      data = await fetchAds(brand, country, force, false, qh);
+      // On an explicit force-refresh of a tracked competitor, persist the fresh capture so the
+      // AI-read/insights (which read the saved 'ads' snapshot) reflect the same attribution.
+      if (qh && force && data.ads && data.ads.length) { try { await saveSnapshot(qh, 'ads', data); } catch (e) { /* best-effort */ } }
+    }
     const out = { active: data.active, newest: data.newest, platforms: data.platforms, country: data.country, ads: (data.ads || []).slice(0, 30) };
     if (req.query.host) {
       try {
