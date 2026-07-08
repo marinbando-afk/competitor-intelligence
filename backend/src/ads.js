@@ -169,7 +169,16 @@ async function filterToBrand(brand, ads, hostDom, desc) {
   // An ad landing on the brand's OWN domain (or a subdomain, e.g. drink.brodo.com for
   // brodo.com) is DEFINITIVELY the brand's — never let fuzzy matching drop it.
   const onOwnDomain = (a) => { if (!hostDom) return false; const d = adDomain(a.landing); return !!d && (d === hostDom || d.endsWith('.' + hostDom)); };
-  const stringKeep = (a) => onOwnDomain(a) || (!keys.size ? true : adMatchesBrand(a, keys));
+  // Identify the brand's OWN Facebook pages: page_ids where MOST ads land on the brand's
+  // domain. Their OTHER ads — the brand's own advertorials/partner funnels that send
+  // traffic to a 3RD-PARTY domain — are still the brand's, so keep them via the page even
+  // when the landing domain differs. Impostor/network pages don't qualify (their ads don't
+  // land on the brand's domain), so this never resurfaces unrelated advertisers.
+  const pg = {};
+  for (const a of ads) { const p = a.pageId; if (!p) continue; (pg[p] = pg[p] || { total: 0, own: 0 }).total++; if (onOwnDomain(a)) pg[p].own++; }
+  const brandPages = new Set(Object.keys(pg).filter((p) => pg[p].own > 0 && pg[p].own * 2 >= pg[p].total));
+  const onBrandPage = (a) => !!(a.pageId && brandPages.has(a.pageId));
+  const stringKeep = (a) => onOwnDomain(a) || onBrandPage(a) || (!keys.size ? true : adMatchesBrand(a, keys));
   if (!process.env.ANTHROPIC_API_KEY) return ads.filter(stringKeep);
   const idOf = (a) => (a.advertiser || '') + '|' + (adDomain(a.landing) || '');
   // Attach a sample of each distinct advertiser's ad copy so the AI can sanity-check the
@@ -187,15 +196,16 @@ async function filterToBrand(brand, ads, hostDom, desc) {
   }
   try {
     const verdict = await sameBrandVerdicts(brand, hint, distinct, desc);
-    // Own-domain ads are ALWAYS kept; off-domain ads follow the AI verdict — so a same-name
-    // ad on a DIFFERENT registrable domain (brodo.ma vs brodo.com) is dropped, while the
-    // brand's own funnels (drink.brodo.com) always survive.
-    return ads.filter((a) => { if (onOwnDomain(a)) return true; const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
+    // Own-domain ads and ads from the brand's OWN pages are ALWAYS kept (the latter catches
+    // the brand's advertorials that send traffic to a 3rd-party domain); other off-domain ads
+    // follow the AI verdict — so a same-name ad on a DIFFERENT registrable domain (brodo.ma vs
+    // brodo.com) is dropped, while the brand's own funnels (drink.brodo.com) always survive.
+    return ads.filter((a) => { if (onOwnDomain(a) || onBrandPage(a)) return true; const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
   } catch (e) {
     // AI error → be CONSERVATIVE when we know the brand's domain: keep only its own-domain
-    // ads (whole-word name matching is unreliable for a generic name like "Brodo", which
-    // matches BRODO Footwear, brodo.ma, etc.). Only with no known domain fall back to names.
-    return ads.filter((a) => hostDom ? onOwnDomain(a) : stringKeep(a));
+    // ads + ads from its own pages (whole-word name matching is unreliable for a generic name
+    // like "Brodo", which matches BRODO Footwear, brodo.ma, etc.). No known domain → names.
+    return ads.filter((a) => hostDom ? (onOwnDomain(a) || onBrandPage(a)) : stringKeep(a));
   }
 }
 
