@@ -20,7 +20,7 @@ import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo } fro
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
-import { getInsights, generateInsights, quickAngle, creditStatus } from './insights.js';
+import { getInsights, generateInsights, quickAngle, creditStatus, enrichCreativeHooks } from './insights.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { systemStats } from './stats.js';
@@ -115,7 +115,11 @@ app.get('/api/ads', async (req, res) => {
       data = await fetchAds(brand, country, force || !!pageId, false, qh, pageId);
       // On an explicit force-refresh of a tracked competitor, persist the fresh capture so the
       // AI-read/insights (which read the saved 'ads' snapshot) reflect the same attribution.
-      if (qh && force && !pageId && data.ads && data.ads.length) { try { await saveSnapshot(qh, 'ads', data); } catch (e) { /* best-effort */ } }
+      // Carry forward the pre-computed creative analysis (budget 0 = reuse only, no new vision
+      // cost) so a force-refresh doesn't strip the preloaded hooks the ad modal shows instantly.
+      if (qh && force && !pageId && data.ads && data.ads.length) {
+        try { await enrichCreativeHooks(qh, 'ads', 'ad', data.ads, { left: 0 }); await saveSnapshot(qh, 'ads', data); } catch (e) { /* best-effort */ }
+      }
     }
     const out = { active: data.active, newest: data.newest, platforms: data.platforms, country: data.country, ads: (data.ads || []).slice(0, 30) };
     if (req.query.host) {
