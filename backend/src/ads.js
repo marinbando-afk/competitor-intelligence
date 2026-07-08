@@ -18,33 +18,37 @@ let _ac;
 function aiClient() { if (!_ac) _ac = new Anthropic(); return _ac; }
 const _verdict = new Map();   // 'brand|advertiser|domain' -> { at, val } — cached AI brand-identity verdicts
 
-export async function fetchAds(brand, country, force, cacheOnly, host) {
+export async function fetchAds(brand, country, force, cacheOnly, host, pageId) {
   brand = String(brand || '').trim();
   country = String(country || 'ALL').trim().toUpperCase();
-  if (!brand) { const e = new Error('Missing brand.'); e.status = 400; throw e; }
+  pageId = String(pageId || '').replace(/\D/g, '');   // numeric FB page id only (page-scoped scan)
+  if (!brand && !pageId) { const e = new Error('Missing brand.'); e.status = 400; throw e; }
   if (!TOKEN) { const e = new Error('Ads provider not configured — set APIFY_TOKEN in Railway.'); e.status = 503; throw e; }
 
-  const key = brand.toLowerCase() + '|' + country;
+  const key = brand.toLowerCase() + '|' + country + (pageId ? '|p:' + pageId : '');
   const hit = cache.get(key);
   if (!force && hit && Date.now() - hit.at < TTL) return { ...hit.data, cached: true };
   // cacheOnly: never trigger a live scrape (used by the chat) — return empty on a miss.
   if (cacheOnly) return { brand, country, count: 0, active: 0, platforms: [], newest: '', ads: [], cacheMiss: true };
 
-  const searchUrl =
-    'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' +
-    encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + '&media_type=all';
+  // PAGE-SCOPED scan pulls one confirmed brand page's ads directly (no keyword flood);
+  // otherwise a keyword search by brand name.
+  const searchUrl = pageId
+    ? ('https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=' + encodeURIComponent(country) + '&view_all_page_id=' + pageId + '&search_type=page&media_type=all')
+    : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + '&media_type=all');
 
   // Covers the common input shapes across Meta Ad Library actors — extra fields are ignored.
   const ADS_N = Number(process.env.ADS_COUNT) || 100;   // sweet spot: catches new ads (usually recent) at ~$2.25/mo/brand; ADS_COUNT env overrides
   const input = {
     urls: [{ url: searchUrl }],
     startUrls: [{ url: searchUrl }],
-    searchTerms: [brand],
+    searchTerms: pageId ? [] : [brand],
     count: ADS_N,
     maxItems: ADS_N,
     country,
-    activeStatus: 'active',
+    activeStatus: pageId ? 'all' : 'active',
     scrapePageAds: true,
+    ...(pageId ? { pageId, pageIds: [pageId] } : {}),   // some actors take the page id directly
   };
 
   const endpoint =
@@ -252,6 +256,7 @@ async function normalize(items, brand, country, host) {
       video: (() => { const v = vids.find((x) => x.video_sd_url || x.video_hd_url) || cards.find((x) => x.video_sd_url || x.video_hd_url); return v ? (v.video_sd_url || v.video_hd_url) : ''; })(),
       page: it.page_name || snap.page_name || brand,
       advertiser: it.page_name || snap.page_name || '',   // real Facebook advertiser; '' if the actor omits it — used to attribute the ad to a brand
+      pageId: String(it.page_id || snap.page_id || (it.snapshot && it.snapshot.page_id) || ''),   // FB page id — lets us pin scanning to the confirmed brand page
 
       platforms,
       format: snap.display_format || (cards.length > 1 ? 'CAROUSEL' : 'IMAGE'),

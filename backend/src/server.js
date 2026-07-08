@@ -94,12 +94,13 @@ app.get('/api/ads', async (req, res) => {
   try {
     const qh = String(req.query.host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase();
     const force = req.query.force === '1';
+    const pageId = String(req.query.pageId || '').replace(/\D/g, '');   // page-scoped probe (temporary, not persisted)
     let data = null;
     // FAST PATH: serve the PERSISTED daily capture (Postgres, survives restarts) so a
     // pre-warmed competitor's ads appear instantly — instead of waiting on a live scrape
     // whenever the in-memory cache is cold (every deploy resets it). It's the same capture
     // the AI-read uses, so the panel and the read stay consistent. force=1 always re-scrapes.
-    if (qh && !force) {
+    if (qh && !force && !pageId) {
       try { const snap = await latestSnapshot(qh, 'ads'); if (snap && Array.isArray(snap.ads) && snap.ads.length) data = snap; } catch (e) { /* fall through to live */ }
     }
     if (!data) {
@@ -111,10 +112,10 @@ app.get('/api/ads', async (req, res) => {
         try { const t = (await allBrands()).find((b) => b.host === qh); if (t) { brand = t.name; country = t.country; } }
         catch (e) { /* canonicalization is best-effort */ }
       }
-      data = await fetchAds(brand, country, force, false, qh);
+      data = await fetchAds(brand, country, force || !!pageId, false, qh, pageId);
       // On an explicit force-refresh of a tracked competitor, persist the fresh capture so the
       // AI-read/insights (which read the saved 'ads' snapshot) reflect the same attribution.
-      if (qh && force && data.ads && data.ads.length) { try { await saveSnapshot(qh, 'ads', data); } catch (e) { /* best-effort */ } }
+      if (qh && force && !pageId && data.ads && data.ads.length) { try { await saveSnapshot(qh, 'ads', data); } catch (e) { /* best-effort */ } }
     }
     const out = { active: data.active, newest: data.newest, platforms: data.platforms, country: data.country, ads: (data.ads || []).slice(0, 30) };
     if (req.query.host) {
