@@ -53,6 +53,25 @@ async function siteBanner(homeText) {
   } catch (e) { return ''; }
 }
 
+// Read the promo banner from the SCREENSHOT (what's actually DISPLAYED) rather than the raw
+// HTML — a plain fetch runs no JS, so it can pick up an UPCOMING banner sitting in the page
+// code behind a countdown and report a sale switch a DAY before it's visibly shown. Reading
+// the rendered screenshot keeps the banner in step with what users (and our before/after
+// image) actually see. Falls back to the HTML-text read only if there's no shot / vision errors.
+async function siteBannerFromShot(shot, homeText) {
+  const m = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i.exec(String(shot || ''));
+  if (process.env.ANTHROPIC_API_KEY && m) {
+    try {
+      const system =
+        'You are shown a screenshot of a storefront homepage. If an ACTIVE promotion/sale/offer is VISIBLY displayed on it (an announcement bar, banner or hero headline — e.g. a %-off sale, free-gift, or discount code), state it in <=14 words, plain text, keeping any NAMED OCCASION exactly ("4th of July Sale", "Black Friday", "Summer Sale"). ' +
+        'If NO promotion is visibly shown, return an empty string. Report ONLY what is actually VISIBLE in the image — never guess, and never report a banner that is not shown.';
+      const resp = await bannerClient().messages.create({ model: BANNER_MODEL, max_tokens: 60, system, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } }, { type: 'text', text: 'What promotion is visibly displayed at the top of this storefront?' }] }] });
+      return oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')).slice(0, 160);   // trust the visual (incl. empty = none shown)
+    } catch (e) { /* vision error → fall back to the HTML-text read */ }
+  }
+  return siteBanner(homeText);
+}
+
 // A small, diff-friendly summary of the storefront, from Shopify's products.json
 // (works for the many DTC brands on Shopify; returns null otherwise — the
 // before/after screenshot still works without it).
@@ -108,7 +127,7 @@ export async function siteShot(url) {
 export async function captureWebsite(host, url) {
   const u = url || ('https://' + cleanHost(host));
   const [summary, shot, homeText] = await Promise.all([siteSummary(host), siteShot(u), fetchHomeText(u)]);
-  const banner = await siteBanner(homeText);   // the actual on-site promo headline, if any
+  const banner = await siteBannerFromShot(shot, homeText);   // read the banner from the screenshot (what's shown), not raw HTML
   const data = { summary, shot, banner, capturedAt: new Date().toISOString() };
   await saveSnapshot(host, 'website', data);
   return data;
