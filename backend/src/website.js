@@ -58,7 +58,7 @@ async function siteBanner(homeText) {
 // code behind a countdown and report a sale switch a DAY before it's visibly shown. Reading
 // the rendered screenshot keeps the banner in step with what users (and our before/after
 // image) actually see. Falls back to the HTML-text read only if there's no shot / vision errors.
-async function siteBannerFromShot(shot, homeText) {
+export async function siteBannerFromShot(shot, homeText) {
   const m = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i.exec(String(shot || ''));
   if (process.env.ANTHROPIC_API_KEY && m) {
     try {
