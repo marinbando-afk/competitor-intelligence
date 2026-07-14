@@ -1351,7 +1351,21 @@ function paintAsOf(c){
   var latest=days.slice().sort()[days.length-1],n=new Date(),today=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
   el.innerHTML=' · <span class="asoflbl'+(latest===today?'':' stale')+'" title="The most recent daily capture. A new capture replaces this when it runs.">'+(latest===today?'captured today':'📅 as of '+esc(fmtShortDay(latest)))+'</span>';
 }
-function refreshDateFloat(){var c=currentComp(),f=document.getElementById('dateNavWrap');if(f)f.innerHTML=c?dateNav(c):'';if(c){paintAsOf(c);checkEmailBanner(c);loadInsights(c);}eagerLoad();}
+function refreshDateFloat(){
+  var c=currentComp(),f=document.getElementById('dateNavWrap');if(f)f.innerHTML=c?dateNav(c):'';
+  if(c){
+    paintAsOf(c);checkEmailBanner(c);
+    if(state.day){
+      // Historical day → show THAT day's AI reads (captured that day) instead of today's, so
+      // e.g. the 5 Jul website read calls out the 4th of July sale that was live then. Strip
+      // the 'apply' tip — it's a live per-you suggestion, meaningless for a past date.
+      var di=(viewSnap&&viewSnap.insights)||{},hist={};
+      ['ads','social','website','email'].forEach(function(k){var o=di[k];if(o)hist[k]={summary:o.summary,bullets:o.bullets,apply:''};});
+      paintInsights(c,hist);
+    } else { loadInsights(c); }
+  }
+  eagerLoad();
+}
 // Top email banner shows only while their emails aren't flowing yet (inbox set, none captured); hides once they arrive.
 function checkEmailBanner(c){
   if(!c)return;
