@@ -73,6 +73,33 @@ export async function recentSnapshots(host, channel, limit) {
   } catch (e) { return []; }
 }
 
+// All snapshots for one channel, OLDEST→NEWEST, each with its day string — used by
+// one-time historical backfills that must walk and rewrite specific past days.
+export async function allSnapshots(host, channel) {
+  if (!ok() || !host) return [];
+  try {
+    const r = await pool.query(
+      `SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots
+       WHERE host = $1 AND channel = $2 ORDER BY day ASC LIMIT 60`,
+      [String(host).toLowerCase(), channel],
+    );
+    return r.rows.map((x) => ({ day: x.day, data: x.data }));
+  } catch (e) { return []; }
+}
+
+// Upsert a snapshot to a SPECIFIC day (not today). For historical backfills only —
+// normal captures use saveSnapshot (CURRENT_DATE).
+export async function saveSnapshotDay(host, channel, day, data) {
+  if (!ok() || !host || !day || !data) return;
+  try {
+    await pool.query(
+      `INSERT INTO snapshots(host, channel, day, data) VALUES($1, $2, $3::date, $4)
+       ON CONFLICT (host, channel, day) DO UPDATE SET data = EXCLUDED.data, created_at = now()`,
+      [String(host).toLowerCase(), channel, day, JSON.stringify(data)],
+    );
+  } catch (e) { console.warn('snapshot save-day ' + channel + ':', e.message); }
+}
+
 // All channels captured for a host on a given day.
 export async function snapshotForDay(host, day) {
   if (!ok() || !host || !day || !isPublicHost(host)) return {};

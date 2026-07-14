@@ -20,7 +20,7 @@ import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo } fro
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare } from './website.js';
-import { getInsights, generateInsights, quickAngle, creditStatus, enrichCreativeHooks } from './insights.js';
+import { getInsights, generateInsights, quickAngle, creditStatus, enrichCreativeHooks, backfillWebsiteReads } from './insights.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { systemStats } from './stats.js';
@@ -454,6 +454,23 @@ app.post('/api/admin/refresh', async (req, res) => {
       console.log('✓ admin refresh: regenerated insights+weekly for ' + n + ' brand(s)');
     } catch (e) { console.warn('admin refresh:', e.message); }
     finally { _adminRefreshing = false; }
+  })();
+});
+
+// One-time, HOST-SCOPED historical fix: re-read each stored day's banner from that day's
+// screenshot and regenerate that day's website read, so a past sale switch lands on the
+// day it visibly changed. Only the named host is touched.
+app.post('/api/admin/backfill-banners', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  const host = String((req.body && req.body.host) || req.query.host || '').toLowerCase().trim();
+  if (!host || host.indexOf('.') < 0) return res.status(400).json({ error: 'host required' });
+  res.json({ ok: true, started: true, host });
+  (async () => {
+    try {
+      const t = (await allBrands()).find((b) => b.host === host);
+      const r = await backfillWebsiteReads(host, t ? t.name : host);
+      console.log('✓ backfill-banners ' + host + ': ' + JSON.stringify(r));
+    } catch (e) { console.warn('backfill-banners ' + host + ':', e.message); }
   })();
 });
 

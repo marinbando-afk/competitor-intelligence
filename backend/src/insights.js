@@ -9,9 +9,9 @@
 // ANTHROPIC_API_KEY (falls back to no insights if absent).
 
 import Anthropic from '@anthropic-ai/sdk';
-import { recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost } from './snapshots.js';
+import { recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost, allSnapshots, saveSnapshotDay, snapshotForDay } from './snapshots.js';
 import { getEmails } from './email.js';
-import { diffWebsite, siteShot } from './website.js';
+import { diffWebsite, siteShot, siteBannerFromShot } from './website.js';
 import { getMyBrand } from './brand.js';
 import { transcribeVideo } from './transcribe.js';
 
@@ -386,6 +386,46 @@ export async function generateInsights(brand, host) {
   Object.keys(out).forEach((k) => { if (!out[k]) delete out[k]; });
   if (Object.keys(out).length) { out.generatedAt = new Date().toISOString(); await saveSnapshot(host, 'insights', out); }
   return out;
+}
+
+// One-time historical fix (host-scoped). The promo banner used to be read from a plain
+// HTML fetch (no JS), so a banner sitting in the page code behind a countdown could be
+// reported a day BEFORE it was visibly shown. This walks every stored day, re-reads that
+// day's banner from that day's SCREENSHOT (the rendered visual), then regenerates that
+// day's website read against the day before — so a sale switch lands on the day it
+// VISIBLY changed, matching the before/after image. Touches only the named host's
+// website + insights channels; every other brand is untouched.
+export async function backfillWebsiteReads(host, brand) {
+  if (!process.env.ANTHROPIC_API_KEY || !host) return { days: 0, regenerated: 0 };
+  brand = brand || host;
+  const rows = await allSnapshots(host, 'website');   // oldest → newest
+  // 1) Re-read each day's banner from its stored screenshot and persist it to that day.
+  for (const r of rows) {
+    const d = r.data;
+    if (!d || !d.shot) continue;
+    try {
+      const b = await siteBannerFromShot(d.shot, '');   // trust the rendered visual
+      d.banner = (b || '').trim() || null;
+      await saveSnapshotDay(host, 'website', r.day, d);
+    } catch (e) { /* keep the stored banner on error */ }
+  }
+  // 2) Regenerate each day's website read against the day before (tenant-neutral).
+  let regenerated = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const today = rows[i].data, prev = i > 0 ? rows[i - 1].data : null;
+    if (!today || !today.summary) continue;
+    try {
+      const changes = prev ? diffWebsite(prev.summary, today.summary) : null;
+      const todayBlock = fmtWeb(today) + '\nCHANGES vs previous capture: ' + (changes ? (changes.join('; ') || 'none detected') : 'n/a (first capture)');
+      const read = await ask('website', brand, todayBlock, prev ? fmtWeb(prev) : '', null);
+      if (!read) continue;
+      const ins = (await snapshotForDay(host, rows[i].day)).insights || {};
+      ins.website = read;
+      await saveSnapshotDay(host, 'insights', rows[i].day, ins);
+      regenerated++;
+    } catch (e) { /* skip the day on error */ }
+  }
+  return { days: rows.length, regenerated };
 }
 
 // Cross-channel synthesis for the report header. Same discipline as the channel
