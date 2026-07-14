@@ -406,11 +406,14 @@ async function makeBrief(brand, out, me) {
     (me && me.profile ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}` : '');
   const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 500, system, messages: [{ role: 'user', content: parts.join('\n') }] });
   const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
-  try {
-    const j = JSON.parse(txt.replace(/^```json?\s*/i, '').replace(/\s*```$/, ''));
-    const verdict = toBullets(j && j.verdict, 3);
-    if (verdict.length) return { verdict, move: toBullets(j && j.move, 3) };
-  } catch (e) { /* malformed = no brief this cycle */ }
+  // Robust parse: try clean JSON, then salvage the first {...} object if the model wrapped
+  // it in any preamble/markdown — otherwise a stray word silently drops the whole brief
+  // (which is why the Threat assessment / counter-op sometimes vanished while channels stayed).
+  let j = null;
+  try { j = JSON.parse(txt.replace(/^```json?\s*/i, '').replace(/\s*```$/, '')); }
+  catch (e) { const m = txt.match(/\{[\s\S]*\}/); if (m) { try { j = JSON.parse(m[0]); } catch (_) { /* give up */ } } }
+  const verdict = toBullets(j && j.verdict, 3);
+  if (verdict.length) return { verdict, move: toBullets(j && j.move, 3) };
   return null;
 }
 
