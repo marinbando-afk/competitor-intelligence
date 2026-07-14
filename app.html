@@ -798,7 +798,7 @@ function loadUserComps(cb){
   if(!TOKEN){USERCOMPS=[];if(cb)cb();return;}
   fetch(API+'/api/competitors',{headers:authH()})
     .then(function(r){if(r.status===401){doSignout(true);throw 0;}return r.json();})
-    .then(function(d){USERCOMPS=(d.competitors||[]).map(mapServerComp);registerCompetitors();render();if(cb)cb();})
+    .then(function(d){USERCOMPS=(d.competitors||[]).map(mapServerComp);registerCompetitors();render();USERCOMPS.forEach(function(x){loadInsights(x);});if(cb)cb();})
     .catch(function(){if(cb)cb();});
 }
 function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');}catch(e){}clearMyBrandLocal();insightsCache={};angleCache={};paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
