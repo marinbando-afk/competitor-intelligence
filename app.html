@@ -1544,6 +1544,13 @@ function fillAngle(key,o){
   row('angleCreativeRow','angleCreative',o.creative);
   row('angleApplyRow','angleApply',o.apply);
 }
+// Show the "For you" row up front with a spinner while its tip is being generated, so the
+// customer knows a tailored move is coming (instead of it silently popping in later).
+function applyLoading(key){
+  var el=document.getElementById('angleVal');if(!el||el.dataset.k!==key)return;
+  var r=document.getElementById('angleApplyRow'),v=document.getElementById('angleApply');
+  if(r&&v){v.innerHTML='<span class="spin" style="display:inline-block;vertical-align:middle;margin-right:8px"></span><span class="angle-load">generating your move…</span>';r.style.display='';}
+}
 function loadAngle(text,kind,image,video,item){
   var el=document.getElementById('angleVal');if(!el)return;
   var key=kind+'|'+String(image||'').slice(0,80)+'|'+String(video||'').slice(0,50)+'|'+String(text||'').slice(0,100);el.dataset.k=key;
@@ -1551,8 +1558,10 @@ function loadAngle(text,kind,image,video,item){
   // INSTANT: the creative was already analysed during the daily warm (hook/angle/creative
   // stored on the ad/post) — show it immediately instead of the "analyzing…" wait. We only
   // still call /api/angle to add the per-brand "For you" tip; with no brand set, we're done.
+  var hasBrand=(typeof myBrand!=='undefined'&&myBrand&&myBrand.name);
   var pre=item&&(item.angle||item.hook||item.creative)?{angle:item.angle||'',hook:item.hook||'',creative:item.creative||'',apply:'',script:''}:null;
-  if(pre){fillAngle(key,pre);if(!(typeof myBrand!=='undefined'&&myBrand&&myBrand.name)){angleCache[key]=pre;return;}}
+  if(pre){fillAngle(key,pre);if(!hasBrand){angleCache[key]=pre;return;}}
+  if(hasBrand)applyLoading(key);   // "For you" appears immediately with a spinner so the user knows a tailored move is coming
   fetch(API+'/api/angle',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({text:text,kind:kind,image:image||'',video:video||''})})
     .then(function(r){return r.json();}).then(function(d){var o={angle:(d&&d.angle)||(pre&&pre.angle)||'',hook:(d&&d.hook)||(pre&&pre.hook)||'',creative:(d&&d.creative)||(pre&&pre.creative)||'',apply:(d&&d.apply)||'',script:(d&&d.script)||''};angleCache[key]=o;fillAngle(key,o);})
     .catch(function(){fillAngle(key,{angle:'—',hook:'',creative:'',apply:'',script:''});});
