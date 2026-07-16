@@ -82,6 +82,10 @@ export async function initSchema() {
     -- Per-account Slack: users paste their own Incoming Webhook to get their daily brief
     -- + weekly report links in their own channel.
     ALTER TABLE users ADD COLUMN IF NOT EXISTS slack_webhook TEXT;
+    -- Per-account competitor allowance. NULL = the default plan limit
+    -- (DEFAULT_MAX_COMPETITORS env, fallback 2). The founder raises this per client
+    -- from the admin Clients panel — no redeploy, no global env change.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS max_competitors INTEGER;
     -- Public read-only share link: a random token that opens this account's dashboard
     -- (their competitors + demos) with every editing control hidden — for sharing with
     -- a team. Null = no link yet; the admin mints one per client.

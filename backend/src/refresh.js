@@ -60,6 +60,13 @@ export async function removeTracked(host) {
   await saveSnapshot(TKEY, 'list', { items: next });
   return { removed: true };
 }
+// Global warm-list usage vs the MAX_USER_BRANDS ceiling. Per-account limits govern what
+// each customer may add; this is the overall cost backstop — surfaced in the admin panel
+// so raising a client's limit can't silently fail to enrol (and scrape) their brand.
+export async function warmUsage() {
+  try { return { used: (await getTracked()).length, cap: MAX_USER }; }
+  catch (e) { return { used: 0, cap: MAX_USER }; }
+}
 export async function allBrands() {
   const seen = new Set(TRACKED.map((t) => t.host));
   return TRACKED.concat((await getTracked()).filter((t) => t && t.host && !seen.has(t.host)));

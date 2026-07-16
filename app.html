@@ -871,7 +871,7 @@ function loadSharedComps(cb){
     .catch(function(){if(cb)cb();});
 }
 function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');}catch(e){}clearMyBrandLocal();insightsCache={};angleCache={};paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
-function paintAuth(){refreshAdmin();var s=document.getElementById('authSlot');if(!s)return;
+function paintAuth(){refreshAdmin();syncPlan();var s=document.getElementById('authSlot');if(!s)return;
   if(RO){s.innerHTML='<span class="ro-badge"><span class="dot"></span>Shared view · read-only</span>';return;}
   if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML=(ADMIN?'<button class="authbtn" onclick="openAdmin()" title="Admin panel">⚙ Admin</button>':'')+'<button class="authbtn" onclick="openShare()" title="Share a read-only view with your team">⇗ Share</button><button class="authbtn" onclick="openSlack()" title="Get your daily brief in Slack">⚡ Slack'+((USER&&USER.slack)?' ✓':'')+'</button><span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+(ADMIN?' · admin':'')+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
   else{s.innerHTML='<button class="authbtn primary" onclick="openAuth(\'signin\')">Sign in</button>';}
@@ -2051,6 +2051,10 @@ function trackComp(c){if(!c||c.demo||!c.host)return;fetch(API+'/api/track',{meth
 function registerCompetitors(){getList().forEach(function(c){if(c&&!c.demo)trackComp(c);});}
 /* ── plan tier (Starter): the 2 seeded demos are monitored; added competitors lock until upgrade ── */
 var PLAN={ads:20,competitors:2};
+// Your competitor allowance is per-account (the founder can raise it per client from the
+// admin panel) — /api/login and /api/me both return it, so keep PLAN in step with it.
+function planLimit(){var n=USER&&USER.maxCompetitors;if(typeof n==='number')return n;return (typeof PLAN==='object'&&PLAN)?PLAN.competitors:2;}
+function syncPlan(){var n=USER&&USER.maxCompetitors;if(typeof n==='number'&&typeof PLAN==='object'&&PLAN)PLAN.competitors=n;}
 (function(){var m=location.search.match(/[?&]admin=([^&]+)/);if(m){try{localStorage.setItem('adminKey',decodeURIComponent(m[1]));}catch(e){}try{history.replaceState(null,'',location.pathname);}catch(e){}}})();
 function adminKey(){try{return localStorage.getItem('adminKey')||'';}catch(e){return '';}}
 // Admin = the legacy URL key OR a signed-in admin account (the founder). USER.admin
@@ -2062,7 +2066,7 @@ function lockedComp(c){return !ADMIN && !!(c&&!c.demo&&!c.account);}  // your ow
 function addOrUpgrade(){
   if(RO)return;                                                               // read-only shared view: no editing
   if(!loggedIn()){openAuth('signup',openModal);return;}                       // need an account to add your own
-  if(!ADMIN&&USERCOMPS.length>=PLAN.competitors){showUpgrade();return;}        // plan limit on your own competitors
+  if(!ADMIN&&USERCOMPS.length>=planLimit()){showUpgrade();return;}             // per-account limit on your own competitors
   openModal();
 }
 function showUpgrade(){var o=document.getElementById('upOv');if(o)o.classList.add('open');}
@@ -2146,21 +2150,34 @@ function adminTab(t){
 function adminUrl(path){return API+path+(adminKey()?(path.indexOf('?')<0?'?':'&')+'key='+encodeURIComponent(adminKey()):'');}
 function adminHeaders(json){return Object.assign(json?{'Content-Type':'application/json'}:{},authH());}
 function clientShareLink(tok){return location.origin+location.pathname+'?share='+encodeURIComponent(tok);}
+var CLIENT_DFLT=2;   // default competitor allowance (server tells us the real one)
+// Overall scraping ceiling (MAX_USER_BRANDS env). Per-client limits govern who may add
+// what; this is the global cost backstop — if it's full, a newly-added brand won't be
+// scraped even though the client is under their own limit, so flag it loudly.
+function warmNote(w){
+  if(!w||typeof w.cap!=='number')return '';
+  var full=w.used>=w.cap;
+  return ' · <span style="color:'+(full?'var(--clay)':'var(--faint)')+'">scraping '+w.used+' of '+w.cap+' brands'+(full?' — FULL, raise MAX_USER_BRANDS in Railway before adding more':'')+'</span>';
+}
 function loadAdminClients(){
   var b=document.getElementById('adminBody');
   fetch(adminUrl('/api/admin/clients'),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
     if(!d||d.error){b.innerHTML='<div class="fb-empty">'+esc((d&&d.error)||'Couldn’t load.')+'</div>';return;}
+    if(typeof d.dflt==='number')CLIENT_DFLT=d.dflt;
     var cs=d.clients||[];
     var html='<div class="cl-new"><div class="cl-new-h">Create a client login</div>'
       +'<div class="cl-new-row"><input id="clEmail" class="cl-in" type="email" placeholder="client@email.com" autocomplete="off"><input id="clPass" class="cl-in cl-nm" type="text" placeholder="password (8+ chars)" autocomplete="off"><button class="cl-mini add" onclick="createClient(this)">Create</button></div>'
       +'<div id="clNewErr" class="cl-err"></div></div>'
-      +'<div class="fb-list-h">'+cs.length+' client'+(cs.length===1?'':'s')+'</div>'
+      +'<div class="fb-list-h">'+cs.length+' client'+(cs.length===1?'':'s')+warmNote(d.warm)+'</div>'
       +(cs.length?cs.map(clientCard).join(''):'<div class="fb-empty">No client accounts yet — create one above.</div>');
     b.innerHTML=html;
   }).catch(function(){b.innerHTML='<div class="fb-empty">Couldn’t load.</div>';});
 }
 function clientCard(c){
   var link=c.share_token?clientShareLink(c.share_token):'';
+  var lim=(c.max_competitors==null)?CLIENT_DFLT:c.max_competitors;
+  var used=(c.competitors||[]).length;
+  var atCap=used>=lim;
   var comps=(c.competitors||[]).map(function(x){
     return '<div class="cl-comp"><span class="cl-comp-h">'+esc(x.name||x.host)+'</span><span class="cl-comp-d">'+esc(x.host)+'</span><button class="cl-x" title="Remove from this client" onclick="clientRemoveComp('+c.id+','+x.id+',this)">×</button></div>';
   }).join('')||'<div class="cl-none">No competitors yet.</div>';
@@ -2168,10 +2185,22 @@ function clientCard(c){
     +'<div class="cl-top"><div style="min-width:0"><div class="au-em">'+esc(c.email)+'</div><div class="au-sub">joined '+esc(fmtDay(c.created_at))+'</div></div>'
     +'<button class="cl-del" title="Delete this client and their data" onclick="deleteClient('+c.id+',\''+esc(c.email)+'\')">Delete</button></div>'
     +(link?'<div class="cl-lbl">Read-only share link</div><div class="cl-share-row"><input class="cl-in cl-link" id="cllink-'+c.id+'" readonly value="'+esc(link)+'" onclick="this.select()"><button class="cl-mini" onclick="copyClientLink('+c.id+',this)">Copy</button><button class="cl-mini" title="New link — the old one stops working" onclick="rotateShare('+c.id+',this)">Rotate</button></div>':'')
-    +'<div class="cl-lbl">Competitors</div><div class="cl-comps">'+comps+'</div>'
+    +'<div class="cl-lbl">Competitors — '+used+' of '+lim+(c.max_competitors==null?' (default)':'')+(atCap?' · <span style="color:var(--gold)">at limit</span>':'')+'</div><div class="cl-comps">'+comps+'</div>'
     +'<div class="cl-addrow"><input class="cl-in" id="clch-'+c.id+'" placeholder="competitor domain — e.g. allbirds.com"><input class="cl-in cl-nm" id="clcn-'+c.id+'" placeholder="name (optional)"><button class="cl-mini add" onclick="clientAddComp('+c.id+',this)">Add</button></div>'
     +'<div class="cl-err" id="clerr-'+c.id+'"></div>'
+    +'<div class="cl-lbl">Competitor limit</div>'
+    +'<div class="cl-share-row"><input class="cl-in cl-nm" id="cllim-'+c.id+'" type="number" min="0" max="500" value="'+(c.max_competitors==null?'':c.max_competitors)+'" placeholder="default ('+CLIENT_DFLT+')"><button class="cl-mini" onclick="setClientLimit('+c.id+',this)">Save limit</button><span class="cl-none" style="align-self:center">blank = default ('+CLIENT_DFLT+')</span></div>'
     +'<button class="cl-reset" onclick="resetClientPass('+c.id+',\''+esc(c.email)+'\')">Reset password…</button></div>';
+}
+function setClientLimit(id,btn){
+  var v=(document.getElementById('cllim-'+id).value||'').trim();
+  btn.disabled=true;btn.textContent='…';
+  fetch(adminUrl('/api/admin/clients/'+id+'/limit'),{method:'POST',headers:adminHeaders(true),body:JSON.stringify({max:v===''?null:v})})
+    .then(function(r){return r.json();}).then(function(d){
+      btn.disabled=false;
+      if(!d||d.error){btn.textContent='Save limit';alert((d&&d.error)||'Couldn’t save.');return;}
+      btn.textContent='Saved ✓';setTimeout(loadAdminClients,700);
+    }).catch(function(){btn.disabled=false;btn.textContent='Save limit';alert('Couldn’t save.');});
 }
 function createClient(btn){
   var em=(document.getElementById('clEmail').value||'').trim(),pw=document.getElementById('clPass').value||'';

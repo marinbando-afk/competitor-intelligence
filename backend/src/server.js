@@ -16,7 +16,7 @@ import { signup, login, createUser, setPassword, requireAuth, optionalUid, JWT_I
 import { randomBytes } from 'crypto';
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
-import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, TRACKED } from './refresh.js';
+import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, TRACKED } from './refresh.js';
 import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
@@ -89,6 +89,19 @@ async function viewUid(req) {
 }
 
 function newShareToken() { return randomBytes(9).toString('base64url'); }   // ~12 url-safe chars
+
+// How many competitors an account may add. Per-account override lives in
+// users.max_competitors (set by the founder in the admin Clients panel); NULL falls back
+// to the default plan limit. The founder's own admin account is unlimited.
+const DEFAULT_MAX_COMPETITORS = Number(process.env.DEFAULT_MAX_COMPETITORS) || 2;
+async function competitorAllowance(uid) {
+  try {
+    const r = await pool.query('SELECT admin, max_competitors FROM users WHERE id = $1', [uid]);
+    if (!r.rows[0]) return DEFAULT_MAX_COMPETITORS;
+    if (r.rows[0].admin) return Infinity;
+    return r.rows[0].max_competitors == null ? DEFAULT_MAX_COMPETITORS : r.rows[0].max_competitors;
+  } catch (e) { return DEFAULT_MAX_COMPETITORS; }
+}
 
 app.get('/api/health', async (req, res) => {
   let userTracked = null;
@@ -505,11 +518,11 @@ app.post('/api/admin/backfill-banners', async (req, res) => {
 app.get('/api/admin/clients', async (req, res) => {
   if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   try {
-    const us = await pool.query('SELECT id, email, approved, share_token, created_at FROM users WHERE admin = FALSE ORDER BY created_at DESC');
+    const us = await pool.query('SELECT id, email, approved, share_token, max_competitors, created_at FROM users WHERE admin = FALSE ORDER BY created_at DESC');
     const cs = await pool.query('SELECT id, user_id, name, host, url, country, status, handles FROM competitors ORDER BY created_at ASC');
     const byUser = {};
     for (const c of cs.rows) (byUser[c.user_id] = byUser[c.user_id] || []).push(c);
-    res.json({ clients: us.rows.map((u) => ({ id: u.id, email: u.email, approved: u.approved, share_token: u.share_token, created_at: u.created_at, competitors: byUser[u.id] || [] })) });
+    res.json({ dflt: DEFAULT_MAX_COMPETITORS, warm: await warmUsage(), clients: us.rows.map((u) => ({ id: u.id, email: u.email, approved: u.approved, share_token: u.share_token, max_competitors: u.max_competitors, created_at: u.created_at, competitors: byUser[u.id] || [] })) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -523,6 +536,18 @@ app.post('/api/admin/clients', async (req, res) => {
     await pool.query('UPDATE users SET share_token = $2 WHERE id = $1', [u.id, token]);
     res.json({ client: { id: u.id, email: u.email, share_token: token, competitors: [] } });
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+
+// Raise / lower a client's competitor allowance (blank or null = back to the default).
+app.post('/api/admin/clients/:id/limit', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const raw = (req.body || {}).max;
+    const n = (raw === null || raw === undefined || raw === '') ? null : Math.max(0, Math.min(500, parseInt(raw, 10) || 0));
+    const r = await pool.query('UPDATE users SET max_competitors = $2 WHERE id = $1 AND admin = FALSE RETURNING id, max_competitors', [Number(req.params.id), n]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'No such client.' });
+    res.json({ ok: true, max_competitors: r.rows[0].max_competitors, dflt: DEFAULT_MAX_COMPETITORS });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Reset a client's password.
@@ -642,9 +667,13 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.get('/api/me', requireAuth, async (req, res) => {
-  let admin = false, slack = false;
-  try { const r = await pool.query('SELECT admin, slack_webhook FROM users WHERE id = $1', [req.user.uid]); admin = !!(r.rows[0] && r.rows[0].admin); slack = !!(r.rows[0] && r.rows[0].slack_webhook); } catch (e) { /* defaults */ }
-  res.json({ user: { id: req.user.uid, email: req.user.email, admin, slack } });
+  let admin = false, slack = false, maxCompetitors = DEFAULT_MAX_COMPETITORS;
+  try {
+    const r = await pool.query('SELECT admin, slack_webhook, max_competitors FROM users WHERE id = $1', [req.user.uid]);
+    admin = !!(r.rows[0] && r.rows[0].admin); slack = !!(r.rows[0] && r.rows[0].slack_webhook);
+    if (r.rows[0] && r.rows[0].max_competitors != null) maxCompetitors = r.rows[0].max_competitors;
+  } catch (e) { /* defaults */ }
+  res.json({ user: { id: req.user.uid, email: req.user.email, admin, slack, maxCompetitors } });
 });
 
 // ── Per-account Slack connection ──────────────────────────────────────────────
@@ -708,6 +737,13 @@ app.post('/api/competitors', requireAuth, async (req, res) => {
     const { name, host, url, country, handles, status } = req.body || {};
     if (!name || !host || !url) return res.status(400).json({ error: 'Missing name, host, or url.' });
     const h = String(host).replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase().slice(0, 200);
+    // Per-account competitor limit, enforced server-side (the UI gate alone is bypassable).
+    // Editing/re-saving a competitor they already track never counts against it.
+    const max = await competitorAllowance(req.user.uid);
+    if (max !== Infinity) {
+      const cnt = await pool.query('SELECT COUNT(*)::int AS n FROM competitors WHERE user_id = $1 AND host <> $2', [req.user.uid, h]);
+      if (cnt.rows[0].n >= max) return res.status(403).json({ error: 'You’re at your plan limit of ' + max + ' competitor' + (max === 1 ? '' : 's') + '. Ask us to raise it.', limited: true, max });
+    }
     const r = await pool.query(
       `INSERT INTO competitors(user_id, name, host, url, country, handles, status)
        VALUES($1, $2, $3, $4, $5, $6, $7)
