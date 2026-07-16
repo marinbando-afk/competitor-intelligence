@@ -2077,7 +2077,10 @@ function syncPlan(){var n=USER&&USER.maxCompetitors;if(typeof n==='number'&&type
 function adminKey(){try{return localStorage.getItem('adminKey')||'';}catch(e){return '';}}
 // Admin = the legacy URL key OR a signed-in admin account (the founder). USER.admin
 // comes from /api/login and /api/me, refreshed on every auth change.
-function isAdmin(){return !!adminKey()||!!(USER&&USER.admin);}
+// A share link is ALWAYS a plain client-view: it must look identical no matter who opens
+// it, so an admin (or any signed-in account) previewing a client's link sees exactly what
+// that client's teammates see — no admin panel, no demo setup flags, no own-brand context.
+function isAdmin(){if(RO)return false;return !!adminKey()||!!(USER&&USER.admin);}
 var ADMIN=isAdmin();
 function refreshAdmin(){ADMIN=isAdmin();}
 function lockedComp(c){return !ADMIN && !!(c&&!c.demo&&!c.account);}  // your own saved competitors are never locked

@@ -78,14 +78,16 @@ async function isAdminReq(req) {
 // their team. Read-only by construction: this only ever selects whose *brand context*
 // to read with; it never grants write access (all mutations are behind requireAuth).
 async function viewUid(req) {
-  const direct = optionalUid(req);
-  if (direct) return direct;
+  // A share token WINS over any signed-in session: opening a share link is an explicit
+  // request to view THAT client's dashboard, so it must read with the client's brand
+  // context — otherwise the founder (or any logged-in viewer) previewing a client's link
+  // would see their OWN brand's tailoring instead of the client's.
   const token = String((req.query && req.query.share) || (req.body && req.body.share) || '').trim();
   if (token) {
     try { const r = await pool.query('SELECT id FROM users WHERE share_token = $1', [token]); if (r.rows[0]) return r.rows[0].id; }
-    catch (e) { /* fall through to anonymous */ }
+    catch (e) { /* fall through to the signed-in user */ }
   }
-  return null;
+  return optionalUid(req);
 }
 
 function newShareToken() { return randomBytes(9).toString('base64url'); }   // ~12 url-safe chars
