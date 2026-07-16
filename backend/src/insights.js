@@ -35,7 +35,7 @@ export async function creditStatus(force) {
   return val;
 }
 
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';            // vision/angle analysis (quality-critical) + the credit ping
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';            // the credit ping only — creative/angle reads moved to Sonnet (see creativeRead) on cost
 const INSIGHTS_MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';  // daily per-channel summaries — Sonnet is plenty for summarizing, ~40% cheaper
 let _client;
 function client() { if (!_client) _client = new Anthropic(); return _client; }
@@ -524,7 +524,13 @@ export async function quickAngle(text, kind, image, video, uid) {
     const content = [];
     if (withImg && img) content.push({ type: 'image', source: img });
     content.push({ type: 'text', text: 'COPY: ' + (t || '(no copy provided)') + (script ? '\n\nVIDEO SCRIPT (spoken audio, transcribed): ' + script : '') });
-    const resp = await client().messages.create({ model: process.env.ANGLE_MODEL || MODEL, max_tokens: 400, system, messages: [{ role: 'user', content }] });
+    // Creative reads are the app's single biggest AI cost: one VISION call per new ad /
+    // post, ~900/day across the watchlist. Sonnet is the right tier here — the output is a
+    // few short descriptive lines, not deep reasoning — and it cuts the bill twice over:
+    // the per-token rate is ~40% lower than Opus AND Sonnet caps images at 1568px (~1.6k
+    // image tokens) where Opus 4.7+ accepts 2576px (~4.8k), so a full-res creative bills
+    // ~3x less. Override with ANGLE_MODEL to go back to Opus for quality.
+    const resp = await client().messages.create({ model: process.env.ANGLE_MODEL || INSIGHTS_MODEL, max_tokens: 400, system, messages: [{ role: 'user', content }] });
     const raw = oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''));
     let o = null;
     try { o = JSON.parse(raw); } catch (e) { const m = raw.match(/\{[\s\S]*\}/); if (m) { try { o = JSON.parse(m[0]); } catch (_) { /* noop */ } } }
