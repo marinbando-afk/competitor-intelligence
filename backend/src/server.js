@@ -93,6 +93,14 @@ function newShareToken() { return randomBytes(9).toString('base64url'); }   // ~
 // How many competitors an account may add. Per-account override lives in
 // users.max_competitors (set by the founder in the admin Clients panel); NULL falls back
 // to the default plan limit. The founder's own admin account is unlimited.
+// Do we already hold captures for this host (i.e. someone else already watches it)?
+// Competitor data is shared per-host, so such a brand needs NO baseline — it's ready the
+// instant it's added.
+async function hasHistory(host) {
+  try { const r = await pool.query('SELECT 1 FROM snapshots WHERE host = $1 LIMIT 1', [host]); return !!r.rowCount; }
+  catch (e) { return false; }
+}
+
 const DEFAULT_MAX_COMPETITORS = Number(process.env.DEFAULT_MAX_COMPETITORS) || 2;
 async function competitorAllowance(uid) {
   try {
@@ -599,12 +607,13 @@ app.post('/api/admin/clients/:id/competitors', async (req, res) => {
     url = String(url || ('https://' + host)).slice(0, 500);
     country = String(country || 'ALL').slice(0, 8).toUpperCase();
     if (!handles || !Object.keys(handles).length) { try { handles = await resolveHandles(host); } catch (e) { handles = {}; } }
+    const st = (await hasHistory(host)) ? 'watching' : 'setup';   // already captured → no baseline needed
     const r = await pool.query(
       `INSERT INTO competitors(user_id, name, host, url, country, handles, status)
-       VALUES($1, $2, $3, $4, $5, $6, 'setup')
+       VALUES($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (user_id, host) DO UPDATE SET name = EXCLUDED.name, url = EXCLUDED.url, country = EXCLUDED.country, handles = EXCLUDED.handles, updated_at = now()
        RETURNING id, name, host, url, country, status, handles`,
-      [id, name, host, url, country, JSON.stringify(handles || {})]);
+      [id, name, host, url, country, JSON.stringify(handles || {}), st]);
     res.json({ competitor: r.rows[0] });
     // Enrol in the daily warm and capture a first baseline now (both async, best-effort).
     try { const t = await addTracked({ name, host, url, country, handles }, true); if (t && t.added) warmBrand(t.comp, false).catch(() => {}); }
@@ -722,6 +731,18 @@ app.get('/api/slack/preview', aiLimit, requireAuth, async (req, res) => {
 
 app.get('/api/competitors', requireAuth, async (req, res) => {
   try {
+    // Self-heal: a row stuck on 'setup' for a host we ALREADY had captures for before it
+    // was added never needed a baseline. warmBrand only flips the status when it actually
+    // runs, and it doesn't run for an already-tracked host — so without this the row shows
+    // "capturing a live baseline…" until the next nightly warm, even though its data is
+    // right there. Rows for genuinely new brands (no earlier snapshots) are left alone.
+    try {
+      await pool.query(
+        `UPDATE competitors SET status = 'watching', updated_at = now()
+          WHERE user_id = $1 AND status = 'setup'
+            AND EXISTS (SELECT 1 FROM snapshots s WHERE s.host = competitors.host AND s.created_at < competitors.created_at)`,
+        [req.user.uid]);
+    } catch (e) { /* best-effort */ }
     const r = await pool.query(
       'SELECT id, name, host, url, country, status, handles, created_at, updated_at FROM competitors WHERE user_id = $1 ORDER BY created_at DESC',
       [req.user.uid],
@@ -744,12 +765,17 @@ app.post('/api/competitors', requireAuth, async (req, res) => {
       const cnt = await pool.query('SELECT COUNT(*)::int AS n FROM competitors WHERE user_id = $1 AND host <> $2', [req.user.uid, h]);
       if (cnt.rows[0].n >= max) return res.status(403).json({ error: 'You’re at your plan limit of ' + max + ' competitor' + (max === 1 ? '' : 's') + '. Ask us to raise it.', limited: true, max });
     }
+    // A brand we already capture needs no baseline — start it 'watching' so it doesn't sit
+    // on "capturing a live baseline…" until the next nightly warm. Only a genuinely new
+    // brand starts 'setup'; warmBrand flips that once its first capture lands.
+    let st = String(status || 'setup').slice(0, 24);
+    if (st === 'setup' && await hasHistory(h)) st = 'watching';
     const r = await pool.query(
       `INSERT INTO competitors(user_id, name, host, url, country, handles, status)
        VALUES($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (user_id, host) DO UPDATE SET name = EXCLUDED.name, url = EXCLUDED.url, country = EXCLUDED.country, handles = EXCLUDED.handles, updated_at = now()
        RETURNING id, name, host, url, country, status, handles, created_at, updated_at`,
-      [req.user.uid, String(name).slice(0, 120), h, String(url).slice(0, 500), String(country || 'ALL').slice(0, 8), JSON.stringify(handles || {}), String(status || 'setup').slice(0, 24)],
+      [req.user.uid, String(name).slice(0, 120), h, String(url).slice(0, 500), String(country || 'ALL').slice(0, 8), JSON.stringify(handles || {}), st],
     );
     res.json({ competitor: r.rows[0] });
   } catch (e) {
