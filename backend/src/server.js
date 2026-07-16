@@ -616,6 +616,22 @@ app.get('/api/shared/:token', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Self-serve read-only share link for the signed-in account ─────────────────
+// Any user can mint / copy a link that lets teammates VIEW their dashboard and chat
+// with the AI, read-only (same mechanism the admin panel exposes for client accounts).
+app.get('/api/share', requireAuth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT share_token FROM users WHERE id = $1', [req.user.uid]);
+    let token = r.rows[0] && r.rows[0].share_token;
+    if (!token) { token = newShareToken(); await pool.query('UPDATE users SET share_token = $2 WHERE id = $1', [req.user.uid, token]); }
+    res.json({ token });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/share/rotate', requireAuth, async (req, res) => {
+  try { const token = newShareToken(); await pool.query('UPDATE users SET share_token = $2 WHERE id = $1', [req.user.uid, token]); res.json({ token }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body || {};

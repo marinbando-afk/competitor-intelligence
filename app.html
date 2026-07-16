@@ -645,6 +645,15 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
   </div>
 </div>
 
+<div class="ov" id="shareOv" onclick="if(event.target===this)closeShare()">
+  <div class="modal">
+    <h2>⇗ Share a read-only view</h2>
+    <p>Send this link to teammates. They can read every dossier and chat with the AI — but <b>can't add, remove or change anything</b>. No login needed.</p>
+    <div class="cl-share-row" style="margin-top:16px"><input class="cl-in cl-link" id="shareLink" readonly onclick="this.select()"/><button type="button" class="cl-mini" onclick="copyShareLink(this)">Copy</button></div>
+    <div class="sp-note">Anyone with the link can view. <a href="#" class="wklink" onclick="rotateMyShare();return false">Reset the link</a> if it's been shared too widely — the old one stops working.</div>
+    <div class="m-act"><button class="btn btn-p" onclick="closeShare()">Done</button></div>
+  </div>
+</div>
 <div class="ov" id="slackOv" onclick="if(event.target===this)closeSlack()">
   <div class="modal">
     <h2>⚡ Daily brief in Slack</h2>
@@ -864,7 +873,7 @@ function loadSharedComps(cb){
 function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');}catch(e){}clearMyBrandLocal();insightsCache={};angleCache={};paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
 function paintAuth(){refreshAdmin();var s=document.getElementById('authSlot');if(!s)return;
   if(RO){s.innerHTML='<span class="ro-badge"><span class="dot"></span>Shared view · read-only</span>';return;}
-  if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML=(ADMIN?'<button class="authbtn" onclick="openAdmin()" title="Admin panel">⚙ Admin</button>':'')+'<button class="authbtn" onclick="openSlack()" title="Get your daily brief in Slack">⚡ Slack'+((USER&&USER.slack)?' ✓':'')+'</button><span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+(ADMIN?' · admin':'')+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
+  if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML=(ADMIN?'<button class="authbtn" onclick="openAdmin()" title="Admin panel">⚙ Admin</button>':'')+'<button class="authbtn" onclick="openShare()" title="Share a read-only view with your team">⇗ Share</button><button class="authbtn" onclick="openSlack()" title="Get your daily brief in Slack">⚡ Slack'+((USER&&USER.slack)?' ✓':'')+'</button><span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+(ADMIN?' · admin':'')+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
   else{s.innerHTML='<button class="authbtn primary" onclick="openAuth(\'signin\')">Sign in</button>';}
   var ab=document.querySelector('.add-btn');if(ab)ab.title=loggedIn()?'Add a competitor to your watchlist':'Add your own competitor — sign in required';
   paintBrandChip();
@@ -874,6 +883,24 @@ function closeAuth(){var o=document.getElementById('authOv');if(o)o.classList.re
 /* ── Per-account Slack connection ── */
 function openSlack(){if(!loggedIn()){openAuth('signin',openSlack);return;}document.getElementById('slkErr').style.display='none';document.getElementById('slackOv').classList.add('open');renderSlack(!!(USER&&USER.slack));fetch(API+'/api/slack',{headers:authH()}).then(function(r){return r.json();}).then(function(d){renderSlack(!!(d&&d.connected));}).catch(function(){});var sp=document.getElementById('spDemos');if(sp)sp.checked=false;slackPreviewCache={};loadSlackPreview();}
 function closeSlack(){document.getElementById('slackOv').classList.remove('open');}
+// ── Share my own read-only view with teammates ──
+function myShareLink(tok){return location.origin+location.pathname+'?share='+encodeURIComponent(tok);}
+function openShare(){
+  if(!loggedIn()){openAuth('signin',openShare);return;}
+  document.getElementById('shareOv').classList.add('open');
+  var inp=document.getElementById('shareLink');inp.value='Loading…';
+  fetch(API+'/api/share',{headers:authH()}).then(function(r){return r.json();}).then(function(d){
+    inp.value=(d&&d.token)?myShareLink(d.token):'Couldn’t load — try again.';
+  }).catch(function(){inp.value='Couldn’t load — try again.';});
+}
+function closeShare(){document.getElementById('shareOv').classList.remove('open');}
+function copyShareLink(btn){var i=document.getElementById('shareLink');if(!i||!/^https?:/.test(i.value))return;i.select();if(navigator.clipboard)navigator.clipboard.writeText(i.value).catch(function(){});else{try{document.execCommand('copy');}catch(e){}}btn.textContent='Copied ✓';setTimeout(function(){btn.textContent='Copy';},1400);}
+function rotateMyShare(){
+  if(!confirm('Reset your share link? The current one stops working immediately.'))return;
+  fetch(API+'/api/share/rotate',{method:'POST',headers:authH()}).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.token){document.getElementById('shareLink').value=myShareLink(d.token);}
+  }).catch(function(){});
+}
 function renderSlack(connected){document.getElementById('slackConnected').style.display=connected?'':'none';document.getElementById('slackForm').style.display=connected?'none':'';}
 // Preview the exact daily brief (own competitors, optionally + demos). Cached per demos-state
 // so toggling doesn't re-hit the AI; cache is cleared each time the modal opens.
@@ -1446,7 +1473,10 @@ function checkEmailBanner(c){
 }
 // Rail flag: a small red ! on a competitor's icon while it still has an action pending (the email setup).
 function handlesUnconfirmed(c){return !!(c&&c.account&&!(c.handles&&c.handles.confirmed));}   // user's own competitor whose socials they haven't confirmed
-function needsAction(c){return c?(handlesUnconfirmed(c)||!!emailPending[c.host]):false;}
+// Demo brands are shared showcase data — their setup "issues" (unconfirmed handles,
+// email not wired) are only the founder's concern, so surface the red flag on a demo
+// ONLY to an admin. A user's OWN competitors always flag when they need action.
+function needsAction(c){if(!c)return false;if(c.demo&&!ADMIN)return false;return handlesUnconfirmed(c)||!!emailPending[c.host];}
 function toggleRailFlag(c){var el=c&&document.getElementById('railflag-'+c.id);if(el)el.style.display=needsAction(c)?'':'none';}
 function checkRailActions(list){
   (list||[]).forEach(function(c){
@@ -1914,7 +1944,7 @@ function saveComp(body,after){
     })
     .catch(function(){});
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();closeCal();closeAuth();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open')){var _cp=document.getElementById('confirmPanel');(_cp&&_cp.style.display!=='none')?confirmAdd():continueAdd();}if(e.key==='Enter'&&document.getElementById('authOv')&&document.getElementById('authOv').classList.contains('open'))submitAuth();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();closeCal();closeAuth();closeShare();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open')){var _cp=document.getElementById('confirmPanel');(_cp&&_cp.style.display!=='none')?confirmAdd():continueAdd();}if(e.key==='Enter'&&document.getElementById('authOv')&&document.getElementById('authOv').classList.contains('open'))submitAuth();});
 document.addEventListener('click',function(){closeCal();});
 /* ── your brand (apply-to-me knowledge base) ── */
 var myBrand=null;
