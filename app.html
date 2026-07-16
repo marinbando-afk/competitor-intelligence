@@ -854,7 +854,7 @@ var pendingAfterAuth=null;        // run after a successful sign-in (e.g. open t
 var authMode='signup';
 function authH(){return TOKEN?{'Authorization':'Bearer '+TOKEN}:{};}
 function loggedIn(){return !!TOKEN;}
-function mapServerComp(c){return {id:'u'+c.id,dbId:c.id,demo:false,account:true,name:c.name,host:c.host,url:c.url,country:c.country||'ALL',handles:c.handles||{},status:c.status||'setup',updatedAt:c.updated_at?Date.parse(c.updated_at):Date.now()};}
+function mapServerComp(c){return {id:'u'+c.id,dbId:c.id,demo:false,account:true,name:c.name,host:c.host,url:c.url,country:c.country||'ALL',handles:c.handles||{},status:c.status||'setup',createdAt:c.created_at?Date.parse(c.created_at):0,updatedAt:c.updated_at?Date.parse(c.updated_at):Date.now()};}
 function loadUserComps(cb){
   if(!TOKEN){USERCOMPS=[];if(cb)cb();return;}
   fetch(API+'/api/competitors',{headers:authH()})
@@ -966,7 +966,15 @@ function submitAuth(){
 function load(){try{var r=localStorage.getItem(KEY);if(r)return JSON.parse(r);}catch(e){}return null;}
 function save(l){try{localStorage.setItem(KEY,JSON.stringify(l));}catch(e){}}
 function getList(){return DEMOS.concat(USERCOMPS);}  // demos (open to all) + your saved account competitors
-function sorted(){return getList().slice().sort(function(a,b){var pa=a.demo?a.priority:'setup',pb=b.demo?b.priority:'setup';return (ORD[pa]-ORD[pb])||((b.updatedAt||0)-(a.updatedAt||0));});}
+function sorted(){return getList().slice().sort(function(a,b){
+  var pa=a.demo?a.priority:'setup',pb=b.demo?b.priority:'setup';
+  if(ORD[pa]!==ORD[pb])return ORD[pa]-ORD[pb];
+  // YOUR competitors keep the order you ADDED them — a stable list. (Sorting on updatedAt
+  // ordered them by last CAPTURE time, so the rail reshuffled every night depending on
+  // which brand the scraper happened to reach first.) Demos keep their freshness order.
+  if(!a.demo&&!b.demo)return (a.createdAt||0)-(b.createdAt||0);
+  return (b.updatedAt||0)-(a.updatedAt||0);
+});}
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function fav(h){return 'https://www.google.com/s2/favicons?domain='+encodeURIComponent(h)+'&sz=64';}

@@ -660,7 +660,7 @@ app.get('/api/shared/:token', async (req, res) => {
     const u = await pool.query('SELECT id FROM users WHERE share_token = $1', [token]);
     if (!u.rows[0]) return res.status(404).json({ error: 'This shared link is no longer active.' });
     const uid = u.rows[0].id;
-    const cs = await pool.query('SELECT id, name, host, url, country, status, handles FROM competitors WHERE user_id = $1 ORDER BY created_at DESC', [uid]);
+    const cs = await pool.query('SELECT id, name, host, url, country, status, handles, created_at, updated_at FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [uid]);
     let brand = null;
     try { const b = await getMyBrand(uid); if (b && b.name) brand = { name: b.name }; } catch (e) { /* optional */ }
     res.json({ readonly: true, brand, competitors: cs.rows });
