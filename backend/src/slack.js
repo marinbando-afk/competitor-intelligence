@@ -4,6 +4,7 @@
 // Set in Railway:  SLACK_WEBHOOK_URL = https://hooks.slack.com/services/T.../B.../xxxx
 import Anthropic from '@anthropic-ai/sdk';
 import { getInsights } from './insights.js';
+import { dailySignals, hasSignal, signalLines } from './signals.js';
 
 const BRIEF_MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';
 let _bc;
@@ -32,40 +33,29 @@ export async function buildDigest(brands) {
   return out.join('\n');
 }
 
-// ── The SUPER-SHORT daily brief ───────────────────────────────────────────────
-// One line per brand, ONLY material news that is new today; brands with nothing
-// material are omitted, and a genuinely quiet day says so explicitly.
+// ── The daily brief ───────────────────────────────────────────────────────────
+// Structured, deterministic and PRIORITY-ORDERED — every brand is accounted for,
+// and the moves that matter most lead: sale change → new funnel → new FB page →
+// new products → new ad angle (unused ≥2 weeks). See signals.js for detection.
+// Brands with nothing on those five are shown as a single "all quiet" line so the
+// reader can see the whole watchlist was checked.
 export async function buildDailyBrief(brands) {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   const head = '🛰️ *WatchBack daily* · ' + today;
   if (!(brands || []).length) return head + '\nNo competitors on the watchlist yet.';
-  const parts = [];
-  for (const b of (brands || [])) {
-    let block = 'BRAND "' + b.name + '": (nothing captured today)';
+  const blocks = [];
+  let anyNews = false;
+  for (const b of brands) {
+    let lines = [];
     try {
-      const ins = await getInsights(b.host, b.name);
-      const ch = [];
-      for (const k of ['ads', 'social', 'website', 'email']) {
-        const c = ins && ins[k];
-        if (c && (c.summary || (c.bullets || []).length)) ch.push(k.toUpperCase() + ': ' + (c.summary || '') + ((c.bullets || []).length ? ' — ' + c.bullets.join(' · ') : ''));
-      }
-      if (ch.length) block = 'BRAND "' + b.name + '":\n' + ch.join('\n');
-    } catch (e) { /* keep placeholder */ }
-    parts.push(block);
+      const s = await dailySignals(b.host);
+      lines = signalLines(s);
+      if (hasSignal(s)) anyNews = true;
+    } catch (e) { /* treat as quiet */ }
+    blocks.push(lines.length ? ('*' + b.name + '*\n' + lines.map((l) => '   ' + l).join('\n')) : ('*' + b.name + '* — all quiet'));
   }
-  if (!process.env.ANTHROPIC_API_KEY) return head + '\n' + brands.map((b) => '• *' + b.name + '* — daily check complete, open the app for the dossier.').join('\n');
-  const system =
-    'You write WatchBack\'s DAILY Slack brief for a busy eCommerce founder. SUPER SHORT is the whole point, and EVERY watched competitor must be visibly accounted for. ' +
-    'From the per-brand channel reads below, call out ONLY what is MATERIAL and NEW TODAY: a sale starting, ending or changing; real price moves; a burst of new ads or a new funnel/landing type; new products; email campaigns sent. ' +
-    'Ongoing unchanged states (a sale still running, the same ad set continuing) and tiny fluctuations (an ad or two, a single post) are NOT daily news — those brands are quiet. ' +
-    'Output Slack mrkdwn only, no header: EXACTLY one line per brand, same order as given, never omit or add a brand. Format: "• *Brand* — <the material thing(s), <=18 words>" — or "• *Brand* — all quiet." when nothing material happened for it. Never invent; use only the reads.';
-  try {
-    const resp = await briefClient().messages.create({ model: BRIEF_MODEL, max_tokens: 300, system, messages: [{ role: 'user', content: parts.join('\n\n') }] });
-    const txt = (resp.content || []).filter((x) => x.type === 'text').map((x) => x.text).join('').trim();
-    return head + '\n' + (txt || 'All quiet — no material competitor moves today.');
-  } catch (e) {
-    return head + '\nDaily check complete — open the app for today’s dossiers.';
-  }
+  if (!anyNews) return head + '\n\nAll quiet — no sale, funnel, new-page, product or new-angle moves across the watchlist today.';
+  return head + '\n\n' + blocks.join('\n\n');
 }
 
 export async function postDailyBrief(brands) {

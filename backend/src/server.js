@@ -12,7 +12,8 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { initSchema, pool } from './db.js';
-import { signup, login, requireAuth, optionalUid, JWT_IS_DEFAULT } from './auth.js';
+import { signup, login, createUser, setPassword, requireAuth, optionalUid, JWT_IS_DEFAULT } from './auth.js';
+import { randomBytes } from 'crypto';
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
 import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, TRACKED } from './refresh.js';
@@ -70,6 +71,24 @@ async function isAdminReq(req) {
   try { const r = await pool.query('SELECT admin FROM users WHERE id = $1', [uid]); return !!(r.rows[0] && r.rows[0].admin); }
   catch (e) { return false; }
 }
+
+// The uid to PERSONALIZE an open read endpoint for: a signed-in user's own uid, OR —
+// when a public read-only SHARE token is supplied (?share=… / body.share) — the CLIENT
+// that owns that token, so a shared dashboard is tailored to that client's brand for
+// their team. Read-only by construction: this only ever selects whose *brand context*
+// to read with; it never grants write access (all mutations are behind requireAuth).
+async function viewUid(req) {
+  const direct = optionalUid(req);
+  if (direct) return direct;
+  const token = String((req.query && req.query.share) || (req.body && req.body.share) || '').trim();
+  if (token) {
+    try { const r = await pool.query('SELECT id FROM users WHERE share_token = $1', [token]); if (r.rows[0]) return r.rows[0].id; }
+    catch (e) { /* fall through to anonymous */ }
+  }
+  return null;
+}
+
+function newShareToken() { return randomBytes(9).toString('base64url'); }   // ~12 url-safe chars
 
 app.get('/api/health', async (req, res) => {
   let userTracked = null;
@@ -219,8 +238,9 @@ app.get('/api/email-html', async (req, res) => {
 // AI chat — answer a question grounded in a competitor's captured data.
 app.post('/api/chat', aiLimit, async (req, res) => {
   try {
-    // Each question is a real AI spend — account holders only.
-    const uid = optionalUid(req);
+    // Each question is a real AI spend — account holders, or a team member viewing a
+    // read-only share link (tailored to the client that owns the link).
+    const uid = await viewUid(req);
     if (!uid) return res.status(401).json({ error: 'Sign in to use the AI analyst.' });
     res.json(await chat(req.body, uid));
   } catch (e) {
@@ -257,7 +277,7 @@ app.get('/api/website-compare', async (req, res) => {
 // AI insights — per-channel, context-aware read (cached daily, generated on demand).
 app.get('/api/insights', async (req, res) => {
   try {
-    res.json({ insights: await getInsights(req.query.host, req.query.name, req.query.refresh === '1', optionalUid(req)) });
+    res.json({ insights: await getInsights(req.query.host, req.query.name, req.query.refresh === '1', await viewUid(req)) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -287,7 +307,7 @@ app.get('/api/daily-brief', aiLimit, async (req, res) => {
 app.post('/api/angle', aiLimit, async (req, res) => {
   try {
     const { text, kind, image, video } = req.body || {};
-    const r = await quickAngle(text, kind, image, video, optionalUid(req));
+    const r = await quickAngle(text, kind, image, video, await viewUid(req));
     res.json({ angle: r.angle, hook: r.hook, creative: r.creative, apply: r.apply, script: r.script });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -298,7 +318,7 @@ app.post('/api/angle', aiLimit, async (req, res) => {
 // used to tailor every competitor insight into a realistic "apply to your brand" tip.
 app.get('/api/my-brand', async (req, res) => {
   try {
-    const uid = optionalUid(req);
+    const uid = await viewUid(req);   // signed-in user, or the client behind a read-only share link
     res.json({ brand: uid ? await getMyBrand(uid) : null });   // anonymous visitors see no brand — never someone else's
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -472,6 +492,125 @@ app.post('/api/admin/backfill-banners', async (req, res) => {
       console.log('✓ backfill-banners ' + host + ': ' + JSON.stringify(r));
     } catch (e) { console.warn('backfill-banners ' + host + ':', e.message); }
   })();
+});
+
+// ── Admin: client accounts + their competitors (the founder's "Clients" panel) ──
+// Each client is a non-admin user with their own competitor set and a public
+// read-only share token. All routes are admin-gated.
+
+// List every client account with its competitors + share token.
+app.get('/api/admin/clients', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const us = await pool.query('SELECT id, email, approved, share_token, created_at FROM users WHERE admin = FALSE ORDER BY created_at DESC');
+    const cs = await pool.query('SELECT id, user_id, name, host, url, country, status, handles FROM competitors ORDER BY created_at ASC');
+    const byUser = {};
+    for (const c of cs.rows) (byUser[c.user_id] = byUser[c.user_id] || []).push(c);
+    res.json({ clients: us.rows.map((u) => ({ id: u.id, email: u.email, approved: u.approved, share_token: u.share_token, created_at: u.created_at, competitors: byUser[u.id] || [] })) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Create a client login (pre-approved) and mint its share token.
+app.post('/api/admin/clients', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const { email, password } = req.body || {};
+    const u = await createUser(email, password, { approved: true });
+    const token = newShareToken();
+    await pool.query('UPDATE users SET share_token = $2 WHERE id = $1', [u.id, token]);
+    res.json({ client: { id: u.id, email: u.email, share_token: token, competitors: [] } });
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+
+// Reset a client's password.
+app.post('/api/admin/clients/:id/password', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try { await setPassword(Number(req.params.id), (req.body || {}).password); res.json({ ok: true }); }
+  catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+
+// Mint / rotate a client's share token (old links stop working).
+app.post('/api/admin/clients/:id/share', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const token = newShareToken();
+    const r = await pool.query('UPDATE users SET share_token = $2 WHERE id = $1 AND admin = FALSE RETURNING id', [Number(req.params.id), token]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'No such client.' });
+    res.json({ share_token: token });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Delete a client account (competitors cascade; prune the warm list for now-orphaned hosts).
+app.delete('/api/admin/clients/:id', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const id = Number(req.params.id);
+    const hosts = await pool.query('SELECT host FROM competitors WHERE user_id = $1', [id]);
+    const del = await pool.query('DELETE FROM users WHERE id = $1 AND admin = FALSE RETURNING id', [id]);
+    if (!del.rows[0]) return res.status(404).json({ error: 'No such client.' });
+    res.json({ ok: true });
+    for (const row of hosts.rows) {
+      try { const s = await pool.query('SELECT 1 FROM competitors WHERE host = $1 LIMIT 1', [row.host]); if (!s.rowCount) await removeTracked(row.host); }
+      catch (e) { /* best-effort */ }
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Add a competitor to a client (mirrors POST /api/competitors + warm enrolment +
+// best-effort social-handle resolution, then kicks off an immediate baseline capture).
+app.post('/api/admin/clients/:id/competitors', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const id = Number(req.params.id);
+    const owner = await pool.query('SELECT 1 FROM users WHERE id = $1 AND admin = FALSE', [id]);
+    if (!owner.rowCount) return res.status(404).json({ error: 'No such client.' });
+    let { name, host, url, country, handles } = req.body || {};
+    host = String(host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase().slice(0, 200);
+    if (!host || host.indexOf('.') < 0) return res.status(400).json({ error: 'A valid competitor domain is required.' });
+    name = String(name || host).slice(0, 120);
+    url = String(url || ('https://' + host)).slice(0, 500);
+    country = String(country || 'ALL').slice(0, 8).toUpperCase();
+    if (!handles || !Object.keys(handles).length) { try { handles = await resolveHandles(host); } catch (e) { handles = {}; } }
+    const r = await pool.query(
+      `INSERT INTO competitors(user_id, name, host, url, country, handles, status)
+       VALUES($1, $2, $3, $4, $5, $6, 'setup')
+       ON CONFLICT (user_id, host) DO UPDATE SET name = EXCLUDED.name, url = EXCLUDED.url, country = EXCLUDED.country, handles = EXCLUDED.handles, updated_at = now()
+       RETURNING id, name, host, url, country, status, handles`,
+      [id, name, host, url, country, JSON.stringify(handles || {})]);
+    res.json({ competitor: r.rows[0] });
+    // Enrol in the daily warm and capture a first baseline now (both async, best-effort).
+    try { const t = await addTracked({ name, host, url, country, handles }, true); if (t && t.added) warmBrand(t.comp, false).catch(() => {}); }
+    catch (e) { /* warm enrol best-effort */ }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Remove a competitor from a client (prune the warm list if it was the last watcher).
+app.delete('/api/admin/clients/:id/competitors/:cid', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const r = await pool.query('DELETE FROM competitors WHERE id = $1 AND user_id = $2 RETURNING host', [Number(req.params.cid), Number(req.params.id)]);
+    res.json({ ok: true });
+    const host = r.rows[0] && r.rows[0].host;
+    if (host) { const s = await pool.query('SELECT 1 FROM competitors WHERE host = $1 LIMIT 1', [host]); if (!s.rowCount) await removeTracked(host); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Public read-only share: open a client's dashboard by share token ──────────
+// Returns ONLY the client's competitor list + brand name for rendering; no email,
+// no credentials. Read-only — the frontend hides every editing control, and all
+// mutating endpoints stay behind requireAuth regardless.
+app.get('/api/shared/:token', async (req, res) => {
+  try {
+    const token = String(req.params.token || '').trim();
+    if (!token) return res.status(404).json({ error: 'Not found.' });
+    const u = await pool.query('SELECT id FROM users WHERE share_token = $1', [token]);
+    if (!u.rows[0]) return res.status(404).json({ error: 'This shared link is no longer active.' });
+    const uid = u.rows[0].id;
+    const cs = await pool.query('SELECT id, name, host, url, country, status, handles FROM competitors WHERE user_id = $1 ORDER BY created_at DESC', [uid]);
+    let brand = null;
+    try { const b = await getMyBrand(uid); if (b && b.name) brand = { name: b.name }; } catch (e) { /* optional */ }
+    res.json({ readonly: true, brand, competitors: cs.rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/login', async (req, res) => {

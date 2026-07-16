@@ -43,6 +43,34 @@ export async function signup(email, password) {
   }
 }
 
+// Admin-created account: the founder creates a client login directly (email + password),
+// pre-approved so they can sign in immediately — no self-serve pending step.
+export async function createUser(email, password, { approved = false, admin = false } = {}) {
+  email = String(email || '').trim().toLowerCase();
+  password = String(password || '');
+  if (!email.includes('@') || email.length < 5) { const e = new Error('Please enter a valid email.'); e.status = 400; throw e; }
+  if (password.length < 8) { const e = new Error('Password must be at least 8 characters.'); e.status = 400; throw e; }
+  const hash = await bcrypt.hash(password, 10);
+  try {
+    const r = await pool.query(
+      'INSERT INTO users(email, password_hash, approved, admin) VALUES($1, $2, $3, $4) RETURNING id, email',
+      [email, hash, !!approved, !!admin],
+    );
+    return r.rows[0];
+  } catch (err) {
+    if (err.code === '23505') { const e = new Error('An account with that email already exists.'); e.status = 409; throw e; }
+    throw err;
+  }
+}
+
+// Reset an account's password (admin action — e.g. re-issuing a client's login).
+export async function setPassword(uid, password) {
+  password = String(password || '');
+  if (password.length < 8) { const e = new Error('Password must be at least 8 characters.'); e.status = 400; throw e; }
+  const hash = await bcrypt.hash(password, 10);
+  await pool.query('UPDATE users SET password_hash = $2 WHERE id = $1', [uid, hash]);
+}
+
 export async function login(email, password) {
   email = String(email || '').trim().toLowerCase();
   password = String(password || '');
