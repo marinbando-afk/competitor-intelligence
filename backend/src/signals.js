@@ -18,6 +18,16 @@ import { adsChanges } from './ads.js';
 const DAY = 86400000;
 const ANGLE_WINDOW_DAYS = 14;   // "at least the last 2 weeks"
 
+// A real promo banner is a short headline. Older snapshots may hold a model's non-answer
+// prose ("I don't see any active promotion…") — never compare those as if they were
+// banners, or we'd report a bogus "Promo changed" between two pieces of explanation.
+function bannerOk(s) {
+  const t = String(s || '').trim();
+  if (!t) return false;
+  if (/^(i (don'?t|do not|can'?t|cannot)\b|there (is|are) no\b|no (active|visible|current)?\s*(promotion|promo|sale|offer|banner)|none\b|n\/?a\b|unable\b)/i.test(t)) return false;
+  return t.split(/\s+/).length <= 16 && t.length <= 120;
+}
+
 // Normalise an angle to a comparable fingerprint: significant lowercase word-stems,
 // sorted and de-duplicated. Short/stopword tokens are dropped so wording drift
 // ("scarcity urgency" vs "urgency + scarcity") maps to the same set.
@@ -62,7 +72,7 @@ async function newAngles(host, freshAds, todayStr) {
     if (emitted.some((p) => sameAngle(tok, p))) continue;        // already surfaced this round
     emitted.push(tok);
     out.push({ angle: a.angle, link: a.link || '', image: a.image || '' });
-    if (out.length >= 4) break;
+    if (out.length >= 2) break;   // a genuinely new angle is rare — surface at most the top 2
   }
   return out;
 }
@@ -81,11 +91,12 @@ export async function dailySignals(host) {
     if (cur && prev && cur.summary && prev.summary) {
       const diffs = diffWebsite(prev.summary, cur.summary) || [];
       const saleLine = diffs.find((d) => /^Sale (started|ended|widened|narrowed)/i.test(d));
-      const bA = String(prev.banner || '').trim(), bB = String(cur.banner || '').trim();
+      const bA = bannerOk(prev.banner) ? String(prev.banner).trim() : '';
+      const bB = bannerOk(cur.banner) ? String(cur.banner).trim() : '';
       if (saleLine) out.sale = saleLine;
       else if (bA && bB && bA.toLowerCase() !== bB.toLowerCase()) out.sale = `Promo changed — “${bA}” → “${bB}”`;
       else if (!bA && bB) out.sale = `Promo went live — “${bB}”`;
-      else if (bA && !bB) out.sale = `Promo dropped — “${bA}” no longer shown`;
+      // (a banner disappearing is not reported on its own — often just a rotation/JS timing blip)
       out.products = diffs.filter((d) => /new product/i.test(d));
     }
   } catch (e) { /* no website signal */ }

@@ -41,6 +41,18 @@ async function fetchHomeText(url) {
 // numbers alone, so it quotes the real on-site copy ("4th of July Sale: 60% off…").
 // Judgment call (is this text actually a live offer?), so an AI reads it rather than
 // a keyword regex — same reasoning as the ad-attribution and landing-format fixes.
+// A real banner is a SHORT headline. Vision/text models sometimes narrate a NON-answer
+// instead of returning empty ("I don't see any active promotion… the page shows warranty
+// info"). Coerce those — and anything too long to be a headline — to '' so the banner
+// field is always either a crisp promo line or nothing (never a paragraph of prose).
+function cleanBanner(s) {
+  const t = oneLine(s || '').replace(/^["'\s]+|["'\s.]+$/g, '');
+  if (!t) return '';
+  if (/^(i (don'?t|do not|can'?t|cannot)\b|there (is|are) no\b|no (active|visible|current)?\s*(promotion|promo|sale|offer|banner)|none\b|n\/?a\b|empty\b|not\b|unable\b)/i.test(t)) return '';
+  if (t.split(/\s+/).length > 16 || t.length > 120) return '';   // longer than a headline → it's an explanation, not a banner
+  return t.slice(0, 160);
+}
+
 async function siteBanner(homeText) {
   if (!process.env.ANTHROPIC_API_KEY || !homeText) return '';
   try {
@@ -49,7 +61,7 @@ async function siteBanner(homeText) {
       'If the promotion has a NAMED OCCASION (e.g. "4th of July Sale", "Black Friday", "Anniversary Sale", "Back to School") — always keep that exact name in what you return; it is the most useful part (it tells us WHEN they run their biggest pushes), so never drop it in favour of just the discount percentage. ' +
       'If there is clearly no active promotion in the text, return an empty string. Only report what is actually stated — never guess or invent one.';
     const resp = await bannerClient().messages.create({ model: BANNER_MODEL, max_tokens: 60, system, messages: [{ role: 'user', content: homeText }] });
-    return oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')).slice(0, 160);
+    return cleanBanner((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''));
   } catch (e) { return ''; }
 }
 
@@ -66,7 +78,7 @@ export async function siteBannerFromShot(shot, homeText) {
         'You are shown a screenshot of a storefront homepage. If an ACTIVE promotion/sale/offer is VISIBLY displayed on it (an announcement bar, banner or hero headline — e.g. a %-off sale, free-gift, or discount code), state it in <=14 words, plain text, keeping any NAMED OCCASION exactly ("4th of July Sale", "Black Friday", "Summer Sale"). ' +
         'If NO promotion is visibly shown, return an empty string. Report ONLY what is actually VISIBLE in the image — never guess, and never report a banner that is not shown.';
       const resp = await bannerClient().messages.create({ model: BANNER_MODEL, max_tokens: 60, system, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } }, { type: 'text', text: 'What promotion is visibly displayed at the top of this storefront?' }] }] });
-      return oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')).slice(0, 160);   // trust the visual (incl. empty = none shown)
+      return cleanBanner((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''));   // trust the visual (incl. empty = none shown)
     } catch (e) { /* vision error → fall back to the HTML-text read */ }
   }
   return siteBanner(homeText);
