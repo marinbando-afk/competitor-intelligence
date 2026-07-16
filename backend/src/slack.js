@@ -3,8 +3,24 @@
 // for each watched brand, posted to a Slack channel via an Incoming Webhook.
 // Set in Railway:  SLACK_WEBHOOK_URL = https://hooks.slack.com/services/T.../B.../xxxx
 import Anthropic from '@anthropic-ai/sdk';
+import { randomBytes } from 'crypto';
 import { getInsights } from './insights.js';
 import { dailySignals, signalLines } from './signals.js';
+import { pool } from './db.js';
+
+// The founder roll-up brief's "view" link must be a REAL read-only share link (opens
+// without a login), not the bare app URL. Resolve the founder/admin account's share
+// token, minting one if it has none.
+async function founderShareUrl() {
+  try {
+    if (!process.env.DATABASE_URL) return 'https://watchback.ai/app.html';
+    const r = await pool.query('SELECT id, share_token FROM users WHERE admin = TRUE ORDER BY id ASC LIMIT 1');
+    if (!r.rows[0]) return 'https://watchback.ai/app.html';
+    let tok = r.rows[0].share_token;
+    if (!tok) { tok = randomBytes(9).toString('base64url'); await pool.query('UPDATE users SET share_token = $2 WHERE id = $1', [r.rows[0].id, tok]); }
+    return 'https://watchback.ai/app.html?share=' + encodeURIComponent(tok);
+  } catch (e) { return 'https://watchback.ai/app.html'; }
+}
 
 const BRIEF_MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';
 let _bc;
@@ -44,15 +60,16 @@ export async function buildDailyBrief(brands, viewUrl) {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   const head = '🛰️ *WatchBack daily* · ' + today;
   if (!(brands || []).length) return head + '\nNo competitors on the watchlist yet.';
-  const link = viewUrl || 'https://watchback.ai/app.html';
-  const lines = [];
+  const link = viewUrl || await founderShareUrl();
+  const blocks = [];
   for (const b of brands) {
     let sig = [];
     try { sig = signalLines(await dailySignals(b.host)); } catch (e) { /* treat as quiet */ }
-    if (sig.length) { lines.push('*' + b.name + '* 💡'); sig.forEach((l) => lines.push('   ' + l)); }
-    else lines.push('*' + b.name + '* — all quiet ✅');
+    // Each competitor is its own block; blocks are joined with a blank row so they're
+    // visually separated in Slack.
+    blocks.push(sig.length ? ('*' + b.name + '* 💡\n' + sig.map((l) => '   ' + l).join('\n')) : ('*' + b.name + '* — all quiet ✅'));
   }
-  return head + '\n\n' + lines.join('\n') + '\n\n🔗 <' + link + '|View the full dashboard & signals →>';
+  return head + '\n\n' + blocks.join('\n\n') + '\n\n🔗 <' + link + '|View the full dashboard & signals →>';
 }
 
 export async function postDailyBrief(brands, viewUrl) {
