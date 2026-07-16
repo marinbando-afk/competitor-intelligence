@@ -374,6 +374,8 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .cf-email b{color:#ff8a7e}
 .cf-email.ok{color:var(--sage);background:var(--sage-soft);border-left-color:var(--sage-d)}
 .cf-email.ok b{color:var(--sage)}
+.cf-tracked{margin:0 0 14px;font-size:12.5px;color:var(--sage);background:var(--sage-soft);border-left:2px solid var(--sage-d);padding:10px 12px;border-radius:0 7px 7px 0;line-height:1.55}
+.cf-tracked b{color:var(--sage)}
 .email-warn{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0 2px;padding:12px 15px;border-radius:9px;background:rgba(226,85,79,.1);border:1px solid rgba(226,85,79,.42);color:#ff6b5e;font-size:13px;line-height:1.5}
 .email-warn b{color:#ff8a7e}
 .ew-go{margin-left:auto;flex-shrink:0;font-family:var(--mono);font-size:11px;font-weight:600;padding:7px 12px;border-radius:7px;border:1px solid var(--clay);background:rgba(226,85,79,.16);color:#ff8a7e;cursor:pointer;white-space:nowrap}
@@ -607,6 +609,7 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
     <div class="fld"><label for="fN">Brand name</label><input id="fN" type="text" placeholder="e.g. The Oodie" autocomplete="off"/><div class="er" id="eN">Please enter a name.</div></div>
     <div class="fld"><label for="fU">Website</label><input id="fU" type="text" placeholder="e.g. theoodie.com" autocomplete="off"/><div class="er" id="eU">Please enter a valid website.</div></div>
     <div id="confirmPanel" style="display:none">
+      <div class="cf-tracked" id="cfTracked" style="display:none"></div>
       <p class="confirm-h">Confirm the right pages so we watch the correct competitor. Tap <b>Check</b> to open a page, or <b>Find</b> to search for it — then paste the correct link here.</p>
       <div class="cf-row"><span class="cf-l">Facebook</span><input id="cfFb" type="text" placeholder="paste their Facebook URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('facebook')">Check ↗</button><a class="cf-act find" id="cfFbFind" target="_blank" rel="noopener">Find ↗</a></div>
       <div class="cf-row"><span class="cf-l">Instagram</span><input id="cfIg" type="text" placeholder="paste their Instagram URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('instagram')">Check ↗</button><a class="cf-act find" id="cfIgFind" target="_blank" rel="noopener">Find ↗</a></div>
@@ -1779,7 +1782,24 @@ function continueAdd(){
     finishDetect();
   }).catch(function(){finishDetect();});
 }
-function finishDetect(){var b=document.getElementById('cfDetect');b.disabled=false;b.textContent='Re-detect';document.getElementById('confirmPanel').style.display='block';document.getElementById('cfConfirm').style.display='';refreshCfEmail();}
+function finishDetect(){var b=document.getElementById('cfDetect');b.disabled=false;b.textContent='Re-detect';document.getElementById('confirmPanel').style.display='block';document.getElementById('cfConfirm').style.display='';refreshCfEmail();refreshCfTracked();}
+// When a competitor is already in the system, reassure the adder that we have history on
+// them already — "we've been tracking this brand since <first captured day>". Hidden for a
+// genuinely new brand (no snapshots yet). Server-side, so it's true across all accounts.
+function refreshCfTracked(){
+  var el=document.getElementById('cfTracked');if(!el)return;
+  el.style.display='none';el.innerHTML='';
+  var u=normUrl(document.getElementById('fU').value),host=u?u.hostname.replace(/^www\./,''):'';
+  if(!host)return;
+  fetch(API+'/api/history?host='+encodeURIComponent(host)).then(function(r){return r.json();}).then(function(d){
+    var days=(d&&d.days)||[];if(!days.length)return;
+    var x=new Date(days[days.length-1]);if(isNaN(x))return;   // oldest day on record = first tracked
+    var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var since=x.getDate()+' '+mo[x.getMonth()]+' '+x.getFullYear();
+    el.innerHTML='🎉 <b>Good news — we’ve been tracking this brand since '+esc(since)+'.</b> Their full dossier is ready the moment you add them.';
+    el.style.display='';
+  }).catch(function(){});
+}
 // The email-setup nudge only applies when NOBODY has wired this competitor's newsletter
 // into our shared capture inbox yet. Competitors are SHARED across accounts, so if their
 // emails are already on record for this host, a second account (or client) adding the same
@@ -1870,7 +1890,7 @@ function openConfirmPages(id){
   document.getElementById('cfIgFind').href='https://www.google.com/search?q='+q('site:instagram.com '+(c.name||''));
   document.getElementById('cfTtFind').href='https://www.google.com/search?q='+q('site:tiktok.com '+(c.name||''));
   document.getElementById('confirmPanel').style.display='block';
-  refreshCfEmail();
+  refreshCfEmail();refreshCfTracked();
   var cfc=document.getElementById('cfConfirm');cfc.style.display='';cfc.textContent='Save changes';
   var dt=document.getElementById('cfDetect');if(dt)dt.textContent='Re-detect';
 }
