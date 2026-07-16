@@ -80,6 +80,10 @@ button{font-family:inherit;cursor:pointer}
 .rail-h{position:sticky;top:0;background:var(--panel);z-index:2;display:flex;align-items:center;justify-content:space-between;padding:18px 18px 13px;border-bottom:1px solid var(--line)}
 .add-btn{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);background:none;border:1px solid var(--line2);border-radius:20px;padding:6px 13px;transition:.15s}
 .add-btn:hover{border-color:var(--sage-d);background:var(--sage-soft)}
+/* Read-only shared view: hide every editing / account control (chat + reading stay). */
+.ro .add-btn,.ro #myBrandChip,.ro #bugFab,.ro #fbFab,.ro .row-x{display:none!important}
+.ro-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line2);border-radius:20px;padding:6px 12px;white-space:nowrap}
+.ro-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--sage);flex:none}
 .rail-list{padding:4px 0}
 .rail-group{padding:14px 20px 6px;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);white-space:nowrap;border-top:1px solid var(--line)}
 .rail-list>.rail-group:first-child{border-top:none}
@@ -442,6 +446,32 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .atab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:7px 13px;border-radius:7px;border:1px solid var(--line2);background:none;color:var(--muted);cursor:pointer}
 .atab.on{border-color:var(--sage-d);color:var(--sage);background:var(--sage-soft)}
 #adminBody{max-height:380px;overflow-y:auto}
+/* Admin → Clients tab */
+.cl-new{background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+.cl-new-h{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+.cl-new-row,.cl-share-row,.cl-addrow{display:flex;gap:6px}
+.cl-in{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line2);border-radius:7px;color:var(--text);font-size:12.5px;padding:7px 9px;font-family:inherit}
+.cl-in:focus{outline:none;border-color:var(--sage-d)}
+.cl-nm{flex:0 0 auto;max-width:150px}
+.cl-err{color:var(--clay);font-size:11.5px;margin-top:6px}
+.cl-card{border:1px solid var(--line2);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.cl-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.cl-del{background:none;border:1px solid var(--line2);color:var(--muted);border-radius:6px;font-size:11px;padding:4px 10px;flex:none;cursor:pointer}
+.cl-del:hover{border-color:var(--clay);color:var(--clay)}
+.cl-lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:12px 0 6px}
+.cl-link{font-family:var(--mono);font-size:11px;color:var(--sage)}
+.cl-mini{background:none;border:1px solid var(--line2);color:var(--muted);border-radius:6px;font-size:11px;padding:6px 11px;flex:none;cursor:pointer}
+.cl-mini:hover{border-color:var(--sage-d);color:var(--sage)}
+.cl-mini.add{color:var(--sage);border-color:var(--sage-d)}
+.cl-comps{display:flex;flex-direction:column;gap:5px;margin-bottom:9px}
+.cl-comp{display:flex;align-items:center;gap:9px;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:6px 9px}
+.cl-comp-h{font-size:12.5px;color:var(--text);font-weight:600}
+.cl-comp-d{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.cl-x{margin-left:auto;background:none;border:none;color:var(--faint);font-size:17px;line-height:1;cursor:pointer;flex:none;padding:0 2px}
+.cl-x:hover{color:var(--clay)}
+.cl-none{font-size:12px;color:var(--faint);padding:2px 0}
+.cl-reset{background:none;border:none;color:var(--muted);font-size:11.5px;text-decoration:underline;margin-top:11px;cursor:pointer;padding:0}
+.cl-reset:hover{color:var(--sage)}
 .au-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line2);border-radius:9px;padding:11px 13px;margin-bottom:8px}
 .au-em{font-size:13.5px;color:var(--text);word-break:break-all}
 .au-sub{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:3px}
@@ -666,7 +696,8 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
   <div class="modal admin-modal">
     <h2>⚙ Admin panel</h2>
     <div class="admin-tabs">
-      <button class="atab on" id="atab-users" onclick="adminTab('users')">Signups</button>
+      <button class="atab on" id="atab-clients" onclick="adminTab('clients')">Clients</button>
+      <button class="atab" id="atab-users" onclick="adminTab('users')">Signups</button>
       <button class="atab" id="atab-subs" onclick="adminTab('subs')">Submissions</button>
     </div>
     <div id="adminBody"><div class="adsload" style="padding:16px 0"><span class="spin"></span>Loading…</div></div>
@@ -788,6 +819,16 @@ function emlPendingState(d,host){var em=(d&&d.emails)||[];var st=!em.length?'non
 /* ── Accounts: demos are open to everyone; signing in loads & saves YOUR competitors ── */
 var TOKEN=localStorage.getItem('ci_token')||'';
 var USER=null; try{USER=JSON.parse(localStorage.getItem('ci_user')||'null');}catch(e){}
+// ── Public read-only share ──────────────────────────────────────────────────
+// app.html?share=<token> opens a client's dashboard for their team: all data + AI
+// chat, but every editing control hidden. SHARE carries the client's identity to the
+// personalization endpoints (insights/angle/chat/my-brand) so the team sees the same
+// tailored "apply to your brand" the client sees. RO gates all mutating UI.
+var SHARE='';try{SHARE=(new URLSearchParams(location.search).get('share')||'').trim();}catch(e){}
+var RO=!!SHARE;
+function shareQ(){return SHARE?'&share='+encodeURIComponent(SHARE):'';}   // append to a GET that already has a '?'
+function shareBody(o){o=o||{};if(SHARE)o.share=SHARE;return o;}            // merge into a POST body
+if(RO){try{document.documentElement.classList.add('ro');}catch(e){}}
 var USERCOMPS=[];                 // competitors loaded from the signed-in user's account
 var pendingAfterAuth=null;        // run after a successful sign-in (e.g. open the add form)
 var authMode='signup';
@@ -801,8 +842,21 @@ function loadUserComps(cb){
     .then(function(d){USERCOMPS=(d.competitors||[]).map(mapServerComp);registerCompetitors();render();USERCOMPS.forEach(function(x){loadInsights(x);});if(cb)cb();})
     .catch(function(){if(cb)cb();});
 }
+// Read-only shared view: load the client's competitors via their public share token.
+function loadSharedComps(cb){
+  fetch(API+'/api/shared/'+encodeURIComponent(SHARE))
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(!d||d.error||!d.readonly){RO=false;try{document.documentElement.classList.remove('ro');}catch(e){}alert('This shared link is no longer active.');if(cb)cb();return;}
+      USERCOMPS=(d.competitors||[]).map(mapServerComp);
+      registerCompetitors();render();USERCOMPS.forEach(function(x){loadInsights(x);});
+      if(cb)cb();
+    })
+    .catch(function(){if(cb)cb();});
+}
 function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');}catch(e){}clearMyBrandLocal();insightsCache={};angleCache={};paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
 function paintAuth(){refreshAdmin();var s=document.getElementById('authSlot');if(!s)return;
+  if(RO){s.innerHTML='<span class="ro-badge"><span class="dot"></span>Shared view · read-only</span>';return;}
   if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML=(ADMIN?'<button class="authbtn" onclick="openAdmin()" title="Admin panel">⚙ Admin</button>':'')+'<button class="authbtn" onclick="openSlack()" title="Get your daily brief in Slack">⚡ Slack'+((USER&&USER.slack)?' ✓':'')+'</button><span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+(ADMIN?' · admin':'')+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
   else{s.innerHTML='<button class="authbtn primary" onclick="openAuth(\'signin\')">Sign in</button>';}
   var ab=document.querySelector('.add-btn');if(ab)ab.title=loggedIn()?'Add a competitor to your watchlist':'Add your own competitor — sign in required';
@@ -893,6 +947,7 @@ function railRow(c){
 }
 function removeComp(id,ev){
   if(ev){ev.stopPropagation();ev.preventDefault();}
+  if(RO)return;
   var c=USERCOMPS.filter(function(x){return x.id===id;})[0];
   if(!c)return;
   if(!confirm('Remove '+c.name+' from your watchlist?\n\nThis deletes your saved status for it. The demo competitors stay.'))return;
@@ -1471,7 +1526,7 @@ function loadInsights(c){
   // About to (re)fetch and we don't have a brief yet → show a loading state so the Threat
   // assessment / counter-op area doesn't just vanish while it generates.
   var ub=document.getElementById('ubrief-'+c.id);if(ub)ub.innerHTML=briefLoadingHTML();
-  fetch(API+'/api/insights?host='+encodeURIComponent(c.host)+'&name='+encodeURIComponent(c.name||''),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
+  fetch(API+'/api/insights?host='+encodeURIComponent(c.host)+'&name='+encodeURIComponent(c.name||'')+shareQ(),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
     var ins=(d&&d.insights)||{};insightsCache[c.host]=ins;paintInsights(c,ins);
   }).catch(function(){var e=document.getElementById('ubrief-'+c.id);if(e)e.innerHTML=briefFinalHTML(insightsCache[c.host]);});
 }
@@ -1562,7 +1617,7 @@ function loadAngle(text,kind,image,video,item){
   var pre=item&&(item.angle||item.hook||item.creative)?{angle:item.angle||'',hook:item.hook||'',creative:item.creative||'',apply:'',script:''}:null;
   if(pre){fillAngle(key,pre);if(!hasBrand){angleCache[key]=pre;return;}}
   if(hasBrand)applyLoading(key);   // "For you" appears immediately with a spinner so the user knows a tailored move is coming
-  fetch(API+'/api/angle',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({text:text,kind:kind,image:image||'',video:video||''})})
+  fetch(API+'/api/angle',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify(shareBody({text:text,kind:kind,image:image||'',video:video||''}))})
     .then(function(r){return r.json();}).then(function(d){var o={angle:(d&&d.angle)||(pre&&pre.angle)||'',hook:(d&&d.hook)||(pre&&pre.hook)||'',creative:(d&&d.creative)||(pre&&pre.creative)||'',apply:(d&&d.apply)||'',script:(d&&d.script)||''};angleCache[key]=o;fillAngle(key,o);})
     .catch(function(){fillAngle(key,{angle:'—',hook:'',creative:'',apply:'',script:''});});
 }
@@ -1625,7 +1680,7 @@ function report(c){
   var back='<button class="back-btn" onclick="back()"><svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Watchlist</button>';
   var meta;
   var wk=' · <a class="wklink" href="report.html?host='+encodeURIComponent(c.host)+'" target="_blank" rel="noopener" title="This week\'s shareable intelligence report">Weekly report ↗</a>';
-  var ed=c.account?' · <a class="wklink" href="#" onclick="openConfirmPages(\''+c.id+'\');return false" title="Edit name, social pages, or replace this competitor">✎ Edit</a>':'';
+  var ed=(c.account&&!RO)?' · <a class="wklink" href="#" onclick="openConfirmPages(\''+c.id+'\');return false" title="Edit name, social pages, or replace this competitor">✎ Edit</a>':'';
   if(state.day){meta=esc(c.host)+' · <span class="snaplbl">📅 viewing '+esc(fmtFullDay(state.day))+'</span>';}
   else if(c.live){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Live feed</span><span class="asof" id="asof-'+c.id+'"></span><span class="lr" id="lr-'+c.id+'"></span>'+wk;}
   else if(c.demo){meta=esc(c.host)+' · scanned '+ago(c.updatedAt)+' ago'+wk;}
@@ -1777,6 +1832,7 @@ function cfCheck(p){var id={facebook:'cfFb',instagram:'cfIg',tiktok:'cfTt'}[p];v
 // point it at a different site (a domain change = replace).
 var editingComp=null;
 function openConfirmPages(id){
+  if(RO)return;
   var c=getList().filter(function(x){return x.id===id;})[0];if(!c||c.demo)return;
   editingComp={id:c.id,dbId:c.dbId,host:c.host};
   openModal();
@@ -1813,6 +1869,9 @@ function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)r
 // reconcile with what the server says THIS session's account actually owns.
 function clearMyBrandLocal(){myBrand=null;try{localStorage.removeItem('myBrand');}catch(e){}paintBrandChip();}
 function loadMyBrand(){
+  // Read-only shared view: the "apply to your brand" context is the CLIENT's brand,
+  // fetched via the share token (never cached locally — it isn't the viewer's own).
+  if(RO){fetch(API+'/api/my-brand?share='+encodeURIComponent(SHARE)).then(function(r){return r.json();}).then(function(d){if(d&&d.brand){myBrand=d.brand;paintBrandChip();}}).catch(function(){});return;}
   if(!loggedIn()){clearMyBrandLocal();return;}
   try{var s=localStorage.getItem('myBrand');if(s)myBrand=JSON.parse(s);}catch(e){}
   paintBrandChip();
@@ -1823,6 +1882,7 @@ function loadMyBrand(){
   }).catch(function(){});
 }
 function openBrand(){
+  if(RO)return;
   if(!loggedIn()){openAuth('signup',openBrand);return;}   // your brand is saved to your account
   document.getElementById('bN').value=(myBrand&&myBrand.name)||'';document.getElementById('bU').value=(myBrand&&(myBrand.url||myBrand.host))||'';document.getElementById('bP').value=(myBrand&&myBrand.mainProduct)||'';document.getElementById('bErr').style.display='none';var rm=document.getElementById('bRemove');if(rm)rm.style.display=(myBrand&&myBrand.name)?'':'none';document.getElementById('brandOv').classList.add('open');setTimeout(function(){document.getElementById('bN').focus();},40);}
 function removeBrand(){fetch(API+'/api/my-brand',{method:'DELETE',headers:authH()}).then(function(r){return r.json();}).catch(function(){});clearMyBrandLocal();closeBrand();insightsCache={};angleCache={};var c=currentComp();if(c){delete insightsCache[c.host];loadInsights(c);}}
@@ -1843,7 +1903,7 @@ function saveBrand(){
 }
 function pollPersonalize(tries){
   var c=currentComp();if(!c)return;delete insightsCache[c.host];
-  fetch(API+'/api/insights?host='+encodeURIComponent(c.host)+'&name='+encodeURIComponent(c.name||'')+'&refresh=1',{headers:authH()}).then(function(r){return r.json();}).then(function(d){
+  fetch(API+'/api/insights?host='+encodeURIComponent(c.host)+'&name='+encodeURIComponent(c.name||'')+'&refresh=1'+shareQ(),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
     var ins=(d&&d.insights)||{};insightsCache[c.host]=ins;var cur=currentComp();if(cur&&cur.id===c.id)paintInsights(c,ins);
     var hasApply=['ads','social','website','email'].some(function(k){return ins[k]&&ins[k].apply;});
     if(!hasApply&&tries<6)setTimeout(function(){pollPersonalize(tries+1);},12000);
@@ -1869,8 +1929,9 @@ function linkify(t){
 function renderChat(c){
   var box=document.getElementById('chatMsgs'),thread=chatThreads[c.id]||[];
   var inp=document.getElementById('chatInput'),sb=document.querySelector('.chat-send');
-  // The AI analyst costs real money per question — account holders only.
-  if(!loggedIn()){
+  // The AI analyst costs real money per question — account holders, or a team member on
+  // a read-only share link (which carries the client's identity to the backend).
+  if(!loggedIn()&&!RO){
     box.innerHTML='<div class="cmsg sys">🔒 The AI analyst is available to account holders — sign in to interrogate '+esc(c.name)+'’s captured data. Every answer cites the exact ad, post or email it came from.<br><button class="btn btn-p" style="margin-top:10px" onclick="openAuth(\'signin\')">Sign in</button></div>';
     document.getElementById('chatChips').innerHTML='';
     if(inp){inp.disabled=true;inp.placeholder='Sign in to ask the analyst…';}
@@ -1887,7 +1948,7 @@ function renderChat(c){
 }
 function askChip(b){document.getElementById('chatInput').value=b.textContent;sendChat();}
 function sendChat(){
-  if(!loggedIn()){openAuth('signin');return;}
+  if(!loggedIn()&&!RO){openAuth('signin');return;}
   var c=currentComp();if(!c)return;
   var inp=document.getElementById('chatInput'),q=(inp.value||'').trim();if(!q)return;
   inp.value='';document.getElementById('chatChips').innerHTML='';
@@ -1895,7 +1956,7 @@ function sendChat(){
   var um=document.createElement('div');um.className='cmsg user';um.textContent=q;box.appendChild(um);
   var thread=chatThreads[c.id]||(chatThreads[c.id]=[]),hist=thread.slice();thread.push({role:'user',content:q});
   var typ=document.createElement('div');typ.className='ctyping';typ.innerHTML='<span class="spin"></span> WatchBack is reading the data…';box.appendChild(typ);box.scrollTop=box.scrollHeight;
-  fetch(API+'/api/chat',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({name:c.name,host:c.host||'',country:c.country||'ALL',handles:c.handles||{},context:chatCtx(c),question:q,messages:hist})})
+  fetch(API+'/api/chat',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify(shareBody({name:c.name,host:c.host||'',country:c.country||'ALL',handles:c.handles||{},context:chatCtx(c),question:q,messages:hist}))})
     .then(function(r){return r.json();}).then(function(d){
       typ.remove();var am=document.createElement('div');am.className='cmsg ai';if(d&&d.error){am.textContent='⚠ '+d.error;}else{am.innerHTML=linkify((d&&d.answer)||'(no answer)');}box.appendChild(am);box.scrollTop=box.scrollHeight;
       if(d&&!d.error&&d.answer)thread.push({role:'assistant',content:d.answer});
@@ -1915,6 +1976,7 @@ var ADMIN=isAdmin();
 function refreshAdmin(){ADMIN=isAdmin();}
 function lockedComp(c){return !ADMIN && !!(c&&!c.demo&&!c.account);}  // your own saved competitors are never locked
 function addOrUpgrade(){
+  if(RO)return;                                                               // read-only shared view: no editing
   if(!loggedIn()){openAuth('signup',openModal);return;}                       // need an account to add your own
   if(!ADMIN&&USERCOMPS.length>=PLAN.competitors){showUpgrade();return;}        // plan limit on your own competitors
   openModal();
@@ -1989,13 +2051,101 @@ function loadFeedbackInto(targetId){
 }
 function loadFeedback(){loadFeedbackInto('fbAdmin');}
 /* ── Admin panel: signups (approve) + submissions ── */
-function openAdmin(){if(!ADMIN)return;document.getElementById('adminOv').classList.add('open');adminTab('users');}
+function openAdmin(){if(!ADMIN)return;document.getElementById('adminOv').classList.add('open');adminTab('clients');}
 function closeAdmin(){document.getElementById('adminOv').classList.remove('open');}
 function adminTab(t){
-  document.getElementById('atab-users').classList.toggle('on',t==='users');
-  document.getElementById('atab-subs').classList.toggle('on',t==='subs');
+  ['clients','users','subs'].forEach(function(x){var el=document.getElementById('atab-'+x);if(el)el.classList.toggle('on',t===x);});
   document.getElementById('adminBody').innerHTML='<div class="adsload" style="padding:16px 0"><span class="spin"></span>Loading…</div>';
-  if(t==='users')loadAdminUsers();else loadFeedbackInto('adminBody');
+  if(t==='clients')loadAdminClients();else if(t==='users')loadAdminUsers();else loadFeedbackInto('adminBody');
+}
+// ── Admin: client accounts (create logins, assign competitors, share links) ──
+function adminUrl(path){return API+path+(adminKey()?(path.indexOf('?')<0?'?':'&')+'key='+encodeURIComponent(adminKey()):'');}
+function adminHeaders(json){return Object.assign(json?{'Content-Type':'application/json'}:{},authH());}
+function clientShareLink(tok){return location.origin+location.pathname+'?share='+encodeURIComponent(tok);}
+function loadAdminClients(){
+  var b=document.getElementById('adminBody');
+  fetch(adminUrl('/api/admin/clients'),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
+    if(!d||d.error){b.innerHTML='<div class="fb-empty">'+esc((d&&d.error)||'Couldn’t load.')+'</div>';return;}
+    var cs=d.clients||[];
+    var html='<div class="cl-new"><div class="cl-new-h">Create a client login</div>'
+      +'<div class="cl-new-row"><input id="clEmail" class="cl-in" type="email" placeholder="client@email.com" autocomplete="off"><input id="clPass" class="cl-in cl-nm" type="text" placeholder="password (8+ chars)" autocomplete="off"><button class="cl-mini add" onclick="createClient(this)">Create</button></div>'
+      +'<div id="clNewErr" class="cl-err"></div></div>'
+      +'<div class="fb-list-h">'+cs.length+' client'+(cs.length===1?'':'s')+'</div>'
+      +(cs.length?cs.map(clientCard).join(''):'<div class="fb-empty">No client accounts yet — create one above.</div>');
+    b.innerHTML=html;
+  }).catch(function(){b.innerHTML='<div class="fb-empty">Couldn’t load.</div>';});
+}
+function clientCard(c){
+  var link=c.share_token?clientShareLink(c.share_token):'';
+  var comps=(c.competitors||[]).map(function(x){
+    return '<div class="cl-comp"><span class="cl-comp-h">'+esc(x.name||x.host)+'</span><span class="cl-comp-d">'+esc(x.host)+'</span><button class="cl-x" title="Remove from this client" onclick="clientRemoveComp('+c.id+','+x.id+',this)">×</button></div>';
+  }).join('')||'<div class="cl-none">No competitors yet.</div>';
+  return '<div class="cl-card" id="cl-'+c.id+'">'
+    +'<div class="cl-top"><div style="min-width:0"><div class="au-em">'+esc(c.email)+'</div><div class="au-sub">joined '+esc(fmtDay(c.created_at))+'</div></div>'
+    +'<button class="cl-del" title="Delete this client and their data" onclick="deleteClient('+c.id+',\''+esc(c.email)+'\')">Delete</button></div>'
+    +(link?'<div class="cl-lbl">Read-only share link</div><div class="cl-share-row"><input class="cl-in cl-link" id="cllink-'+c.id+'" readonly value="'+esc(link)+'" onclick="this.select()"><button class="cl-mini" onclick="copyClientLink('+c.id+',this)">Copy</button><button class="cl-mini" title="New link — the old one stops working" onclick="rotateShare('+c.id+',this)">Rotate</button></div>':'')
+    +'<div class="cl-lbl">Competitors</div><div class="cl-comps">'+comps+'</div>'
+    +'<div class="cl-addrow"><input class="cl-in" id="clch-'+c.id+'" placeholder="competitor domain — e.g. allbirds.com"><input class="cl-in cl-nm" id="clcn-'+c.id+'" placeholder="name (optional)"><button class="cl-mini add" onclick="clientAddComp('+c.id+',this)">Add</button></div>'
+    +'<div class="cl-err" id="clerr-'+c.id+'"></div>'
+    +'<button class="cl-reset" onclick="resetClientPass('+c.id+',\''+esc(c.email)+'\')">Reset password…</button></div>';
+}
+function createClient(btn){
+  var em=(document.getElementById('clEmail').value||'').trim(),pw=document.getElementById('clPass').value||'';
+  var er=document.getElementById('clNewErr');er.textContent='';
+  if(!em||!pw){er.textContent='Email and password are both required.';return;}
+  btn.disabled=true;btn.textContent='…';
+  fetch(adminUrl('/api/admin/clients'),{method:'POST',headers:adminHeaders(true),body:JSON.stringify({email:em,password:pw})}).then(function(r){return r.json();}).then(function(d){
+    btn.disabled=false;btn.textContent='Create';
+    if(!d||d.error){er.textContent=(d&&d.error)||'Couldn’t create.';return;}
+    loadAdminClients();
+  }).catch(function(){btn.disabled=false;btn.textContent='Create';er.textContent='Couldn’t create — try again.';});
+}
+function deleteClient(id,email){
+  if(!confirm('Delete '+email+'?\n\nThis permanently removes their login, their competitors and their share link.'))return;
+  fetch(adminUrl('/api/admin/clients/'+id),{method:'DELETE',headers:adminHeaders(false)}).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.ok){var el=document.getElementById('cl-'+id);if(el){el.style.transition='opacity .2s';el.style.opacity='.35';el.style.pointerEvents='none';}}
+    else alert((d&&d.error)||'Couldn’t delete.');
+  }).catch(function(){alert('Couldn’t delete.');});
+}
+function copyClientLink(id,btn){
+  var i=document.getElementById('cllink-'+id);if(!i)return;i.select();
+  if(navigator.clipboard)navigator.clipboard.writeText(i.value).catch(function(){});else{try{document.execCommand('copy');}catch(e){}}
+  btn.textContent='Copied ✓';setTimeout(function(){btn.textContent='Copy';},1400);
+}
+function rotateShare(id,btn){
+  if(!confirm('Generate a NEW link? The current one stops working immediately.'))return;
+  btn.disabled=true;
+  fetch(adminUrl('/api/admin/clients/'+id+'/share'),{method:'POST',headers:adminHeaders(true),body:'{}'}).then(function(r){return r.json();}).then(function(d){
+    btn.disabled=false;
+    if(d&&d.share_token){var i=document.getElementById('cllink-'+id);if(i)i.value=clientShareLink(d.share_token);btn.textContent='New ✓';setTimeout(function(){btn.textContent='Rotate';},1400);}
+    else alert((d&&d.error)||'Couldn’t rotate.');
+  }).catch(function(){btn.disabled=false;alert('Couldn’t rotate.');});
+}
+function clientAddComp(id,btn){
+  var host=(document.getElementById('clch-'+id).value||'').trim(),name=(document.getElementById('clcn-'+id).value||'').trim();
+  var er=document.getElementById('clerr-'+id);er.textContent='';
+  if(!host){er.textContent='Enter a competitor domain.';return;}
+  btn.disabled=true;btn.textContent='…';
+  fetch(adminUrl('/api/admin/clients/'+id+'/competitors'),{method:'POST',headers:adminHeaders(true),body:JSON.stringify({host:host,name:name})}).then(function(r){return r.json();}).then(function(d){
+    btn.disabled=false;btn.textContent='Add';
+    if(!d||d.error){er.textContent=(d&&d.error)||'Couldn’t add.';return;}
+    loadAdminClients();
+  }).catch(function(){btn.disabled=false;btn.textContent='Add';er.textContent='Couldn’t add — try again.';});
+}
+function clientRemoveComp(id,cid,btn){
+  if(!confirm('Remove this competitor from the client?'))return;
+  btn.disabled=true;
+  fetch(adminUrl('/api/admin/clients/'+id+'/competitors/'+cid),{method:'DELETE',headers:adminHeaders(false)}).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.ok){var w=btn.closest('.cl-comp');if(w)w.remove();}else{btn.disabled=false;alert((d&&d.error)||'Couldn’t remove.');}
+  }).catch(function(){btn.disabled=false;alert('Couldn’t remove.');});
+}
+function resetClientPass(id,email){
+  var pw=prompt('New password for '+email+' (8+ characters):');
+  if(pw===null)return;
+  if((pw||'').length<8){alert('Password must be at least 8 characters.');return;}
+  fetch(adminUrl('/api/admin/clients/'+id+'/password'),{method:'POST',headers:adminHeaders(true),body:JSON.stringify({password:pw})}).then(function(r){return r.json();}).then(function(d){
+    alert(d&&d.ok?('Password updated for '+email+'.'):((d&&d.error)||'Couldn’t update.'));
+  }).catch(function(){alert('Couldn’t update.');});
 }
 function loadAdminUsers(){
   var b=document.getElementById('adminBody');
@@ -2029,12 +2179,13 @@ function deleteUser(btn,email){
 render();
 loadMyBrand();
 paintAuth();
-if(TOKEN){loadUserComps();
+if(RO){loadSharedComps();}
+else if(TOKEN){loadUserComps();
   // Refresh the stored profile (picks up the admin flag for sessions from before it existed).
   fetch(API+'/api/me',{headers:authH()}).then(function(r){return r.ok?r.json():null;}).then(function(d){if(d&&d.user){USER=d.user;try{localStorage.setItem('ci_user',JSON.stringify(USER));}catch(e){}paintAuth();}}).catch(function(){});
 }
 DEMOS.forEach(function(c){loadInsights(c);});   // live rail one-liners + instant briefs on the demos
-if(!TOKEN&&/[?&]signin=1/.test(location.search))openAuth('signin');  // arriving from the site's "Sign in"
+if(!RO&&!TOKEN&&/[?&]signin=1/.test(location.search))openAuth('signin');  // arriving from the site's "Sign in"
 // Deep link from the landing page: app.html?c=theoodie.com opens that dossier directly.
 (function(){try{
   var qc=(new URLSearchParams(location.search).get('c')||'').toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*$/,'').replace(/^www\./,'');
