@@ -109,10 +109,23 @@ async function hasHistory(host) {
 // Pass a uid to scope to one account; omit to heal every account.
 async function healStaleSetup(uid) {
   try {
+    // updated_at drives the app's "scanned X ago", so it must be the real CAPTURE time —
+    // stamping now() here would claim we'd just scanned the brand when we only repaired a
+    // flag. Use the host's newest snapshot instead.
     await pool.query(
-      `UPDATE competitors SET status = 'watching', updated_at = now()
+      `UPDATE competitors SET status = 'watching',
+              updated_at = COALESCE((SELECT MAX(s.created_at) FROM snapshots s WHERE s.host = competitors.host), updated_at)
         WHERE ${uid ? 'user_id = $1 AND ' : ''}status = 'setup'
           AND EXISTS (SELECT 1 FROM snapshots s WHERE s.host = competitors.host AND s.created_at < competitors.created_at)`,
+      uid ? [uid] : []);
+    // A row can never have been "scanned" more recently than its newest capture. Pull any
+    // such claim back to the real thing (only ever lowers it, so it's idempotent) — this
+    // also repairs rows an earlier heal stamped with now().
+    await pool.query(
+      `UPDATE competitors SET updated_at = sub.mx
+         FROM (SELECT host, MAX(created_at) AS mx FROM snapshots GROUP BY host) sub
+        WHERE competitors.host = sub.host AND competitors.updated_at > sub.mx
+              ${uid ? 'AND competitors.user_id = $1' : ''}`,
       uid ? [uid] : []);
   } catch (e) { /* best-effort */ }
 }
