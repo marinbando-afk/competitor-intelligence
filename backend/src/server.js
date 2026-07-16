@@ -101,6 +101,22 @@ async function hasHistory(host) {
   catch (e) { return false; }
 }
 
+// Repair rows stuck on 'setup' for a host we ALREADY had captures for before the row was
+// added — those never needed a baseline. warmBrand only flips the status when it actually
+// runs, and it doesn't run for an already-tracked host, so such a row would otherwise show
+// "capturing a live baseline…" until the next nightly warm despite its data being right
+// there. Rows for genuinely new brands (no snapshots predating them) are left to baseline.
+// Pass a uid to scope to one account; omit to heal every account.
+async function healStaleSetup(uid) {
+  try {
+    await pool.query(
+      `UPDATE competitors SET status = 'watching', updated_at = now()
+        WHERE ${uid ? 'user_id = $1 AND ' : ''}status = 'setup'
+          AND EXISTS (SELECT 1 FROM snapshots s WHERE s.host = competitors.host AND s.created_at < competitors.created_at)`,
+      uid ? [uid] : []);
+  } catch (e) { /* best-effort */ }
+}
+
 const DEFAULT_MAX_COMPETITORS = Number(process.env.DEFAULT_MAX_COMPETITORS) || 2;
 async function competitorAllowance(uid) {
   try {
@@ -526,6 +542,7 @@ app.post('/api/admin/backfill-banners', async (req, res) => {
 app.get('/api/admin/clients', async (req, res) => {
   if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   try {
+    await healStaleSetup();   // tidy every client's stale 'setup' row while we're here
     const us = await pool.query('SELECT id, email, approved, share_token, max_competitors, created_at FROM users WHERE admin = FALSE ORDER BY created_at DESC');
     const cs = await pool.query('SELECT id, user_id, name, host, url, country, status, handles FROM competitors ORDER BY created_at ASC');
     const byUser = {};
@@ -731,18 +748,7 @@ app.get('/api/slack/preview', aiLimit, requireAuth, async (req, res) => {
 
 app.get('/api/competitors', requireAuth, async (req, res) => {
   try {
-    // Self-heal: a row stuck on 'setup' for a host we ALREADY had captures for before it
-    // was added never needed a baseline. warmBrand only flips the status when it actually
-    // runs, and it doesn't run for an already-tracked host — so without this the row shows
-    // "capturing a live baseline…" until the next nightly warm, even though its data is
-    // right there. Rows for genuinely new brands (no earlier snapshots) are left alone.
-    try {
-      await pool.query(
-        `UPDATE competitors SET status = 'watching', updated_at = now()
-          WHERE user_id = $1 AND status = 'setup'
-            AND EXISTS (SELECT 1 FROM snapshots s WHERE s.host = competitors.host AND s.created_at < competitors.created_at)`,
-        [req.user.uid]);
-    } catch (e) { /* best-effort */ }
+    await healStaleSetup(req.user.uid);   // see helper: never sit on a baseline we don't need
     const r = await pool.query(
       'SELECT id, name, host, url, country, status, handles, created_at, updated_at FROM competitors WHERE user_id = $1 ORDER BY created_at DESC',
       [req.user.uid],
