@@ -123,15 +123,22 @@ export function hasSignal(s) {
   return !!(s && (s.sale || (s.funnel && s.funnel.length) || (s.fbPage && s.fbPage.length) || (s.products && s.products.length) || (s.angle && s.angle.length)));
 }
 
-// Render one brand's signals as Slack mrkdwn bullet lines, in PRIORITY ORDER.
+// Render one brand's signals as Slack mrkdwn lines, in PRIORITY ORDER.
 // Returns [] when nothing fired (caller shows "all quiet").
+//
+// Deliberately spare: the 💡/✅ on the brand line already carries the at-a-glance status,
+// so a per-line icon would double-code what the words say — and a repeated 🎯 stops being
+// an anchor anyway. Sale/product strings already name themselves ("Sale widened — …",
+// "2 new products: …"), so they get NO label prefix or it reads twice. Ad URLs are long
+// enough to wrap onto their own line, so they're linked behind short text instead.
 export function signalLines(s) {
   if (!s) return [];
   const lines = [];
-  if (s.sale) lines.push('🏷️ *Sale:* ' + s.sale);
-  for (const f of (s.funnel || [])) lines.push('🧭 *New funnel:* ' + f.domain + (f.url ? ' — ' + f.url : ''));
-  for (const p of (s.fbPage || [])) lines.push('📘 *New FB page advertising:* ' + p);
-  for (const pr of (s.products || [])) lines.push('🆕 *New products:* ' + pr);
-  for (const a of (s.angle || [])) lines.push('🎯 *New angle (unused 2wk+):* ' + a.angle + (a.link ? ' — ' + a.link : ''));
+  const link = (u, label) => (u ? ' — <' + u + '|' + label + ' ↗>' : '');
+  if (s.sale) lines.push(s.sale);
+  for (const f of (s.funnel || [])) lines.push('New funnel: ' + f.domain + link(f.url, 'open'));
+  for (const p of (s.fbPage || [])) lines.push('New FB page advertising: ' + p);
+  for (const pr of (s.products || [])) lines.push(pr);
+  for (const a of (s.angle || [])) lines.push('New angle (2wk+): ' + a.angle + link(a.link, 'view ad'));
   return lines;
 }
