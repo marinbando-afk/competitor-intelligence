@@ -610,10 +610,12 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
     <div class="fld"><label for="fU">Website</label><input id="fU" type="text" placeholder="e.g. theoodie.com" autocomplete="off"/><div class="er" id="eU">Please enter a valid website.</div></div>
     <div id="confirmPanel" style="display:none">
       <div class="cf-tracked" id="cfTracked" style="display:none"></div>
+      <div id="cfPages">
       <p class="confirm-h">Confirm the right pages so we watch the correct competitor. Tap <b>Check</b> to open a page, or <b>Find</b> to search for it — then paste the correct link here.</p>
       <div class="cf-row"><span class="cf-l">Facebook</span><input id="cfFb" type="text" placeholder="paste their Facebook URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('facebook')">Check ↗</button><a class="cf-act find" id="cfFbFind" target="_blank" rel="noopener">Find ↗</a></div>
       <div class="cf-row"><span class="cf-l">Instagram</span><input id="cfIg" type="text" placeholder="paste their Instagram URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('instagram')">Check ↗</button><a class="cf-act find" id="cfIgFind" target="_blank" rel="noopener">Find ↗</a></div>
       <div class="cf-row"><span class="cf-l">TikTok</span><input id="cfTt" type="text" placeholder="paste their TikTok URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('tiktok')">Check ↗</button><a class="cf-act find" id="cfTtFind" target="_blank" rel="noopener">Find ↗</a></div>
+      </div>
       <div class="cf-email" id="cfEmail">📧 <b>Email tracking needs one manual step from you:</b> after you add them, you'll paste our capture address into their newsletter sign-up. We'll show you exactly how — but their emails won't come through until you do it yourself.</div>
     </div>
     <div class="m-act"><button class="btn btn-g" onclick="closeModal()">Cancel</button><button class="btn btn-g" id="cfDetect" onclick="continueAdd()">Detect pages</button><button class="btn btn-p" id="cfConfirm" onclick="confirmAdd()" style="display:none">Confirm &amp; add</button></div>
@@ -1788,7 +1790,9 @@ function finishDetect(){var b=document.getElementById('cfDetect');b.disabled=fal
 // genuinely new brand (no snapshots yet). Server-side, so it's true across all accounts.
 function refreshCfTracked(){
   var el=document.getElementById('cfTracked');if(!el)return;
+  var pages=document.getElementById('cfPages');
   el.style.display='none';el.innerHTML='';
+  if(pages)pages.style.display='';   // default: show the page-confirmation step
   var u=normUrl(document.getElementById('fU').value),host=u?u.hostname.replace(/^www\./,''):'';
   if(!host)return;
   fetch(API+'/api/history?host='+encodeURIComponent(host)).then(function(r){return r.json();}).then(function(d){
@@ -1796,7 +1800,14 @@ function refreshCfTracked(){
     var x=new Date(days[days.length-1]);if(isNaN(x))return;   // oldest day on record = first tracked
     var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     var since=x.getDate()+' '+mo[x.getMonth()]+' '+x.getFullYear();
-    el.innerHTML='🎉 <b>Good news — we’ve been tracking this brand since '+esc(since)+'.</b> Their full dossier is ready the moment you add them.';
+    if(editingComp){
+      // EDIT flow: they may be here to FIX a wrong page — keep the page step visible.
+      el.innerHTML='🎉 <b>We’ve been tracking this brand since '+esc(since)+'.</b> Fix a wrong page below if you need to.';
+    }else{
+      // ADD flow: pages are already confirmed system-wide — nothing to add, hide the step.
+      el.innerHTML='🎉 <b>Good news — we’ve been tracking this brand since '+esc(since)+'.</b> Their pages are already confirmed and their full dossier is ready — <b>nothing to add here, just hit “Confirm &amp; add”.</b>';
+      if(pages)pages.style.display='none';
+    }
     el.style.display='';
   }).catch(function(){});
 }

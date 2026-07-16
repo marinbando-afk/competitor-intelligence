@@ -190,6 +190,9 @@ app.get('/api/resolve-handles', async (req, res) => {
   try {
     const host = String(req.query.host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase();
     if (!host) return res.status(400).json({ error: 'Missing host.' });
+    // Already tracked? Reuse its CONFIRMED handles instead of re-resolving from scratch —
+    // so re-adding a known brand keeps its correct pages (and never blanks them).
+    try { const known = (await allBrands()).find((b) => b.host === host); if (known && known.handles && Object.keys(known.handles).length) return res.json({ host, handles: known.handles, known: true }); } catch (e) { /* fall back to a fresh resolve */ }
     res.json({ host, handles: await resolveHandles(host) });
   } catch (e) { res.json({ host: '', handles: {} }); }
 });
