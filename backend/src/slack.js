@@ -4,7 +4,7 @@
 // Set in Railway:  SLACK_WEBHOOK_URL = https://hooks.slack.com/services/T.../B.../xxxx
 import Anthropic from '@anthropic-ai/sdk';
 import { getInsights } from './insights.js';
-import { dailySignals, hasSignal, signalLines } from './signals.js';
+import { dailySignals, signalLines } from './signals.js';
 
 const BRIEF_MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';
 let _bc;
@@ -37,30 +37,27 @@ export async function buildDigest(brands) {
 // Structured, deterministic and PRIORITY-ORDERED — every brand is accounted for,
 // and the moves that matter most lead: sale change → new funnel → new FB page →
 // new products → new ad angle (unused ≥2 weeks). See signals.js for detection.
-// Brands with nothing on those five are shown as a single "all quiet" line so the
-// reader can see the whole watchlist was checked.
-export async function buildDailyBrief(brands) {
+// Layout: header, a blank row, then one line per brand — 💡 marks a brand with
+// moves (its signals listed beneath), ✅ marks an all-quiet brand — then a blank
+// row and a read-only view link teammates can open without an account.
+export async function buildDailyBrief(brands, viewUrl) {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   const head = '🛰️ *WatchBack daily* · ' + today;
   if (!(brands || []).length) return head + '\nNo competitors on the watchlist yet.';
-  const blocks = [];
-  let anyNews = false;
+  const link = viewUrl || 'https://watchback.ai/app.html';
+  const lines = [];
   for (const b of brands) {
-    let lines = [];
-    try {
-      const s = await dailySignals(b.host);
-      lines = signalLines(s);
-      if (hasSignal(s)) anyNews = true;
-    } catch (e) { /* treat as quiet */ }
-    blocks.push(lines.length ? ('*' + b.name + '*\n' + lines.map((l) => '   ' + l).join('\n')) : ('*' + b.name + '* — all quiet'));
+    let sig = [];
+    try { sig = signalLines(await dailySignals(b.host)); } catch (e) { /* treat as quiet */ }
+    if (sig.length) { lines.push('*' + b.name + '* 💡'); sig.forEach((l) => lines.push('   ' + l)); }
+    else lines.push('*' + b.name + '* — all quiet ✅');
   }
-  if (!anyNews) return head + '\n\nAll quiet — no sale, funnel, new-page, product or new-angle moves across the watchlist today.';
-  return head + '\n\n' + blocks.join('\n\n');
+  return head + '\n\n' + lines.join('\n') + '\n\n🔗 <' + link + '|View the full dashboard & signals →>';
 }
 
-export async function postDailyBrief(brands) {
+export async function postDailyBrief(brands, viewUrl) {
   if (!slackEnabled()) return { sent: false, reason: 'SLACK_WEBHOOK_URL not set' };
-  const text = await buildDailyBrief(brands);
+  const text = await buildDailyBrief(brands, viewUrl);
   return postText(text);
 }
 
@@ -87,12 +84,14 @@ export async function sendUserDailyBriefs(pool) {
   if (!pool) return;
   let sent = 0;
   try {
-    const us = await pool.query(`SELECT id, slack_webhook FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
+    const us = await pool.query(`SELECT id, slack_webhook, share_token FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
     for (const u of us.rows) {
       try {
         const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [u.id]);
         if (!cs.rows.length) continue;
-        const text = await buildDailyBrief(cs.rows);
+        // Teammate view link = this account's OWN read-only share link (opens without a login).
+        const viewUrl = u.share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.share_token)) : 'https://watchback.ai/app.html';
+        const text = await buildDailyBrief(cs.rows, viewUrl);
         const r = await postTo(u.slack_webhook, text);
         if (r.sent) sent++;
       } catch (e) { /* skip this user */ }
