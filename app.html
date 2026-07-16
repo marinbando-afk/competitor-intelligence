@@ -821,6 +821,10 @@ var DEMOS=[
 ];
 
 var state={sel:null,day:null,open:{}};
+// True until the landing competitor is resolved (or you pick one yourself). Your own
+// competitors load async, so the first render only has demos — this lets the default
+// re-resolve to YOUR first competitor once they arrive, without clobbering a real pick.
+var autoSel=true;
 var viewSnap=null,histDays={};
 var liveCache={};
 var emailPending={};   // host -> bool: does this competitor still need an email action? (drives the rail flag)
@@ -855,7 +859,9 @@ function loadUserComps(cb){
   if(!TOKEN){USERCOMPS=[];if(cb)cb();return;}
   fetch(API+'/api/competitors',{headers:authH()})
     .then(function(r){if(r.status===401){doSignout(true);throw 0;}return r.json();})
-    .then(function(d){USERCOMPS=(d.competitors||[]).map(mapServerComp);registerCompetitors();render();USERCOMPS.forEach(function(x){loadInsights(x);});if(cb)cb();})
+    .then(function(d){USERCOMPS=(d.competitors||[]).map(mapServerComp);
+      if(autoSel){state.sel=null;autoSel=false;}   // now that YOUR competitors are in, land on the first one
+      registerCompetitors();render();USERCOMPS.forEach(function(x){loadInsights(x);});if(cb)cb();})
     .catch(function(){if(cb)cb();});
 }
 // Read-only shared view: load the client's competitors via their public share token.
@@ -865,6 +871,7 @@ function loadSharedComps(cb){
     .then(function(d){
       if(!d||d.error||!d.readonly){RO=false;try{document.documentElement.classList.remove('ro');}catch(e){}alert('This shared link is no longer active.');if(cb)cb();return;}
       USERCOMPS=(d.competitors||[]).map(mapServerComp);
+      if(autoSel){state.sel=null;autoSel=false;}   // land on the client's first competitor, not a demo
       registerCompetitors();render();USERCOMPS.forEach(function(x){loadInsights(x);});
       if(cb)cb();
     })
@@ -1761,7 +1768,9 @@ function render(){
     document.getElementById('detail').innerHTML='<div class="empty"><div class="ei"><svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="#3f9d9b" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8 15V4.5"/><path d="M8 9.5C5.4 9.2 3.8 7.4 4.1 4.7 6.7 5 8.2 6.8 8 9.5Z"/><path d="M8 7.2C10.4 6.9 11.8 5.2 11.6 2.9 9.3 3.2 7.9 4.9 8 7.2Z"/></svg></div><h3>Your watchlist is empty</h3><p>Add the first brand you want to keep an eye on.</p><button class="btn btn-p" onclick="addOrUpgrade()">Add to Watchlist</button></div>';
     setDate();return;
   }
-  if(!state.sel||!list.some(function(c){return c.id===state.sel;}))state.sel=list[0].id;
+  // Land on YOUR first competitor — demos are only examples, so they're the fallback for
+  // an account that hasn't added any yet.
+  if(!state.sel||!list.some(function(c){return c.id===state.sel;}))state.sel=(list.filter(function(c){return !c.demo;})[0]||list[0]).id;
   var yourC=list.filter(function(c){return !c.demo;}),exC=list.filter(function(c){return c.demo;});
   var rl='';
   if(yourC.length)rl+='<div class="rail-group">Your competitors</div>'+yourC.map(railRow).join('');
@@ -1778,6 +1787,7 @@ function render(){
 }
 function setDate(){var d=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];document.getElementById('topDate').textContent=days[d.getDay()]+' '+String(d.getDate()).padStart(2,'0')+' '+mo[d.getMonth()]+' '+d.getFullYear();}
 function select(id){
+  autoSel=false;                     // a real pick — never re-resolve the default over it
   state.sel=id;viewSnap=null;
   document.getElementById('app').dataset.view='detail';
   // Keep the viewed date when switching competitors — but only if the new one actually
