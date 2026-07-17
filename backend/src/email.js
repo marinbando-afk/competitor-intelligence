@@ -127,64 +127,74 @@ function aliasToks(s) {
   return [...new Set(String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !ALIAS_STOP.has(w)))];
 }
 
-// Extra sender domains that are genuinely THIS brand's. Returns [] on any doubt.
+const depunct = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+// Extra sender domains that are genuinely THIS brand's.
 export async function aliasDomains(root, name) {
   const c = _alias.get(root);
   if (c && Date.now() - c.at < ALIAS_TTL) return c.domains;
 
-  let domains = [];
+  let domains = null;   // null = "couldn't compute" → do NOT cache (retry next call, don't
+                        //        lock in an empty result); [] = "computed, genuinely none".
   try {
-    // Every OTHER sender we've captured — candidates for "actually this brand".
+    // Every OTHER sender we've captured — candidates for "actually this brand". Aggregate ALL
+    // distinct sender NAMES per domain (not just one) so a brand that signs some emails "Laura"
+    // and others "Laura | Glov Beauty" is still recognised by the name that carries the brand.
     const r = await pool.query(
-      `SELECT sender_domain, MAX(from_name) AS from_name, COUNT(*)::int AS n
+      `SELECT sender_domain, string_agg(DISTINCT COALESCE(from_name,''), ' ') AS names, COUNT(*)::int AS n
        FROM emails WHERE sender_domain <> $1 AND sender_domain <> '' GROUP BY sender_domain`, [root]);
-    // Does the brand receive ANY mail on its own domain? Zero is the exact symptom this bug
-    // presents as ("waiting for their first email" while the mail sits under another domain).
     const ownN = (await pool.query('SELECT COUNT(*)::int AS n FROM emails WHERE sender_domain = $1', [root])).rows[0].n;
 
-    // Stage 1 — token filter. A candidate must share a significant token with the brand
-    // name or its domain, in the SENDER NAME or the sending domain. Cheap and high-recall.
+    const rootLabel = depunct(root.split('.')[0]);
     const toks = [...new Set(aliasToks(name).concat(aliasToks(root.split('.')[0])))];
-    // De-punctuate the haystack so a multi-word brand still matches a run-together domain
-    // and vice versa: token "glovbeauty" vs from_name "Laura | Glov Beauty" -> "lauraglovbeauty".
+
+    // TIER 1 — DETERMINISTIC, no AI. The sender literally NAMES the brand: the brand's
+    // domain-root label appears in a sender name (Glov's "Laura | Glov Beauty" → "…glovbeauty…"
+    // contains "glovbeauty"). That is proof, so it must not depend on a non-deterministic
+    // judge that can flip and then get cached for 6h — the exact reason Glov's 16 emails kept
+    // vanishing from the panel while the cached AI read still showed them (found 17 Jul).
+    // Precise: a different firm sharing the word "glov" won't ALSO carry "glovbeauty" in its
+    // sender name. Guard rootLabel length ≥ 5 so a short/generic label can't coincidence-match.
+    const confirmed = new Set();
+    if (rootLabel.length >= 5) for (const x of r.rows) if (depunct(x.names).indexOf(rootLabel) >= 0) confirmed.add(x.sender_domain);
+
+    // TIER 2 — AI judge for the AMBIGUOUS remainder: a domain that shares a token but does NOT
+    // strongly name the brand. Token filter (recall) → judge (precision), same as before.
     let cands = toks.length ? r.rows.filter((x) => {
-      const hay = (String(x.sender_domain || '') + ' ' + String(x.from_name || '')).toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const hay = depunct(x.sender_domain + ' ' + x.names);
       return toks.some((t) => hay.indexOf(t) >= 0);
     }) : [];
+    if (!ownN && !cands.length) cands = r.rows;                       // zero-own-mail brand → widen to all
+    cands = cands.filter((x) => !confirmed.has(x.sender_domain));     // don't re-judge what's already proven
 
-    // The token filter's blind spot: a brand whose sending domain shares NO word with its
-    // name (tryglov.com happens to contain "glov" — nothing guarantees the next one will).
-    // That brand would silently show "waiting for their first email" forever, which is
-    // exactly how this stayed invisible for weeks. So when a brand has NO mail at all on
-    // its own domain AND the filter found nothing, widen to EVERY sender and let the judge
-    // decide. Bounded (only fires for a brand with zero email), cheap (one Haiku call per
-    // 6h), and safe — the judge is precision-first and told most senders are other brands.
-    if (!ownN && !cands.length) cands = r.rows;
-
-    // Stage 2 — the AI judges each candidate. No key => no aliases (fail CLOSED: a missed
-    // email is recoverable, a rival's email shown as this brand's is not).
     if (cands.length && process.env.ANTHROPIC_API_KEY) {
-      const rows = cands.map((x, i) => `${i + 1}. sender_name="${clean(x.from_name) || '(none)'}" sending_domain="${x.sender_domain}"`).join('\n');
-      const system =
-        `Decide for each row whether the EMAIL SENDER is the SAME brand as the target, or a DIFFERENT company. ` +
-        `Target brand: "${name}". Its OFFICIAL SITE is ${root}. ` +
-        `These are newsletters captured in one shared inbox subscribed to MANY different brands, so most senders belong to OTHER companies. ` +
-        `IMPORTANT: a brand very often sends email from a SEPARATE marketing/sending domain rather than its website domain — e.g. "try<brand>.com", "get<brand>.com", "<brand>mail.com", "e.<brand>.com", "shop<brand>.com", or an ESP subdomain. So a DIFFERENT registrable domain is NOT by itself evidence of a different company — judge the SENDER NAME together with the domain. ` +
-        `SAME = the sender_name clearly identifies the target brand (its own name, or "<person> | <brand>", "<brand> Team") AND the sending domain is consistent with that brand. ` +
-        `DIFFERENT = any separate company: a competitor, a retailer that stocks the brand, a PARENT or SIBLING company (a parent's own corporate newsletter is NOT the target's — e.g. "Campbell's" <campbells.com> is NOT "Pacific Foods"), an affiliate, or an unrelated business that merely SHARES A WORD with the target. Do NOT call it the same just because the brand's letters appear inside another word (e.g. "glov" also appears in "gloves.com"; "Foodie" is not "The Oodie"). ` +
-        `PRECISION FIRST: it is far better to MISS one of the brand's newsletters than to attribute a DIFFERENT company's email to it. If you are not confident, answer DIFFERENT. ` +
-        `Return ONLY minified JSON: {"v":[{"i":1,"same":true|false}, ...]}, one entry per row.`;
-      const resp = await aiClient().messages.create({ model: ALIAS_MODEL, max_tokens: 600, system, messages: [{ role: 'user', content: rows }] });
-      const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim().replace(/^```(?:json)?|```$/g, '').trim();
-      const arr = (JSON.parse(txt).v || []);
-      domains = cands.filter((_, i) => { const v = arr.find((x) => Number(x.i) === i + 1); return !!(v && v.same); }).map((x) => x.sender_domain);
+      try {
+        const rows = cands.map((x, i) => `${i + 1}. sender_name="${clean(x.names) || '(none)'}" sending_domain="${x.sender_domain}"`).join('\n');
+        const system =
+          `Decide for each row whether the EMAIL SENDER is the SAME brand as the target, or a DIFFERENT company. ` +
+          `Target brand: "${name}". Its OFFICIAL SITE is ${root}. ` +
+          `These are newsletters captured in one shared inbox subscribed to MANY different brands, so most senders belong to OTHER companies. ` +
+          `IMPORTANT: a brand very often sends email from a SEPARATE marketing/sending domain rather than its website domain — e.g. "try<brand>.com", "get<brand>.com", "<brand>mail.com", "e.<brand>.com", "shop<brand>.com", or an ESP subdomain. So a DIFFERENT registrable domain is NOT by itself evidence of a different company — judge the SENDER NAME together with the domain. ` +
+          `SAME = the sender_name clearly identifies the target brand (its own name, or "<person> | <brand>", "<brand> Team") AND the sending domain is consistent with that brand. ` +
+          `DIFFERENT = any separate company: a competitor, a retailer that stocks the brand, a PARENT or SIBLING company (a parent's own corporate newsletter is NOT the target's — e.g. "Campbell's" <campbells.com> is NOT "Pacific Foods"), an affiliate, or an unrelated business that merely SHARES A WORD with the target. Do NOT call it the same just because the brand's letters appear inside another word (e.g. "glov" also appears in "gloves.com"; "Foodie" is not "The Oodie"). ` +
+          `PRECISION FIRST: it is far better to MISS one of the brand's newsletters than to attribute a DIFFERENT company's email to it. If you are not confident, answer DIFFERENT. ` +
+          `Return ONLY minified JSON: {"v":[{"i":1,"same":true|false}, ...]}, one entry per row.`;
+        const resp = await aiClient().messages.create({ model: ALIAS_MODEL, max_tokens: 600, system, messages: [{ role: 'user', content: rows }] });
+        const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim().replace(/^```(?:json)?|```$/g, '').trim();
+        const arr = (JSON.parse(txt).v || []);
+        cands.forEach((x, i) => { const v = arr.find((y) => Number(y.i) === i + 1); if (v && v.same) confirmed.add(x.sender_domain); });
+      } catch (e) {
+        // A flaky judge must NOT discard the deterministic Tier-1 matches — keep those.
+        console.warn('aliasDomains judge ' + root + ': ' + e.message);
+      }
     }
+    domains = [...confirmed];
   } catch (e) {
     console.warn('aliasDomains ' + root + ': ' + e.message);
-    domains = [];   // fail closed
+    domains = null;   // DB error → don't cache, just retry next time
   }
-  _alias.set(root, { at: Date.now(), domains });
-  return domains;
+  if (domains !== null) _alias.set(root, { at: Date.now(), domains });
+  return domains || [];
 }
 
 export async function getEmails(host, name) {
