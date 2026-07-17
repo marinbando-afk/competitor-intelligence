@@ -242,23 +242,53 @@ app.get('/api/ads', async (req, res) => {
 // Organic social — a competitor's recent posts on one platform (via Apify).
 //   GET /api/social?platform=instagram&handle=the_oodie
 //   GET /api/social?platform=tiktok&host=theoodie.com   (handle auto-resolved)
+// Social posts are served STALE-WHILE-REVALIDATE. A live Apify scrape takes 35–63s per
+// platform, and a customer's OWN competitors aren't in the daily 5am warm (only demos are),
+// so every view used to trigger that full scrape — the in-memory cache in social.js dies on
+// each restart, so it never helped across deploys. Now: if we hold a persisted snapshot we
+// return it INSTANTLY and refresh in the background; only a competitor we've genuinely never
+// scraped pays the one-time wait. (found 17 Jul — Seranova FB 63s, IG 35s, every view.)
+const SOCIAL_FRESH_MS = 12 * 60 * 60 * 1000;   // don't bother re-scraping a snapshot younger than this
+const _socRefreshing = new Set();               // hosts+platforms with a background refresh already in flight
+
+function normSocHost(h) { return String(h || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase(); }
+
+// Re-scrape and persist in the background — fire-and-forget, never blocks the response.
+function refreshSocialBg(platform, handle, host) {
+  const k = platform + '|' + host;
+  if (_socRefreshing.has(k)) return;            // don't stack refreshes for the same profile
+  _socRefreshing.add(k);
+  Promise.resolve()
+    .then(() => fetchSocial(platform, handle, host, true))   // force = bypass the in-memory TTL
+    .then((fresh) => { if (fresh && fresh.posts && fresh.posts.length) return saveSnapshot(host, platform, { ...fresh, _at: Date.now() }); })
+    .catch((e) => console.warn('social bg refresh ' + k + ': ' + e.message))
+    .finally(() => _socRefreshing.delete(k));
+}
+
 app.get('/api/social', async (req, res) => {
   try {
     const platform = req.query.platform;
-    const live = await fetchSocial(platform, req.query.handle, req.query.host);
-    // Live scrape came back empty (flaky platform, rate limit, etc.). Fall back to the last
-    // capture that DID have posts, flagged stale — so the panel shows real content ("no recent
-    // posts, showing last captured") instead of a dead end. Snapshots are only saved when
-    // posts existed, so this stays empty for profiles that genuinely never yielded any.
-    if ((!live || !live.posts || !live.posts.length) && req.query.host && platform) {
+    const host = normSocHost(req.query.host);
+
+    // 1) Serve a persisted snapshot immediately when we have one — the whole point is that
+    // nobody waits 60s for a scrape we could already show.
+    if (host && platform) {
       try {
-        const host = String(req.query.host).replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase();
         const rows = await recentSnapshots(host, platform, 1);
         const snap = rows[0] && rows[0].data;
         if (snap && snap.posts && snap.posts.length) {
-          return res.json({ handle: snap.handle || (live && live.handle) || req.query.handle || '', posts: snap.posts, summary: snap.summary, stale: true, staleDay: rows[0].day });
+          const ageMs = snap._at ? (Date.now() - snap._at) : (Date.now() - Date.parse(rows[0].day + 'T00:00:00Z'));
+          if (ageMs >= SOCIAL_FRESH_MS) refreshSocialBg(platform, req.query.handle || snap.handle, host);   // stale → refresh behind the scenes
+          return res.json({ handle: snap.handle || req.query.handle || '', posts: snap.posts, summary: snap.summary, cached: true });
         }
-      } catch (e) { /* fallback is best-effort */ }
+      } catch (e) { /* fall through to a live scrape */ }
+    }
+
+    // 2) No snapshot yet (a brand-new competitor) — pay the one-time live scrape, then persist
+    // it so every later view is instant.
+    const live = await fetchSocial(platform, req.query.handle, req.query.host);
+    if (host && platform && live && live.posts && live.posts.length) {
+      try { await saveSnapshot(host, platform, { ...live, _at: Date.now() }); } catch (e) { /* best-effort */ }
     }
     res.json(live);
   } catch (e) {
