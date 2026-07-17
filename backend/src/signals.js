@@ -80,9 +80,11 @@ async function newAngles(host, freshAds, todayStr) {
   return out;
 }
 
-// #0 — a live ad leaning on an out-of-season occasion ("Black Friday" in July) or promising
-// a deadline it has long outlived ("Today only", live 52 days). Ranks ABOVE a sale CHANGE:
-// it says the discount is their permanent price and the urgency is theatre.
+// #0 — a live ad leaning on an out-of-season occasion ("Black Friday" in July). Ranks ABOVE
+// a sale CHANGE: it says the discount is effectively their permanent price.
+//
+// Fake-timer signals ("Today only" running 52 days) were REMOVED 17 Jul — the founder's
+// call: "this is common sense for ecom brands, don't call out fake timers". See occasions.js.
 //
 // Unlike every other signal here, this one is not a day-over-day diff — the offer is stale
 // every single day, so a diff would report it either forever (noise) or never. It is
@@ -93,8 +95,7 @@ async function newAngles(host, freshAds, todayStr) {
 // firstSeen === today, so every client tracking the same brand still hears it on day one,
 // in whatever order their briefs happen to build; from day two, nobody does.
 async function newStaleOffers(host, ads, todayStr) {
-  const flags = offerFlags(ads, new Date(todayStr + 'T00:00:00Z'))
-    .filter((f) => f.kind !== 'evergreen');   // vague boilerplate is never worth paging anyone
+  const flags = offerFlags(ads, new Date(todayStr + 'T00:00:00Z'));
   if (!flags.length) return [];
 
   const st = await latestSnapshot(host, OFFER_STATE);
@@ -182,12 +183,8 @@ export function signalLines(s) {
   // Announced once, so it leads — and it says the thing outright rather than making the
   // reader infer it from a date. Numbers come from occasions.js, never from a model.
   for (const f of (s.staleOffer || [])) {
-    if (f.kind === 'occasion') {
-      lines.push('Fake sale: “' + f.label + '” still live — ' + f.monthsSince + ' months out of season, running ' +
-        f.running + ' days' + link(f.link, 'view ad'));
-    } else {
-      lines.push('Fake deadline: “' + f.label + '” — running ' + f.running + ' days' + link(f.link, 'view ad'));
-    }
+    lines.push('Fake sale: “' + f.label + '” still live — ' + f.monthsSince + ' months out of season, running ' +
+      f.running + ' days' + link(f.link, 'view ad'));
   }
   if (s.sale) lines.push(s.sale);
   for (const f of (s.funnel || [])) lines.push('New funnel: ' + f.domain + link(f.url, 'open'));

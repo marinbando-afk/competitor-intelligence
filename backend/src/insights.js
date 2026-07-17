@@ -252,7 +252,7 @@ async function landingFormats(ads) {
 
 // ── per-channel analyst guidance ──────────────────────────────────────────────
 const GUIDE = {
-  ads: 'their Meta/Facebook ads. If an OFFER TIMING FACTS block is present it is ground truth and TOP priority — it means a live ad is leaning on an out-of-season occasion or a deadline it has already outlived; lead with it, name the occasion and the numbers, and never soften it into generic "persistent discounting". Use the FUNNEL FACTS block as ground truth for pages and landing domains — NEVER claim there are no third-party pages or off-domain landings unless the facts confirm it; if any THIRD-PARTY page or domain is listed (e.g. a news-publisher advertorial / native ad, an affiliate or media-partner funnel), SURFACE it as a notable tactic. LANDING-PAGE FORMAT: when a LANDING PAGE FORMATS block is provided, state each landing page\'s ACTUAL format from it (listicle, advertorial, third-party review, sales page, product page, quiz funnel, etc.) — those were produced by fetching and reading the real page. NEVER infer a landing page\'s format, purpose, or that it is a "staging"/"test"/"pre-launch"/"variant" page from its URL or subdomain name (e.g. do not assume "pre." means pre-launch); if a page is marked not-analyzable, say it wasn\'t read rather than guessing. If ads drive to a MARKETPLACE listing (Amazon, Walmart, Target, TikTok Shop, etc.) rather than the brand\'s own site, treat it as a DELIBERATE channel strategy, not a weakness — name why it is often smart (marketplace reviews/ratings as social proof, Prime trust and fast shipping, higher marketplace conversion, best-seller-rank/category dominance, Subscribe & Save retention) and what it signals; NEVER frame driving marketplace sales as "not driving sales" or a DTC shortfall — it IS driving sales, just through a chosen channel with different tradeoffs. Also surface, only if present: what is NEW vs the previous capture; the HOOKS and ANGLES in the copy; creative FORMATS (video vs image/carousel); whether they test multiple regional own-domains. Do not over-generalize beyond what the facts and sample support.',
+  ads: 'their Meta/Facebook ads. If an OFFER TIMING FACTS block is present it is ground truth and TOP priority — a live ad is leaning on an OUT-OF-SEASON occasion; lead with it, name the occasion and the numbers, and never soften it into generic "persistent discounting". Use the FUNNEL FACTS block as ground truth for pages and landing domains — NEVER claim there are no third-party pages or off-domain landings unless the facts confirm it; if any THIRD-PARTY page or domain is listed (e.g. a news-publisher advertorial / native ad, an affiliate or media-partner funnel), SURFACE it as a notable tactic. LANDING-PAGE FORMAT: when a LANDING PAGE FORMATS block is provided, state each landing page\'s ACTUAL format from it (listicle, advertorial, third-party review, sales page, product page, quiz funnel, etc.) — those were produced by fetching and reading the real page. NEVER infer a landing page\'s format, purpose, or that it is a "staging"/"test"/"pre-launch"/"variant" page from its URL or subdomain name (e.g. do not assume "pre." means pre-launch); if a page is marked not-analyzable, say it wasn\'t read rather than guessing. If ads drive to a MARKETPLACE listing (Amazon, Walmart, Target, TikTok Shop, etc.) rather than the brand\'s own site, treat it as a DELIBERATE channel strategy, not a weakness — name why it is often smart (marketplace reviews/ratings as social proof, Prime trust and fast shipping, higher marketplace conversion, best-seller-rank/category dominance, Subscribe & Save retention) and what it signals; NEVER frame driving marketplace sales as "not driving sales" or a DTC shortfall — it IS driving sales, just through a chosen channel with different tradeoffs. Also surface, only if present: what is NEW vs the previous capture; the HOOKS and ANGLES in the copy; creative FORMATS (video vs image/carousel); whether they test multiple regional own-domains. Do not over-generalize beyond what the facts and sample support.',
   social: 'their organic social (Instagram / TikTok / Facebook). Engagement counts (views, likes, comments) are CUMULATIVE lifetime totals: they only ever climb, they grow with how long a post has been live, and a post does most of its growth in the first day or two. So a newer post almost always shows fewer than an older one, and that is normal — NOT a decline. NEVER frame a lower count — on a newer post, or versus a previous capture — as a drop, collapse, slump, dip, decay, or "reach/algorithm" problem, and never compute view/like deltas between captures (different posts are not comparable that way). What matters is STACKED engagement. Surface, only if present: which posts have accumulated the most total engagement; what is genuinely NEW since the previous capture (new posts / series); recurring HOOKS / ANGLES / themes; FORMATS (Reel / Carousel / Post); and any product or campaign focus.',
   website: 'their online storefront. ALWAYS lead with whether a sale/promotion is ACTIVE right now (per the ACTIVE SALE / Promo headline facts) — this is independent of whether it changed since the previous capture; an ONGOING, unchanged sale must still be named explicitly, never omitted just because it isn\'t new. If the "Promo headline" fact names a specific OCCASION (a holiday or named sale event — e.g. "4th of July Sale", "Black Friday", "Anniversary Sale"), you MUST use that exact occasion name in the summary/bullets (e.g. "still running their 4th of July sale, 60% off") — the occasion is valuable timing intel (when they run their biggest pushes), so never flatten it down to a generic "an active sale" or just the discount percentage. Then surface what materially CHANGED vs the previous capture: sale scope, prices, products added/removed. If nothing changed AND there is no active sale, say that plainly in one line.',
   email: 'their email marketing. Surface: sending CADENCE; OFFER / discount patterns; recurring THEMES and angles; what is newest. Give a real read, not a list of subjects.',
@@ -319,7 +319,11 @@ async function ask(channel, brand, todayBlock, prevBlock, me, today) {
     // came out as "an aggressive 90%-off sale claim" (founder flagged it, 17 Jul 2026).
     `${todayLine(today || new Date())} Use it whenever timing matters; never assume any other date.\n` +
     `A LIVE SALE IS ALWAYS MATERIAL — never treat a sale, discount or offer as routine noise. Always name it: the occasion, the size, and whether it is still running.\n` +
-    `STALE OR FAKE URGENCY IS A LEAD FINDING. When an OFFER TIMING FACTS or PROMO TIMING FACTS block reports an offer that is OUT OF SEASON (e.g. a "Black Friday" sale running in July) or that asserts a deadline it has already outlived (e.g. "Today only" live for 52 days), that is among the most revealing things in the entire report and MUST appear in the summary or the FIRST bullet — never flattened into a generic "aggressive sale claim" or "persistent discounting". Name the occasion, how far out of season it is, and how long it has run. Read what it MEANS: the discount is effectively their permanent price (so their real margin tolerates it and the "sale" anchors a fake RRP), the urgency is theatre, and a permanently misleading claim is a genuine regulatory and credibility exposure a competitor can exploit. Those blocks are computed from real dates — quote their numbers VERBATIM and never do your own date arithmetic.\n\n` +
+    `AN OUT-OF-SEASON SALE IS A LEAD FINDING. When an OFFER TIMING FACTS or PROMO TIMING FACTS block reports an offer whose OCCASION is far out of season (e.g. a "Black Friday" sale running in July), that is among the most revealing things in the entire report and MUST appear in the summary or the FIRST bullet — never flattened into a generic "aggressive sale claim" or "persistent discounting". Name the occasion, how far out of season it is, and how long it has run. Read what it MEANS: the discount is effectively their permanent price, so their real margin tolerates it and the "sale" anchors a fake RRP. That block is computed from real dates — quote its numbers VERBATIM and never do your own date arithmetic.\n` +
+    // The founder killed fake-timer callouts on sight: "this is common sense for ecom
+    // brands". Evergreen urgency is table stakes in DTC — reporting it is noise, and it
+    // dilutes the out-of-season finding, which is a checkable falsehood about WHEN.
+    `NEVER report routine urgency devices as a finding: countdown timers, "Today only", "Ends tonight", "24/48 hours", "Last chance", "Limited time", "While stocks last" and the like are STANDARD eCommerce practice, expected of every DTC brand, and are NOT noteworthy even when the same ad has run for months. Do not call them fake, manufactured, misleading or a compliance risk, and never build a bullet around them. (An out-of-season OCCASION is different and still leads — it is a false claim about WHEN, not an urgency device.)\n\n` +
     `Use ONLY the DATA the user provides. Be specific: cite dates, numbers, offers, domains, handles, formats. ` +
     `Read every move as a DELIBERATE choice by a competent operator, with the BROADER CONTEXT in mind — give the strategic rationale and what it implies competitively, never a naive or dismissive take. A different channel, marketplace, funnel or price is a strategy with tradeoffs: explain the thinking behind it; do NOT frame an intentional choice as a failure, a gap, or "not doing X". ` +
     `SANITY-CHECK every number and claim before printing it: ask "would this look obviously wrong or absurd to this brand's own marketer?" Raw feeds contain $0 giveaway entries, ~$1 utility SKUs (shipping protection) and joke/PR listings at absurd prices — quote TYPICAL values and name extremes as the stunts they are; a meaningless literal like "price range $0–$5.2M" must never appear. If a figure doesn't make sense for this brand in this context, reinterpret it or leave it out. ` +
@@ -404,7 +408,13 @@ export async function generateInsights(brand, host) {
   try {
     const b = await makeBrief(brand, out, me, new Date());
     if (b) out.brief = b;
-  } catch (e) { /* brief is best-effort */ }
+    else console.warn('brief ' + host + ': makeBrief returned nothing — report saved without a THREAT ASSESSMENT');
+  } catch (e) {
+    // Was silent. A transient failure here leaves the whole day's report with channels but
+    // no summary, and getInsights only regenerates when there are ZERO channels — so it
+    // never healed itself and nobody knew (Ancestral, 17 Jul). getInsights now repairs it.
+    console.warn('brief ' + host + ':', e.message);
+  }
 
   // Drop empty channels.
   Object.keys(out).forEach((k) => { if (!out[k]) delete out[k]; });
@@ -470,7 +480,7 @@ async function makeBrief(brand, out, me, today) {
     `Ignore noise: tiny count fluctuations (an ad or two, a single post) are routine rotation — never present them as strategic moves.\n` +
     // A stale sale is the highest-signal thing in the whole dossier and it was arriving as a
     // vague "persistent 90%-off ad claims" bullet — name the occasion or it reads as nothing.
-    `A live SALE is always material and must be named, never omitted as routine. And if any read reports an offer that is OUT OF SEASON (an occasion that passed months ago — e.g. a "Black Friday" sale still running in July) or a deadline the ad has already outlived ("Today only" live for weeks), that MUST LEAD the threat assessment: name the occasion, how stale it is, and what it means (the discount is their real price; the urgency is fake; the claim is a standing compliance risk). Never soften it into generic "persistent discounting".\n` +
+    `A live SALE is always material and must be named, never omitted as routine. And if any read reports an offer that is OUT OF SEASON (an occasion that passed months ago — e.g. a "Black Friday" sale still running in July), that MUST LEAD the threat assessment: name the occasion, how stale it is, and what it means (the discount is effectively their real price, anchored against a fake RRP). Never soften it into generic "persistent discounting". But NEVER report routine urgency devices — countdown timers, "Today only", "Ends tonight", "Last chance", "Limited time" — as a finding: they are standard eCommerce practice, not news, however long the ad has run.\n` +
     `Return ONLY minified JSON, no markdown, as SHORT, SCANNABLE BULLET POINTS (not paragraphs): {"verdict":["<THREAT ASSESSMENT — 2 to 3 bullets, each ONE tight point ≤ 13 words, telegraphic: LEAD with the key fact, cut filler/connective words. The most important strategic reads right now, concrete and specific>", ...],"move":["<RECOMMENDED COUNTER-OP — 2 to 3 bullets, each ONE concrete ${me && me.profile ? `move for ${me.name} grounded in their profile below` : 'move for a brand competing with them'}, ≤ 13 words, start with a verb, cut filler>", ...]}` +
     (me && me.profile ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}` : '');
   const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 500, system, messages: [{ role: 'user', content: parts.join('\n') }] });
@@ -660,12 +670,37 @@ async function applyOverlay(host, uid, neutral) {
 // Read the latest cached insights; generate on demand if missing. When a signed-in client
 // (uid) has their own brand, layer their per-viewer apply-moves on top of the tenant-neutral
 // shared read — without ever mutating or re-saving the shared snapshot.
+const _briefHeal = new Map();          // host -> last repair attempt, so a hard failure can't hammer the API
+const BRIEF_HEAL_COOLDOWN = 15 * 60 * 1000;
+
 export async function getInsights(host, name, refresh, uid) {
   let ins = refresh ? null : await latestSnapshot(host, 'insights');
   const channels = ins ? Object.keys(ins).filter((k) => k !== 'generatedAt' && k !== '__day') : [];
   // Cold-gen produces the shared, tenant-neutral snapshot (no viewer uid) — see generateInsights.
   if (channels.length === 0 && process.env.ANTHROPIC_API_KEY) ins = await generateInsights(name || host, host);
   if (!ins) return {};
+
+  // Self-heal a MISSING brief. makeBrief is best-effort, so one transient API hiccup during
+  // the nightly warm saves the report with channels but no THREAT ASSESSMENT — and because
+  // the cold-gen above only fires at ZERO channels, that gap used to be permanent for the
+  // day (found on Ancestral, 17 Jul). Rebuild just the brief from the channels already
+  // captured: one call, no re-scrape, and it stays tenant-neutral (getMyBrand(null)).
+  const hasRead = ['ads', 'social', 'website', 'email'].some((k) => ins[k]);
+  if (!ins.brief && hasRead && process.env.ANTHROPIC_API_KEY) {
+    const last = _briefHeal.get(host) || 0;
+    if (Date.now() - last > BRIEF_HEAL_COOLDOWN) {
+      _briefHeal.set(host, Date.now());
+      try {
+        const b = await makeBrief(name || host, ins, await getMyBrand(null), new Date());
+        if (b) {
+          ins.brief = b;
+          const save = Object.assign({}, ins); delete save.__day;   // __day is a read-time marker, not data
+          await saveSnapshot(host, 'insights', save);
+          console.log('brief ' + host + ': repaired a missing THREAT ASSESSMENT');
+        }
+      } catch (e) { console.warn('brief heal ' + host + ':', e.message); }
+    }
+  }
   if (uid && isPublicHost(host)) {
     try {
       const ov = await applyOverlay(host, uid, ins);

@@ -74,30 +74,17 @@ const OCCASIONS = [
   { label: "St. Patrick's Day", re: /\bst\.?\s?patrick'?s?\b|\bpaddy'?s\b/i, date: (y) => utc(y, 2, 17) },
 ];
 
-// Deadline claims, in two tiers — because they are NOT equally damning and reporting
-// them in identical language would cheapen the real finding.
+// ⚠️ DO NOT REINTRODUCE DEADLINE / FAKE-TIMER DETECTION (removed 17 Jul, founder's call).
+// An earlier version flagged ads whose stated deadline they had outlived — "Today only"
+// live for 52 days, "48 hours" live for 28. It worked, but the founder killed it on sight:
+// "this is common sense for ecom brands, don't call out fake timers, today only callouts
+// etc." Evergreen urgency is table stakes in DTC, so reporting it is noise that dilutes the
+// callout that DOES matter.
 //
-//   hard: a SPECIFIC, falsifiable promise ("Today only", "48 hours"). If the ad has
-//         outlived it, the claim is simply untrue — that is the quotable signal.
-//   soft: marketing boilerplate ("Limited time", "Last chance"). Vague by design and
-//         near-universal in DTC, so it is NOT evidence of a lie. Only worth a mention
-//         once the duration makes it plainly decorative, and worded as such.
-const URGENCY = [
-  { re: /\btoday\s?only\b/i, label: 'Today only', days: 1, hard: true },
-  { re: /\bends\s?(tonight|today)\b/i, label: 'Ends tonight', days: 1, hard: true },
-  { re: /\b(final|last)\s?(few\s?)?hours\b/i, label: 'Final hours', days: 1, hard: true },
-  { re: /\b24\s?hours?\b/i, label: '24 hours', days: 1, hard: true },
-  { re: /\b48\s?hours?\b/i, label: '48 hours', days: 2, hard: true },
-  { re: /\b72\s?hours?\b/i, label: '72 hours', days: 3, hard: true },
-  { re: /\bthis\s?weekend\s?only\b/i, label: 'This weekend only', days: 3, hard: true },
-  { re: /\bends\s?(this\s?)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i, label: 'Ends this week', days: 7, hard: true },
-  { re: /\blast\s?chance\b/i, label: 'Last chance', days: 7, hard: false },
-  { re: /\b(ends|expires)\s?soon\b/i, label: 'Ends soon', days: 7, hard: false },
-  { re: /\bwhile\s?stocks?\s?last\b/i, label: 'While stocks last', days: 14, hard: false },
-  { re: /\blimited\s?time\b/i, label: 'Limited time', days: 14, hard: false },
-];
-// A soft claim only earns a line once it has run long enough to be self-evidently empty.
-const SOFT_DAYS = 90;
+// The OUT-OF-SEASON OCCASION check below stays — that is the founder's original ask and a
+// genuinely different claim: "Black Friday" in July is a checkable falsehood about WHEN,
+// not a generic urgency device. A permanent countdown is normal; a Black Friday sale eight
+// months after Black Friday is not.
 
 function months(days) { return Math.round((days / 30.44) * 10) / 10; }
 
@@ -123,12 +110,6 @@ export function occasionsIn(text) {
   return OCCASIONS.filter((o) => o.re.test(t)).map((o) => o.label);
 }
 
-// Every deadline claim in a blob of copy.
-export function urgencyIn(text) {
-  const t = String(text || '');
-  return URGENCY.filter((u) => u.re.test(t)).map((u) => ({ label: u.label, days: u.days, hard: u.hard }));
-}
-
 export function todayLine(today) {
   return 'TODAY IS ' + iso(today) + ' (' + pretty(today) + ').';
 }
@@ -148,9 +129,8 @@ function staleSentence(p) {
 // re-uploaded creative making the same stale claim from the same launch date is the same
 // finding, while a genuinely NEW ad reviving the claim gets a new fp and re-announces.
 //
-//   kind: 'occasion'  — invokes an occasion that is far out of season   (lead finding)
-//         'deadline'  — a SPECIFIC promise the ad has outlived          (lead finding)
-//         'evergreen' — vague boilerplate, decorative by duration       (minor; never paged)
+//   kind: 'occasion' — invokes an occasion that is far out of season. The ONLY kind:
+//                      deadline/fake-timer detection was removed on purpose (see above).
 export function offerFlags(ads, today) {
   const out = [];
   for (const a of (ads || [])) {
@@ -175,15 +155,6 @@ export function offerFlags(ads, today) {
         fp: 'occasion:' + p.label + ':' + sd,
       });
     }
-
-    for (const u of urgencyIn(blob)) {
-      if (running == null) continue;
-      if (u.hard && running > Math.max(u.days * 3, 7)) {          // a short run is honest
-        out.push({ kind: 'deadline', label: u.label, started: sd, running, link, fp: 'deadline:' + u.label + ':' + sd });
-      } else if (!u.hard && running >= SOFT_DAYS) {               // vague urgency is normal DTC boilerplate
-        out.push({ kind: 'evergreen', label: u.label, started: sd, running, link, fp: 'evergreen:' + u.label + ':' + sd });
-      }
-    }
   }
   return out;
 }
@@ -201,13 +172,8 @@ export function offerFacts(ads, today) {
       if (f.createdAfter) l += ' The ad was CREATED on ' + f.started + ', ' + months(f.createdAfter) + ' months AFTER that ' + f.label + ' — it was never a real seasonal promo.';
       return l;
     }
-    if (f.kind === 'deadline') {
-      return '- FAKE DEADLINE — a LIVE ad promises "' + f.label + '" but has been running continuously for ' + f.running +
-        ' days (live since ' + f.started + '). The deadline is specific and has been outlived many times over: the claim is simply untrue and the urgency is permanent.';
-    }
-    return '- EVERGREEN URGENCY (minor) — a LIVE ad has claimed "' + f.label + '" for ' + f.running +
-      ' days straight (live since ' + f.started + '). This is vague boilerplate rather than a broken promise, but at this duration it is decorative. Worth at most a passing clause — do NOT lead with it or call it a lie.';
-  });
+    return '';
+  }).filter(Boolean);
   if (!lines.length) return '';
   // Identical ads produce identical lines; the model gains nothing from seeing them twice.
   return '\nOFFER TIMING FACTS (computed from today\'s date — ground truth, do NOT contradict, do NOT recompute):\n' + [...new Set(lines)].join('\n');
@@ -220,12 +186,6 @@ export function bannerFacts(banner, today) {
     const p = placeOccasion(label, today);
     if (!p || !p.stale) continue;
     out.push('- OUT-OF-SEASON PROMO — the live on-site banner invokes "' + p.label + '". ' + staleSentence(p));
-  }
-  // Only a SPECIFIC banner deadline is worth a line; "Be quick!"-style boilerplate is not,
-  // and we have no start date for a banner, so we never assert it has been outlived.
-  for (const u of urgencyIn(banner)) {
-    if (!u.hard) continue;
-    out.push('- The live on-site banner asserts a specific deadline ("' + u.label + '") — note whether the same deadline was present in earlier captures; if so it is not real.');
   }
   if (!out.length) return '';
   return '\nPROMO TIMING FACTS (computed from today\'s date — ground truth, do NOT contradict):\n' + out.join('\n');
