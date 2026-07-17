@@ -63,6 +63,19 @@ export async function createUser(email, password, { approved = false, admin = fa
   }
 }
 
+// Self-service password change. The CURRENT password is required — otherwise anyone who
+// borrowed a signed-in browser could lock the real owner out of their own account.
+export async function changePassword(uid, current, next) {
+  next = String(next || '');
+  if (next.length < 8) { const e = new Error('Your new password must be at least 8 characters.'); e.status = 400; throw e; }
+  const r = await pool.query('SELECT password_hash FROM users WHERE id = $1', [uid]);
+  const u = r.rows[0];
+  if (!u || !(await bcrypt.compare(String(current || ''), u.password_hash))) {
+    const e = new Error('That current password is wrong.'); e.status = 401; throw e;
+  }
+  await pool.query('UPDATE users SET password_hash = $2 WHERE id = $1', [uid, await bcrypt.hash(next, 10)]);
+}
+
 // Reset an account's password (admin action — e.g. re-issuing a client's login).
 export async function setPassword(uid, password) {
   password = String(password || '');

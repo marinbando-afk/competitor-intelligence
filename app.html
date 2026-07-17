@@ -648,6 +648,16 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
   </div>
 </div>
 
+<div class="ov" id="pwOv" onclick="if(event.target===this)closePw()">
+  <div class="modal">
+    <h2>Change password</h2>
+    <p>Set a new password for <b id="pwWho"></b>. You'll stay signed in on this device.</p>
+    <div class="fld"><label for="pwCur">Current password</label><input id="pwCur" type="password" autocomplete="current-password"/></div>
+    <div class="fld"><label for="pwNew">New password</label><input id="pwNew" type="password" autocomplete="new-password" placeholder="at least 8 characters"/></div>
+    <div class="fld"><label for="pwNew2">Repeat new password</label><input id="pwNew2" type="password" autocomplete="new-password"/><div class="er" id="pwErr"></div></div>
+    <div class="m-act"><button class="btn btn-g" onclick="closePw()">Cancel</button><button class="btn btn-p" id="pwGo" onclick="savePw()">Change password</button></div>
+  </div>
+</div>
 <div class="ov" id="shareOv" onclick="if(event.target===this)closeShare()">
   <div class="modal">
     <h2>⇗ Share a read-only view</h2>
@@ -885,7 +895,7 @@ function loadSharedComps(cb){
 function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');localStorage.removeItem('adminKey');}catch(e){}clearMyBrandLocal();insightsCache={};angleCache={};paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
 function paintAuth(){refreshAdmin();syncPlan();var s=document.getElementById('authSlot');if(!s)return;
   if(RO){s.innerHTML='<span class="ro-badge"><span class="dot"></span>Shared view · read-only</span>';return;}
-  if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML=(ADMIN?'<button class="authbtn" onclick="openAdmin()" title="Admin panel">⚙ Admin</button>':'')+'<button class="authbtn" onclick="openShare()" title="Share a read-only view with your team">⇗ Share</button><button class="authbtn" onclick="openSlack()" title="Get your daily brief in Slack">⚡ Slack'+((USER&&USER.slack)?' ✓':'')+'</button><span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+(ADMIN?' · admin':'')+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
+  if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML=(ADMIN?'<button class="authbtn" onclick="openAdmin()" title="Admin panel">⚙ Admin</button>':'')+'<button class="authbtn" onclick="openShare()" title="Share a read-only view with your team">⇗ Share</button><button class="authbtn" onclick="openSlack()" title="Get your daily brief in Slack">⚡ Slack'+((USER&&USER.slack)?' ✓':'')+'</button><span class="authuser" onclick="openPw()" style="cursor:pointer" title="'+esc(em)+' — click to change your password">'+esc(em.split('@')[0])+(ADMIN?' · admin':'')+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
   else{s.innerHTML='<button class="authbtn primary" onclick="openAuth(\'signin\')">Sign in</button>';}
   var ab=document.querySelector('.add-btn');if(ab)ab.title=loggedIn()?'Add a competitor to your watchlist':'Add your own competitor — sign in required';
   paintBrandChip();
@@ -895,6 +905,33 @@ function closeAuth(){var o=document.getElementById('authOv');if(o)o.classList.re
 /* ── Per-account Slack connection ── */
 function openSlack(){if(!loggedIn()){openAuth('signin',openSlack);return;}document.getElementById('slkErr').style.display='none';document.getElementById('slackOv').classList.add('open');renderSlack(!!(USER&&USER.slack));fetch(API+'/api/slack',{headers:authH()}).then(function(r){return r.json();}).then(function(d){renderSlack(!!(d&&d.connected));}).catch(function(){});var sp=document.getElementById('spDemos');if(sp)sp.checked=false;slackPreviewCache={};loadSlackPreview();}
 function closeSlack(){document.getElementById('slackOv').classList.remove('open');}
+// ── Change your own password (current password required) ──
+function openPw(){
+  if(!loggedIn()||RO)return;
+  var w=document.getElementById('pwWho');if(w)w.textContent=(USER&&USER.email)||'';
+  ['pwCur','pwNew','pwNew2'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  var er=document.getElementById('pwErr');if(er)er.style.display='none';
+  document.getElementById('pwOv').classList.add('open');
+  setTimeout(function(){var e=document.getElementById('pwCur');if(e)e.focus();},40);
+}
+function closePw(){document.getElementById('pwOv').classList.remove('open');}
+function savePw(){
+  var cur=document.getElementById('pwCur').value,n1=document.getElementById('pwNew').value,n2=document.getElementById('pwNew2').value;
+  var er=document.getElementById('pwErr'),b=document.getElementById('pwGo');
+  var fail=function(m){er.style.color='';er.textContent=m;er.style.display='block';};
+  er.style.display='none';
+  if(!cur)return fail('Enter your current password.');
+  if(n1.length<8)return fail('Your new password must be at least 8 characters.');
+  if(n1!==n2)return fail('The two new passwords don’t match.');
+  b.disabled=true;b.textContent='Saving…';
+  fetch(API+'/api/password',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({current:cur,next:n1})})
+    .then(function(r){return r.json();}).then(function(d){
+      b.disabled=false;b.textContent='Change password';
+      if(!d||d.ok!==true){fail((d&&d.error)||'Couldn’t change it — try again.');return;}
+      er.style.color='var(--quiet)';er.textContent='✓ Password changed — use it next time you sign in.';er.style.display='block';
+      setTimeout(closePw,1600);
+    }).catch(function(){b.disabled=false;b.textContent='Change password';fail('Couldn’t change it — try again.');});
+}
 // ── Share my own read-only view with teammates ──
 function myShareLink(tok){return location.origin+location.pathname+'?share='+encodeURIComponent(tok);}
 function openShare(){
@@ -1967,7 +2004,7 @@ function saveComp(body,after){
     })
     .catch(function(){});
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();closeCal();closeAuth();closeShare();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open')){var _cp=document.getElementById('confirmPanel');(_cp&&_cp.style.display!=='none')?confirmAdd():continueAdd();}if(e.key==='Enter'&&document.getElementById('authOv')&&document.getElementById('authOv').classList.contains('open'))submitAuth();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();closeCal();closeAuth();closeShare();closePw();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open')){var _cp=document.getElementById('confirmPanel');(_cp&&_cp.style.display!=='none')?confirmAdd():continueAdd();}if(e.key==='Enter'&&document.getElementById('authOv')&&document.getElementById('authOv').classList.contains('open'))submitAuth();});
 document.addEventListener('click',function(){closeCal();});
 /* ── your brand (apply-to-me knowledge base) ── */
 var myBrand=null;

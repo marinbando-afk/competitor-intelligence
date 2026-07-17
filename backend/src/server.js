@@ -12,7 +12,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { initSchema, pool } from './db.js';
-import { signup, login, createUser, setPassword, requireAuth, optionalUid, JWT_IS_DEFAULT } from './auth.js';
+import { signup, login, createUser, setPassword, changePassword, requireAuth, optionalUid, JWT_IS_DEFAULT } from './auth.js';
 import { randomBytes } from 'crypto';
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
@@ -689,6 +689,16 @@ app.get('/api/shared/:token', async (req, res) => {
     try { const b = await getMyBrand(uid); if (b && b.name) brand = { name: b.name }; } catch (e) { /* optional */ }
     res.json({ readonly: true, brand, competitors: cs.rows });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Change your OWN password (any account, including the founder's). Requires the current
+// password — see auth.changePassword.
+app.post('/api/password', requireAuth, async (req, res) => {
+  try {
+    const { current, next } = req.body || {};
+    await changePassword(req.user.uid, current, next);
+    res.json({ ok: true });
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
 
 // ── Self-serve read-only share link for the signed-in account ─────────────────
