@@ -120,11 +120,10 @@ export async function siteSummary(host) {
 export async function siteShot(url) {
   const key = process.env.SCREENSHOTONE_KEY;
   if (!key || !/^https?:\/\//i.test(String(url || ''))) return null;
-  const target = 'https://api.screenshotone.com/take?access_key=' + encodeURIComponent(key) +
+  const base = 'https://api.screenshotone.com/take?access_key=' + encodeURIComponent(key) +
     '&url=' + encodeURIComponent(url) +
     '&format=jpg&image_quality=72&viewport_width=1280&viewport_height=800' +
     '&block_cookie_banners=true&block_banners_by_heuristics=true&block_ads=true&block_chats=true' +
-    '&wait_until=networkidle2&delay=3&navigation_timeout=25' +   // give Cloudflare-style JS challenges (e.g. drinkag1.com) time to clear before capturing
     // NO caching. The daily capture must be a FRESH frame that matches the banner text read
     // alongside it, or the picture lags the read by a day (that's the sale-switch-on-the-
     // wrong-day bug). Do NOT "fix" staleness with a short cache_ttl: ScreenshotOne's minimum
@@ -132,13 +131,20 @@ export async function siteShot(url) {
     // which is exactly what killed every screenshot 14–17 Jul. We capture once a day per
     // brand, so there is nothing to gain from caching anyway.
     '&cache=false';
-  try {
-    const r = await fetch(target, { headers: { 'User-Agent': UA } });
-    if (!r.ok) { console.warn('siteShot ' + cleanHost(url) + ': screenshotone ' + r.status + ' — ' + (await r.text().catch(() => '')).slice(0, 160)); return null; }
-    const buf = Buffer.from(await r.arrayBuffer());
-    if (buf.length < 1200) return null; // too small to be a real screenshot
-    return 'data:image/jpeg;base64,' + buf.toString('base64');
-  } catch (e) { return null; }
+  // Prefer network-idle so Cloudflare-style JS challenges (e.g. drinkag1.com) clear before
+  // the frame is taken. But a storefront with a chat widget or polling analytics NEVER goes
+  // idle, so that wait times out every time (thetallowedtruth.com failed ~2 of 3 attempts) —
+  // fall back to the laxer 'load' rather than lose the screenshot entirely.
+  for (const wait of ['networkidle2', 'load']) {
+    try {
+      const r = await fetch(base + '&wait_until=' + wait + '&delay=3&navigation_timeout=25', { headers: { 'User-Agent': UA } });
+      if (!r.ok) { console.warn('siteShot ' + cleanHost(url) + ' [' + wait + ']: screenshotone ' + r.status + ' — ' + (await r.text().catch(() => '')).slice(0, 160)); continue; }
+      const buf = Buffer.from(await r.arrayBuffer());
+      if (buf.length < 1200) continue;   // too small to be a real screenshot
+      return 'data:image/jpeg;base64,' + buf.toString('base64');
+    } catch (e) { /* try the laxer wait */ }
+  }
+  return null;
 }
 
 // Capture today's fingerprint and persist it (one row per host/day; upserts).

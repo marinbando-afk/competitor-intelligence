@@ -80,8 +80,11 @@ button{font-family:inherit;cursor:pointer}
 .rail-h{position:sticky;top:0;background:var(--panel);z-index:2;display:flex;align-items:center;justify-content:space-between;padding:18px 18px 13px;border-bottom:1px solid var(--line)}
 .add-btn{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);background:none;border:1px solid var(--line2);border-radius:20px;padding:6px 13px;transition:.15s}
 .add-btn:hover{border-color:var(--sage-d);background:var(--sage-soft)}
-/* Read-only shared view: hide every editing / account control (chat + reading stay). */
-.ro .add-btn,.ro #myBrandChip,.ro #bugFab,.ro #fbFab,.ro .row-x{display:none!important}
+/* Read-only shared view: hide every editing / account control (chat + reading stay).
+   The brand chip STAYS visible — a teammate needs to see whose brand the "apply to"
+   advice is written for — but it's inert: no click, no edit. */
+.ro .add-btn,.ro #bugFab,.ro #fbFab,.ro .row-x{display:none!important}
+.ro #myBrandChip{pointer-events:none;cursor:default}
 .ro-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line2);border-radius:20px;padding:6px 12px;white-space:nowrap}
 .ro-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--sage);flex:none}
 .rail-list{padding:4px 0}
@@ -1966,7 +1969,17 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal(
 document.addEventListener('click',function(){closeCal();});
 /* ── your brand (apply-to-me knowledge base) ── */
 var myBrand=null;
-function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)return;el.innerHTML=(myBrand&&myBrand.name)?('<span class="mb-dot"></span><span class="mb-lbl">My brand:</span> '+esc(myBrand.name)):('+ Add your brand'+(loggedIn()?'':' <span style="color:var(--faint)">· sign in</span>'));el.className='mybrand'+((myBrand&&myBrand.name)?' set':'');el.title=loggedIn()?'Your brand — powers the “apply to you” suggestions':'Sign in to add your brand — it powers the “apply to you” suggestions';}
+function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)return;
+  if(RO){
+    // Shared view: name WHOSE brand this dashboard (and every "apply to" tip) is for —
+    // "My brand" is meaningless to a teammate who isn't the owner. Inert, and hidden
+    // outright when the client set no brand: never invite a viewer to sign up.
+    if(myBrand&&myBrand.name){el.style.display='';el.innerHTML='<span class="mb-dot"></span><span class="mb-lbl">Brand:</span> '+esc(myBrand.name);el.className='mybrand set';el.title='This dashboard and its suggestions are tailored to '+myBrand.name;}
+    else{el.style.display='none';}
+    return;
+  }
+  el.style.display='';
+  el.innerHTML=(myBrand&&myBrand.name)?('<span class="mb-dot"></span><span class="mb-lbl">My brand:</span> '+esc(myBrand.name)):('+ Add your brand'+(loggedIn()?'':' <span style="color:var(--faint)">· sign in</span>'));el.className='mybrand'+((myBrand&&myBrand.name)?' set':'');el.title=loggedIn()?'Your brand — powers the “apply to you” suggestions':'Sign in to add your brand — it powers the “apply to you” suggestions';}
 // "My brand" is per-account — never trust the local cache across a sign-in/out, always
 // reconcile with what the server says THIS session's account actually owns.
 function clearMyBrandLocal(){myBrand=null;try{localStorage.removeItem('myBrand');}catch(e){}paintBrandChip();}
