@@ -289,6 +289,11 @@ button{font-family:inherit;cursor:pointer}
 .adcopy{padding:15px 17px;border-bottom:1px solid var(--line2)}
 .adcta{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(227,169,44,.4);padding:3px 9px;border-radius:4px;margin-bottom:11px}
 .adtext{font-size:14px;line-height:1.55;color:var(--text);white-space:pre-wrap;word-break:break-word}
+.adcopy-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+.admore{color:var(--sage);font-weight:600;text-decoration:none;white-space:nowrap}
+.admore:hover{text-decoration:underline}
+.adtail{margin-top:16px;font-size:13.5px;line-height:1.7;color:var(--text)}
+.adtail-k{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-right:7px}
 .adrows{padding:5px 17px 15px}
 .adrow{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--line2);font-size:12.5px}
 .adrow:last-child{border-bottom:none}
@@ -1654,6 +1659,25 @@ function openEml(id){
 function openEmlTab(){if(!_emlHtml)return;try{var b=new Blob([_emlHtml],{type:'text/html'});var u=URL.createObjectURL(b);window.open(u,'_blank','noopener');setTimeout(function(){URL.revokeObjectURL(u);},60000);}catch(e){}}
 function closeEml(){var ov=document.getElementById('emlOv');if(!ov)return;ov.classList.remove('open');ov.setAttribute('aria-hidden','true');document.body.style.overflow='';}
 /* ── ad full preview ── */
+// Ad copy can run to a full sales letter (Glov's "500-Dalton Rule" ad is ~2,500 chars).
+// Fold it the way Facebook does — the reader should meet the hook, not a wall — and never
+// cut mid-word. The full text is always in the DOM, one click away; nothing is lost.
+var AD_FOLD=420;
+function foldedText(t){
+  t=String(t||'');
+  if(t.length<=AD_FOLD)return esc(t);
+  var cut=t.slice(0,AD_FOLD),sp=cut.lastIndexOf(' ');
+  if(sp>AD_FOLD*0.6)cut=cut.slice(0,sp);
+  return '<span class="tfold">'+esc(cut)+'… <a href="#" class="admore" onclick="return seeMore(this)">See more</a></span>'+
+         '<span class="tall" style="display:none">'+esc(t)+'</span>';
+}
+function seeMore(el){
+  var w=el.closest('.adtext');if(!w)return false;
+  var f=w.querySelector('.tfold'),a=w.querySelector('.tall');
+  if(f)f.style.display='none';
+  if(a)a.style.display='';
+  return false;
+}
 function openAd(i){
   var a=ADS_SHOWN[i];if(!a)return;
   var ov=document.getElementById('adOv');if(!ov)return;
@@ -1665,9 +1689,15 @@ function openAd(i){
     var inner='<img src="'+esc(a.image)+'" alt="" onerror="var m=this.closest(\'.admedia\');if(m)m.style.display=\'none\'">'+(a.hasVideo?'<span class="admedia-play">▶</span>':'');
     media=(a.hasVideo&&a.link)?'<a class="admedia vid" href="'+esc(a.link)+'" target="_blank" rel="noopener" title="Watch in Meta Ad Library">'+inner+'</a>':'<div class="admedia">'+inner+'</div>';
   }
-  var cta=a.cta?'<span class="adcta">'+esc(a.cta)+'</span>':'';
-  var text=a.text?'<div class="adtext">'+esc(a.text)+'</div>':'';
-  var copy=(cta||text)?'<div class="adcopy">'+cta+text+'</div>':'';
+  // Label it "Ad copy" so it reads unmistakably as the advertiser's own words (not our
+  // analysis), fold long copy the way Facebook does, then close with the headline + CTA.
+  var bits='';
+  if(a.text)bits+='<div class="adcopy-lbl">Ad copy</div><div class="adtext">'+foldedText(a.text)+'</div>';
+  var tail='';
+  if(a.title)tail+='<div><span class="adtail-k">Headline:</span>'+esc(a.title)+'</div>';
+  if(a.cta)tail+='<div><span class="adtail-k">CTA:</span>'+esc(a.cta)+'</div>';
+  if(tail)bits+='<div class="adtail">'+tail+'</div>';
+  var copy=bits?'<div class="adcopy">'+bits+'</div>':'';
   var rows=(a.text||a.title)?angleRowHTML():'';
   if(a.landing)rows+='<div class="adrow"><span class="adrow-k">Landing page</span><a class="adrow-v" href="'+esc(a.landing)+'" target="_blank" rel="noopener">'+esc(a.landing)+' ↗</a></div>';
   if(a.page)rows+='<div class="adrow"><span class="adrow-k">Run from page</span><span class="adrow-v">'+esc(a.page)+'</span></div>';
@@ -1724,7 +1754,7 @@ function openSoc(el){
   var imgUrl=p.image?API+'/api/img?u='+encodeURIComponent(p.image):'';
   var isVid=(p.kind==='Reel'||p.views!=null);
   var media=imgUrl?'<a class="admedia'+(isVid?' vid':'')+'" href="'+esc(p.url||'#')+'" target="_blank" rel="noopener"><img src="'+esc(imgUrl)+'" alt="" onerror="var m=this.closest(\'.admedia\');if(m)m.style.display=\'none\'">'+(isVid?'<span class="admedia-play">▶</span>':'')+'</a>':'';
-  var copy=p.text?'<div class="adcopy"><div class="adtext">'+esc(p.text)+'</div></div>':'';
+  var copy=p.text?'<div class="adcopy"><div class="adcopy-lbl">Caption</div><div class="adtext">'+foldedText(p.text)+'</div></div>':'';
   var stats=[];
   if(p.views!=null)stats.push(fmtNum(p.views)+' views');
   if(p.likes!=null)stats.push(fmtNum(p.likes)+' likes');
