@@ -110,6 +110,25 @@ export function occasionsIn(text) {
   return OCCASIONS.filter((o) => o.re.test(t)).map((o) => o.label);
 }
 
+// Is a storefront announcement-bar banner an actual SALE / PROMO, or just EVERYDAY
+// operational messaging? Shopify bars ROTATE several slides (a sale slide, a "free
+// shipping" slide, "new arrivals", …) and we capture whichever was showing — so
+// "SUMMER SALE 70% OFF" → "Free Worldwide Shipping Over $50" is a rotation, NOT a promo
+// change, and free shipping is never a promo (founder, 17 Jul: "you're an ecomm expert,
+// you should know this"). A real promo is a DISCOUNT, a named SALE/clearance, a BOGO, a
+// gift-with-purchase, a promo code, or a named occasion — never free shipping/delivery/
+// returns, "new arrivals" or "shop now".
+const OPERATIONAL_FREE = /\bfree\s+(worldwide\s+|international\s+|express\s+|standard\s+|2[\s-]?day\s+|next[\s-]?day\s+|fast\s+)*(shipping|delivery|deliveries|returns?|exchanges?|ship)\b/i;
+const SALE_RE = /(\d{1,3}\s*%\s*(off|discount)|\bup\s*to\s*\d{1,3}\s*%|\$\s?\d+\s*off\b|\bsave\s+(up\s+to\s+)?(\d{1,3}\s*%|\$\s?\d+)|\bsale\b|\bbogo\b|\bbuy\s*one\b|\b2\s*for\s*1\b|\bclearance\b|\bgift\s+with\s+(any\s+)?purchase\b|\bfree\s+gift\b|\bpromo\s*code\b|\bdiscount\b)/i;
+export function isSaleBanner(text) {
+  const t = String(text || '').trim();
+  if (!t) return false;
+  if (SALE_RE.test(t) || occasionsIn(t).length) return true;
+  // "free <something that isn't shipping/returns>" is a gift/product offer → promotional.
+  if (/\bfree\b/i.test(t) && !OPERATIONAL_FREE.test(t)) return true;
+  return false;
+}
+
 export function todayLine(today) {
   return 'TODAY IS ' + iso(today) + ' (' + pretty(today) + ').';
 }

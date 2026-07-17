@@ -14,7 +14,7 @@
 import { recentSnapshots, allSnapshots, latestSnapshot, saveSnapshot } from './snapshots.js';
 import { diffWebsite } from './website.js';
 import { adsChanges } from './ads.js';
-import { offerFlags } from './occasions.js';
+import { offerFlags, isSaleBanner } from './occasions.js';
 
 const DAY = 86400000;
 const ANGLE_WINDOW_DAYS = 14;   // "at least the last 2 weeks"
@@ -119,6 +119,25 @@ async function newStaleOffers(host, ads, todayStr) {
   return fresh;
 }
 
+// Rotation guard: has this SALE banner (or a near-identical one) already shown in the recent
+// capture window? If so, the "new" appearance today is just the announcement bar cycling back
+// to its sale slide — not a new sale. Compares normalised text against the last ~10 captures.
+const SALE_LOOKBACK = 10;
+function normBanner(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+async function saleBannerSeenRecently(host, banner, todayStr) {
+  const target = normBanner(banner);
+  if (!target) return true;   // nothing to compare → don't fire
+  try {
+    const snaps = await allSnapshots(host, 'website');   // oldest → newest
+    const prior = snaps.filter((s) => s.day && s.day < todayStr).slice(-SALE_LOOKBACK);
+    for (const s of prior) {
+      const b = s.data && s.data.banner;
+      if (b && isSaleBanner(b) && normBanner(b) === target) return true;   // this exact sale ran before → rotation
+    }
+    return false;
+  } catch (e) { return true; }   // on any doubt, stay quiet (precision-first)
+}
+
 // Detect everything for one host. Returns a structured object; empty arrays / null
 // mean "no signal". Never throws — a subsystem with no data just yields nothing.
 export async function dailySignals(host) {
@@ -132,13 +151,23 @@ export async function dailySignals(host) {
     const cur = web[0] && web[0].data, prev = web[1] && web[1].data;
     if (cur && prev && cur.summary && prev.summary) {
       const diffs = diffWebsite(prev.summary, cur.summary) || [];
+      // The RELIABLE sale event: the count of discounted PRODUCTS changed (from products.json,
+      // not the rotating banner). This is the primary trigger.
       const saleLine = diffs.find((d) => /^Sale (started|ended|widened|narrowed)/i.test(d));
-      const bA = bannerOk(prev.banner) ? String(prev.banner).trim() : '';
-      const bB = bannerOk(cur.banner) ? String(cur.banner).trim() : '';
       if (saleLine) out.sale = saleLine;
-      else if (bA && bB && bA.toLowerCase() !== bB.toLowerCase()) out.sale = `Promo changed — “${bA}” → “${bB}”`;
-      else if (!bA && bB) out.sale = `Promo went live — “${bB}”`;
-      // (a banner disappearing is not reported on its own — often just a rotation/JS timing blip)
+      else {
+        // Banner fallback — but ROTATION-SAFE. Shopify announcement bars cycle several slides,
+        // so we only ever capture one of them. Rules the founder set (17 Jul):
+        //  • a "free shipping / free returns / new arrivals" banner is NEVER a promo (isSaleBanner);
+        //  • a rotation from a sale slide to a non-sale slide is NOT "sale ended";
+        //  • the SAME sale seen on some days and not others (rotation) must not re-fire.
+        // So: only a genuine SALE banner, and only if it hasn't shown in the recent capture
+        // window (i.e. it's actually new, not just the sale slide coming back around).
+        const saleB = bannerOk(cur.banner) && isSaleBanner(cur.banner) ? String(cur.banner).trim() : '';
+        if (saleB && !(await saleBannerSeenRecently(host, saleB, todayStr))) {
+          out.sale = 'Sale live: ' + saleB;
+        }
+      }
       out.products = diffs.filter((d) => /new product/i.test(d));
     }
   } catch (e) { /* no website signal */ }

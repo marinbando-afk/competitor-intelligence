@@ -14,7 +14,7 @@ import { getEmails } from './email.js';
 import { diffWebsite, siteShot, siteBannerFromShot } from './website.js';
 import { getMyBrand } from './brand.js';
 import { transcribeVideo } from './transcribe.js';
-import { offerFacts, bannerFacts, todayLine } from './occasions.js';
+import { offerFacts, bannerFacts, todayLine, isSaleBanner } from './occasions.js';
 
 // True when an Anthropic error means the account is out of credit (vs auth/rate/etc).
 function isCreditError(e) { return /credit balance is too low/i.test(String((e && e.message) || e)); }
@@ -148,11 +148,21 @@ function priceView(s) {
     note: extremes.length ? ` (Catalogue also contains ${extremes.join(' and ')} — marketing stunts/utility SKUs, NOT real pricing; never quote them as the price range.)` : '',
   };
 }
-function fmtWeb(d, today) {
+function fmtWeb(d, today, recentSaleBanner) {
   // Genuinely nothing captured — no product feed, no screenshot, no banner.
   if (!d || (!d.summary && !d.banner && !d.shot)) return 'No storefront data.';
   const s = d.summary;
-  const bannerLine = d.banner ? ` Promo headline currently shown on-site: "${d.banner}".` : '';
+  // A sale slide the announcement bar showed in a RECENT capture — so we can still name the
+  // live sale ("Summer Sale") on a day the bar has rotated to a shipping slide instead.
+  const saleName = (recentSaleBanner && isSaleBanner(recentSaleBanner)) ? String(recentSaleBanner).trim() : '';
+  // Classify the captured banner so the read never mistakes a rotating "free shipping" slide
+  // for a promo. Storefront announcement bars CYCLE several messages and we capture whichever
+  // slide was showing, so the banner is the currently-shown slide — NOT proof of a change.
+  const bannerLine = d.banner
+    ? (isSaleBanner(d.banner)
+        ? ` On-site announcement bar (one rotating slide) currently shows a SALE/PROMO: "${d.banner}".`
+        : ` On-site announcement bar (one rotating slide) currently shows OPERATIONAL messaging (shipping/returns/positioning, NOT a promo): "${d.banner}". Do NOT call this a sale or a promo; do NOT say a sale started or ended because of it.`)
+    : '';
   const bf = today ? bannerFacts(d.banner, today) : '';
   // The product FEED (Shopify products.json) can be missing while the storefront itself was
   // captured fine — some brands 404/redirect it (Brodo → www 404). Don't declare "nothing to
@@ -165,9 +175,15 @@ function fmtWeb(d, today) {
   const pv = priceView(s);
   // Sale status leads every time, independent of whether anything changed since the
   // last capture — an ONGOING sale must never go unmentioned just because it isn't new.
-  const saleLine = s.onSale
-    ? `ACTIVE SALE — ${s.onSale} of ${s.products ?? '?'} products discounted (${pv.line}).`
-    : `No sale — ${s.products ?? '?'} products, ${pv.line}, none discounted.`;
+  let saleLine;
+  if (s.onSale) {
+    saleLine = `ACTIVE SALE — ${s.onSale} of ${s.products ?? '?'} products discounted (${pv.line}).`;
+    // Products are on sale but today's captured slide isn't the sale one → name the sale from
+    // a recent sale slide, and make clear it's STILL running (the bar just rotated).
+    if (saleName && !isSaleBanner(d.banner)) saleLine += ` A recent announcement-bar slide named this sale: "${saleName}" — the sale is STILL running (products are discounted); the bar has simply rotated to a different slide today, which is NOT a sale ending.`;
+  } else {
+    saleLine = `No sale — ${s.products ?? '?'} products, ${pv.line}, none discounted.`;
+  }
   return saleLine + pv.note + bannerLine + bf;
 }
 
@@ -264,7 +280,7 @@ async function landingFormats(ads) {
 const GUIDE = {
   ads: 'their Meta/Facebook ads. If an OFFER TIMING FACTS block is present it is ground truth and TOP priority — a live ad is leaning on an OUT-OF-SEASON occasion; lead with it, name the occasion and the numbers, and never soften it into generic "persistent discounting". Use the FUNNEL FACTS block as ground truth for pages and landing domains — NEVER claim there are no third-party pages or off-domain landings unless the facts confirm it; if any THIRD-PARTY page or domain is listed (e.g. a news-publisher advertorial / native ad, an affiliate or media-partner funnel), SURFACE it as a notable tactic. LANDING-PAGE FORMAT: when a LANDING PAGE FORMATS block is provided, state each landing page\'s ACTUAL format from it (listicle, advertorial, third-party review, sales page, product page, quiz funnel, etc.) — those were produced by fetching and reading the real page. NEVER infer a landing page\'s format, purpose, or that it is a "staging"/"test"/"pre-launch"/"variant" page from its URL or subdomain name (e.g. do not assume "pre." means pre-launch); if a page is marked not-analyzable, say it wasn\'t read rather than guessing. If ads drive to a MARKETPLACE listing (Amazon, Walmart, Target, TikTok Shop, etc.) rather than the brand\'s own site, treat it as a DELIBERATE channel strategy, not a weakness — name why it is often smart (marketplace reviews/ratings as social proof, Prime trust and fast shipping, higher marketplace conversion, best-seller-rank/category dominance, Subscribe & Save retention) and what it signals; NEVER frame driving marketplace sales as "not driving sales" or a DTC shortfall — it IS driving sales, just through a chosen channel with different tradeoffs. Also surface, only if present: what is NEW vs the previous capture; the HOOKS and ANGLES in the copy; creative FORMATS (video vs image/carousel); whether they test multiple regional own-domains. Do not over-generalize beyond what the facts and sample support.',
   social: 'their organic social (Instagram / TikTok / Facebook). Engagement counts (views, likes, comments) are CUMULATIVE lifetime totals: they only ever climb, they grow with how long a post has been live, and a post does most of its growth in the first day or two. So a newer post almost always shows fewer than an older one, and that is normal — NOT a decline. NEVER frame a lower count — on a newer post, or versus a previous capture — as a drop, collapse, slump, dip, decay, or "reach/algorithm" problem, and never compute view/like deltas between captures (different posts are not comparable that way). What matters is STACKED engagement. Surface, only if present: which posts have accumulated the most total engagement; what is genuinely NEW since the previous capture (new posts / series); recurring HOOKS / ANGLES / themes; FORMATS (Reel / Carousel / Post); and any product or campaign focus.',
-  website: 'their online storefront. ALWAYS lead with whether a sale/promotion is ACTIVE right now (per the ACTIVE SALE / Promo headline facts) — this is independent of whether it changed since the previous capture; an ONGOING, unchanged sale must still be named explicitly, never omitted just because it isn\'t new. If the "Promo headline" fact names a specific OCCASION (a holiday or named sale event — e.g. "4th of July Sale", "Black Friday", "Anniversary Sale"), you MUST use that exact occasion name in the summary/bullets (e.g. "still running their 4th of July sale, 60% off") — the occasion is valuable timing intel (when they run their biggest pushes), so never flatten it down to a generic "an active sale" or just the discount percentage. Then surface what materially CHANGED vs the previous capture: sale scope, prices, products added/removed. If nothing changed AND there is no active sale, say that plainly in one line.',
+  website: 'their online storefront. A SALE means a DISCOUNT or a named sale EVENT — a % off, a $ off, a named occasion sale (Summer Sale, 4th of July, Black Friday, Anniversary), BOGO, clearance, a gift-with-purchase or a promo code. "Free shipping", "free returns", "new arrivals" and similar are EVERYDAY OPERATIONAL messaging, NOT a sale or a promo — never call them one, and never say a promo "went live" or "changed" because of them. ALWAYS lead with whether a genuine sale/promotion is ACTIVE right now (per the ACTIVE SALE / announcement-bar facts) — independent of whether it changed; an ONGOING, unchanged sale must still be named explicitly. When a sale is named by OCCASION, use that exact occasion name (e.g. "still running their Summer Sale, up to 70% off") — the occasion is valuable timing intel; never flatten it to a generic "an active sale". ⚠️ STOREFRONT ANNOUNCEMENT BARS ROTATE several slides (a sale slide, a free-shipping slide, a new-arrivals slide) and we capture whichever ONE was showing — so a banner that DIFFERS from last capture is almost always just the bar rotating to a different slide, NOT a promo change and NOT a sale starting or ending. NEVER report "sale ended / promo changed / free shipping replaced the sale" from the banner alone; a sale only genuinely started or ended if the ACTIVE SALE product-count facts say so. Then surface what materially CHANGED per those product facts: sale scope, prices, products added/removed. If nothing changed and no sale is active, say so in one line.',
   email: 'their email marketing. Surface: sending CADENCE; OFFER / discount patterns; recurring THEMES and angles; what is newest. Give a real read, not a list of subjects.',
 };
 
@@ -391,11 +407,14 @@ export async function generateInsights(brand, host) {
   } catch (e) { /* skip */ }
 
   try {
-    const r = await recentSnapshots(host, 'website', 2);
+    const r = await recentSnapshots(host, 'website', 8);   // deeper history to find the last SALE slide
     if (r[0] && r[0].data) {
       const changes = (r[1] && r[1].data) ? diffWebsite(r[1].data.summary, r[0].data.summary) : null;
       const day = capDate(r[0].day);
-      const todayBlock = fmtWeb(r[0].data, day) + '\nCHANGES vs previous capture: ' + (changes ? (changes.join('; ') || 'none detected') : 'n/a (first capture)');
+      // Most recent announcement-bar slide that was an actual sale (today's or an earlier day's),
+      // so the read can name a live sale even when today's captured slide is a shipping one.
+      const recentSaleBanner = (r.find((x) => x.data && isSaleBanner(x.data.banner)) || {}).data?.banner || '';
+      const todayBlock = fmtWeb(r[0].data, day, recentSaleBanner) + '\nCHANGES vs previous capture: ' + (changes ? (changes.join('; ') || 'none detected') : 'n/a (first capture)');
       out.website = await ask('website', brand, todayBlock, r[1] && r[1].data ? fmtWeb(r[1].data) : '', me, day);
     }
   } catch (e) { /* skip */ }
