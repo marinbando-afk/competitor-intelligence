@@ -144,6 +144,32 @@ export async function siteShot(url) {
       return 'data:image/jpeg;base64,' + buf.toString('base64');
     } catch (e) { /* try the laxer wait */ }
   }
+  // ScreenshotOne couldn't render it — some storefronts 502 it outright (seranova.com, 18 Jul)
+  // even though the site loads fine in a real browser. Fall back to a DIFFERENT engine
+  // (WordPress mShots) so the storefront still gets a picture instead of a blank panel.
+  const fb = await mshotsShot(url);
+  if (fb) { console.warn('siteShot ' + cleanHost(url) + ': screenshotone failed on all waits — used mShots fallback'); return fb; }
+  return null;
+}
+
+// Fallback screenshot engine. mShots renders ASYNCHRONOUSLY: the first hits return a small
+// "loading" GIF placeholder, then the real JPEG once generated — so poll, and reject the GIF.
+export async function mshotsShot(url) {
+  if (!/^https?:\/\//i.test(String(url || ''))) return null;
+  const target = 'https://s.wordpress.com/mshots/v1/' + encodeURIComponent(url) + '?w=1280';
+  for (let i = 0; i < 6; i++) {
+    try {
+      const r = await fetch(target, { headers: { 'User-Agent': UA }, redirect: 'follow' });
+      if (r.ok) {
+        const ct = (r.headers.get('content-type') || '').toLowerCase();
+        const buf = Buffer.from(await r.arrayBuffer());
+        if (/image\/(jpeg|png)/.test(ct) && buf.length > 3000) {   // a real capture, not the GIF placeholder
+          return 'data:' + (/png/.test(ct) ? 'image/png' : 'image/jpeg') + ';base64,' + buf.toString('base64');
+        }
+      }
+    } catch (e) { /* retry */ }
+    if (i < 5) await new Promise((r) => setTimeout(r, 4000));   // give mShots time to render
+  }
   return null;
 }
 

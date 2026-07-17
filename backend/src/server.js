@@ -20,7 +20,7 @@ import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warm
 import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
-import { websiteCompare } from './website.js';
+import { websiteCompare, mshotsShot } from './website.js';
 import { getInsights, generateInsights, quickAngle, creditStatus, enrichCreativeHooks, backfillWebsiteReads } from './insights.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
@@ -525,18 +525,30 @@ app.get('/api/shot', aiLimit, async (req, res) => {
     const u = String(req.query.url || '');
     if (!/^https?:\/\//i.test(u)) return res.status(400).end();
     const key = process.env.SCREENSHOTONE_KEY;
-    const target = key
-      ? 'https://api.screenshotone.com/take?access_key=' + encodeURIComponent(key) +
+    if (key) {
+      const target = 'https://api.screenshotone.com/take?access_key=' + encodeURIComponent(key) +
         '&url=' + encodeURIComponent(u) +
         '&format=jpg&image_quality=82&viewport_width=1280&viewport_height=860' +
         '&block_cookie_banners=true&block_banners_by_heuristics=true&block_ads=true&block_chats=true' +
-        '&cache=true&cache_ttl=86400'
-      : 'https://s.wordpress.com/mshots/v1/' + encodeURIComponent(u) + '?w=1100';
-    const r = await fetch(target, { headers: { 'User-Agent': UA_IMG } });
-    if (!r.ok) return res.status(502).end();
-    res.set('Content-Type', r.headers.get('content-type') || 'image/jpeg');
+        '&cache=true&cache_ttl=86400';
+      const r = await fetch(target, { headers: { 'User-Agent': UA_IMG } });
+      if (r.ok) {
+        res.set('Content-Type', r.headers.get('content-type') || 'image/jpeg');
+        res.set('Cache-Control', 'public, max-age=86400');
+        return res.end(Buffer.from(await r.arrayBuffer()));
+      }
+      // Log WHY (this used to just 502 silently — Seranova's storefront 502s ScreenshotOne), then
+      // fall through to mShots, a different engine that often renders what ScreenshotOne can't.
+      console.warn('/api/shot ' + u + ': screenshotone ' + r.status + ' — ' + (await r.text().catch(() => '')).slice(0, 160));
+    }
+    // mShots fallback (also the no-key path). Renders async → the data: URI comes back once ready.
+    const fb = await mshotsShot(u);
+    if (!fb) return res.status(502).end();
+    const [, mime, b64] = /^data:([^;]+);base64,(.*)$/.exec(fb) || [];
+    if (!b64) return res.status(502).end();
+    res.set('Content-Type', mime || 'image/jpeg');
     res.set('Cache-Control', 'public, max-age=86400');
-    res.end(Buffer.from(await r.arrayBuffer()));
+    res.end(Buffer.from(b64, 'base64'));
   } catch (e) {
     res.status(500).end();
   }
