@@ -125,10 +125,16 @@ export async function siteShot(url) {
     '&format=jpg&image_quality=72&viewport_width=1280&viewport_height=800' +
     '&block_cookie_banners=true&block_banners_by_heuristics=true&block_ads=true&block_chats=true' +
     '&wait_until=networkidle2&delay=3&navigation_timeout=25' +   // give Cloudflare-style JS challenges (e.g. drinkag1.com) time to clear before capturing
-    '&cache=true&cache_ttl=1800';   // 30-min cache (was 23h): the screenshot must match the LIVE banner text captured alongside it, so a sale rebrand shows on the same day in both — long caching made the picture lag the read by ~a day
+    // NO caching. The daily capture must be a FRESH frame that matches the banner text read
+    // alongside it, or the picture lags the read by a day (that's the sale-switch-on-the-
+    // wrong-day bug). Do NOT "fix" staleness with a short cache_ttl: ScreenshotOne's minimum
+    // is 14400s, so a smaller value is rejected outright and siteShot silently returns null —
+    // which is exactly what killed every screenshot 14–17 Jul. We capture once a day per
+    // brand, so there is nothing to gain from caching anyway.
+    '&cache=false';
   try {
     const r = await fetch(target, { headers: { 'User-Agent': UA } });
-    if (!r.ok) return null;
+    if (!r.ok) { console.warn('siteShot ' + cleanHost(url) + ': screenshotone ' + r.status + ' — ' + (await r.text().catch(() => '')).slice(0, 160)); return null; }
     const buf = Buffer.from(await r.arrayBuffer());
     if (buf.length < 1200) return null; // too small to be a real screenshot
     return 'data:image/jpeg;base64,' + buf.toString('base64');
@@ -207,7 +213,9 @@ export function diffWebsite(a, b) {
 
 // The compare payload for the app. Ensures there's a fresh capture (so "after" is
 // current), then diffs it against the most recent earlier day.
-export async function websiteCompare(host, url, day) {
+// `force` (admin only) re-captures now instead of waiting for the freshness window — each
+// force is a real screenshot + banner read, so it stays gated.
+export async function websiteCompare(host, url, day, force) {
   if (!host) { const e = new Error('Missing host.'); e.status = 400; throw e; }
   const shape = (s) => s ? { day: s.day, capturedAt: (s.data && s.data.capturedAt) || null, shot: (s.data && s.data.shot) || null, summary: (s.data && s.data.summary) || null } : null;
   const mk = (after, before, extra) => ({
@@ -228,7 +236,7 @@ export async function websiteCompare(host, url, day) {
   let recent = await recentSnapshots(host, 'website', 5);
   const top = recent[0];
   const ageH = top && top.data && top.data.capturedAt ? (Date.now() - Date.parse(top.data.capturedAt)) / 3600000 : Infinity;
-  if (ageH > 20) {
+  if (force || ageH > 20) {
     await captureWebsiteFull(host, url);
     recent = await recentSnapshots(host, 'website', 5);
   }

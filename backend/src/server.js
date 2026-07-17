@@ -323,7 +323,8 @@ app.get('/api/snapshot', async (req, res) => {
 // since the previous captured day.
 app.get('/api/website-compare', async (req, res) => {
   try {
-    res.json(await websiteCompare(req.query.host, req.query.url, req.query.day));
+    const force = req.query.force === '1' && (await isAdminReq(req));   // re-capture now (admin only — each one costs a real screenshot)
+    res.json(await websiteCompare(req.query.host, req.query.url, req.query.day, force));
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }
