@@ -204,11 +204,12 @@ export async function captureWebsiteFull(host, url) {
 export function diffWebsite(a, b) {
   if (!a || !b) return [];
   const out = [];
+  // Sale STATE transition only (started / ended). A change of a few products in/out of the
+  // discount (widened/narrowed) is churn, not a signal — the founder rejected raw
+  // discounted-product counts (18 Jul), so we don't emit them or the count itself.
   const aSale = a.onSale || 0, bSale = b.onSale || 0;
-  if (aSale === 0 && bSale > 0) out.push('Sale started — ' + bSale + ' product' + (bSale > 1 ? 's' : '') + ' now discounted');
-  else if (aSale > 0 && bSale === 0) out.push('Sale ended — nothing discounted now (was ' + aSale + ')');
-  else if (bSale > aSale) out.push('Sale widened — ' + aSale + ' → ' + bSale + ' products discounted');
-  else if (bSale < aSale) out.push('Sale narrowed — ' + aSale + ' → ' + bSale + ' products discounted');
+  if (aSale === 0 && bSale > 0) out.push('Sale started — discounts now live on the catalogue');
+  else if (aSale > 0 && bSale === 0) out.push('Sale ended — catalogue back to regular pricing');
 
   const am = a.items || {}, bm = b.items || {};
   let priceChanges = 0;

@@ -153,7 +153,7 @@ export async function dailySignals(host) {
       const diffs = diffWebsite(prev.summary, cur.summary) || [];
       // The RELIABLE sale event: the count of discounted PRODUCTS changed (from products.json,
       // not the rotating banner). This is the primary trigger.
-      const saleLine = diffs.find((d) => /^Sale (started|ended|widened|narrowed)/i.test(d));
+      const saleLine = diffs.find((d) => /^Sale (started|ended)/i.test(d));
       if (saleLine) out.sale = saleLine;
       else {
         // Banner fallback — but ROTATION-SAFE. Shopify announcement bars cycle several slides,
