@@ -141,6 +141,28 @@ async function healStaleSetup(uid) {
 }
 
 const DEFAULT_MAX_COMPETITORS = Number(process.env.DEFAULT_MAX_COMPETITORS) || 2;
+// Mirror a client's competitor onto every ADMIN account, so the founder sees everything
+// his clients track on his own dashboard instead of only as a list in the Clients panel.
+// Free: a competitor is one shared dataset keyed by host (all snapshots are per-host), so
+// this adds a watchlist POINTER, never a second scrape.
+//
+// DO NOTHING, not DO UPDATE: if the admin has renamed or re-countried his own copy, a
+// client re-saving theirs must not silently overwrite it. Admins are Infinity-capped
+// (competitorAllowance), so a mirror can never push them over a limit.
+async function mirrorToAdmins(byUid, c) {
+  try {
+    const admins = await pool.query('SELECT id FROM users WHERE admin = TRUE');
+    for (const a of admins.rows) {
+      if (a.id === byUid) continue;   // the adder IS an admin — already on their dashboard
+      await pool.query(
+        `INSERT INTO competitors(user_id, name, host, url, country, handles, status)
+         VALUES($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (user_id, host) DO NOTHING`,
+        [a.id, c.name, c.host, c.url, c.country || 'ALL', JSON.stringify(c.handles || {}), c.status || 'setup'],
+      );
+    }
+  } catch (e) { console.warn('mirrorToAdmins ' + (c && c.host) + ':', e.message); }
+}
+
 async function competitorAllowance(uid) {
   try {
     const r = await pool.query('SELECT admin, max_competitors FROM users WHERE id = $1', [uid]);
@@ -823,6 +845,9 @@ app.post('/api/competitors', requireAuth, async (req, res) => {
        RETURNING id, name, host, url, country, status, handles, created_at, updated_at`,
       [req.user.uid, String(name).slice(0, 120), h, String(url).slice(0, 500), String(country || 'ALL').slice(0, 8), JSON.stringify(handles || {}), st],
     );
+    // Best-effort and AFTER the client's own row is saved — the founder seeing his mirror
+    // must never be able to fail the client's actual add.
+    await mirrorToAdmins(req.user.uid, r.rows[0]);
     res.json({ competitor: r.rows[0] });
   } catch (e) {
     res.status(500).json({ error: 'Could not save competitor.' });

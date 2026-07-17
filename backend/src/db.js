@@ -91,5 +91,28 @@ export async function initSchema() {
     -- a team. Null = no link yet; the admin mints one per client.
     ALTER TABLE users ADD COLUMN IF NOT EXISTS share_token TEXT;
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_share_token ON users(share_token) WHERE share_token IS NOT NULL;
+    -- One-time data migrations. A marker row means "already run", so a backfill can't
+    -- repeat on every boot and undo something the founder has since done by hand.
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key        TEXT PRIMARY KEY,
+      ran_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `);
+
+  // Backfill: put every client's existing competitors onto the admin dashboard(s), the
+  // same as new ones now are. Deliberately ONCE — re-running each boot would resurrect
+  // any competitor the founder later removes from his own list.
+  try {
+    const first = await pool.query(`INSERT INTO app_meta(key) VALUES('mirror_competitors_to_admins_v1') ON CONFLICT (key) DO NOTHING RETURNING key`);
+    if (first.rowCount) {
+      const r = await pool.query(`
+        INSERT INTO competitors(user_id, name, host, url, country, handles, status)
+        SELECT a.id, c.name, c.host, c.url, c.country, c.handles, c.status
+        FROM competitors c CROSS JOIN (SELECT id FROM users WHERE admin = TRUE) a
+        WHERE c.user_id <> a.id
+        ON CONFLICT (user_id, host) DO NOTHING
+        RETURNING id`);
+      console.log('mirrored ' + r.rowCount + ' existing client competitor(s) onto admin dashboard(s)');
+    }
+  } catch (e) { console.warn('mirror backfill:', e.message); }
 }
