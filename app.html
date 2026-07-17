@@ -1029,9 +1029,15 @@ function mono(n){var p=String(n||'?').trim().split(/\s+/);return((p[0]||'?')[0]+
 function ago(t){var m=Math.round((Date.now()-t)/6e4);if(m<60)return Math.max(1,m)+'m';var h=Math.round(m/60);if(h<24)return h+'h';return Math.round(h/24)+'d';}
 function badge(c){return '<img src="'+fav(c.host)+'" onerror="this.style.display=\'none\';this.parentNode.textContent=\''+mono(c.name)+'\'">';}
 
+// LIVE = actually under daily watch. It used to be the demos ONLY (they carry a hardcoded
+// live:true from when the label meant "real data, not a mock-up"), so a customer's own
+// competitors showed a scan age instead and looked second-class next to the examples.
+// A brand still capturing its baseline is deliberately NOT live — it has no data yet, and
+// that's precisely when the age is the useful thing to show.
+function isLive(c){return !!(c.live||c.status==='watching');}
 function railRow(c){
   var locked=lockedComp(c);
-  var t=locked?'<span class="lk">🔒</span>':(c.live?'<span style="color:var(--quiet)">LIVE</span>':ago(c.updatedAt||Date.now()));
+  var t=locked?'<span class="lk">🔒</span>':(isLive(c)?'<span style="color:var(--quiet)">LIVE</span>':ago(c.updatedAt||Date.now()));
   var sub=locked?'Upgrade to monitor':(c.demo?c.oneLiner:(c.status==='watching'?'Under daily watch':'Baseline capturing…'));
   var row='<button class="row'+(c.id===state.sel?' sel':'')+(locked?' lockedrow':'')+'" onclick="select(\''+c.id+'\')">'
     +'<span class="badge-wrap"><span class="badge">'+badge(c)+'</span><span class="rail-flag" id="railflag-'+c.id+'"'+(needsAction(c)?'':' style="display:none"')+' title="Action needed">!</span></span>'
@@ -1837,8 +1843,10 @@ function report(c){
   else if(c.demo){meta=esc(c.host)+' · scanned '+ago(c.updatedAt)+' ago'+wk;}
   else if(c.status==='watching'){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Watched daily</span> · scanned '+ago(c.updatedAt)+' ago'+wk+ed;}
   else{meta=esc(c.host)+ed;}
-  var exTag=c.demo?'<span class="ex-tag">Real example</span>':'';
-  var exNote=c.demo?'<div class="ex-note">A real brand we track as a live example of how WatchBack works — not one of your competitors.</div>':'';
+  // Kept in step with the rail group label above — "Real example" alongside "Other brands
+  // we watch" would read as two different things.
+  var exTag=c.demo?'<span class="ex-tag">Example</span>':'';
+  var exNote=c.demo?'<div class="ex-note">A real brand we watch daily so you can see how WatchBack works — not one of your competitors, and it doesn’t use one of your slots.</div>':'';
   var head=back+'<div class="rep-head"><span class="rep-badge">'+badge(c)+'</span>'
     +'<div><div class="rep-name">'+esc(c.name)+exTag+'</div><div class="rep-meta">'+meta+'</div>'+exNote+'</div></div>';
   // Top banner: email is the one channel that needs a manual step — shown until their emails start arriving (toggled by checkEmailBanner).
@@ -1881,7 +1889,11 @@ function render(){
   var yourC=list.filter(function(c){return !c.demo;}),exC=list.filter(function(c){return c.demo;});
   var rl='';
   if(yourC.length)rl+='<div class="rail-group">Your competitors</div>'+yourC.map(railRow).join('');
-  if(exC.length)rl+='<div class="rail-group">Real examples — live data, not a mock-up</div>'+exC.map(railRow).join('');
+  // "Real examples — live data, not a mock-up" was pitch copy aimed at a prospect deciding
+  // whether the product is real. Once someone is signed in with their OWN competitors above,
+  // it answers a question they've stopped asking; what they need to know is that these aren't
+  // theirs and aren't costing them a slot.
+  if(exC.length)rl+='<div class="rail-group">Other brands we watch</div>'+exC.map(railRow).join('');
   document.getElementById('railList').innerHTML=rl;
   checkRailActions(list);
   var cur=list.find(function(c){return c.id===state.sel;});
