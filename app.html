@@ -1190,12 +1190,27 @@ function socThumb(p,handle,platform){
   return postCard({link:p.url,image:p.image?API+'/api/img?u='+encodeURIComponent(p.image):'',tl:tl,stats:st.join(''),cap:String(p.text||''),click:p.url?'openSoc(this)':'',url:p.url});
 }
 function socName(p){return {instagram:'Instagram',tiktok:'TikTok',facebook:'Facebook'}[p]||p;}
+// A Facebook page has no real @username — it's stored as a vanity PATH ("p/Seranova-
+// 61553986792526") or a bare numeric id ("profile.php?id=…" → the number). Rendering that
+// raw as "@p/Seranova-61553986792526" is ugly and meaningless. Show a clean label instead:
+// the readable name from a "p/Name-digits" path, or just "Facebook page" when it's only an
+// id. The LINK is unchanged — it still points at the real page.
+function socHandleLabel(platform,handle){
+  handle=String(handle||'');
+  if(platform==='facebook'){
+    var m=handle.match(/^p\/(.+?)-\d{6,}$/);           // p/Seranova-6155… → Seranova
+    if(m)return m[1].replace(/[-_]+/g,' ').trim();
+    if(/^\d{6,}$/.test(handle)||/^profile\.php/.test(handle))return 'Facebook page';
+    return handle.replace(/^p\//,'');                   // a plain vanity name
+  }
+  return '@'+handle;                                     // IG / TikTok keep the @
+}
 // The handle is the fastest route to the real profile, so it links everywhere it's shown —
 // not just in the empty state, which was the only place that offered a way through.
 function socHandleHTML(platform,handle){
   if(!handle)return '';
-  var u=handleToUrl(platform,handle);
-  return u?'<a class="soc-at" href="'+esc(u)+'" target="_blank" rel="noopener" title="Open their '+esc(socName(platform))+' profile ↗">@'+esc(handle)+'</a>':'@'+esc(handle);
+  var u=handleToUrl(platform,handle),lbl=esc(socHandleLabel(platform,handle));
+  return u?'<a class="soc-at" href="'+esc(u)+'" target="_blank" rel="noopener" title="Open their '+esc(socName(platform))+' profile ↗">'+lbl+'</a>':lbl;
 }
 // Fold/unfold the most-recent fallback. Collapsed by default: when nothing is new, the
 // posts are old news and shouldn't cost you the scroll unless you ask for them.

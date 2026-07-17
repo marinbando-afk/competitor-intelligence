@@ -460,10 +460,19 @@ const IMG_HOSTS = /(^|\.)(cdninstagram\.com|fbcdn\.net|tiktokcdn\.com|tiktokcdn-
 app.get('/api/img', async (req, res) => {
   try {
     const u = String(req.query.u || '');
-    let host;
-    try { host = new URL(u).hostname; } catch { return res.status(400).end(); }
-    if (!/^https:$/.test(new URL(u).protocol) || !IMG_HOSTS.test(host)) return res.status(400).end();
-    const r = await fetch(u, { headers: { 'User-Agent': UA_IMG, Accept: 'image/avif,image/webp,image/*,*/*' } });
+    let parsed;
+    try { parsed = new URL(u); } catch { return res.status(400).end(); }
+    if (!/^https:$/.test(parsed.protocol) || !IMG_HOSTS.test(parsed.hostname)) return res.status(400).end();
+    // Facebook serves reel/post covers from GEO-PINNED regional edges (scontent.f<region>N.
+    // fna.fbcdn.net) that don't resolve from our datacenter — the fetch throws, the card
+    // shows a broken image (Seranova's reels, 17 Jul). The fbcdn signature (oh/oe params)
+    // is host-independent, so rewrite the regional host to the GLOBAL edge, which is
+    // reachable everywhere. Verified: .fna host -> HTTP 000, rewritten -> a real JPEG.
+    let target = u;
+    if (/\.fna\.fbcdn\.net$/i.test(parsed.hostname)) { parsed.hostname = 'scontent.xx.fbcdn.net'; target = parsed.toString(); }
+    let r = await fetch(target, { headers: { 'User-Agent': UA_IMG, Accept: 'image/avif,image/webp,image/*,*/*' } });
+    // Belt and braces: if the rewrite somehow 4xx/5xx, fall back to the original URL.
+    if (!r.ok && target !== u) r = await fetch(u, { headers: { 'User-Agent': UA_IMG, Accept: 'image/avif,image/webp,image/*,*/*' } });
     if (!r.ok) return res.status(502).end();
     res.set('Content-Type', r.headers.get('content-type') || 'image/jpeg');
     res.set('Cache-Control', 'public, max-age=86400');
