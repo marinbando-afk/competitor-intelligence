@@ -109,7 +109,14 @@ export async function snapshotForDay(host, day) {
       [String(host).toLowerCase(), day],
     );
     const out = {};
-    r.rows.forEach((x) => { out[x.channel] = x.data; });
+    // A channel is a real captured feed (ads/website/instagram/…). An UNDERSCORE-prefixed
+    // channel is internal bookkeeping (e.g. _offerstate — which findings the Slack brief has
+    // already announced), never a feed: it must not be served through this public,
+    // unauthenticated endpoint. Same instinct as isPublicHost above, applied to channels.
+    r.rows.forEach((x) => { if (!isInternalChannel(x.channel)) out[x.channel] = x.data; });
     return out;
   } catch (e) { return {}; }
 }
+
+// Internal, never-served snapshot buckets. See snapshotForDay.
+export function isInternalChannel(c) { return String(c || '').startsWith('_'); }

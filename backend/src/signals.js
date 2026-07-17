@@ -11,12 +11,15 @@
 // CONSERVATIVE — when unsure whether something is genuinely new, we stay silent
 // rather than cry wolf (same precision-first discipline as ad attribution).
 
-import { recentSnapshots, allSnapshots } from './snapshots.js';
+import { recentSnapshots, allSnapshots, latestSnapshot, saveSnapshot } from './snapshots.js';
 import { diffWebsite } from './website.js';
 import { adsChanges } from './ads.js';
+import { offerFlags } from './occasions.js';
 
 const DAY = 86400000;
 const ANGLE_WINDOW_DAYS = 14;   // "at least the last 2 weeks"
+const OFFER_STATE = '_offerstate';   // internal channel — never served publicly (see snapshots.js)
+const OFFER_STATE_TTL_DAYS = 400;    // forget a fingerprint long after its ad can plausibly still run
 
 // A real promo banner is a short headline. Older snapshots may hold a model's non-answer
 // prose ("I don't see any active promotion…") — never compare those as if they were
@@ -77,10 +80,48 @@ async function newAngles(host, freshAds, todayStr) {
   return out;
 }
 
+// #0 — a live ad leaning on an out-of-season occasion ("Black Friday" in July) or promising
+// a deadline it has long outlived ("Today only", live 52 days). Ranks ABOVE a sale CHANGE:
+// it says the discount is their permanent price and the urgency is theatre.
+//
+// Unlike every other signal here, this one is not a day-over-day diff — the offer is stale
+// every single day, so a diff would report it either forever (noise) or never. It is
+// announced ONCE, the first day it's seen, and then goes quiet.
+//
+// The "already announced" set is stored per HOST (like the snapshots it's derived from), so
+// the fact is tenant-neutral — no client data. A fingerprint is treated as fresh while
+// firstSeen === today, so every client tracking the same brand still hears it on day one,
+// in whatever order their briefs happen to build; from day two, nobody does.
+async function newStaleOffers(host, ads, todayStr) {
+  const flags = offerFlags(ads, new Date(todayStr + 'T00:00:00Z'))
+    .filter((f) => f.kind !== 'evergreen');   // vague boilerplate is never worth paging anyone
+  if (!flags.length) return [];
+
+  const st = await latestSnapshot(host, OFFER_STATE);
+  const seen = (st && st.seen && typeof st.seen === 'object') ? st.seen : {};
+
+  const fresh = [], byFp = new Set();
+  for (const f of flags) {
+    if (byFp.has(f.fp)) continue;                        // identical ads → one announcement
+    if (seen[f.fp] && seen[f.fp] !== todayStr) continue; // announced on an earlier day → stay quiet
+    byFp.add(f.fp);
+    fresh.push(f);
+  }
+  if (!fresh.length) return [];
+
+  const next = {};
+  const cutoff = new Date(Date.parse(todayStr) - OFFER_STATE_TTL_DAYS * DAY).toISOString().slice(0, 10);
+  for (const [fp, day] of Object.entries(seen)) if (typeof day === 'string' && day >= cutoff) next[fp] = day;
+  for (const f of fresh) if (!next[f.fp]) next[f.fp] = todayStr;
+  await saveSnapshot(host, OFFER_STATE, { seen: next });
+
+  return fresh;
+}
+
 // Detect everything for one host. Returns a structured object; empty arrays / null
 // mean "no signal". Never throws — a subsystem with no data just yields nothing.
 export async function dailySignals(host) {
-  const out = { sale: null, funnel: [], fbPage: [], products: [], angle: [] };
+  const out = { staleOffer: [], sale: null, funnel: [], fbPage: [], products: [], angle: [] };
   if (!host) return out;
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -106,6 +147,9 @@ export async function dailySignals(host) {
     const adSnap = (await recentSnapshots(host, 'ads', 1))[0];
     const todayAds = (adSnap && adSnap.data && Array.isArray(adSnap.data.ads)) ? adSnap.data.ads : [];
     if (todayAds.length) {
+      // 0) Stale/fake offers — independent of adsChanges: a fake sale is worth announcing
+      // even on the baseline capture, when there is no previous day to diff against.
+      try { out.staleOffer = await newStaleOffers(host, todayAds, todayStr); } catch (e) { /* no offer signal */ }
       const ch = await adsChanges(host, todayAds);
       if (ch && !ch.baseline) {
         out.funnel = (ch.signals.landings || []).filter((l) => l && l.domain);   // [{domain, url}]
@@ -120,7 +164,7 @@ export async function dailySignals(host) {
 
 // True when any signal fired.
 export function hasSignal(s) {
-  return !!(s && (s.sale || (s.funnel && s.funnel.length) || (s.fbPage && s.fbPage.length) || (s.products && s.products.length) || (s.angle && s.angle.length)));
+  return !!(s && ((s.staleOffer && s.staleOffer.length) || s.sale || (s.funnel && s.funnel.length) || (s.fbPage && s.fbPage.length) || (s.products && s.products.length) || (s.angle && s.angle.length)));
 }
 
 // Render one brand's signals as Slack mrkdwn lines, in PRIORITY ORDER.
@@ -135,6 +179,16 @@ export function signalLines(s) {
   if (!s) return [];
   const lines = [];
   const link = (u, label) => (u ? ' — <' + u + '|' + label + ' ↗>' : '');
+  // Announced once, so it leads — and it says the thing outright rather than making the
+  // reader infer it from a date. Numbers come from occasions.js, never from a model.
+  for (const f of (s.staleOffer || [])) {
+    if (f.kind === 'occasion') {
+      lines.push('Fake sale: “' + f.label + '” still live — ' + f.monthsSince + ' months out of season, running ' +
+        f.running + ' days' + link(f.link, 'view ad'));
+    } else {
+      lines.push('Fake deadline: “' + f.label + '” — running ' + f.running + ' days' + link(f.link, 'view ad'));
+    }
+  }
   if (s.sale) lines.push(s.sale);
   for (const f of (s.funnel || [])) lines.push('New funnel: ' + f.domain + link(f.url, 'open'));
   for (const p of (s.fbPage || [])) lines.push('New FB page advertising: ' + p);

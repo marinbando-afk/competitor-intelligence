@@ -140,44 +140,74 @@ function staleSentence(p) {
     ' months away. This occasion is FAR OUT OF SEASON.';
 }
 
-// Ground-truth block for the ads read: which live ads lean on an out-of-season occasion,
-// and which assert a deadline they have already outlived. Returns '' when there's nothing
-// to say, so a clean advertiser adds no noise to the prompt.
-export function offerFacts(ads, today) {
-  const lines = [];
+// STRUCTURED findings — one per (ad × claim). The prose block below and the Slack
+// signal both derive from this, so the two can never drift apart or disagree.
+//
+// `fp` is a stable fingerprint identifying THIS claim on THIS ad, so the Slack brief can
+// announce a finding exactly once. It keys on the ad's start date rather than its id: a
+// re-uploaded creative making the same stale claim from the same launch date is the same
+// finding, while a genuinely NEW ad reviving the claim gets a new fp and re-announces.
+//
+//   kind: 'occasion'  — invokes an occasion that is far out of season   (lead finding)
+//         'deadline'  — a SPECIFIC promise the ad has outlived          (lead finding)
+//         'evergreen' — vague boilerplate, decorative by duration       (minor; never paged)
+export function offerFlags(ads, today) {
+  const out = [];
   for (const a of (ads || [])) {
     const blob = [a && a.text, a && a.title, a && a.cta].filter(Boolean).join(' ');
     if (!blob) continue;
     const started = parseDay(a && a.started);
     const running = started && started <= today ? Math.round((today - started) / DAY) : null;
-    const runLine = running == null ? '' : ' It has been running for ' + running + ' days (live since ' + iso(started) + ').';
+    const link = (a && a.link) || '';
+    const sd = started ? iso(started) : '?';
 
     for (const label of occasionsIn(blob)) {
       const p = placeOccasion(label, today);
       if (!p || !p.stale) continue;   // in-season occasions are normal — say nothing
-      let l = 'OUT-OF-SEASON OFFER — a LIVE ad invokes "' + p.label + '". ' + staleSentence(p) + runLine;
       // An ad LAUNCHED out of season is the damning version: not a promo left running by
       // accident, but one deliberately created months away from the occasion it names.
-      if (started) {
-        const gap = Math.round((started - p.last) / DAY);
-        if (gap > STALE_DAYS) l += ' The ad was CREATED on ' + iso(started) + ', ' + months(gap) + ' months AFTER that ' + p.label + ' — it was never a real seasonal promo.';
-      }
-      lines.push('- ' + l);
+      const createdAfter = started ? Math.round((started - p.last) / DAY) : null;
+      out.push({
+        kind: 'occasion', label: p.label, started: started ? sd : null, running, link,
+        last: iso(p.last), next: iso(p.next), daysSince: p.daysSince,
+        monthsSince: months(p.daysSince), monthsUntil: months(p.daysUntil),
+        createdAfter: createdAfter != null && createdAfter > STALE_DAYS ? createdAfter : null,
+        fp: 'occasion:' + p.label + ':' + sd,
+      });
     }
 
     for (const u of urgencyIn(blob)) {
       if (running == null) continue;
-      if (u.hard) {
-        if (running <= Math.max(u.days * 3, 7)) continue;   // a short run is honest
-        lines.push('- FAKE DEADLINE — a LIVE ad promises "' + u.label + '" but has been running continuously for ' +
-          running + ' days (live since ' + iso(started) + '). The deadline is specific and has been outlived many times over: the claim is simply untrue and the urgency is permanent.');
-      } else {
-        if (running < SOFT_DAYS) continue;   // vague urgency is normal DTC boilerplate — stay quiet
-        lines.push('- EVERGREEN URGENCY (minor) — a LIVE ad has claimed "' + u.label + '" for ' + running +
-          ' days straight (live since ' + iso(started) + '). This is vague boilerplate rather than a broken promise, but at this duration it is decorative. Worth at most a passing clause — do NOT lead with it or call it a lie.');
+      if (u.hard && running > Math.max(u.days * 3, 7)) {          // a short run is honest
+        out.push({ kind: 'deadline', label: u.label, started: sd, running, link, fp: 'deadline:' + u.label + ':' + sd });
+      } else if (!u.hard && running >= SOFT_DAYS) {               // vague urgency is normal DTC boilerplate
+        out.push({ kind: 'evergreen', label: u.label, started: sd, running, link, fp: 'evergreen:' + u.label + ':' + sd });
       }
     }
   }
+  return out;
+}
+
+// Ground-truth block for the ads read: which live ads lean on an out-of-season occasion,
+// and which assert a deadline they have already outlived. Returns '' when there's nothing
+// to say, so a clean advertiser adds no noise to the prompt.
+export function offerFacts(ads, today) {
+  const lines = offerFlags(ads, today).map((f) => {
+    const runLine = f.running == null ? '' : ' It has been running for ' + f.running + ' days (live since ' + f.started + ').';
+    if (f.kind === 'occasion') {
+      let l = '- OUT-OF-SEASON OFFER — a LIVE ad invokes "' + f.label + '". ' + f.label + ' last fell on ' + f.last +
+        ' — ' + f.monthsSince + ' months (' + f.daysSince + ' days) BEFORE today — and does not come round again until ' +
+        f.next + ', ' + f.monthsUntil + ' months away. This occasion is FAR OUT OF SEASON.' + runLine;
+      if (f.createdAfter) l += ' The ad was CREATED on ' + f.started + ', ' + months(f.createdAfter) + ' months AFTER that ' + f.label + ' — it was never a real seasonal promo.';
+      return l;
+    }
+    if (f.kind === 'deadline') {
+      return '- FAKE DEADLINE — a LIVE ad promises "' + f.label + '" but has been running continuously for ' + f.running +
+        ' days (live since ' + f.started + '). The deadline is specific and has been outlived many times over: the claim is simply untrue and the urgency is permanent.';
+    }
+    return '- EVERGREEN URGENCY (minor) — a LIVE ad has claimed "' + f.label + '" for ' + f.running +
+      ' days straight (live since ' + f.started + '). This is vague boilerplate rather than a broken promise, but at this duration it is decorative. Worth at most a passing clause — do NOT lead with it or call it a lie.';
+  });
   if (!lines.length) return '';
   // Identical ads produce identical lines; the model gains nothing from seeing them twice.
   return '\nOFFER TIMING FACTS (computed from today\'s date — ground truth, do NOT contradict, do NOT recompute):\n' + [...new Set(lines)].join('\n');
