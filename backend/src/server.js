@@ -486,7 +486,11 @@ app.get('/api/feedback', async (req, res) => {
 
 // Image proxy — streams social CDN thumbnails so hotlink/expiry never breaks them
 // in the browser. Locked to known social CDNs so it can't be abused as an open proxy.
-const IMG_HOSTS = /(^|\.)(cdninstagram\.com|fbcdn\.net|tiktokcdn\.com|tiktokcdn-us\.com|ibyteimg\.com|akamaized\.net)$/i;
+// TikTok serves thumbnails from REGIONAL CDNs — tiktokcdn.com, tiktokcdn-us.com AND
+// tiktokcdn-eu.com (Ancestral's videos came from -eu, which the old allowlist rejected with
+// a 400 → blank thumbnails, 17 Jul). `tiktokcdn(-<region>)?\.com` covers every regional
+// variant while staying bounded to TikTok's own CDN.
+const IMG_HOSTS = /(^|\.)(cdninstagram\.com|fbcdn\.net|tiktokcdn(-[a-z]{2,3})?\.com|ibyteimg\.com|ibytedtos\.com|akamaized\.net)$/i;
 app.get('/api/img', async (req, res) => {
   try {
     const u = String(req.query.u || '');

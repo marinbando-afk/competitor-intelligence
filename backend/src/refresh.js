@@ -28,9 +28,14 @@ const PLATFORMS = [['instagram', 'ig'], ['tiktok', 'tt'], ['facebook', 'fb']];
 // Competitors the user added in the app — persisted as a singleton list so the
 // daily warm covers them too (the seeded demos live in TRACKED above).
 const TKEY = '__tracked__';
-// Plan limit: how many USER-ADDED competitors the daily warm covers (the seeded
-// demos in TRACKED are always on). Free = 0; bump MAX_USER_BRANDS env on upgrade.
-const MAX_USER = Number(process.env.MAX_USER_BRANDS) || 0;
+// How many USER-ADDED competitors the daily 5am warm covers (the seeded demos in TRACKED
+// are always on). Was 0 (no user brand pre-warmed → every view did a live 35-63s scrape and
+// the founder's competitors were never refreshed overnight). Founder wants them preloaded
+// daily (17 Jul), so the default is now a generous bound that covers the private beta; raise
+// MAX_USER_BRANDS on Railway if the watch-list ever outgrows it. `>= 0` guard so an explicit
+// env of 0 is still honoured.
+const _maxUserEnv = Number(process.env.MAX_USER_BRANDS);
+const MAX_USER = Number.isFinite(_maxUserEnv) ? _maxUserEnv : 100;
 function cleanHost(h) { return String(h || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase(); }
 
 export async function getTracked() {

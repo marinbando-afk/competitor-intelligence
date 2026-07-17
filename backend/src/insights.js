@@ -149,16 +149,26 @@ function priceView(s) {
   };
 }
 function fmtWeb(d, today) {
-  if (!d || !d.summary) return 'No storefront data.';
+  // Genuinely nothing captured — no product feed, no screenshot, no banner.
+  if (!d || (!d.summary && !d.banner && !d.shot)) return 'No storefront data.';
   const s = d.summary;
+  const bannerLine = d.banner ? ` Promo headline currently shown on-site: "${d.banner}".` : '';
+  const bf = today ? bannerFacts(d.banner, today) : '';
+  // The product FEED (Shopify products.json) can be missing while the storefront itself was
+  // captured fine — some brands 404/redirect it (Brodo → www 404). Don't declare "nothing to
+  // analyze" when we still have the live promo banner + a screenshot: read what we DO have.
+  if (!s) {
+    return 'Product catalogue not machine-readable for this store (their products feed is unavailable), so per-SKU counts/prices aren\'t captured — but the storefront WAS captured.' +
+      (bannerLine || ' No promo banner is currently shown.') + bf +
+      ' Analyze the on-site promo/positioning from the banner above; do NOT say there is no data or nothing to analyze.';
+  }
   const pv = priceView(s);
   // Sale status leads every time, independent of whether anything changed since the
   // last capture — an ONGOING sale must never go unmentioned just because it isn't new.
   const saleLine = s.onSale
     ? `ACTIVE SALE — ${s.onSale} of ${s.products ?? '?'} products discounted (${pv.line}).`
     : `No sale — ${s.products ?? '?'} products, ${pv.line}, none discounted.`;
-  const bannerLine = d.banner ? ` Promo headline seen on-site: "${d.banner}".` : '';
-  return saleLine + pv.note + bannerLine + (today ? bannerFacts(d.banner, today) : '');
+  return saleLine + pv.note + bannerLine + bf;
 }
 
 // ── Landing-page format analysis ───────────────────────────────────────────────
