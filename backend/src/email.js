@@ -138,16 +138,28 @@ export async function aliasDomains(root, name) {
     const r = await pool.query(
       `SELECT sender_domain, MAX(from_name) AS from_name, COUNT(*)::int AS n
        FROM emails WHERE sender_domain <> $1 AND sender_domain <> '' GROUP BY sender_domain`, [root]);
+    // Does the brand receive ANY mail on its own domain? Zero is the exact symptom this bug
+    // presents as ("waiting for their first email" while the mail sits under another domain).
+    const ownN = (await pool.query('SELECT COUNT(*)::int AS n FROM emails WHERE sender_domain = $1', [root])).rows[0].n;
 
     // Stage 1 — token filter. A candidate must share a significant token with the brand
     // name or its domain, in the SENDER NAME or the sending domain. Cheap and high-recall.
     const toks = [...new Set(aliasToks(name).concat(aliasToks(root.split('.')[0])))];
     // De-punctuate the haystack so a multi-word brand still matches a run-together domain
     // and vice versa: token "glovbeauty" vs from_name "Laura | Glov Beauty" -> "lauraglovbeauty".
-    const cands = toks.length ? r.rows.filter((x) => {
+    let cands = toks.length ? r.rows.filter((x) => {
       const hay = (String(x.sender_domain || '') + ' ' + String(x.from_name || '')).toLowerCase().replace(/[^a-z0-9]+/g, '');
       return toks.some((t) => hay.indexOf(t) >= 0);
     }) : [];
+
+    // The token filter's blind spot: a brand whose sending domain shares NO word with its
+    // name (tryglov.com happens to contain "glov" — nothing guarantees the next one will).
+    // That brand would silently show "waiting for their first email" forever, which is
+    // exactly how this stayed invisible for weeks. So when a brand has NO mail at all on
+    // its own domain AND the filter found nothing, widen to EVERY sender and let the judge
+    // decide. Bounded (only fires for a brand with zero email), cheap (one Haiku call per
+    // 6h), and safe — the judge is precision-first and told most senders are other brands.
+    if (!ownN && !cands.length) cands = r.rows;
 
     // Stage 2 — the AI judges each candidate. No key => no aliases (fail CLOSED: a missed
     // email is recoverable, a rival's email shown as this brand's is not).
