@@ -6,7 +6,7 @@
 //   GET /api/website-compare?host=theoodie.com&url=https://www.theoodie.com
 //     -> { after:{day,shot,summary}, before:{day,shot,summary}|null, changes:[...] }
 
-import { saveSnapshot, recentSnapshots } from './snapshots.js';
+import { saveSnapshot, recentSnapshots, latestSnapshot } from './snapshots.js';
 import Anthropic from '@anthropic-ai/sdk';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
@@ -144,7 +144,19 @@ export async function siteShot(url) {
 // Capture today's fingerprint and persist it (one row per host/day; upserts).
 export async function captureWebsite(host, url) {
   const u = url || ('https://' + cleanHost(host));
-  const [summary, shot, homeText] = await Promise.all([siteSummary(host), siteShot(u), fetchHomeText(u)]);
+  const [summary, rawShot, homeText] = await Promise.all([siteSummary(host), siteShot(u), fetchHomeText(u)]);
+  // A screenshot can fail transiently (a site slow to reach network-idle inside the
+  // navigation timeout). This row UPSERTS, so writing the null straight through would
+  // blank a good frame we already hold for today and break the before/after slider —
+  // keep the existing frame instead; the next capture replaces it with a fresh one.
+  let shot = rawShot;
+  if (!shot) {
+    try {
+      const prev = await latestSnapshot(host, 'website');
+      const today = new Date().toISOString().slice(0, 10);
+      if (prev && prev.shot && String(prev.__day || '').slice(0, 10) === today) shot = prev.shot;
+    } catch (e) { /* no prior frame to keep */ }
+  }
   const banner = await siteBannerFromShot(shot, homeText);   // read the banner from the screenshot (what's shown), not raw HTML
   const data = { summary, shot, banner, capturedAt: new Date().toISOString() };
   await saveSnapshot(host, 'website', data);
