@@ -1152,6 +1152,24 @@ function loadAds(box){
 function fmtNum(n){n=+n||0;return n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,'')+'M':(n>=1e3?(n/1e3).toFixed(1).replace(/\.0$/,'')+'k':''+n);}
 function socSummary(posts){if(!posts.length)return null;var hv=posts.some(function(p){return p.views!=null;}),metric=hv?'views':'likes';var top=posts.reduce(function(m,p){var v=(metric==='views'?p.views:p.likes)||0;return v>m?v:m;},0);return {count:posts.length,metric:metric,topValue:top};}
 var SOC_SHOWN={};
+var SOC_RECENT=6;   // how many to fall back to when there's nothing new
+// Lead with what's NEW, and otherwise show only the most recent handful.
+// Brands don't post daily, so the old behaviour was a wall of ~30 days of posts on the
+// Today view and a dead end ("No posts published on this date") on every quiet date —
+// neither told you what actually just happened. Mirrors what the ads section already does.
+// `refDay` = the date being viewed (null = live/today).
+function socView(posts,refDay){
+  var all=(posts||[]).slice().sort(function(x,y){return String(y.date||'').localeCompare(String(x.date||''));});
+  var ref=refDay||new Date().toISOString().slice(0,10);
+  var prev=new Date(Date.parse(ref)-864e5).toISOString().slice(0,10);
+  var dayOfPost=function(p){return String(p.date||'').slice(0,10);};
+  var fresh=all.filter(function(p){var d=dayOfPost(p);return d===ref||d===prev;});
+  if(fresh.length)return {posts:fresh,note:'<b>'+fresh.length+' new post'+(fresh.length===1?'':'s')+'</b> in the last 2 days.'};
+  // Never surface a post published AFTER the date being viewed — it wasn't news yet.
+  var recent=all.filter(function(p){return dayOfPost(p)<=ref;}).slice(0,SOC_RECENT);
+  if(!recent.length)return {posts:[],note:''};
+  return {posts:recent,note:'<b>No new posts'+(refDay?' on this date':' today or yesterday')+'.</b> Showing their '+recent.length+' most recent:'};
+}
 function socThumb(p,handle,platform){
   var st=[];
   if(p.views!=null&&p.views>=0)st.push(statIcon('view',fmtNum(p.views)));
@@ -1173,24 +1191,33 @@ function renderSoc(el,d){
     if(met)met.textContent=handle?'@'+handle+' · no recent posts':'no public profile found';
     if(body)body.innerHTML='<div class="adsempty">No recent posts we could capture'+(purl?' — <a href="'+esc(purl)+'" target="_blank" rel="noopener">view their '+socName(platform)+' ↗</a>':'.')+'</div>';return;
   }
-  var s=d.summary||{};
-  var top=s.topValue?' · top '+fmtNum(s.topValue)+' '+(s.metric==='views'?'views':'likes'):'';
-  var strip='<div class="adstrip">'+d.posts.map(function(p){return socThumb(p,handle,platform);}).join('')+'</div>';
   if(d.stale){   // live scrape was empty — showing the last capture that had posts
+    var sstrip='<div class="adstrip">'+d.posts.slice(0,SOC_RECENT).map(function(p){return socThumb(p,handle,platform);}).join('')+'</div>';
     if(met)met.innerHTML='@'+esc(handle)+' · no recent posts';
-    if(body)body.innerHTML='<div class="soc-stale">No new posts recently — showing their last '+d.posts.length+' captured'+(d.staleDay?' '+esc(fmtAgo(d.staleDay)):'')+'.</div>'+strip;
+    if(body)body.innerHTML='<div class="soc-stale">No new posts recently — showing their last '+Math.min(d.posts.length,SOC_RECENT)+' captured'+(d.staleDay?' '+esc(fmtAgo(d.staleDay)):'')+'.</div>'+sstrip;
     return;
   }
-  if(met)met.innerHTML='@'+esc(handle)+' · '+d.posts.length+' recent'+top;
-  if(body)body.innerHTML=strip;
+  // What's new leads; otherwise just the most recent few (see socView).
+  var v=socView(d.posts,state.day),shown=v.posts;
+  if(!shown.length){
+    if(met)met.textContent=(handle?'@'+handle+' · ':'')+'no posts to show';
+    if(body)body.innerHTML='<div class="adsempty">No posts published on or before this date.</div>';
+    return;
+  }
+  var s=socSummary(shown)||{};
+  var top=s.topValue?' · top '+fmtNum(s.topValue)+' '+(s.metric==='views'?'views':'likes'):'';
+  var strip='<div class="adstrip">'+shown.map(function(p){return socThumb(p,handle,platform);}).join('')+'</div>';
+  if(met)met.innerHTML='@'+esc(handle)+' · '+shown.length+' shown'+top;
+  if(body)body.innerHTML=(v.note?'<div class="adssum">'+v.note+'</div>':'')+strip;
 }
 function loadOneSoc(el){
   var platform=el.getAttribute('data-platform'),handle=el.getAttribute('data-handle'),host=el.getAttribute('data-host');
   if(state.day){
+    // Hand renderSoc the WHOLE captured set, not just this date's posts — socView needs
+    // them to fall back to the most recent when the date itself is quiet (it used to
+    // pre-filter to the date and dead-end at "No posts published on this date").
     var ss=(viewSnap&&viewSnap[platform])||{posts:[]};
-    var fp=(ss.posts||[]).filter(function(p){return String(p.date||'').slice(0,10)===state.day;});
-    if(fp.length){renderSoc(el,{handle:ss.handle,posts:fp,summary:socSummary(fp)});}
-    else{var m=el.querySelector('.soc-m'),b=el.querySelector('.soc-body');if(m)m.textContent=(ss.handle?'@'+ss.handle+' · ':'')+'no posts this date';if(b)b.innerHTML='<div class="adsempty">No posts published on this date.</div>';}
+    renderSoc(el,{handle:ss.handle,posts:ss.posts||[]});
     return;
   }
   if(!handle&&!host){renderSoc(el,{posts:[]});return;}
