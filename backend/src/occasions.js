@@ -74,22 +74,30 @@ const OCCASIONS = [
   { label: "St. Patrick's Day", re: /\bst\.?\s?patrick'?s?\b|\bpaddy'?s\b/i, date: (y) => utc(y, 2, 17) },
 ];
 
-// Deadline claims. If the ad has been running far longer than the deadline it asserts,
-// the urgency is manufactured — the strongest, most quotable version of this signal.
+// Deadline claims, in two tiers — because they are NOT equally damning and reporting
+// them in identical language would cheapen the real finding.
+//
+//   hard: a SPECIFIC, falsifiable promise ("Today only", "48 hours"). If the ad has
+//         outlived it, the claim is simply untrue — that is the quotable signal.
+//   soft: marketing boilerplate ("Limited time", "Last chance"). Vague by design and
+//         near-universal in DTC, so it is NOT evidence of a lie. Only worth a mention
+//         once the duration makes it plainly decorative, and worded as such.
 const URGENCY = [
-  { re: /\btoday\s?only\b/i, label: 'Today only', days: 1 },
-  { re: /\bends\s?(tonight|today)\b/i, label: 'Ends tonight', days: 1 },
-  { re: /\b(final|last)\s?(few\s?)?hours\b/i, label: 'Final hours', days: 1 },
-  { re: /\b24\s?hours?\b/i, label: '24 hours', days: 1 },
-  { re: /\b48\s?hours?\b/i, label: '48 hours', days: 2 },
-  { re: /\b72\s?hours?\b/i, label: '72 hours', days: 3 },
-  { re: /\bthis\s?weekend\s?only\b/i, label: 'This weekend only', days: 3 },
-  { re: /\bends\s?(this\s?)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i, label: 'Ends this week', days: 7 },
-  { re: /\blast\s?chance\b/i, label: 'Last chance', days: 7 },
-  { re: /\b(ends|expires)\s?soon\b/i, label: 'Ends soon', days: 7 },
-  { re: /\bwhile\s?stocks?\s?last\b/i, label: 'While stocks last', days: 14 },
-  { re: /\blimited\s?time\b/i, label: 'Limited time', days: 14 },
+  { re: /\btoday\s?only\b/i, label: 'Today only', days: 1, hard: true },
+  { re: /\bends\s?(tonight|today)\b/i, label: 'Ends tonight', days: 1, hard: true },
+  { re: /\b(final|last)\s?(few\s?)?hours\b/i, label: 'Final hours', days: 1, hard: true },
+  { re: /\b24\s?hours?\b/i, label: '24 hours', days: 1, hard: true },
+  { re: /\b48\s?hours?\b/i, label: '48 hours', days: 2, hard: true },
+  { re: /\b72\s?hours?\b/i, label: '72 hours', days: 3, hard: true },
+  { re: /\bthis\s?weekend\s?only\b/i, label: 'This weekend only', days: 3, hard: true },
+  { re: /\bends\s?(this\s?)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i, label: 'Ends this week', days: 7, hard: true },
+  { re: /\blast\s?chance\b/i, label: 'Last chance', days: 7, hard: false },
+  { re: /\b(ends|expires)\s?soon\b/i, label: 'Ends soon', days: 7, hard: false },
+  { re: /\bwhile\s?stocks?\s?last\b/i, label: 'While stocks last', days: 14, hard: false },
+  { re: /\blimited\s?time\b/i, label: 'Limited time', days: 14, hard: false },
 ];
+// A soft claim only earns a line once it has run long enough to be self-evidently empty.
+const SOFT_DAYS = 90;
 
 function months(days) { return Math.round((days / 30.44) * 10) / 10; }
 
@@ -118,7 +126,7 @@ export function occasionsIn(text) {
 // Every deadline claim in a blob of copy.
 export function urgencyIn(text) {
   const t = String(text || '');
-  return URGENCY.filter((u) => u.re.test(t)).map((u) => ({ label: u.label, days: u.days }));
+  return URGENCY.filter((u) => u.re.test(t)).map((u) => ({ label: u.label, days: u.days, hard: u.hard }));
 }
 
 export function todayLine(today) {
@@ -158,13 +166,21 @@ export function offerFacts(ads, today) {
     }
 
     for (const u of urgencyIn(blob)) {
-      if (running == null || running <= Math.max(u.days * 3, 7)) continue;   // a short run is honest
-      lines.push('- FAKE DEADLINE — a LIVE ad claims "' + u.label + '" but has been running continuously for ' +
-        running + ' days (live since ' + iso(started) + '). The stated deadline is not real; the urgency is permanent.');
+      if (running == null) continue;
+      if (u.hard) {
+        if (running <= Math.max(u.days * 3, 7)) continue;   // a short run is honest
+        lines.push('- FAKE DEADLINE — a LIVE ad promises "' + u.label + '" but has been running continuously for ' +
+          running + ' days (live since ' + iso(started) + '). The deadline is specific and has been outlived many times over: the claim is simply untrue and the urgency is permanent.');
+      } else {
+        if (running < SOFT_DAYS) continue;   // vague urgency is normal DTC boilerplate — stay quiet
+        lines.push('- EVERGREEN URGENCY (minor) — a LIVE ad has claimed "' + u.label + '" for ' + running +
+          ' days straight (live since ' + iso(started) + '). This is vague boilerplate rather than a broken promise, but at this duration it is decorative. Worth at most a passing clause — do NOT lead with it or call it a lie.');
+      }
     }
   }
   if (!lines.length) return '';
-  return '\nOFFER TIMING FACTS (computed from today\'s date — ground truth, do NOT contradict, do NOT recompute):\n' + lines.join('\n');
+  // Identical ads produce identical lines; the model gains nothing from seeing them twice.
+  return '\nOFFER TIMING FACTS (computed from today\'s date — ground truth, do NOT contradict, do NOT recompute):\n' + [...new Set(lines)].join('\n');
 }
 
 // Same check for the storefront's promo banner, which is where a sale usually lives.
@@ -175,7 +191,12 @@ export function bannerFacts(banner, today) {
     if (!p || !p.stale) continue;
     out.push('- OUT-OF-SEASON PROMO — the live on-site banner invokes "' + p.label + '". ' + staleSentence(p));
   }
-  for (const u of urgencyIn(banner)) out.push('- The live banner asserts a deadline ("' + u.label + '") — check whether it is ever actually enforced.');
+  // Only a SPECIFIC banner deadline is worth a line; "Be quick!"-style boilerplate is not,
+  // and we have no start date for a banner, so we never assert it has been outlived.
+  for (const u of urgencyIn(banner)) {
+    if (!u.hard) continue;
+    out.push('- The live on-site banner asserts a specific deadline ("' + u.label + '") — note whether the same deadline was present in earlier captures; if so it is not real.');
+  }
   if (!out.length) return '';
   return '\nPROMO TIMING FACTS (computed from today\'s date — ground truth, do NOT contradict):\n' + out.join('\n');
 }
