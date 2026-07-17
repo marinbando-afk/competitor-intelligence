@@ -880,7 +880,9 @@ function loadSharedComps(cb){
     })
     .catch(function(){if(cb)cb();});
 }
-function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');}catch(e){}clearMyBrandLocal();insightsCache={};angleCache={};paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
+// Signing out also drops the cached ?admin= owner key — it must never outlive the session
+// and greet the next account that signs in on this browser.
+function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');localStorage.removeItem('adminKey');}catch(e){}clearMyBrandLocal();insightsCache={};angleCache={};paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
 function paintAuth(){refreshAdmin();syncPlan();var s=document.getElementById('authSlot');if(!s)return;
   if(RO){s.innerHTML='<span class="ro-badge"><span class="dot"></span>Shared view · read-only</span>';return;}
   if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML=(ADMIN?'<button class="authbtn" onclick="openAdmin()" title="Admin panel">⚙ Admin</button>':'')+'<button class="authbtn" onclick="openShare()" title="Share a read-only view with your team">⇗ Share</button><button class="authbtn" onclick="openSlack()" title="Get your daily brief in Slack">⚡ Slack'+((USER&&USER.slack)?' ✓':'')+'</button><span class="authuser" title="'+esc(em)+'">'+esc(em.split('@')[0])+(ADMIN?' · admin':'')+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
@@ -2093,7 +2095,11 @@ function adminKey(){try{return localStorage.getItem('adminKey')||'';}catch(e){re
 // A share link is ALWAYS a plain client-view: it must look identical no matter who opens
 // it, so an admin (or any signed-in account) previewing a client's link sees exactly what
 // that client's teammates see — no admin panel, no demo setup flags, no own-brand context.
-function isAdmin(){if(RO)return false;return !!adminKey()||!!(USER&&USER.admin);}
+// Signed in? The ACCOUNT decides — never the cached ?admin= key. That key is stored in
+// localStorage forever, so on a browser that ever visited ?admin=<key> ANY account signed
+// in afterwards looked (and, server-side, acted) like the founder. The key is now only a
+// fallback for an anonymous owner visit.
+function isAdmin(){if(RO)return false;if(loggedIn())return !!(USER&&USER.admin);return !!adminKey();}
 var ADMIN=isAdmin();
 function refreshAdmin(){ADMIN=isAdmin();}
 function lockedComp(c){return !ADMIN && !!(c&&!c.demo&&!c.account);}  // your own saved competitors are never locked

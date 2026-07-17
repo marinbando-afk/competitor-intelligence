@@ -65,11 +65,19 @@ const aiLimit = rateLimit(30, 60000);
 // flag (the founder). DB-checked per call so it works with older tokens and revokes
 // take effect immediately.
 async function isAdminReq(req) {
-  if (process.env.ADMIN_KEY && (req.query.key === process.env.ADMIN_KEY || (req.body && req.body.key) === process.env.ADMIN_KEY)) return true;
+  // A SIGNED-IN session is judged ONLY by its own account flag. The legacy ?admin=<key>
+  // used to be checked first, which meant any account signed in on a browser that had ever
+  // visited ?admin=<key> (the key is cached in localStorage forever) held REAL admin —
+  // a client session could list/create/delete clients. The account decides; the key cannot
+  // elevate someone else.
   const uid = optionalUid(req);
-  if (!uid) return false;
-  try { const r = await pool.query('SELECT admin FROM users WHERE id = $1', [uid]); return !!(r.rows[0] && r.rows[0].admin); }
-  catch (e) { return false; }
+  if (uid) {
+    try { const r = await pool.query('SELECT admin FROM users WHERE id = $1', [uid]); return !!(r.rows[0] && r.rows[0].admin); }
+    catch (e) { return false; }
+  }
+  // Anonymous only: the founder's legacy owner key.
+  if (process.env.ADMIN_KEY && (req.query.key === process.env.ADMIN_KEY || (req.body && req.body.key) === process.env.ADMIN_KEY)) return true;
+  return false;
 }
 
 // The uid to PERSONALIZE an open read endpoint for: a signed-in user's own uid, OR —
