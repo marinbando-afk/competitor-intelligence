@@ -350,9 +350,14 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .rtry:hover{color:var(--quiet)}
 .soc{margin-bottom:22px}
 .soc:last-child{margin-bottom:2px}
-.soc-h{display:flex;align-items:baseline;gap:10px;margin-bottom:11px;flex-wrap:wrap}
-.soc-p{font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--text)}
-.soc-m{font-size:11.5px;color:var(--muted)}
+.soc-h{display:flex;align-items:center;gap:11px;margin-bottom:15px;flex-wrap:wrap}
+.soc-logo{width:32px;height:32px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 9px rgba(0,0,0,.32)}
+.soc-logo svg{width:18px;height:18px;display:block}
+.pf-instagram{background:linear-gradient(135deg,#8134af 0%,#e1306c 52%,#f9a03f 100%)}
+.pf-tiktok{background:#0d0e10;border:1px solid #33363d}
+.pf-facebook{background:#1877f2}
+.soc-p{font-size:15px;font-weight:700;letter-spacing:.01em;color:var(--text)}
+.soc-m{font-size:12px;color:var(--muted)}
 .soc-at{color:inherit;border-bottom:1px dotted var(--line2)}
 .soc-at:hover{color:var(--sage);border-bottom-color:var(--sage-d)}
 .socmore{color:var(--sage);font-weight:600;cursor:pointer;white-space:nowrap}
@@ -1190,6 +1195,17 @@ function socThumb(p,handle,platform){
   return postCard({link:p.url,image:p.image?API+'/api/img?u='+encodeURIComponent(p.image):'',tl:tl,stats:st.join(''),cap:String(p.text||''),click:p.url?'openSoc(this)':'',url:p.url});
 }
 function socName(p){return {instagram:'Instagram',tiktok:'TikTok',facebook:'Facebook'}[p]||p;}
+// Brand logo for each social section header — inline SVG (self-contained, no external
+// request) in a rounded badge tinted with the platform's real brand colour, so the three
+// sections are instantly distinguishable at a glance rather than three near-identical labels.
+function socLogo(platform){
+  var svg={
+    instagram:'<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2.8" y="2.8" width="18.4" height="18.4" rx="5.4" stroke="#fff" stroke-width="2.1"/><circle cx="12" cy="12" r="4.3" stroke="#fff" stroke-width="2.1"/><circle cx="17.5" cy="6.5" r="1.4" fill="#fff"/></svg>',
+    tiktok:'<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M17 2h-3.2v13.1c0 1.6-1.3 2.9-2.9 2.9s-2.9-1.3-2.9-2.9 1.3-2.9 2.9-2.9c.31 0 .61.05.9.14V9.02a6 6 0 0 0-.9-.07C7.6 8.95 5 11.55 5 14.8s2.6 5.9 5.9 5.9 5.9-2.6 5.9-5.9V8.28a7 7 0 0 0 4.2 1.42V6.5c-2.3 0-4.1-1.87-4.1-4.5z"/></svg>',
+    facebook:'<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M13.7 21v-8h2.5l.5-3.1h-3V7.85c0-.9.42-1.72 1.8-1.72h1.42V3.47C18.1 3.37 17 3.28 15.9 3.28c-2.42 0-4.05 1.5-4.05 4.2v2.42H9v3.1h2.85V21h1.85z"/></svg>'
+  }[platform]||'';
+  return svg?'<span class="soc-logo pf-'+platform+'">'+svg+'</span>':'';
+}
 // A Facebook page has no real @username — it's stored as a vanity PATH ("p/Seranova-
 // 61553986792526") or a bare numeric id ("profile.php?id=…" → the number). Rendering that
 // raw as "@p/Seranova-61553986792526" is ugly and meaningless. Show a clean label instead:
@@ -1407,7 +1423,7 @@ function chanDetail(k,ch,c){
     var subs=[['instagram','Instagram',hs.ig],['tiktok','TikTok',hs.tt],['facebook','Facebook',hs.fb]];
     var inner=subs.map(function(s){
       return '<div class="soc" data-platform="'+s[0]+'" data-handle="'+esc(s[2]||'')+'" data-host="'+esc(c.host||'')+'">'
-        +'<div class="soc-h"><span class="soc-p">'+s[1]+'</span><span class="soc-m">…</span></div>'
+        +'<div class="soc-h">'+socLogo(s[0])+'<span class="soc-p">'+s[1]+'</span><span class="soc-m">…</span></div>'
         +'<div class="soc-body"><div class="adsload"><span class="spin"></span>Checking '+s[1]+'…</div></div></div>';
     }).join('');
     return (ch.angle?'<div class="note" style="margin-top:0;margin-bottom:18px">'+ch.angle+'</div>':'')
