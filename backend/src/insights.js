@@ -14,6 +14,7 @@ import { getEmails } from './email.js';
 import { diffWebsite, siteShot, siteBannerFromShot } from './website.js';
 import { getMyBrand } from './brand.js';
 import { transcribeVideo } from './transcribe.js';
+import { offerFacts, bannerFacts, todayLine } from './occasions.js';
 
 // True when an Anthropic error means the account is out of credit (vs auth/rate/etc).
 function isCreditError(e) { return /credit balance is too low/i.test(String((e && e.message) || e)); }
@@ -84,7 +85,17 @@ export function funnelFacts(ads, brand) {
   const isThird = (a) => (oneLine(a.page) && !own(a.page)) || (adHost(a.landing) && !own(adHost(a.landing)));
   return { text, own, isThird };
 }
-function fmtAds(d) {
+// The capture day a snapshot row is stamped with, as a Date — so timing facts are computed
+// against the day the data was actually captured, not the moment a backfill happens to run.
+// (Distinct from dayOf() above, which returns the day as a STRING.)
+function capDate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ''));
+  return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : new Date();
+}
+
+// `today` is passed ONLY for the current capture — the previous-capture block is context
+// for comparison, so re-stating its offer timing there would just be noise.
+function fmtAds(d, today) {
   if (!d || !d.ads || !d.ads.length) return 'No active ads.';
   const ads = d.ads;
   const ff = funnelFacts(ads, d.brand);
@@ -92,7 +103,8 @@ function fmtAds(d) {
   const third = ads.filter(ff.isThird), first = ads.filter((a) => !ff.isThird(a));
   const sample = third.slice(0, 6).concat(first.slice(0, Math.max(6, 16 - Math.min(third.length, 6))));
   const lines = sample.map((a) => `- [${a.started || '?'}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'} · page:"${a.page || '?'}"${ff.own(a.page) ? '' : ' (3RD-PARTY)'}${a.cta ? ` · cta:"${a.cta}"` : ''}${a.landing ? ` · lands:${adHost(a.landing)}${ff.own(adHost(a.landing)) ? '' : ' (3RD-PARTY)'}` : ''} :: ${oneLine(a.text).slice(0, 170)}`);
-  return [`${d.active || ads.length} active ad(s) on ${(d.platforms || []).join('/') || '?'}; newest ${d.newest || '?'}.`, ff.text, 'SAMPLE ADS:'].concat(lines).join('\n');
+  return [`${d.active || ads.length} active ad(s) on ${(d.platforms || []).join('/') || '?'}; newest ${d.newest || '?'}.`, ff.text, 'SAMPLE ADS:'].concat(lines).join('\n')
+    + (today ? offerFacts(ads, today) : '');
 }
 function fmtPosts(posts, label, noEng) {
   if (!posts || !posts.length) return '';
@@ -136,7 +148,7 @@ function priceView(s) {
     note: extremes.length ? ` (Catalogue also contains ${extremes.join(' and ')} — marketing stunts/utility SKUs, NOT real pricing; never quote them as the price range.)` : '',
   };
 }
-function fmtWeb(d) {
+function fmtWeb(d, today) {
   if (!d || !d.summary) return 'No storefront data.';
   const s = d.summary;
   const pv = priceView(s);
@@ -146,7 +158,7 @@ function fmtWeb(d) {
     ? `ACTIVE SALE — ${s.onSale} of ${s.products ?? '?'} products discounted (${pv.line}).`
     : `No sale — ${s.products ?? '?'} products, ${pv.line}, none discounted.`;
   const bannerLine = d.banner ? ` Promo headline seen on-site: "${d.banner}".` : '';
-  return saleLine + pv.note + bannerLine;
+  return saleLine + pv.note + bannerLine + (today ? bannerFacts(d.banner, today) : '');
 }
 
 // ── Landing-page format analysis ───────────────────────────────────────────────
@@ -240,7 +252,7 @@ async function landingFormats(ads) {
 
 // ── per-channel analyst guidance ──────────────────────────────────────────────
 const GUIDE = {
-  ads: 'their Meta/Facebook ads. Use the FUNNEL FACTS block as ground truth for pages and landing domains — NEVER claim there are no third-party pages or off-domain landings unless the facts confirm it; if any THIRD-PARTY page or domain is listed (e.g. a news-publisher advertorial / native ad, an affiliate or media-partner funnel), SURFACE it as a notable tactic. LANDING-PAGE FORMAT: when a LANDING PAGE FORMATS block is provided, state each landing page\'s ACTUAL format from it (listicle, advertorial, third-party review, sales page, product page, quiz funnel, etc.) — those were produced by fetching and reading the real page. NEVER infer a landing page\'s format, purpose, or that it is a "staging"/"test"/"pre-launch"/"variant" page from its URL or subdomain name (e.g. do not assume "pre." means pre-launch); if a page is marked not-analyzable, say it wasn\'t read rather than guessing. If ads drive to a MARKETPLACE listing (Amazon, Walmart, Target, TikTok Shop, etc.) rather than the brand\'s own site, treat it as a DELIBERATE channel strategy, not a weakness — name why it is often smart (marketplace reviews/ratings as social proof, Prime trust and fast shipping, higher marketplace conversion, best-seller-rank/category dominance, Subscribe & Save retention) and what it signals; NEVER frame driving marketplace sales as "not driving sales" or a DTC shortfall — it IS driving sales, just through a chosen channel with different tradeoffs. Also surface, only if present: what is NEW vs the previous capture; the HOOKS and ANGLES in the copy; creative FORMATS (video vs image/carousel); whether they test multiple regional own-domains. Do not over-generalize beyond what the facts and sample support.',
+  ads: 'their Meta/Facebook ads. If an OFFER TIMING FACTS block is present it is ground truth and TOP priority — it means a live ad is leaning on an out-of-season occasion or a deadline it has already outlived; lead with it, name the occasion and the numbers, and never soften it into generic "persistent discounting". Use the FUNNEL FACTS block as ground truth for pages and landing domains — NEVER claim there are no third-party pages or off-domain landings unless the facts confirm it; if any THIRD-PARTY page or domain is listed (e.g. a news-publisher advertorial / native ad, an affiliate or media-partner funnel), SURFACE it as a notable tactic. LANDING-PAGE FORMAT: when a LANDING PAGE FORMATS block is provided, state each landing page\'s ACTUAL format from it (listicle, advertorial, third-party review, sales page, product page, quiz funnel, etc.) — those were produced by fetching and reading the real page. NEVER infer a landing page\'s format, purpose, or that it is a "staging"/"test"/"pre-launch"/"variant" page from its URL or subdomain name (e.g. do not assume "pre." means pre-launch); if a page is marked not-analyzable, say it wasn\'t read rather than guessing. If ads drive to a MARKETPLACE listing (Amazon, Walmart, Target, TikTok Shop, etc.) rather than the brand\'s own site, treat it as a DELIBERATE channel strategy, not a weakness — name why it is often smart (marketplace reviews/ratings as social proof, Prime trust and fast shipping, higher marketplace conversion, best-seller-rank/category dominance, Subscribe & Save retention) and what it signals; NEVER frame driving marketplace sales as "not driving sales" or a DTC shortfall — it IS driving sales, just through a chosen channel with different tradeoffs. Also surface, only if present: what is NEW vs the previous capture; the HOOKS and ANGLES in the copy; creative FORMATS (video vs image/carousel); whether they test multiple regional own-domains. Do not over-generalize beyond what the facts and sample support.',
   social: 'their organic social (Instagram / TikTok / Facebook). Engagement counts (views, likes, comments) are CUMULATIVE lifetime totals: they only ever climb, they grow with how long a post has been live, and a post does most of its growth in the first day or two. So a newer post almost always shows fewer than an older one, and that is normal — NOT a decline. NEVER frame a lower count — on a newer post, or versus a previous capture — as a drop, collapse, slump, dip, decay, or "reach/algorithm" problem, and never compute view/like deltas between captures (different posts are not comparable that way). What matters is STACKED engagement. Surface, only if present: which posts have accumulated the most total engagement; what is genuinely NEW since the previous capture (new posts / series); recurring HOOKS / ANGLES / themes; FORMATS (Reel / Carousel / Post); and any product or campaign focus.',
   website: 'their online storefront. ALWAYS lead with whether a sale/promotion is ACTIVE right now (per the ACTIVE SALE / Promo headline facts) — this is independent of whether it changed since the previous capture; an ONGOING, unchanged sale must still be named explicitly, never omitted just because it isn\'t new. If the "Promo headline" fact names a specific OCCASION (a holiday or named sale event — e.g. "4th of July Sale", "Black Friday", "Anniversary Sale"), you MUST use that exact occasion name in the summary/bullets (e.g. "still running their 4th of July sale, 60% off") — the occasion is valuable timing intel (when they run their biggest pushes), so never flatten it down to a generic "an active sale" or just the discount percentage. Then surface what materially CHANGED vs the previous capture: sale scope, prices, products added/removed. If nothing changed AND there is no active sale, say that plainly in one line.',
   email: 'their email marketing. Surface: sending CADENCE; OFFER / discount patterns; recurring THEMES and angles; what is newest. Give a real read, not a list of subjects.',
@@ -298,10 +310,16 @@ function toBullets(v, max) {
   return arr.map((s) => clip(s, 180)).filter(Boolean).slice(0, max || 3);
 }
 
-async function ask(channel, brand, todayBlock, prevBlock, me) {
+async function ask(channel, brand, todayBlock, prevBlock, me, today) {
   if (!todayBlock || !todayBlock.trim()) return null;
   let system =
     `You are WatchBack, a sharp eCommerce competitor-intelligence analyst. Analyze ${brand}'s ${channel} — ${GUIDE[channel]}\n\n` +
+    // The model was never told the date, so an ad stamped [2026-05-26] was an inert string
+    // and "Black Friday" could not be placed in time — Glov's out-of-season 90%-off BF ad
+    // came out as "an aggressive 90%-off sale claim" (founder flagged it, 17 Jul 2026).
+    `${todayLine(today || new Date())} Use it whenever timing matters; never assume any other date.\n` +
+    `A LIVE SALE IS ALWAYS MATERIAL — never treat a sale, discount or offer as routine noise. Always name it: the occasion, the size, and whether it is still running.\n` +
+    `STALE OR FAKE URGENCY IS A LEAD FINDING. When an OFFER TIMING FACTS or PROMO TIMING FACTS block reports an offer that is OUT OF SEASON (e.g. a "Black Friday" sale running in July) or that asserts a deadline it has already outlived (e.g. "Today only" live for 52 days), that is among the most revealing things in the entire report and MUST appear in the summary or the FIRST bullet — never flattened into a generic "aggressive sale claim" or "persistent discounting". Name the occasion, how far out of season it is, and how long it has run. Read what it MEANS: the discount is effectively their permanent price (so their real margin tolerates it and the "sale" anchors a fake RRP), the urgency is theatre, and a permanently misleading claim is a genuine regulatory and credibility exposure a competitor can exploit. Those blocks are computed from real dates — quote their numbers VERBATIM and never do your own date arithmetic.\n\n` +
     `Use ONLY the DATA the user provides. Be specific: cite dates, numbers, offers, domains, handles, formats. ` +
     `Read every move as a DELIBERATE choice by a competent operator, with the BROADER CONTEXT in mind — give the strategic rationale and what it implies competitively, never a naive or dismissive take. A different channel, marketplace, funnel or price is a strategy with tradeoffs: explain the thinking behind it; do NOT frame an intentional choice as a failure, a gap, or "not doing X". ` +
     `SANITY-CHECK every number and claim before printing it: ask "would this look obviously wrong or absurd to this brand's own marketer?" Raw feeds contain $0 giveaway entries, ~$1 utility SKUs (shipping protection) and joke/PR listings at absurd prices — quote TYPICAL values and name extremes as the stunts they are; a meaningless literal like "price range $0–$5.2M" must never appear. If a figure doesn't make sense for this brand in this context, reinterpret it or leave it out. ` +
@@ -342,26 +360,29 @@ export async function generateInsights(brand, host) {
     const r = await recentSnapshots(host, 'ads', 2);
     if (r[0] && r[0].data) {
       const lf = await landingFormats(r[0].data.ads || []);   // FETCH + read each landing page, classify its format
-      out.ads = await ask('ads', brand, fmtAds(r[0].data) + lf, r[1] && r[1].data ? fmtAds(r[1].data) : '', me);
+      const day = capDate(r[0].day);
+      out.ads = await ask('ads', brand, fmtAds(r[0].data, day) + lf, r[1] && r[1].data ? fmtAds(r[1].data) : '', me, day);
     }
   } catch (e) { /* skip */ }
 
   try {
     const today = [], prev = [];
+    let capDay = null;
     for (const [pf, lab] of [['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['facebook', 'Facebook']]) {
       const r = await recentSnapshots(host, pf, 2);
-      if (r[0] && r[0].data && r[0].data.posts && r[0].data.posts.length) today.push(fmtPosts(r[0].data.posts, lab + ' @' + (r[0].data.handle || '')));
+      if (r[0] && r[0].data && r[0].data.posts && r[0].data.posts.length) { today.push(fmtPosts(r[0].data.posts, lab + ' @' + (r[0].data.handle || ''))); capDay = capDay || capDate(r[0].day); }
       if (r[1] && r[1].data && r[1].data.posts && r[1].data.posts.length) prev.push(fmtPosts(r[1].data.posts, lab, true));
     }
-    if (today.length) out.social = await ask('social', brand, today.join('\n\n'), prev.join('\n\n'), me);
+    if (today.length) out.social = await ask('social', brand, today.join('\n\n'), prev.join('\n\n'), me, capDay);
   } catch (e) { /* skip */ }
 
   try {
     const r = await recentSnapshots(host, 'website', 2);
     if (r[0] && r[0].data) {
       const changes = (r[1] && r[1].data) ? diffWebsite(r[1].data.summary, r[0].data.summary) : null;
-      const todayBlock = fmtWeb(r[0].data) + '\nCHANGES vs previous capture: ' + (changes ? (changes.join('; ') || 'none detected') : 'n/a (first capture)');
-      out.website = await ask('website', brand, todayBlock, r[1] && r[1].data ? fmtWeb(r[1].data) : '', me);
+      const day = capDate(r[0].day);
+      const todayBlock = fmtWeb(r[0].data, day) + '\nCHANGES vs previous capture: ' + (changes ? (changes.join('; ') || 'none detected') : 'n/a (first capture)');
+      out.website = await ask('website', brand, todayBlock, r[1] && r[1].data ? fmtWeb(r[1].data) : '', me, day);
     }
   } catch (e) { /* skip */ }
 
@@ -381,7 +402,7 @@ export async function generateInsights(brand, host) {
   // across all channels — user-added competitors get the same dossier treatment as
   // the curated demos.
   try {
-    const b = await makeBrief(brand, out, me);
+    const b = await makeBrief(brand, out, me, new Date());
     if (b) out.brief = b;
   } catch (e) { /* brief is best-effort */ }
 
@@ -419,8 +440,9 @@ export async function backfillWebsiteReads(host, brand) {
     if (!today || !today.summary) continue;
     try {
       const changes = prev ? diffWebsite(prev.summary, today.summary) : null;
-      const todayBlock = fmtWeb(today) + '\nCHANGES vs previous capture: ' + (changes ? (changes.join('; ') || 'none detected') : 'n/a (first capture)');
-      const read = await ask('website', brand, todayBlock, prev ? fmtWeb(prev) : '', null);
+      const day = capDate(rows[i].day);
+      const todayBlock = fmtWeb(today, day) + '\nCHANGES vs previous capture: ' + (changes ? (changes.join('; ') || 'none detected') : 'n/a (first capture)');
+      const read = await ask('website', brand, todayBlock, prev ? fmtWeb(prev) : '', null, day);
       if (!read) continue;
       const ins = (await snapshotForDay(host, rows[i].day)).insights || {};
       ins.website = read;
@@ -433,7 +455,7 @@ export async function backfillWebsiteReads(host, brand) {
 
 // Cross-channel synthesis for the report header. Same discipline as the channel
 // reads: grounded, sanity-checked, strategic — never naive or dismissive.
-async function makeBrief(brand, out, me) {
+async function makeBrief(brand, out, me, today) {
   const parts = [];
   for (const [k, label] of [['ads', 'ADS'], ['social', 'SOCIAL'], ['website', 'WEBSITE'], ['email', 'EMAIL']]) {
     const c = out[k];
@@ -443,8 +465,12 @@ async function makeBrief(brand, out, me) {
   if (!parts.length) return null;
   const system =
     `You are WatchBack, a sharp eCommerce competitor-intelligence analyst. From the per-channel reads below, write the top-of-report brief on "${brand}", in ENGLISH (the only non-English text allowed is a verbatim quote of the competitor's own copy). ` +
+    `${todayLine(today || new Date())} ` +
     `Same discipline as always: use only what the reads support, sanity-check every number, and read deliberate moves as strategy with a rationale — never a naive or dismissive take. ` +
     `Ignore noise: tiny count fluctuations (an ad or two, a single post) are routine rotation — never present them as strategic moves.\n` +
+    // A stale sale is the highest-signal thing in the whole dossier and it was arriving as a
+    // vague "persistent 90%-off ad claims" bullet — name the occasion or it reads as nothing.
+    `A live SALE is always material and must be named, never omitted as routine. And if any read reports an offer that is OUT OF SEASON (an occasion that passed months ago — e.g. a "Black Friday" sale still running in July) or a deadline the ad has already outlived ("Today only" live for weeks), that MUST LEAD the threat assessment: name the occasion, how stale it is, and what it means (the discount is their real price; the urgency is fake; the claim is a standing compliance risk). Never soften it into generic "persistent discounting".\n` +
     `Return ONLY minified JSON, no markdown, as SHORT, SCANNABLE BULLET POINTS (not paragraphs): {"verdict":["<THREAT ASSESSMENT — 2 to 3 bullets, each ONE tight point ≤ 13 words, telegraphic: LEAD with the key fact, cut filler/connective words. The most important strategic reads right now, concrete and specific>", ...],"move":["<RECOMMENDED COUNTER-OP — 2 to 3 bullets, each ONE concrete ${me && me.profile ? `move for ${me.name} grounded in their profile below` : 'move for a brand competing with them'}, ≤ 13 words, start with a verb, cut filler>", ...]}` +
     (me && me.profile ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}` : '');
   const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 500, system, messages: [{ role: 'user', content: parts.join('\n') }] });

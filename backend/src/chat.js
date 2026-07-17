@@ -11,6 +11,7 @@ import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
 import { latestSnapshot, recentSnapshots } from './snapshots.js';
 import { funnelFacts, getInsights } from './insights.js';
+import { offerFacts } from './occasions.js';
 
 const MODEL = process.env.CHAT_MODEL || 'claude-sonnet-4-6';
 
@@ -50,6 +51,10 @@ async function assembleContext({ name, host, country, handles }) {
       out.push(`META ADS (${a.country || country}): ${a.active} active across ${(a.platforms || []).join(', ')}; newest ${a.newest}.`);
       const ff = funnelFacts(a.ads, name);
       out.push('  ' + ff.text.replace(/\n/g, '\n  '));   // pages + landing domains + third-party flags — the SAME view the AI-read panel uses
+      // Same offer-timing ground truth the AI-read panel gets, so chat can't contradict it
+      // when asked "are they running a sale?" — computed dates, never the model's own math.
+      const of_ = offerFacts(a.ads, new Date());
+      if (of_) out.push('  ' + of_.trim().replace(/\n/g, '\n  '));
       // surface every third-party ad (the publisher advertorials), then a sample of own-page ads
       const third = a.ads.filter(ff.isThird), first = a.ads.filter((x) => !ff.isThird(x));
       const sample = third.slice(0, 8).concat(first.slice(0, Math.max(10, 24 - Math.min(third.length, 8))));
@@ -140,6 +145,7 @@ export async function chat(body, uid) {
     `- Be CONSISTENT with the IN-APP ANALYSIS below — it is your own conclusion shown to the user. If they ask about something it states (e.g. third-party advertorial placements), confirm and ELABORATE using the supporting ads/pages/domains; never deny it or claim you didn't say it.\n` +
     `- The FUNNEL FACTS list every page and landing domain across ALL the ads and flag genuine THIRD-PARTY placements (publisher advertorials, media/affiliate partners). Treat them as ground truth — they are real even if a specific ad isn't in the sample list below.\n` +
     `- Ground every claim in the data/analysis; cite specific dates, numbers, platforms, pages, domains and offers when relevant.\n` +
+    `- TODAY IS ${today}. A live sale is always worth naming. If an OFFER TIMING FACTS block is present it is computed ground truth: the brand is running an offer that is out of season (an occasion months past) or asserting a deadline it has already outlived. Say so plainly whenever sales, offers, discounts, urgency or pricing come up — quote its numbers verbatim and never do your own date arithmetic.\n` +
     `- Only say something "isn't captured" if it is genuinely absent from BOTH the analysis and the data — and never claim the analysis itself doesn't exist. Never speculate or invent figures.\n` +
     `- The DATA spans the recent capture window (often ~30 days), not just today — for ranges ("last 30 days") or superlatives ("highest engagement"), scan the FULL list and compare the numbers given.\n` +
     `- When you reference a specific post, ad, or email, include its link/URL from the data, in full and on its own. If an item has no link in the data, say so.\n` +
