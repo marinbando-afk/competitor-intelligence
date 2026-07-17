@@ -273,7 +273,13 @@ app.post('/api/inbound-email', async (req, res) => {
 
 app.get('/api/emails', async (req, res) => {
   try {
-    res.json(await getEmails(req.query.host));
+    // The brand NAME is what makes sending-domain aliasing work ("Glov Beauty" → tryglov.com);
+    // the domain label alone ("glovbeauty") matches nothing. The frontend doesn't send a name,
+    // so resolve it from the tracked list — same pattern as /api/ads above.
+    const host = String(req.query.host || '').toLowerCase();
+    let name = req.query.name || '';
+    if (!name && host) { try { const t = (await allBrands()).find((b) => b.host === host); if (t) name = t.name; } catch (e) { /* fall back to the domain label */ } }
+    res.json(await getEmails(req.query.host, name));
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }

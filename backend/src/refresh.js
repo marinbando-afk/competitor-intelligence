@@ -98,7 +98,7 @@ export async function warmBrand(b, force) {
       }
     } catch (e) { fail++; console.warn('warm ' + pf + ' ' + b.name + ':', e.message); }
   }
-  try { const em = await getEmails(b.host); if (em && em.storage) await saveSnapshot(b.host, 'email', em); } catch (e) { /* best-effort */ }
+  try { const em = await getEmails(b.host, b.name); if (em && em.storage) await saveSnapshot(b.host, 'email', em); } catch (e) { /* best-effort */ }
   try { await captureWebsiteFull(b.host, b.url || ('https://' + b.host)); ok++; } catch (e) { fail++; console.warn('warm website ' + b.name + ':', e.message); }
   // Insights live in ONE shared per-host snapshot that every co-watching account (and
   // anonymous demo/report visitors) reads, so they're generated tenant-neutral — the

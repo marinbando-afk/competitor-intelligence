@@ -387,7 +387,7 @@ export async function generateInsights(brand, host) {
   } catch (e) { /* skip */ }
 
   try {
-    const em = await getEmails(host);
+    const em = await getEmails(host, brand);
     const all = (em && em.emails) || [];
     const real = all.filter((e) => !isConfirmEmail(e));   // ignore opt-in confirmations
     if (all.length && !real.length) {

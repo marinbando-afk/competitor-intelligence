@@ -6,10 +6,15 @@
 //   POST /api/inbound-email   (from the inbound service)  -> stores one email
 //   GET  /api/emails?host=theoodie.com                    -> { emails, summary }
 
+import Anthropic from '@anthropic-ai/sdk';
 import { pool } from './db.js';
 
 // The monitored inbox users subscribe to competitors' newsletters with.
 const INBOX = process.env.INBOX_ADDRESS || 'b76eccaaa8ce3a2923a9@cloudmailin.net';
+
+// Same cheap judge the ad pipeline uses for "same brand or different company?".
+const ALIAS_MODEL = process.env.BRAND_MODEL || 'claude-haiku-4-5';
+let _ai; function aiClient() { if (!_ai) _ai = new Anthropic(); return _ai; }
 
 function clean(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
 function extractEmail(s) { const m = String(s || '').match(/[\w.+-]+@[\w-]+\.[\w.-]+/); return m ? m[0].toLowerCase() : ''; }
@@ -99,13 +104,87 @@ function emailImages(html) {
   return out;
 }
 
-export async function getEmails(host) {
+// ── Sending-domain aliases ─────────────────────────────────────────────────────
+// Brands very often send their newsletters from a SEPARATE marketing domain: Glov
+// Beauty's site is glovbeauty.com but its email comes from tryglov.com. Routing was a
+// strict sender_domain = host match, so 16 real Glov emails sat in the inbox invisible
+// to the app while its Email card said "waiting for their first email" (found 17 Jul).
+//
+// Two stages, mirroring the ad pipeline. A cheap TOKEN filter picks candidates (recall,
+// free), then the AI judges each one (precision). The filter alone already excludes the
+// dangerous case for nothing: "Pacific Foods" shares no token with campbells.com, so
+// Campbell's corporate newsletter is never even considered for Pacific — exactly the
+// "never show a different company's data" rule. The judge then kills the substring
+// coincidences the filter can't ("glov" also lives inside "gloves.com").
+//
+// NOTE: deliberately NOT the ads' sameBrandVerdicts — its "different registrable domain
+// => DIFFERENT" rule (added for brodo.ma) is right for ad landings and wrong here, since
+// a separate sending domain is normal and expected for email.
+const _alias = new Map();                       // root -> { at, domains: [] }
+const ALIAS_TTL = 6 * 60 * 60 * 1000;
+const ALIAS_STOP = new Set(['the', 'and', 'for', 'shop', 'store', 'official', 'ltd', 'inc', 'llc', 'brand', 'online', 'cosmetics', 'beauty', 'skin', 'care', 'fashion', 'clothing', 'apparel', 'group', 'collective', 'australia', 'organics', 'foods', 'company']);
+function aliasToks(s) {
+  return [...new Set(String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !ALIAS_STOP.has(w)))];
+}
+
+// Extra sender domains that are genuinely THIS brand's. Returns [] on any doubt.
+export async function aliasDomains(root, name) {
+  const c = _alias.get(root);
+  if (c && Date.now() - c.at < ALIAS_TTL) return c.domains;
+
+  let domains = [];
+  try {
+    // Every OTHER sender we've captured — candidates for "actually this brand".
+    const r = await pool.query(
+      `SELECT sender_domain, MAX(from_name) AS from_name, COUNT(*)::int AS n
+       FROM emails WHERE sender_domain <> $1 AND sender_domain <> '' GROUP BY sender_domain`, [root]);
+
+    // Stage 1 — token filter. A candidate must share a significant token with the brand
+    // name or its domain, in the SENDER NAME or the sending domain. Cheap and high-recall.
+    const toks = [...new Set(aliasToks(name).concat(aliasToks(root.split('.')[0])))];
+    // De-punctuate the haystack so a multi-word brand still matches a run-together domain
+    // and vice versa: token "glovbeauty" vs from_name "Laura | Glov Beauty" -> "lauraglovbeauty".
+    const cands = toks.length ? r.rows.filter((x) => {
+      const hay = (String(x.sender_domain || '') + ' ' + String(x.from_name || '')).toLowerCase().replace(/[^a-z0-9]+/g, '');
+      return toks.some((t) => hay.indexOf(t) >= 0);
+    }) : [];
+
+    // Stage 2 — the AI judges each candidate. No key => no aliases (fail CLOSED: a missed
+    // email is recoverable, a rival's email shown as this brand's is not).
+    if (cands.length && process.env.ANTHROPIC_API_KEY) {
+      const rows = cands.map((x, i) => `${i + 1}. sender_name="${clean(x.from_name) || '(none)'}" sending_domain="${x.sender_domain}"`).join('\n');
+      const system =
+        `Decide for each row whether the EMAIL SENDER is the SAME brand as the target, or a DIFFERENT company. ` +
+        `Target brand: "${name}". Its OFFICIAL SITE is ${root}. ` +
+        `These are newsletters captured in one shared inbox subscribed to MANY different brands, so most senders belong to OTHER companies. ` +
+        `IMPORTANT: a brand very often sends email from a SEPARATE marketing/sending domain rather than its website domain — e.g. "try<brand>.com", "get<brand>.com", "<brand>mail.com", "e.<brand>.com", "shop<brand>.com", or an ESP subdomain. So a DIFFERENT registrable domain is NOT by itself evidence of a different company — judge the SENDER NAME together with the domain. ` +
+        `SAME = the sender_name clearly identifies the target brand (its own name, or "<person> | <brand>", "<brand> Team") AND the sending domain is consistent with that brand. ` +
+        `DIFFERENT = any separate company: a competitor, a retailer that stocks the brand, a PARENT or SIBLING company (a parent's own corporate newsletter is NOT the target's — e.g. "Campbell's" <campbells.com> is NOT "Pacific Foods"), an affiliate, or an unrelated business that merely SHARES A WORD with the target. Do NOT call it the same just because the brand's letters appear inside another word (e.g. "glov" also appears in "gloves.com"; "Foodie" is not "The Oodie"). ` +
+        `PRECISION FIRST: it is far better to MISS one of the brand's newsletters than to attribute a DIFFERENT company's email to it. If you are not confident, answer DIFFERENT. ` +
+        `Return ONLY minified JSON: {"v":[{"i":1,"same":true|false}, ...]}, one entry per row.`;
+      const resp = await aiClient().messages.create({ model: ALIAS_MODEL, max_tokens: 600, system, messages: [{ role: 'user', content: rows }] });
+      const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim().replace(/^```(?:json)?|```$/g, '').trim();
+      const arr = (JSON.parse(txt).v || []);
+      domains = cands.filter((_, i) => { const v = arr.find((x) => Number(x.i) === i + 1); return !!(v && v.same); }).map((x) => x.sender_domain);
+    }
+  } catch (e) {
+    console.warn('aliasDomains ' + root + ': ' + e.message);
+    domains = [];   // fail closed
+  }
+  _alias.set(root, { at: Date.now(), domains });
+  return domains;
+}
+
+export async function getEmails(host, name) {
   const root = rootDomain(String(host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, ''));
   if (!process.env.DATABASE_URL) return { host, root, inbox: INBOX, storage: false, emails: [], summary: null };
   if (!root) { const e = new Error('Missing host.'); e.status = 400; throw e; }
+  // The brand's own domain ALWAYS counts; aliases are extra sending domains it uses.
+  const alias = await aliasDomains(root, clean(name) || root.split('.')[0]);
+  const froms = [root, ...alias];
   const r = await pool.query(
     `SELECT id, from_name, sender_email, subject, preview, offer, received_at, html
-     FROM emails WHERE sender_domain = $1 ORDER BY received_at DESC LIMIT 16`, [root]);
+     FROM emails WHERE sender_domain = ANY($1) ORDER BY received_at DESC LIMIT 16`, [froms]);
   const emails = r.rows.map((e) => ({
     id: e.id,
     from: e.from_name || e.sender_email,
@@ -123,7 +202,9 @@ export async function getEmails(host) {
     latest: emails[0].date,
     offers: offers.slice(0, 6),
   } : null;
-  return { host, root, inbox: INBOX, storage: true, emails, summary };
+  // `alias` is surfaced so it's visible WHY a brand's mail is (or isn't) matching —
+  // this bug was invisible for weeks precisely because nothing showed the routing.
+  return { host, root, alias, inbox: INBOX, storage: true, emails, summary };
 }
 
 // Full stored HTML of one captured email, for the in-app preview.

@@ -80,7 +80,7 @@ async function assembleContext({ name, host, country, handles }) {
   }
 
   try {
-    const em = await getEmails(host);
+    const em = await getEmails(host, name);
     if (em && em.emails && em.emails.length) {
       const sm = em.summary || {};
       out.push(`EMAILS captured: ${em.emails.length}${sm.perWeek ? `, ~${sm.perWeek}/week` : ''}; latest ${dayOf(sm.latest)}.`);
