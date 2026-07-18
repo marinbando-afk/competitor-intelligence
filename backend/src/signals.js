@@ -151,7 +151,7 @@ async function saleBannerSeenRecently(host, banner, todayStr) {
 // Detect everything for one host. Returns a structured object; empty arrays / null
 // mean "no signal". Never throws — a subsystem with no data just yields nothing.
 export async function dailySignals(host) {
-  const out = { staleOffer: [], sale: null, funnel: [], fbPage: [], products: [], angle: [], activity: { ads: [], posts: [], emails: [] } };
+  const out = { staleOffer: [], sale: null, funnel: [], fbPage: [], products: [], angle: [], activity: { ads: [], posts: [], emails: [], website: [] } };
   if (!host) return out;
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -179,6 +179,11 @@ export async function dailySignals(host) {
         }
       }
       out.products = diffs.filter((d) => /new product/i.test(d));
+      // Tier-2: any OTHER real storefront change (price moves, products removed, lowest-price
+      // shift) still counts as activity, so a changed site is never marked "all quiet". Sale
+      // start/end and new products are priority (above), so exclude them here; a rotating
+      // banner is NOT in diffs, so it correctly never counts.
+      out.activity.website = diffs.filter((d) => !/^Sale (started|ended)/i.test(d) && !/new product/i.test(d));
     }
   } catch (e) { /* no website signal */ }
 
@@ -266,7 +271,7 @@ export function signalLines(s) {
 // only when NO priority signal fired, so a brand is never both a "big move" and "routine".
 export function hasActivity(s) {
   const a = s && s.activity;
-  return !!(a && ((a.ads || []).length || (a.emails || []).length || (a.posts || []).length));
+  return !!(a && ((a.ads || []).length || (a.emails || []).length || (a.posts || []).length || (a.website || []).length));
 }
 export function activityLines(s) {
   if (!s || !s.activity) return [];
@@ -277,5 +282,6 @@ export function activityLines(s) {
   for (const p of (a.posts || [])) {
     lines.push((p.count > 1 ? p.count + ' new ' + p.platform + ' posts, latest: ' : 'New ' + p.platform + ' post — ') + '“' + p.about + '”' + link(p.url, 'view'));
   }
+  for (const w of (a.website || [])) lines.push('Website change — ' + w);
   return lines;
 }
