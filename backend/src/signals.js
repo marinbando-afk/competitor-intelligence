@@ -18,6 +18,16 @@ import { offerFlags, isSaleBanner } from './occasions.js';
 
 const DAY = 86400000;
 const ANGLE_WINDOW_DAYS = 14;   // "at least the last 2 weeks"
+
+// ── Tier-2 "routine activity" helpers ─────────────────────────────────────────
+// A one-line "what was it about" for a new ad / post / email, built from fields ALREADY
+// captured (the AI hook/angle from the warm, the email subject) — so Tier 2 costs no extra
+// AI call. Everything is diffed against the PREVIOUS capture, so a given ad/post/email is
+// "new" exactly once and never needs stored state.
+const oneLine = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+function clip(s, n) { s = oneLine(s); return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s; }
+function adAbout(a) { return clip((a && (a.hook || a.angle || a.text || a.title)) || 'new creative', 90); }
+function postAbout(p) { return clip((p && (p.hook || p.text || p.kind)) || 'new post', 90); }
 const OFFER_STATE = '_offerstate';   // internal channel — never served publicly (see snapshots.js)
 const OFFER_STATE_TTL_DAYS = 400;    // forget a fingerprint long after its ad can plausibly still run
 
@@ -141,7 +151,7 @@ async function saleBannerSeenRecently(host, banner, todayStr) {
 // Detect everything for one host. Returns a structured object; empty arrays / null
 // mean "no signal". Never throws — a subsystem with no data just yields nothing.
 export async function dailySignals(host) {
-  const out = { staleOffer: [], sale: null, funnel: [], fbPage: [], products: [], angle: [] };
+  const out = { staleOffer: [], sale: null, funnel: [], fbPage: [], products: [], angle: [], activity: { ads: [], posts: [], emails: [] } };
   if (!host) return out;
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -185,9 +195,38 @@ export async function dailySignals(host) {
         out.funnel = (ch.signals.landings || []).filter((l) => l && l.domain);   // [{domain, url}]
         out.fbPage = (ch.signals.pages || []).filter(Boolean);                    // [pageName]
         out.angle = await newAngles(host, ch.newAds || [], todayStr);
+        // Tier-2: ANY new ad today (even one reusing a known angle/funnel/page). Only shown
+        // when no priority move fired — so it never competes with the callouts above.
+        out.activity.ads = (ch.newAds || []).slice(0, 3).map((a) => ({ about: adAbout(a), link: a.link || '' }));
       }
     }
   } catch (e) { /* no ads signal */ }
+
+  // Tier-2: new ORGANIC posts vs the previous capture, per platform.
+  try {
+    for (const [pf, label] of [['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['facebook', 'Facebook']]) {
+      const snaps = await recentSnapshots(host, pf, 2);
+      const cur = (snaps[0] && snaps[0].data && snaps[0].data.posts) || [];
+      if (!cur.length || snaps.length < 2) continue;   // need a prior capture to call anything "new"
+      const prevUrls = new Set(((snaps[1].data && snaps[1].data.posts) || []).map((p) => p.url).filter(Boolean));
+      const fresh = cur.filter((p) => p.url && !prevUrls.has(p.url));
+      if (fresh.length) {
+        const newest = fresh.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0];
+        out.activity.posts.push({ platform: label, count: fresh.length, about: postAbout(newest), url: newest.url || '' });
+      }
+    }
+  } catch (e) { /* no post activity */ }
+
+  // Tier-2: new EMAILS vs the previous capture (diffed by row id — self-expiring, no AI).
+  try {
+    const eSnaps = await recentSnapshots(host, 'email', 2);
+    const cur = (eSnaps[0] && eSnaps[0].data && eSnaps[0].data.emails) || [];
+    if (cur.length && eSnaps.length >= 2) {
+      const prevIds = new Set(((eSnaps[1].data && eSnaps[1].data.emails) || []).map((e) => e.id).filter((x) => x != null));
+      const fresh = cur.filter((e) => e.id != null && !prevIds.has(e.id));
+      out.activity.emails = fresh.slice(0, 3).map((e) => ({ subject: clip(e.subject || '(no subject)', 70), offer: e.offer || '' }));
+    }
+  } catch (e) { /* no email activity */ }
 
   return out;
 }
@@ -220,5 +259,23 @@ export function signalLines(s) {
   for (const p of (s.fbPage || [])) lines.push('New FB page advertising: ' + p);
   for (const pr of (s.products || [])) lines.push(pr);
   for (const a of (s.angle || [])) lines.push('New angle (2wk+): ' + a.angle + link(a.link, 'view ad'));
+  return lines;
+}
+
+// Tier-2 lines: routine activity (new ad / email / organic post + what it was about). Shown
+// only when NO priority signal fired, so a brand is never both a "big move" and "routine".
+export function hasActivity(s) {
+  const a = s && s.activity;
+  return !!(a && ((a.ads || []).length || (a.emails || []).length || (a.posts || []).length));
+}
+export function activityLines(s) {
+  if (!s || !s.activity) return [];
+  const a = s.activity, lines = [];
+  const link = (u, label) => (u ? ' — <' + u + '|' + label + ' ↗>' : '');
+  for (const ad of (a.ads || [])) lines.push('New ad — “' + ad.about + '”' + link(ad.link, 'view'));
+  for (const em of (a.emails || [])) lines.push('New email — “' + em.subject + '”' + (em.offer ? ' [' + em.offer + ']' : ''));
+  for (const p of (a.posts || [])) {
+    lines.push((p.count > 1 ? p.count + ' new ' + p.platform + ' posts, latest: ' : 'New ' + p.platform + ' post — ') + '“' + p.about + '”' + link(p.url, 'view'));
+  }
   return lines;
 }

@@ -5,7 +5,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { randomBytes } from 'crypto';
 import { getInsights } from './insights.js';
-import { dailySignals, signalLines } from './signals.js';
+import { dailySignals, signalLines, activityLines } from './signals.js';
 import { pool } from './db.js';
 
 // The founder roll-up brief's "view" link must be a REAL read-only share link (opens
@@ -63,11 +63,21 @@ export async function buildDailyBrief(brands, viewUrl) {
   const link = viewUrl || await founderShareUrl();
   const blocks = [];
   for (const b of brands) {
-    let sig = [];
-    try { sig = signalLines(await dailySignals(b.host)); } catch (e) { /* treat as quiet */ }
-    // Each competitor is its own block; blocks are joined with a blank row so they're
-    // visually separated in Slack.
-    blocks.push(sig.length ? ('*' + b.name + '* 💡\n' + sig.map((l) => '   ' + l).join('\n')) : ('*' + b.name + '* — all quiet ✅'));
+    let s = null;
+    try { s = await dailySignals(b.host); } catch (e) { /* treat as quiet */ }
+    // Three tiers, so "quiet" never hides real activity:
+    //   💡 a PRIORITY move (sale/funnel/FB page/products/angle/fake-sale) — the big callout
+    //   🔹 ROUTINE activity — they shipped a new ad/email/post but nothing rose to priority
+    //   ✅ genuinely nothing new captured
+    const sig = signalLines(s);
+    if (sig.length) {
+      blocks.push('*' + b.name + '* 💡\n' + sig.map((l) => '   ' + l).join('\n'));
+    } else {
+      const act = activityLines(s);
+      blocks.push(act.length
+        ? '*' + b.name + '* 🔹 routine activity\n' + act.map((l) => '   ' + l).join('\n')
+        : '*' + b.name + '* — all quiet ✅');
+    }
   }
   return head + '\n\n' + blocks.join('\n\n') + '\n\n🔗 <' + link + '|View the full dashboard & signals →>';
 }
