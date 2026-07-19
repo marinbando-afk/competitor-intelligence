@@ -166,9 +166,14 @@ export async function dailySignals(host) {
 
   // 1 + 4) Website: sale change (count or promo banner) and new products.
   try {
-    const web = await recentSnapshots(host, 'website', 2);
-    const cur = web[0] && web[0].data, prev = web[1] && web[1].data;
-    if (cur && prev && cur.summary && prev.summary) {
+    // Compare today's capture against the most recent EARLIER capture that actually got the
+    // product feed — skipping days where the scrape came back empty/rate-limited (Seranova's
+    // storefront returned no summary on 18 Jul). Diffing against a broken capture is what makes
+    // a report falsely quiet OR falsely "changed"; fall back to the last good one instead.
+    const web = await recentSnapshots(host, 'website', 6);
+    const cur = web[0] && web[0].data;
+    const prev = (web.slice(1).find((s) => s.data && s.data.summary) || {}).data;
+    if (cur && cur.summary && prev && prev.summary) {
       const diffs = diffWebsite(prev.summary, cur.summary) || [];
       // The RELIABLE sale event: the count of discounted PRODUCTS changed (from products.json,
       // not the rotating banner). This is the primary trigger.
@@ -224,10 +229,14 @@ export async function dailySignals(host) {
   // Tier-2: new ORGANIC posts vs the previous capture, per platform.
   try {
     for (const [pf, label] of [['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['facebook', 'Facebook']]) {
-      const snaps = await recentSnapshots(host, pf, 2);
+      const snaps = await recentSnapshots(host, pf, 6);
       const cur = (snaps[0] && snaps[0].data && snaps[0].data.posts) || [];
-      if (!cur.length || snaps.length < 2) continue;   // need a prior capture to call anything "new"
-      const prevUrls = new Set(((snaps[1].data && snaps[1].data.posts) || []).map((p) => p.url).filter(Boolean));
+      if (!cur.length) continue;
+      // prev = the most recent EARLIER capture that actually returned posts — skip a failed/empty
+      // scrape, which would otherwise make every current post look "new".
+      const prevSnap = snaps.slice(1).find((s) => s.data && Array.isArray(s.data.posts) && s.data.posts.length);
+      if (!prevSnap) continue;   // no good prior capture → can't call anything new yet
+      const prevUrls = new Set(prevSnap.data.posts.map((p) => p.url).filter(Boolean));
       const fresh = cur.filter((p) => p.url && !prevUrls.has(p.url));
       if (fresh.length) {
         const newest = fresh.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0];
@@ -238,10 +247,12 @@ export async function dailySignals(host) {
 
   // Tier-2: new EMAILS vs the previous capture (diffed by row id — self-expiring, no AI).
   try {
-    const eSnaps = await recentSnapshots(host, 'email', 2);
+    const eSnaps = await recentSnapshots(host, 'email', 6);
     const cur = (eSnaps[0] && eSnaps[0].data && eSnaps[0].data.emails) || [];
-    if (cur.length && eSnaps.length >= 2) {
-      const prevIds = new Set(((eSnaps[1].data && eSnaps[1].data.emails) || []).map((e) => e.id).filter((x) => x != null));
+    // prev = most recent EARLIER capture that actually held emails (skip an empty/failed one).
+    const prevSnap = eSnaps.slice(1).find((s) => s.data && Array.isArray(s.data.emails) && s.data.emails.length);
+    if (cur.length && prevSnap) {
+      const prevIds = new Set(prevSnap.data.emails.map((e) => e.id).filter((x) => x != null));
       const fresh = cur.filter((e) => e.id != null && !prevIds.has(e.id));
       out.activity.emails = fresh.slice(0, 3).map((e) => ({ subject: clip(e.subject || '(no subject)', 70), offer: e.offer || '' }));
     }
