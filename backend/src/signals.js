@@ -28,6 +28,15 @@ const oneLine = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
 function clip(s, n) { s = oneLine(s); return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s; }
 function adAbout(a) { return clip((a && (a.hook || a.angle || a.text || a.title)) || 'new creative', 90); }
 function postAbout(p) { return clip((p && (p.hook || p.text || p.kind)) || 'new post', 90); }
+// True only when an ad's REAL launch date (Meta's "started running") is within the last N days.
+// No date, or an older one, → NOT new — the ground truth for "newly launched", immune to the
+// scrape-flakiness that makes an old ad look new when it drops out of a capture and returns.
+function startedWithinDays(started, todayStr, n) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(started || ''));
+  if (!m) return false;
+  const age = (Date.parse(todayStr + 'T00:00:00Z') - Date.UTC(+m[1], +m[2] - 1, +m[3])) / DAY;
+  return age >= 0 && age <= n;
+}
 const OFFER_STATE = '_offerstate';   // internal channel — never served publicly (see snapshots.js)
 const OFFER_STATE_TTL_DAYS = 400;    // forget a fingerprint long after its ad can plausibly still run
 
@@ -200,9 +209,14 @@ export async function dailySignals(host) {
         out.funnel = (ch.signals.landings || []).filter((l) => l && l.domain);   // [{domain, url}]
         out.fbPage = (ch.signals.pages || []).filter(Boolean);                    // [pageName]
         out.angle = await newAngles(host, ch.newAds || [], todayStr);
-        // Tier-2: ANY new ad today (even one reusing a known angle/funnel/page). Only shown
-        // when no priority move fired — so it never competes with the callouts above.
-        out.activity.ads = (ch.newAds || []).slice(0, 3).map((a) => ({ about: adAbout(a), link: a.link || '' }));
+        // Tier-2 "new ad": a genuinely NEWLY-LAUNCHED ad, judged by the ad's own START DATE —
+        // NOT merely "appeared in today's capture but not yesterday's". Meta's Ad Library
+        // returns an incomplete set on some pulls, so an OLD ad (Artem's, live since 26 May)
+        // that blips out of one capture and returns was falsely flagged "new" (19 Jul). The
+        // start date can't be fooled by that. `ch.newAds` still gates it to first-appearance so
+        // a real new ad is reported once; the date filter kills the reappearance false positives.
+        out.activity.ads = (ch.newAds || []).filter((a) => startedWithinDays(a.started, todayStr, 3))
+          .slice(0, 3).map((a) => ({ about: adAbout(a), link: a.link || '' }));
       }
     }
   } catch (e) { /* no ads signal */ }
