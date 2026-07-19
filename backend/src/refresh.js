@@ -2,9 +2,12 @@
 // background so the report is already waiting when the user opens the app
 // (no spinner, no cold-start timeouts on the slow scrapers like TikTok).
 //
-// Schedule is configurable in Railway:
-//   CRON_HOUR  hour of day to refresh (0–23, default 5 = 5am)
-//   CRON_TZ    IANA timezone for that hour (default UTC), e.g. "Australia/Sydney"
+// Schedule is configurable in Railway (all hours 0–23 in CRON_TZ):
+//   WARM_HOUR  when the NIGHTLY capture runs (default 23 = 11pm) — end of day, so each
+//              snapshot holds a full day of the competitor's activity.
+//   BRIEF_HOUR when the MORNING brief is sent (default 8 = 8am) — reads that night's snapshot,
+//              so a brief covers a complete calendar day, not a 7am-to-7am window.
+//   CRON_TZ    IANA timezone for those hours (default the founder's local zone below).
 
 import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
@@ -15,6 +18,10 @@ import { saveSnapshot, latestSnapshot } from './snapshots.js';
 import { pool } from './db.js';
 import { ensureWeeklies } from './weekly.js';
 import { postText, postDailyBrief, sendUserDailyBriefs, sendUserWeeklyLinks } from './slack.js';
+
+// The founder's local timezone — the daily "day" boundary is anchored here so the brief lines
+// up with their calendar day. Override with CRON_TZ in Railway (e.g. a client's own zone).
+const DEFAULT_TZ = 'Europe/Zagreb';
 
 // Brands kept permanently warm (mirrors the app's seeded demos).
 export const TRACKED = [
@@ -158,27 +165,35 @@ export async function refreshAll(force) {
   }
   lastWarm = Date.now();
   lastResult = { ok, fail };
-  console.log('✓ pre-warm done: ' + ok + ' ok, ' + fail + ' failed in ' + Math.round((Date.now() - t0) / 1000) + 's');
-  // Daily brief to Slack — scheduled run only, and only for the user's REAL competitors.
-  // The seeded DEMO brands (TRACKED) are showcase data, so they're never sent to Slack.
-  if (force) {
-    const clientBrands = brands.filter((b) => !TRACKED.some((t) => t.host === b.host));
-    if (clientBrands.length) postDailyBrief(clientBrands).then((r) => console.log('slack daily brief:', JSON.stringify(r))).catch(() => {});
-    sendUserDailyBriefs(pool).catch(() => {});   // each customer's own competitors → their own Slack
-  }
-  // Weekly reports: Monday (in CRON_TZ) regenerates the completed week for every brand;
-  // other days backfill a current-week draft for brands that don't have one yet.
+  console.log('✓ nightly capture done: ' + ok + ' ok, ' + fail + ' failed in ' + Math.round((Date.now() - t0) / 1000) + 's');
+  // NOTE: the daily Slack brief + weekly reports are NO LONGER sent from here. Capture runs at
+  // END OF DAY so each snapshot holds a COMPLETE day; the brief is sent separately the next
+  // MORNING (sendDailyDigest) reading that night's snapshot — so a brief covers a full calendar
+  // day instead of the old 7am-to-7am window that split every day in half. (founder, 19 Jul)
+  return { ok, fail };
+}
+
+// Send the daily Slack briefs + weekly reports from the LATEST captured snapshots — NO scraping.
+// Runs in the morning; the snapshots it reads were taken at end-of-day by refreshAll, so each
+// brief reflects a full day of competitor activity.
+export async function sendDailyDigest() {
+  let brands = [];
+  try { brands = await allBrands(); } catch (e) { console.warn('digest allBrands:', e.message); return; }
+  const clientBrands = brands.filter((b) => !TRACKED.some((t) => t.host === b.host));   // demos never go to Slack
+  if (clientBrands.length) postDailyBrief(clientBrands).then((r) => console.log('slack daily brief:', JSON.stringify(r))).catch(() => {});
+  sendUserDailyBriefs(pool).catch(() => {});   // each customer's own competitors → their own Slack
+  // Weekly reports: Monday regenerates the completed week for every brand; other days backfill
+  // a current-week draft for brands that don't have one yet.
   try {
-    const isMonday = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: process.env.CRON_TZ || 'UTC' }).format(new Date()) === 'Mon';
-    const made = await ensureWeeklies(brands, isMonday && force);
-    if (isMonday && force && made.length) {
+    const isMonday = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: process.env.CRON_TZ || DEFAULT_TZ }).format(new Date()) === 'Mon';
+    const made = await ensureWeeklies(brands, isMonday);
+    if (isMonday && made.length) {
       const label = made[0].week.label;
       postText('📊 *Weekly competitor reports are ready* (' + label + '):\n' +
         made.map((m) => '• ' + m.brand + ' — https://watchback.ai/report.html?host=' + m.host).join('\n')).catch(() => {});
       sendUserWeeklyLinks(pool, label).catch(() => {});   // each customer's own report links → their own Slack
     }
   } catch (e) { console.warn('weeklies:', e.message); }
-  return { ok, fail };
 }
 
 // ms until the next HH:00 in the given IANA timezone (dependency-free, DST-safe).
@@ -193,16 +208,26 @@ function msUntil(hour, tz) {
 }
 
 export function startScheduler() {
-  const hour = Math.min(23, Math.max(0, parseInt(process.env.CRON_HOUR || '5', 10)));
-  const tz = process.env.CRON_TZ || 'UTC';
+  const tz = process.env.CRON_TZ || DEFAULT_TZ;
+  const clampHour = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.min(23, Math.max(0, n)) : d; };
+  // Capture at END of day so each snapshot holds a full day; send the brief the next MORNING.
+  const warmHour = clampHour(process.env.WARM_HOUR, 23);
+  const briefHour = clampHour(process.env.BRIEF_HOUR || process.env.CRON_HOUR, 8);
+  const fmtH = (ms) => (Math.round(ms / 360000) / 10) + 'h';
 
-  function arm() {
-    const ms = msUntil(hour, tz);
-    console.log('next daily pre-warm in ' + (Math.round(ms / 360000) / 10) + 'h (' + hour + ':00 ' + tz + ')');
-    setTimeout(() => { refreshAll(true).catch(() => {}); arm(); }, ms);
+  function armWarm() {
+    const ms = msUntil(warmHour, tz);
+    console.log('next nightly capture in ' + fmtH(ms) + ' (' + warmHour + ':00 ' + tz + ')');
+    setTimeout(() => { refreshAll(true).catch(() => {}); armWarm(); }, ms);
   }
-  arm();
+  function armBrief() {
+    const ms = msUntil(briefHour, tz);
+    console.log('next morning brief in ' + fmtH(ms) + ' (' + briefHour + ':00 ' + tz + ')');
+    setTimeout(() => { sendDailyDigest().catch(() => {}); armBrief(); }, ms);
+  }
+  armWarm();
+  armBrief();
 
-  // Warm shortly after boot so a fresh deploy is never cold.
+  // Warm shortly after boot so a fresh deploy is never cold (capture only — never sends a brief).
   setTimeout(() => refreshAll(false).catch(() => {}), 15000);
 }
