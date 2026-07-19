@@ -756,6 +756,34 @@ app.delete('/api/admin/clients/:id/competitors/:cid', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Send a one-off announcement to selected clients' Slack ────────────────────
+// A note + each client's current brief, posted to their own Slack webhook. Admin-only.
+// preview:true renders the exact text per client WITHOUT sending, so the founder reviews
+// what goes out before firing. The webhook URLs never leave the server.
+app.post('/api/admin/announce', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const note = String((req.body && req.body.note) || '').trim().slice(0, 600);
+    const ids = Array.isArray(req.body && req.body.clientIds) ? [...new Set(req.body.clientIds.map(Number).filter(Boolean))] : null;
+    const preview = !!(req.body && req.body.preview);
+    if (!note && preview === false) return res.status(400).json({ error: 'Nothing to send — add a note.' });
+    const us = await pool.query(
+      `SELECT id, email, slack_webhook, share_token FROM users WHERE admin = FALSE` + (ids ? ` AND id = ANY($1)` : '') + ` ORDER BY created_at DESC`,
+      ids ? [ids] : []);
+    const withNote = (text) => { if (!note) return text; const nl = text.indexOf('\n'); return nl < 0 ? ('_' + note + '_\n\n' + text) : (text.slice(0, nl) + '\n_' + note + '_' + text.slice(nl)); };
+    const results = [];
+    for (const u of us.rows) {
+      if (!isSlackWebhook(u.slack_webhook)) { results.push({ id: u.id, email: u.email, skipped: 'no Slack connected' }); continue; }
+      const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [u.id]);
+      const viewUrl = u.share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.share_token)) : 'https://watchback.ai/app.html';
+      const text = withNote(await buildDailyBrief(cs.rows, viewUrl));
+      if (preview) results.push({ id: u.id, email: u.email, text });
+      else { const r = await postTo(u.slack_webhook, text); results.push({ id: u.id, email: u.email, sent: !!(r && r.sent), error: r && r.error }); }
+    }
+    res.json({ ok: true, preview, results });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Public read-only share: open a client's dashboard by share token ──────────
 // Returns ONLY the client's competitor list + brand name for rendering; no email,
 // no credentials. Read-only — the frontend hides every editing control, and all

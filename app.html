@@ -528,6 +528,15 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .modal{width:100%;max-width:420px;background:var(--panel2);border:1px solid var(--line2);border-radius:16px;padding:28px;box-shadow:0 40px 90px rgba(0,0,0,.6)}
 .modal h2{font-family:'Oswald',sans-serif;font-weight:600;font-size:22px;margin:0 0 6px}
 .modal p{color:var(--muted);font-size:13.5px;margin:0 0 22px;line-height:1.55}
+.ann-clients{display:flex;flex-direction:column;gap:6px;max-height:150px;overflow-y:auto;border:1px solid var(--line2);border-radius:9px;padding:9px 11px}
+.ann-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer}
+.ann-row .cl-none{margin-left:auto}
+.ann-preview{margin:4px 0 16px;max-height:300px;overflow-y:auto}
+.ann-pv-h{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--sage);margin:6px 0 9px}
+.ann-pv{border:1px solid var(--line2);border-radius:9px;padding:10px 12px;margin-bottom:9px}
+.ann-pv-em{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.ann-pv-txt{white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.5;color:var(--text);margin:0;font-family:inherit}
+.ann-pv-skip{font-size:12px;color:var(--gold);padding:6px 2px}
 .fld{margin-bottom:16px}
 .fld label{display:block;font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .fld input{width:100%;background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:12px 14px;color:var(--text);font-family:inherit;font-size:14px;outline:none;transition:.15s}
@@ -670,6 +679,17 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
     <div class="fld"><label for="pwNew">New password</label><input id="pwNew" type="password" autocomplete="new-password" placeholder="at least 8 characters"/></div>
     <div class="fld"><label for="pwNew2">Repeat new password</label><input id="pwNew2" type="password" autocomplete="new-password"/><div class="er" id="pwErr"></div></div>
     <div class="m-act"><button class="btn btn-g" onclick="closePw()">Cancel</button><button class="btn btn-p" id="pwGo" onclick="savePw()">Change password</button></div>
+  </div>
+</div>
+<div class="ov" id="annOv" onclick="if(event.target===this)closeAnn()">
+  <div class="modal" style="max-width:560px">
+    <h2>📢 Send an announcement</h2>
+    <p>Posts a note plus each selected client's current brief to their own Slack. Preview first — nothing sends until you hit <b>Send</b>.</p>
+    <div class="fld"><label for="annNote">Note</label><textarea id="annNote" rows="3" style="width:100%;resize:vertical" placeholder="Platform update: …"></textarea></div>
+    <div class="fld"><label>Send to</label><div id="annClients" class="ann-clients"></div></div>
+    <div id="annPreview" class="ann-preview" style="display:none"></div>
+    <div class="er" id="annErr"></div>
+    <div class="m-act"><button class="btn btn-g" onclick="closeAnn()">Cancel</button><button class="btn btn-g" id="annPrev" onclick="previewAnn()">Preview</button><button class="btn btn-p" id="annGo" onclick="sendAnn()">Send</button></div>
   </div>
 </div>
 <div class="ov" id="shareOv" onclick="if(event.target===this)closeShare()">
@@ -2370,13 +2390,62 @@ function loadAdminClients(){
     if(!d||d.error){b.innerHTML='<div class="fb-empty">'+esc((d&&d.error)||'Couldn’t load.')+'</div>';return;}
     if(typeof d.dflt==='number')CLIENT_DFLT=d.dflt;
     var cs=d.clients||[];
-    var html='<div class="cl-new"><div class="cl-new-h">Create a client login</div>'
+    ADMIN_CLIENTS=cs;
+    var html=(cs.length?'<button class="cl-mini add" style="margin-bottom:12px" onclick="openAnn()">📢 Send announcement</button>':'')
+      +'<div class="cl-new"><div class="cl-new-h">Create a client login</div>'
       +'<div class="cl-new-row"><input id="clEmail" class="cl-in" type="email" placeholder="client@email.com" autocomplete="off"><input id="clPass" class="cl-in cl-nm" type="text" placeholder="password (8+ chars)" autocomplete="off"><button class="cl-mini add" onclick="createClient(this)">Create</button></div>'
       +'<div id="clNewErr" class="cl-err"></div></div>'
       +'<div class="fb-list-h">'+cs.length+' client'+(cs.length===1?'':'s')+warmNote(d.warm)+'</div>'
       +(cs.length?cs.map(clientCard).join(''):'<div class="fb-empty">No client accounts yet — create one above.</div>');
     b.innerHTML=html;
   }).catch(function(){b.innerHTML='<div class="fb-empty">Couldn’t load.</div>';});
+}
+var ADMIN_CLIENTS=[];
+var ANN_DEFAULT='📢 *Platform update:* each brief now covers a full previous day and surfaces only what matters most — sometimes a single email, sometimes a big sale change.';
+function annIds(){return Array.prototype.slice.call(document.querySelectorAll('.ann-ck:checked')).map(function(x){return +x.value;});}
+function openAnn(){
+  document.getElementById('annClients').innerHTML=(ADMIN_CLIENTS||[]).map(function(c){
+    var n=(c.competitors||[]).length;
+    return '<label class="ann-row"><input type="checkbox" class="ann-ck" value="'+c.id+'" checked> <span>'+esc(c.email)+'</span> <span class="cl-none">'+n+' competitor'+(n===1?'':'s')+'</span></label>';
+  }).join('')||'<div class="cl-none">No clients.</div>';
+  document.getElementById('annNote').value=ANN_DEFAULT;
+  var pv=document.getElementById('annPreview');pv.style.display='none';pv.innerHTML='';
+  var e=document.getElementById('annErr');e.textContent='';e.style.color='';
+  document.getElementById('annOv').classList.add('open');
+}
+function closeAnn(){document.getElementById('annOv').classList.remove('open');}
+function annBody(preview){return JSON.stringify({note:(document.getElementById('annNote').value||'').trim(),clientIds:annIds(),preview:preview});}
+function previewAnn(){
+  var ids=annIds(),err=document.getElementById('annErr');err.textContent='';err.style.color='';
+  if(!ids.length){err.textContent='Pick at least one client.';return;}
+  var btn=document.getElementById('annPrev');btn.disabled=true;btn.textContent='…';
+  fetch(adminUrl('/api/admin/announce'),{method:'POST',headers:adminHeaders(true),body:annBody(true)})
+    .then(function(r){return r.json();}).then(function(d){
+      btn.disabled=false;btn.textContent='Preview';
+      if(!d||d.error){err.textContent=(d&&d.error)||'Couldn’t preview.';return;}
+      var pv=document.getElementById('annPreview');pv.style.display='block';
+      pv.innerHTML='<div class="ann-pv-h">Preview — what each client will receive</div>'+(d.results||[]).map(function(r){
+        return r.skipped
+          ? '<div class="ann-pv-skip">'+esc(r.email)+' — '+esc(r.skipped)+' (won’t receive)</div>'
+          : '<div class="ann-pv"><div class="ann-pv-em">'+esc(r.email)+'</div><pre class="ann-pv-txt">'+esc(r.text||'')+'</pre></div>';
+      }).join('')||'<div class="cl-none">No recipients.</div>';
+    }).catch(function(){btn.disabled=false;btn.textContent='Preview';err.textContent='Couldn’t preview.';});
+}
+function sendAnn(){
+  var ids=annIds(),err=document.getElementById('annErr');err.textContent='';err.style.color='';
+  if(!ids.length){err.textContent='Pick at least one client.';return;}
+  if(!confirm('Send this announcement to '+ids.length+' client'+(ids.length===1?'':'s')+'’ Slack now?'))return;
+  var btn=document.getElementById('annGo');btn.disabled=true;btn.textContent='Sending…';
+  fetch(adminUrl('/api/admin/announce'),{method:'POST',headers:adminHeaders(true),body:annBody(false)})
+    .then(function(r){return r.json();}).then(function(d){
+      btn.disabled=false;btn.textContent='Send';
+      if(!d||d.error){err.textContent=(d&&d.error)||'Couldn’t send.';return;}
+      var sent=(d.results||[]).filter(function(r){return r.sent;}).length;
+      var skip=(d.results||[]).filter(function(r){return r.skipped||r.error;});
+      err.style.color='var(--quiet)';
+      err.textContent='✓ Sent to '+sent+' client'+(sent===1?'':'s')+'.'+(skip.length?' Skipped: '+skip.map(function(r){return esc(r.email);}).join(', ')+'.':'');
+      setTimeout(function(){closeAnn();},2600);
+    }).catch(function(){btn.disabled=false;btn.textContent='Send';err.textContent='Couldn’t send — check your connection.';});
 }
 function clientCard(c){
   var link=c.share_token?clientShareLink(c.share_token):'';
