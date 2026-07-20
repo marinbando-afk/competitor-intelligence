@@ -166,6 +166,25 @@ export async function siteShot(url) {
       return 'data:image/jpeg;base64,' + buf.toString('base64');
     } catch (e) { /* try the laxer wait */ }
   }
+  // Both waits failed. One more targeted attempt before switching engines: shoot the CANONICAL
+  // url (following the site's own redirect — currentbody.com 301s to www.currentbody.com) with a
+  // longer settle delay, which is what Cloudflare-challenged storefronts need. The redirect hop
+  // plus challenge inside a short window is exactly where the first attempts die.
+  try {
+    const probe = await fetch(url, { method: 'HEAD', redirect: 'follow', headers: { 'User-Agent': UA } }).catch(() => null);
+    const finalUrl = probe && probe.url && probe.url !== url ? probe.url : null;
+    if (finalUrl) {
+      const b2 = 'https://api.screenshotone.com/take?access_key=' + encodeURIComponent(key) +
+        '&url=' + encodeURIComponent(finalUrl) +
+        '&format=jpg&image_quality=72&viewport_width=1280&viewport_height=800' +
+        '&block_cookie_banners=true&block_banners_by_heuristics=true&block_ads=true&block_chats=true&cache=false';
+      const r = await fetch(b2 + '&wait_until=load&delay=8&navigation_timeout=40', { headers: { 'User-Agent': UA } });
+      if (r.ok) {
+        const buf = Buffer.from(await r.arrayBuffer());
+        if (buf.length >= 1200) return 'data:image/jpeg;base64,' + buf.toString('base64');
+      } else { console.warn('siteShot ' + cleanHost(url) + ' [canonical retry]: screenshotone ' + r.status); }
+    }
+  } catch (e) { /* fall through to mShots */ }
   // ScreenshotOne couldn't render it — some storefronts 502 it outright (seranova.com, 18 Jul)
   // even though the site loads fine in a real browser. Fall back to a DIFFERENT engine
   // (WordPress mShots) so the storefront still gets a picture instead of a blank panel.
