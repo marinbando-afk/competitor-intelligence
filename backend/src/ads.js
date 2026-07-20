@@ -244,47 +244,17 @@ function normDup(t) { return String(t || '').toLowerCase().replace(/[^a-z0-9]+/g
 function dupToks(t) { return new Set(normDup(t).split(' ').filter(Boolean)); }
 function jaccard(a, b) { if (!a.size || !b.size) return a.size === b.size ? 1 : 0; let i = 0; a.forEach((w) => { if (b.has(w)) i++; }); return i / (a.size + b.size - i); }
 function dedupeAds(ads) {
-  const kept = [], meta = [];
+  // TRUE duplicates ONLY: the same ad listed twice by the scrape (same archive id, or the exact
+  // same creative file). FOUNDER RULE (20 Jul): in ecomm the copy/headline/URL are usually
+  // IDENTICAL across a launch batch — the CREATIVE (video/image) is what's being tested — so
+  // same-copy-different-creative are DIFFERENT ads and must NEVER be merged. No fuzzy matching.
+  const seen = new Set(), kept = [];
   for (const a of ads) {
-    const t = normDup(a.text || a.title), tk = dupToks(a.text || a.title), dom = adDomain(a.landing), f = fmtOf(a);
-    let dup = false;
-    for (let i = 0; i < kept.length; i++) {
-      if (a.image && a.image === kept[i].image) { dup = true; break; }                          // identical creative
-      const m = meta[i];
-      if (dom === m.dom && f === m.f && tk.size >= 4 && (t === m.t || jaccard(tk, m.tk) >= 0.9)) { dup = true; break; } // same copy + funnel + format
-    }
-    if (!dup) { kept.push(a); meta.push({ t, tk, dom, f }); }
-  }
-  return kept;
-}
-// Concept-level dedup for the "NEW ADS" report (founder: show new CONCEPTS, not 10 near-identical
-// variants). Unlike dedupeAds this IGNORES domain/format/page and collapses on the creative itself —
-// same image, same opening hook (first ~50 chars), or high copy-token overlap — so the same
-// advertorial run by 10 rotating personas onto 10 funnels reports as ONE concept.
-export function dedupeConcepts(ads) {
-  const kept = [], meta = [];
-  for (const a of ads) {
-    const t = normDup(a.text || a.title), tk = dupToks(a.text || a.title), pref = t.slice(0, 50), f = fmtOf(a);
-    let hit = -1;
-    for (let i = 0; i < kept.length; i++) {
-      if (a.image && a.image === kept[i].image) { hit = i; break; }
-      const m = meta[i];
-      // Same hook AND same format = a variation → collapse. Same hook in a DIFFERENT format
-      // (image vs video vs carousel) is a real format test worth keeping — so format is part of the key.
-      if (f === m.f && tk.size >= 4 && (t === m.t || (pref.length >= 20 && pref === m.pref) || jaccard(tk, m.tk) >= 0.72)) { hit = i; break; }
-    }
-    if (hit >= 0) {
-      // A variation of a kept concept — don't re-list it, but COUNT it: "one advertorial" vs
-      // "one advertorial blasted across 30 persona variations" are different competitive facts
-      // (founder asked why the report says 4 when the Ad Library shows a wall of ads — the
-      // wall IS one concept; the scale now travels with it instead of disappearing).
-      kept[hit].variants = (kept[hit].variants || 1) + 1;
-      if (a.page) meta[hit].pages.add(String(a.page));
-      kept[hit].variantPages = meta[hit].pages.size;
-    } else {
-      kept.push(a);
-      meta.push({ t, tk, pref, f, pages: new Set(a.page ? [String(a.page)] : []) });
-    }
+    const k = a.id ? ('id:' + a.id)
+      : (a.image ? ('img:' + String(a.image).split('?')[0])
+      : ('tx:' + normDup(a.text || a.title).slice(0, 80) + '|' + adDomain(a.landing) + '|' + fmtOf(a)));
+    if (seen.has(k)) continue;
+    seen.add(k); kept.push(a);
   }
   return kept;
 }
@@ -420,7 +390,7 @@ export async function adsChanges(host, todayAds) {
   // few days is new regardless of capture depth, so still surface those (not in prev, started recently).
   if (!prev.length || prev.length < today.length * 0.6) {
     const prevIds0 = new Set(prev.map(adKey));
-    const freshNew = dedupeConcepts(today.filter((a) => !prevIds0.has(adKey(a)) && startedRecently(a.started, tStr, 4)));
+    const freshNew = today.filter((a) => !prevIds0.has(adKey(a)) && startedRecently(a.started, tStr, 4));   // every one counts (no dedup — founder rule)
     return { baseline: true, newCount: freshNew.length, newAds: freshNew.slice(0, 30).map((a) => ({ ...a, tags: [] })), signals: { landings: [], pages: [], formats: [] } };
   }
   const prevIds = new Set(prev.map(adKey));
@@ -445,12 +415,10 @@ export async function adsChanges(host, todayAds) {
     pages: uniq(fresh.filter((a) => a.tags.some((t) => t.k === 'page')).map((a) => a.page)),
     formats: uniq(fresh.flatMap((a) => a.tags.filter((t) => t.k === 'format').map((t) => t.v))),
   };
-  // Signals (new landings/pages/formats) stay computed from the FULL fresh set above. The ads we
-  // REPORT (a) collapse to distinct concepts and (b) are RANKED by the significance the founder set:
-  // new FB PAGE (handle) > new FUNNEL (landing URL) > new FORMAT/hook/angle. Rank BEFORE dedup so the
-  // representative kept for each concept is its highest-signal instance.
+  // EVERY fresh ad is reported — no dedup/collapse (FOUNDER RULE 20 Jul: each creative is a
+  // distinct ad; the count is the real number of new launches). Ranking only orders the list:
+  // new FB PAGE (handle) > new FUNNEL (landing URL) > new FORMAT, then newest first.
   const rank = (a) => { const has = (k) => (a.tags || []).some((t) => t.k === k); return has('page') ? 3 : has('landing') ? 2 : has('format') ? 1 : 0; };
   const ranked = fresh.slice().sort((x, y) => rank(y) - rank(x) || String(y.started || '').localeCompare(String(x.started || '')));
-  const concepts = dedupeConcepts(ranked);
-  return { baseline: false, newCount: concepts.length, newAds: concepts.slice(0, 30), signals };
+  return { baseline: false, newCount: ranked.length, newAds: ranked.slice(0, 30), signals };
 }

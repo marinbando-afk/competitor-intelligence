@@ -11,7 +11,6 @@ import { pool } from './db.js';
 import { diffWebsite } from './website.js';
 import { getMyBrand } from './brand.js';
 import { rootDomain, aliasDomains } from './email.js';
-import { dedupeConcepts } from './ads.js';
 
 const MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';
 let _client;
@@ -66,24 +65,21 @@ async function weekDigest(host, name, start, end) {
     // Draw on the BEST ad data, not just this week's captures: an ad that LAUNCHED in-week and is
     // still live also appears in LATER captures — which now use the fixed recency-sorted scrape —
     // so a week that was under-captured at the time (Smooche showed 0) gets backfilled once a fresh
-    // scrape lands. Union in-window captures + the latest capture, dedup by id, then collapse to
-    // distinct CONCEPTS (same as the daily new-ads report — variations aren't separate launches).
+    // scrape lands. Union in-window captures + the latest capture, deduped by ad id ONLY (the same
+    // ad seen in two captures is one ad; two ads are never merged for looking alike).
     const caps = (by.ads || []).map((x) => x.data);
     try { const la = await pool.query(`SELECT data FROM snapshots WHERE host=$1 AND channel='ads' ORDER BY day DESC LIMIT 1`, [host]); if (la.rows[0]) caps.push(la.rows[0].data); } catch (e) { /* in-window only */ }
     const seenA = new Map();
     for (const cap of caps) for (const a of ((cap && cap.ads) || [])) { const k = a.id || a.link || a.image || (String(a.page || '') + a.started); if (k && !seenA.has(k)) seenA.set(k, a); }
-    const launched = [...seenA.values()].filter((a) => a.started && a.started >= start && a.started <= end);
-    const fresh = dedupeConcepts(launched).sort((a, b) => String(a.started).localeCompare(String(b.started)));
+    // EVERY launched ad counts — no dedup/collapse (FOUNDER RULE 20 Jul: in ecomm the copy/
+    // headline/URL are usually identical across a batch; the CREATIVE is the test, so each
+    // video/image is a distinct ad and the TOTAL is the real number of new launches).
+    const fresh = [...seenA.values()].filter((a) => a.started && a.started >= start && a.started <= end).sort((a, b) => String(a.started).localeCompare(String(b.started)));
     stats.newAds = fresh.length;
     if (fresh.length) {
-      // "4 concepts from 31 launches" — the collapse is deliberate (variations ≠ new concepts,
-      // founder rule), but the SCALE of a persona-blast wave is real intel and must not vanish.
-      const scaled = launched.length > fresh.length ? ' from ' + launched.length + ' launches — variations are collapsed, scale shown per concept' : '';
-      parts.push('Ads LAUNCHED this week (' + fresh.length + ' distinct concept' + (fresh.length === 1 ? '' : 's') + scaled + '):');
-      fresh.slice(0, 10).forEach((a) => {
-        const scale = (a.variants && a.variants > 1) ? ` — SCALED HARD: ${a.variants} near-identical variants${a.variantPages > 1 ? ` across ${a.variantPages} persona/pages` : ''} (a push behind ONE creative, not ${a.variants} ideas)` : '';
-        parts.push(`  • [${a.started}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'}${a.page ? ' page:"' + a.page + '"' : ''}: ${oneLine(a.text).slice(0, 140)}${scale}`);
-      });
+      parts.push('Ads LAUNCHED this week (' + fresh.length + ' new ad' + (fresh.length === 1 ? '' : 's') + '):');
+      fresh.slice(0, 12).forEach((a) => parts.push(`  • [${a.started}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'}${a.page ? ' page:"' + a.page + '"' : ''}: ${oneLine(a.text).slice(0, 120)}`));
+      if (fresh.length > 12) parts.push(`  … and ${fresh.length - 12} more new ads (many share copy but carry DIFFERENT creatives — that is normal ecomm creative testing, count them all).`);
     } else if (caps.length) parts.push('No brand-new ads launched inside this week (running set is continuing creatives).');
   }
 
