@@ -36,8 +36,12 @@ export async function saveSnapshot(host, channel, data) {
 export async function latestSnapshot(host, channel) {
   if (!ok() || !host) return null;
   try {
+    // __day as an ISO STRING, stringified in SQL — pg returns DATE columns as JS Date objects,
+    // and String(DateObj).slice(0,10) is "Mon Jul 20", which silently fails every ISO-string
+    // comparison (audit bug: the same-day screenshot-preservation guard NEVER fired, so a
+    // rate-limited re-capture could throw away the day's good frame).
     const r = await pool.query(
-      `SELECT data, day FROM snapshots WHERE host = $1 AND channel = $2 ORDER BY day DESC LIMIT 1`,
+      `SELECT data, to_char(day,'YYYY-MM-DD') AS day FROM snapshots WHERE host = $1 AND channel = $2 ORDER BY day DESC LIMIT 1`,
       [String(host).toLowerCase(), channel],
     );
     if (!r.rows[0]) return null;

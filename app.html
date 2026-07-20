@@ -1578,6 +1578,11 @@ function loadWeb(box){
         vis=cmpHTML(d.before,d.after)+'<div class="cmp-hint">drag the divider — left is '+esc(fmtShortDay(d.before.day))+', right is '+esc(fmtShortDay(d.after.day))+'</div>';
       }else if(d.after&&d.after.shot){
         vis='<div class="wshot"><img class="zoomable" src="'+d.after.shot+'" alt="" data-cap="Current storefront" data-href="'+esc(url)+'"><a class="wshot-go" href="'+esc(url)+'" target="_blank" rel="noopener">Open site ↗</a></div>';
+      }else if(d.before&&d.before.shot){
+        // Today's screenshot failed (service rate-limited; the error image was discarded rather
+        // than shown). Show the last GOOD capture, honestly dated — never a broken/error frame.
+        vis='<div class="wshot"><img class="zoomable" src="'+d.before.shot+'" alt="" data-cap="Storefront as of '+esc(fmtShortDay(d.before.day))+'" data-href="'+esc(url)+'"><a class="wshot-go" href="'+esc(url)+'" target="_blank" rel="noopener">Open site ↗</a></div>'
+          +'<div class="cmp-hint">today’s screenshot failed (retrying automatically) — showing the last good capture, '+esc(fmtShortDay(d.before.day))+'</div>';
       }else if(hist){
         box.innerHTML='<div class="wbase">No website snapshot was captured on <b>'+esc(fmtShortDay(d.day))+'</b> — daily website tracking started after this date.</div>';return;
       }else{

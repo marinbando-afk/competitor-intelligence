@@ -51,7 +51,7 @@ async function fetchHomeText(url) {
 // "local_rate_limited" for days). This detects such a read so we reject it AND discard the
 // error screenshot itself.
 export function bannerLooksLikeError(s) {
-  return /rate.?limit|local[_\s-]?rate|_limited\b|too many requests|\b429\b|screenshot(one)?|mshots|try again|temporarily unavailable|\berror\b|forbidden|blocked/i.test(String(s || ''));
+  return /\berrorpage\b|rate.?limit|local[_\s-]?rate|_limited\b|too many requests|\b429\b|screenshot(one)?|mshots|try again|temporarily unavailable|\berror\b|forbidden|blocked/i.test(String(s || ''));
 }
 function cleanBanner(s) {
   const t = oneLine(s || '').replace(/^["'\s]+|["'\s.]+$/g, '');
@@ -85,7 +85,8 @@ async function bannerRawFromShot(shot, homeText) {
   if (process.env.ANTHROPIC_API_KEY && m) {
     try {
       const system =
-        'You are shown a screenshot of a storefront homepage. If an ACTIVE promotion/sale/offer is VISIBLY displayed on it (an announcement bar, banner or hero headline — e.g. a %-off sale, free-gift, or discount code), state it in <=14 words, plain text, keeping any NAMED OCCASION exactly ("4th of July Sale", "Black Friday", "Summer Sale"). ' +
+        'You are shown a screenshot that SHOULD be a storefront homepage. FIRST check it is actually a webpage: if it is instead an error/placeholder image — a rate-limit or error message (e.g. "too many requests", "local_rate_limited"), a service logo on an empty frame, a browser/CDN error, or a blank/near-blank page with no real page content — reply exactly ERRORPAGE and nothing else. ' +
+        'Otherwise: if an ACTIVE promotion/sale/offer is VISIBLY displayed (an announcement bar, banner or hero headline — e.g. a %-off sale, free-gift, or discount code), state it in <=14 words, plain text, keeping any NAMED OCCASION exactly ("4th of July Sale", "Black Friday", "Summer Sale"). ' +
         'If NO promotion is visibly shown, return an empty string. Report ONLY what is actually VISIBLE in the image — never guess, and never report a banner that is not shown.';
       const resp = await bannerClient().messages.create({ model: BANNER_MODEL, max_tokens: 60, system, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } }, { type: 'text', text: 'What promotion is visibly displayed at the top of this storefront?' }] }] });
       return (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
@@ -312,7 +313,12 @@ export async function websiteCompare(host, url, day, force) {
   let recent = await recentSnapshots(host, 'website', 5);
   const top = recent[0];
   const ageH = top && top.data && top.data.capturedAt ? (Date.now() - Date.parse(top.data.capturedAt)) / 3600000 : Infinity;
-  if (force || ageH > 20) {
+  // SELF-HEAL: today's capture stored WITHOUT a screenshot (the services were rate-limited and
+  // the error image was rightly discarded) → retry on view, throttled to once per ~45 min per
+  // host, so the panel heals itself the moment the screenshot service recovers instead of
+  // showing "unavailable" until tomorrow.
+  const shotMissing = !!(top && top.data && !top.data.shot) && ageH * 60 > 45;
+  if (force || ageH > 20 || shotMissing) {
     // SINGLE-FLIGHT per host: several viewers landing on a stale page at once (a shared link
     // doing the rounds) used to each trigger their own paid screenshot+banner capture (audit).
     // Everyone now awaits the one in-flight capture.
