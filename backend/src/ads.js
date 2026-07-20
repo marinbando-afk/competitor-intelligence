@@ -327,6 +327,12 @@ async function normalize(items, brand, country, host, debug) {
 // capture and surface ONLY the new ones, tagged by why they're notable
 // (new landing page / domain, new Facebook page, new creative format). ──
 function adKey(a) { return a.id || a.link || a.image || ((a.page || '') + '|' + String(a.text || '').slice(0, 40)); }
+function startedRecently(started, tStr, days) {
+  const s = String(started || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = (Date.parse(tStr) - Date.parse(s)) / 86400000;
+  return d >= 0 && d <= days;
+}
 function adDomain(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
 // A competitor's own host (e.g. "campbells.com" or "https://campbells.com/x") → bare domain.
 function hostToDomain(h) { h = String(h || '').trim(); if (!h) return ''; return adDomain(/^https?:\/\//i.test(h) ? h : ('https://' + h)); }
@@ -351,9 +357,14 @@ export async function adsChanges(host, todayAds) {
   const tStr = new Date().toISOString().slice(0, 10);
   const prevSnap = recent.find((s) => s.day !== tStr && s.data && Array.isArray(s.data.ads) && s.data.ads.length);
   const prev = (prevSnap && prevSnap.data.ads) || [];
-  // No comparable prior capture (first run, or the previous scan was much shallower) → baseline only.
+  // No comparable prior capture (first run, or the previous scan was much shallower — e.g. right
+  // after we raised the scrape cap) → treat as baseline: don't flag the whole diff, which would be
+  // a false BURST of previously-uncaptured OLD ads. BUT an ad that genuinely LAUNCHED in the last
+  // few days is new regardless of capture depth, so still surface those (not in prev, started recently).
   if (!prev.length || prev.length < today.length * 0.6) {
-    return { baseline: true, newCount: 0, newAds: [], signals: { landings: [], pages: [], formats: [] } };
+    const prevIds0 = new Set(prev.map(adKey));
+    const freshNew = today.filter((a) => !prevIds0.has(adKey(a)) && startedRecently(a.started, tStr, 4));
+    return { baseline: true, newCount: freshNew.length, newAds: freshNew.slice(0, 30).map((a) => ({ ...a, tags: [] })), signals: { landings: [], pages: [], formats: [] } };
   }
   const prevIds = new Set(prev.map(adKey));
   const prevLand = new Set(prev.map((a) => adDomain(a.landing)).filter(Boolean));
