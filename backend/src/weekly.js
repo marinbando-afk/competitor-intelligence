@@ -76,8 +76,14 @@ async function weekDigest(host, name, start, end) {
     const fresh = dedupeConcepts(launched).sort((a, b) => String(a.started).localeCompare(String(b.started)));
     stats.newAds = fresh.length;
     if (fresh.length) {
-      parts.push('Ads LAUNCHED this week (' + fresh.length + ' distinct concept' + (fresh.length === 1 ? '' : 's') + '):');
-      fresh.slice(0, 10).forEach((a) => parts.push(`  • [${a.started}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'}${a.page ? ' page:"' + a.page + '"' : ''}: ${oneLine(a.text).slice(0, 140)}`));
+      // "4 concepts from 31 launches" — the collapse is deliberate (variations ≠ new concepts,
+      // founder rule), but the SCALE of a persona-blast wave is real intel and must not vanish.
+      const scaled = launched.length > fresh.length ? ' from ' + launched.length + ' launches — variations are collapsed, scale shown per concept' : '';
+      parts.push('Ads LAUNCHED this week (' + fresh.length + ' distinct concept' + (fresh.length === 1 ? '' : 's') + scaled + '):');
+      fresh.slice(0, 10).forEach((a) => {
+        const scale = (a.variants && a.variants > 1) ? ` — SCALED HARD: ${a.variants} near-identical variants${a.variantPages > 1 ? ` across ${a.variantPages} persona/pages` : ''} (a push behind ONE creative, not ${a.variants} ideas)` : '';
+        parts.push(`  • [${a.started}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'}${a.page ? ' page:"' + a.page + '"' : ''}: ${oneLine(a.text).slice(0, 140)}${scale}`);
+      });
     } else if (caps.length) parts.push('No brand-new ads launched inside this week (running set is continuing creatives).');
   }
 

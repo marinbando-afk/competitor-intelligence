@@ -1193,7 +1193,10 @@ function adThumb(a,i){
   // A Meta-confirmed-inactive ad that still has a valid image shows the image + an "Inactive"
   // badge (the 'stale'/expired case has no image, so it falls to the media-ph label instead).
   var tl=st==='off'?'<span class="nw off">Inactive</span>':(isRecent(a.started)?'<span class="nw">New</span>':(a.hasVideo?'<span class="nw vid">▶ Video</span>':''));
-  return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,cap:String(a.text||a.title||''),click:'openAd('+i+')',ad:true,state:st});
+  // Variations are collapsed into one concept (founder rule) — the chip carries the SCALE, so
+  // "the Ad Library shows a wall of these" and "we show one card" stop looking contradictory.
+  var vs=(a.variants&&a.variants>1)?'<span class="cstat" title="Near-identical variations of this one creative'+(a.variantPages>1?' across '+a.variantPages+' pages':'')+' — collapsed into one concept">×'+a.variants+' variants</span>':'';
+  return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,stats:vs,cap:String(a.text||a.title||''),click:'openAd('+i+')',ad:true,state:st});
 }
 var ADS_SHOWN=[];
 function adsHTML(d){
@@ -1859,7 +1862,7 @@ function openAd(i){
   // Don't claim "Active" for an ad Meta flags inactive (or one we can only show from a stale copy).
   var subLead=st==='off'?'No longer active':(st==='stale'?'Likely no longer active':(a.started?'Running since '+fmtDate(a.started):'Active ad'));
   var subStart=(st&&a.started)?' · started '+fmtDate(a.started):'';
-  document.getElementById('adSub').textContent=subLead+subStart+(plats?' · '+plats:'');
+  document.getElementById('adSub').textContent=subLead+subStart+(plats?' · '+plats:'')+((a.variants&&a.variants>1)?' · running as '+a.variants+' near-identical variants'+(a.variantPages>1?' across '+a.variantPages+' pages':''):'');
   var media='';
   var mExpired=a.image&&imgExpired(a.image);
   if(a.image&&!mExpired){

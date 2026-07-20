@@ -265,15 +265,26 @@ export function dedupeConcepts(ads) {
   const kept = [], meta = [];
   for (const a of ads) {
     const t = normDup(a.text || a.title), tk = dupToks(a.text || a.title), pref = t.slice(0, 50), f = fmtOf(a);
-    let dup = false;
+    let hit = -1;
     for (let i = 0; i < kept.length; i++) {
-      if (a.image && a.image === kept[i].image) { dup = true; break; }
+      if (a.image && a.image === kept[i].image) { hit = i; break; }
       const m = meta[i];
       // Same hook AND same format = a variation → collapse. Same hook in a DIFFERENT format
       // (image vs video vs carousel) is a real format test worth keeping — so format is part of the key.
-      if (f === m.f && tk.size >= 4 && (t === m.t || (pref.length >= 20 && pref === m.pref) || jaccard(tk, m.tk) >= 0.72)) { dup = true; break; }
+      if (f === m.f && tk.size >= 4 && (t === m.t || (pref.length >= 20 && pref === m.pref) || jaccard(tk, m.tk) >= 0.72)) { hit = i; break; }
     }
-    if (!dup) { kept.push(a); meta.push({ t, tk, pref, f }); }
+    if (hit >= 0) {
+      // A variation of a kept concept — don't re-list it, but COUNT it: "one advertorial" vs
+      // "one advertorial blasted across 30 persona variations" are different competitive facts
+      // (founder asked why the report says 4 when the Ad Library shows a wall of ads — the
+      // wall IS one concept; the scale now travels with it instead of disappearing).
+      kept[hit].variants = (kept[hit].variants || 1) + 1;
+      if (a.page) meta[hit].pages.add(String(a.page));
+      kept[hit].variantPages = meta[hit].pages.size;
+    } else {
+      kept.push(a);
+      meta.push({ t, tk, pref, f, pages: new Set(a.page ? [String(a.page)] : []) });
+    }
   }
   return kept;
 }
