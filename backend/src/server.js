@@ -17,7 +17,7 @@ import { randomBytes } from 'crypto';
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
 import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, TRACKED } from './refresh.js';
-import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, sendUserWeeklyLinks } from './slack.js';
+import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, sendUserWeeklyLinks, sendUserDailyBriefs } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare, mshotsShot } from './website.js';
@@ -636,6 +636,22 @@ app.post('/api/admin/refresh', async (req, res) => {
       }
     } catch (e) { console.warn('admin refresh:', e.message); }
     finally { _adminRefreshing = false; }
+  })();
+});
+
+// Send each client their CURRENT daily brief to their own Slack now — the same brief the 8am
+// scheduler posts, for pushing an updated brief on demand. Admin-only, background, webhooks stay
+// server-side. Reflects whatever logic is deployed now (so today's fixes land immediately).
+let _adminBriefing = false;
+app.post('/api/admin/send-daily-briefs', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  if (_adminBriefing) return res.json({ ok: true, already: true });
+  _adminBriefing = true;
+  res.json({ ok: true, started: true });
+  (async () => {
+    try { await sendUserDailyBriefs(pool); console.log('✓ admin: daily briefs sent to clients'); }
+    catch (e) { console.warn('admin send-daily-briefs:', e.message); }
+    finally { _adminBriefing = false; }
   })();
 });
 

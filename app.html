@@ -781,6 +781,7 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
     <div class="m-act">
       <span id="refreshRepSt" class="refresh-st"></span>
       <label class="refresh-slk" title="After rebuilding, post the refreshed weekly report links to each client's own Slack channel"><input type="checkbox" id="refreshRepSlack"> also post to clients’ Slack</label>
+      <button class="btn btn-g" id="sendBriefBtn" onclick="sendDailyBriefs()" title="Post each client their CURRENT daily brief to their own Slack now — same as the 8am send, but on demand">⚡ Send daily briefs</button>
       <button class="btn btn-g" id="refreshRepBtn" onclick="refreshReports()" title="Rebuild every competitor's daily insights + weekly reports from the data we already captured, using the current logic. No new scraping.">↻ Refresh reports</button>
       <button class="btn btn-g" onclick="closeAdmin()">Close</button>
     </div>
@@ -2443,6 +2444,24 @@ function closeAdmin(){document.getElementById('adminOv').classList.remove('open'
 // with the CURRENT logic (e.g. after a reporting change) — regenerates this week AND the just-
 // completed week so the report users see refreshes too. Server does it in the background; no new
 // scraping. Uses the admin key already stored in this browser, so no re-auth.
+// Send each client their current daily brief to their own Slack now (same as the 8am scheduler).
+function sendDailyBriefs(){
+  if(!ADMIN)return;
+  var btn=document.getElementById('sendBriefBtn'),st=document.getElementById('refreshRepSt');
+  if(btn&&btn.disabled)return;
+  if(!confirm('Post each client their CURRENT daily brief to their Slack now?\n\nThis is the same brief the 8am scheduler sends — use it to push today’s updated brief immediately.'))return;
+  if(btn){btn.disabled=true;btn.textContent='⚡ Sending…';}
+  if(st){st.style.color='';st.textContent='Sending daily briefs…';}
+  fetch(API+'/api/admin/send-daily-briefs',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({key:adminKey()})})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d&&d.already){if(st)st.textContent='Already sending — give it a minute.';}
+      else if(d&&(d.started||d.ok)){if(st)st.textContent='✓ Daily briefs going out to each client’s Slack now.';}
+      else{if(st){st.style.color='#d66';st.textContent='Couldn’t start: '+((d&&d.error)||'unknown error')+'.';}if(btn)btn.disabled=false;}
+    })
+    .catch(function(){if(st){st.style.color='#d66';st.textContent='Network error — try again.';}if(btn)btn.disabled=false;})
+    .then(function(){setTimeout(function(){if(btn){btn.disabled=false;btn.textContent='⚡ Send daily briefs';}},60000);});
+}
 function refreshReports(){
   if(!ADMIN)return;
   var btn=document.getElementById('refreshRepBtn'),st=document.getElementById('refreshRepSt');
