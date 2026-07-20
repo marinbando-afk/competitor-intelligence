@@ -33,9 +33,16 @@ function fmtDay(iso) { const x = new Date(iso + 'T00:00:00Z'); return DOW[x.getU
 export async function getWeekly(host, week) {
   if (!process.env.DATABASE_URL) return null;
   host = cleanHost(host);
-  const q = week
-    ? await pool.query(`SELECT day::text AS day, data FROM snapshots WHERE host=$1 AND channel='weekly' AND day=$2 LIMIT 1`, [host, week])
-    : await pool.query(`SELECT day::text AS day, data FROM snapshots WHERE host=$1 AND channel='weekly' ORDER BY day DESC LIMIT 1`, [host]);
+  if (week) {
+    const q = await pool.query(`SELECT day::text AS day, data FROM snapshots WHERE host=$1 AND channel='weekly' AND day=$2 LIMIT 1`, [host, week]);
+    return q.rows[0] ? q.rows[0].data : null;
+  }
+  // Default = the most recent COMPLETED week, never the in-progress current one. This week's
+  // Monday is mondayOf(today); the last completed week starts 7 days before that. Plain "latest
+  // by day" would surface a current-week draft dated in the FUTURE — Mon 20–Sun 26 shown on the
+  // 20th — when the founder wants last week (13–19) on the 20th. So cap at the last completed week.
+  const lastComplete = addDays(mondayOf(new Date().toISOString().slice(0, 10)), -7);
+  const q = await pool.query(`SELECT day::text AS day, data FROM snapshots WHERE host=$1 AND channel='weekly' AND day <= $2 ORDER BY day DESC LIMIT 1`, [host, lastComplete]);
   return q.rows[0] ? q.rows[0].data : null;
 }
 
@@ -161,16 +168,18 @@ export async function ensureWeeklies(brands, isMonday) {
   const curMon = mondayOf(today);
   for (const b of (brands || [])) {
     try {
+      // Always the LAST COMPLETED week (the one that ended yesterday-or-earlier), never the
+      // in-progress current week — the report is a digest of a finished week.
+      const prevMon = addDays(curMon, -7);
       if (isMonday) {
-        const prevMon = addDays(curMon, -7);
         const r = await generateWeekly(b.host, b.name, prevMon);
         if (r) out.push(r);
       } else {
-        const cur = await getWeekly(b.host, curMon);
-        // Missing, or stored in the old paragraph-summary format → (re)generate in the
-        // current short-bullet format. One-time self-migration; no-op once converted.
-        if (!cur || !Array.isArray(cur.report && cur.report.summary)) {
-          const r = await generateWeekly(b.host, b.name, curMon);
+        const data = await getWeekly(b.host, prevMon);
+        // Missing, or stored in the old paragraph-summary format → (re)generate in the current
+        // short-bullet format. One-time self-migration; no-op once the completed week exists.
+        if (!data || !Array.isArray(data.report && data.report.summary)) {
+          const r = await generateWeekly(b.host, b.name, prevMon);
           if (r) out.push(r);
         }
       }

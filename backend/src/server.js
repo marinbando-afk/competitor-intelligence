@@ -617,10 +617,10 @@ app.post('/api/admin/refresh', async (req, res) => {
       if (onlyHost) brands = brands.filter((b) => b.host === onlyHost);
       const curMon = mondayOf(new Date().toISOString().slice(0, 10));
       const prevMon = mondayOf(new Date(Date.parse(curMon) - 7 * 864e5).toISOString().slice(0, 10));
-      // Which week(s) to (re)generate: the explicit week if given, else BOTH the current draft and
-      // the just-completed week — so the report users actually see (last week's, served as the
-      // latest snapshot on a Monday) refreshes too, not only the near-empty current-week draft.
-      const weeks = wk ? [wk] : [...new Set([curMon, prevMon])];
+      // Which week to (re)generate: the explicit week if given, else the LAST COMPLETED week —
+      // the one the report actually serves. Never the current in-progress week (that would date a
+      // weekly in the future, e.g. Mon 20–Sun 26 generated on the 20th).
+      const weeks = wk ? [wk] : [prevMon];
       for (const b of brands) {
         try { await generateInsights(b.name, b.host); } catch (e) { /* best-effort */ }
         for (const w of weeks) { try { await generateWeekly(b.host, b.name, w); } catch (e) { /* best-effort */ } }
