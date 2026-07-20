@@ -18,7 +18,7 @@ let _ac;
 function aiClient() { if (!_ac) _ac = new Anthropic(); return _ac; }
 const _verdict = new Map();   // 'brand|advertiser|domain' -> { at, val } — cached AI brand-identity verdicts
 
-export async function fetchAds(brand, country, force, cacheOnly, host, pageId, debug) {
+export async function fetchAds(brand, country, force, cacheOnly, host, pageId, debug, nOverride) {
   brand = String(brand || '').trim();
   country = String(country || 'ALL').trim().toUpperCase();
   pageId = String(pageId || '').replace(/\D/g, '');   // numeric FB page id only (page-scoped scan)
@@ -38,7 +38,7 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
     : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + '&media_type=all');
 
   // Covers the common input shapes across Meta Ad Library actors — extra fields are ignored.
-  const ADS_N = Number(process.env.ADS_COUNT) || 100;   // sweet spot: catches new ads (usually recent) at ~$2.25/mo/brand; ADS_COUNT env overrides
+  const ADS_N = Number(nOverride) || Number(process.env.ADS_COUNT) || 100;   // sweet spot: catches new ads (usually recent) at ~$2.25/mo/brand; ADS_COUNT env overrides
   const input = {
     urls: [{ url: searchUrl }],
     startUrls: [{ url: searchUrl }],
