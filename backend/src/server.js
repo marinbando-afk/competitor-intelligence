@@ -609,8 +609,9 @@ app.post('/api/admin/refresh', async (req, res) => {
   const onlyHost = String((req.body && req.body.host) || req.query.host || '').toLowerCase().trim();   // limit to one brand
   const wk = String((req.body && req.body.week) || req.query.week || '').trim();                       // explicit weekStart (a Monday, YYYY-MM-DD)
   const toSlack = (req.body && req.body.slack === true) || req.query.slack === '1';                    // also post the refreshed report links to each client's own Slack
+  const slackRecipients = toSlack ? await slackClientCount() : null;   // so the UI can say who it'll actually reach
   _adminRefreshing = true;
-  res.json({ ok: true, started: true, host: onlyHost || 'all', week: wk || 'current+previous', slack: toSlack });
+  res.json({ ok: true, started: true, host: onlyHost || 'all', week: wk || 'current+previous', slack: toSlack, slackRecipients });
   (async () => {
     let n = 0, weekLabel = '';
     try {
@@ -642,14 +643,23 @@ app.post('/api/admin/refresh', async (req, res) => {
 // Send each client their CURRENT daily brief to their own Slack now — the same brief the 8am
 // scheduler posts, for pushing an updated brief on demand. Admin-only, background, webhooks stay
 // server-side. Reflects whatever logic is deployed now (so today's fixes land immediately).
+// How many client accounts can ACTUALLY receive a Slack post right now (have a webhook AND at
+// least one competitor). The founder needs this number — a "sent!" toast that reached nobody is
+// exactly the broken feedback they hit.
+async function slackClientCount() {
+  try { const r = await pool.query(`SELECT COUNT(*)::int AS n FROM users u WHERE u.slack_webhook IS NOT NULL AND u.slack_webhook <> '' AND EXISTS (SELECT 1 FROM competitors c WHERE c.user_id = u.id)`); return r.rows[0].n; }
+  catch (e) { return 0; }
+}
 let _adminBriefing = false;
 app.post('/api/admin/send-daily-briefs', async (req, res) => {
   if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   if (_adminBriefing) return res.json({ ok: true, already: true });
+  const recipients = await slackClientCount();
+  if (!recipients) return res.json({ ok: true, recipients: 0 });   // nobody to send to — say so, don't fake success
   _adminBriefing = true;
-  res.json({ ok: true, started: true });
+  res.json({ ok: true, started: true, recipients });
   (async () => {
-    try { await sendUserDailyBriefs(pool); console.log('✓ admin: daily briefs sent to clients'); }
+    try { const r = await sendUserDailyBriefs(pool); console.log('✓ admin: daily briefs sent to clients ' + JSON.stringify(r || {})); }
     catch (e) { console.warn('admin send-daily-briefs:', e.message); }
     finally { _adminBriefing = false; }
   })();

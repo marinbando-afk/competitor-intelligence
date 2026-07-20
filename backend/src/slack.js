@@ -108,14 +108,15 @@ export async function postTo(webhook, text) {
 // Per-account daily briefs: every user who connected Slack gets THEIR OWN competitors'
 // brief in THEIR channel. (The env webhook, if set, still gets the founder's roll-up.)
 export async function sendUserDailyBriefs(pool) {
-  if (!pool) return;
-  let sent = 0;
+  if (!pool) return { sent: 0, total: 0 };
+  let sent = 0, total = 0;
   try {
     const us = await pool.query(`SELECT id, slack_webhook, share_token FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
     for (const u of us.rows) {
       try {
         const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [u.id]);
         if (!cs.rows.length) continue;
+        total++;
         // Teammate view link = this account's OWN read-only share link (opens without a login).
         const viewUrl = u.share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.share_token)) : 'https://watchback.ai/app.html';
         const text = await buildDailyBrief(cs.rows, viewUrl);
@@ -125,6 +126,7 @@ export async function sendUserDailyBriefs(pool) {
     }
   } catch (e) { console.warn('sendUserDailyBriefs:', e.message); }
   if (sent) console.log('✓ per-user Slack daily briefs sent: ' + sent);
+  return { sent, total };
 }
 
 // Monday: each user with Slack gets links to THEIR competitors' weekly reports.

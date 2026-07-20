@@ -553,8 +553,9 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .fld input{width:100%;background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:12px 14px;color:var(--text);font-family:inherit;font-size:14px;outline:none;transition:.15s}
 .fld input:focus{border-color:var(--sage);box-shadow:0 0 0 3px var(--sage-soft)}
 .fld .er{color:var(--act);font-size:12px;margin-top:6px;display:none}
-.m-act{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
-.refresh-st{flex:1;text-align:left;font-size:12px;color:var(--muted);align-self:center;line-height:1.4}
+.m-act{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;flex-wrap:wrap;align-items:center}
+.refresh-st{order:1;flex:1 1 100%;text-align:left;font-size:12.5px;color:var(--muted);line-height:1.5;min-width:0}
+.refresh-st:empty{display:none}
 .refresh-slk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap;cursor:pointer;align-self:center}
 .refresh-slk input{cursor:pointer;accent-color:var(--sage)}
 /* ── AI chat ── */
@@ -2456,7 +2457,8 @@ function sendDailyBriefs(){
     .then(function(r){return r.json();})
     .then(function(d){
       if(d&&d.already){if(st)st.textContent='Already sending — give it a minute.';}
-      else if(d&&(d.started||d.ok)){if(st)st.textContent='✓ Daily briefs going out to each client’s Slack now.';}
+      else if(d&&d.recipients===0){if(st){st.style.color='#d66';st.textContent='⚠ Nothing sent — no client has Slack connected. Connect Slack in each client’s account first.';}if(btn)btn.disabled=false;}
+      else if(d&&(d.started||d.ok)){if(st){st.style.color='';st.textContent='✓ Posting the daily brief to '+(d.recipients||'')+' client Slack channel(s) now.';}}
       else{if(st){st.style.color='#d66';st.textContent='Couldn’t start: '+((d&&d.error)||'unknown error')+'.';}if(btn)btn.disabled=false;}
     })
     .catch(function(){if(st){st.style.color='#d66';st.textContent='Network error — try again.';}if(btn)btn.disabled=false;})
@@ -2476,7 +2478,12 @@ function refreshReports(){
     .then(function(r){return r.json();})
     .then(function(d){
       if(d&&d.already){if(st)st.textContent='Already rebuilding — give it a minute, then reload.';}
-      else if(d&&(d.started||d.ok)){if(st)st.textContent='✓ Rebuilding in the background — reports refresh over the next 1–2 minutes.'+(slk?' Client Slack links go out once it finishes.':' Reload the page to see them.');}
+      else if(d&&(d.started||d.ok)){
+        var msg='✓ Rebuilding in the background — reports refresh over the next 1–2 minutes.';
+        if(slk){ if(d.slackRecipients===0){ st.style.color='#d66'; msg+=' ⚠ But NO client has Slack connected, so no links will post — connect Slack per client first.'; } else { msg+=' Then report links post to '+(d.slackRecipients||'')+' client Slack channel(s).'; } }
+        else { msg+=' Reload the page to see them.'; }
+        if(st)st.textContent=msg;
+      }
       else{if(st){st.style.color='#d66';st.textContent='Couldn’t start: '+((d&&d.error)||'unknown error')+'.';}if(btn)btn.disabled=false;}
     })
     .catch(function(){if(st){st.style.color='#d66';st.textContent='Network error — try again.';}if(btn)btn.disabled=false;})
