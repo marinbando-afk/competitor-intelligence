@@ -214,7 +214,7 @@ app.get('/api/ads', async (req, res) => {
         try { const t = (await allBrands()).find((b) => b.host === qh); if (t) { brand = t.name; country = t.country; } }
         catch (e) { /* canonicalization is best-effort */ }
       }
-      data = await fetchAds(brand, country, force || !!pageId, false, qh, pageId, debug ? { debug: true, period: req.query.period, sortUrl: req.query.sorturl === '1', n: Number(req.query.n) || 0 } : undefined);
+      data = await fetchAds(brand, country, force || !!pageId, false, qh, pageId, debug);
       // On an explicit force-refresh of a tracked competitor, persist the fresh capture so the
       // AI-read/insights (which read the saved 'ads' snapshot) reflect the same attribution.
       // Carry forward the pre-computed creative analysis (budget 0 = reuse only, no new vision

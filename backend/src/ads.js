@@ -18,8 +18,7 @@ let _ac;
 function aiClient() { if (!_ac) _ac = new Anthropic(); return _ac; }
 const _verdict = new Map();   // 'brand|advertiser|domain' -> { at, val } — cached AI brand-identity verdicts
 
-export async function fetchAds(brand, country, force, cacheOnly, host, pageId, opts) {
-  opts = opts || {};
+export async function fetchAds(brand, country, force, cacheOnly, host, pageId, debug) {
   brand = String(brand || '').trim();
   country = String(country || 'ALL').trim().toUpperCase();
   pageId = String(pageId || '').replace(/\D/g, '');   // numeric FB page id only (page-scoped scan)
@@ -32,17 +31,19 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, o
   // cacheOnly: never trigger a live scrape (used by the chat) — return empty on a miss.
   if (cacheOnly) return { brand, country, count: 0, active: 0, platforms: [], newest: '', ads: [], cacheMiss: true };
 
-  // PAGE-SCOPED scan pulls one confirmed brand page's ads directly (no keyword flood);
-  // otherwise a keyword search by brand name.
-  // opts.sortUrl adds the Ad Library's own recency sort to the URL (the actor scrapes whatever URL
-  // we give it, so this is honoured even for keyword search, unlike scrapePageAds.sortBy which only
-  // sorts the page-ads action). TEST harness for finding the config that catches brand-new launches.
-  const sortQ = opts.sortUrl ? '&search_type=keyword_unordered&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped' : '';
+  // PAGE-SCOPED scan pulls one confirmed brand page's ads directly (no keyword flood); otherwise a
+  // keyword search. The keyword search is sorted NEWEST-FIRST via the Ad Library's OWN url sort
+  // (sort_data). This is the fix that actually works for keyword search — the actor's
+  // scrapePageAds.sortBy only sorts the page-ads action, so without this the keyword search came back
+  // in impressions order and brand-new low-impression launches (Smooche's Jul-17 batch) fell past the
+  // cap. Newest-first means: light advertisers get their whole set, heavy ones get the recent window,
+  // and a genuinely NEW ad is always captured.
+  const sortQ = '&search_type=keyword_unordered&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped';
   const searchUrl = pageId
     ? ('https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=' + encodeURIComponent(country) + '&view_all_page_id=' + pageId + '&search_type=page&media_type=all')
     : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + sortQ + '&media_type=all');
 
-  const ADS_N = Number(opts.n) || Number(process.env.ADS_COUNT) || 200;
+  const ADS_N = Number(process.env.ADS_COUNT) || 200;
   const input = {
     urls: [{ url: searchUrl }],
     startUrls: [{ url: searchUrl }],
@@ -55,7 +56,6 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, o
     'scrapePageAds.sortBy': 'most_recent',
     'scrapePageAds.activeStatus': pageId ? 'all' : 'active',
     'scrapePageAds.countryCode': country,
-    ...(opts.period ? { 'scrapePageAds.period': opts.period } : {}),   // last7d/last14d/last30d — filter to recent launches
     ...(pageId ? { pageId, pageIds: [pageId] } : {}),   // some actors take the page id directly
   };
 
@@ -74,7 +74,7 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, o
     e.status = 502; throw e;
   }
   const items = await res.json();
-  const data = await normalize(Array.isArray(items) ? items : [], brand, country, host, opts.debug);
+  const data = await normalize(Array.isArray(items) ? items : [], brand, country, host, debug);
   cache.set(key, { at: Date.now(), data });
   return data;
 }
