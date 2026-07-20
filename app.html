@@ -548,6 +548,7 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .fld input:focus{border-color:var(--sage);box-shadow:0 0 0 3px var(--sage-soft)}
 .fld .er{color:var(--act);font-size:12px;margin-top:6px;display:none}
 .m-act{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+.refresh-st{flex:1;text-align:left;font-size:12px;color:var(--muted);align-self:center;line-height:1.4}
 /* ── AI chat ── */
 .chatfab{display:inline-flex;align-items:center;gap:8px;background:var(--sage);color:#0b1311;border:none;border-radius:24px;padding:12px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 12px 30px rgba(0,0,0,.42);transition:.15s}
 #dateNavWrap .datenav{margin-bottom:0}
@@ -769,7 +770,11 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
       <button class="atab" id="atab-subs" onclick="adminTab('subs')">Submissions</button>
     </div>
     <div id="adminBody"><div class="adsload" style="padding:16px 0"><span class="spin"></span>Loading…</div></div>
-    <div class="m-act"><button class="btn btn-g" onclick="closeAdmin()">Close</button></div>
+    <div class="m-act">
+      <span id="refreshRepSt" class="refresh-st"></span>
+      <button class="btn btn-g" id="refreshRepBtn" onclick="refreshReports()" title="Rebuild every competitor's daily insights + weekly reports from the data we already captured, using the current logic. No new scraping.">↻ Refresh reports</button>
+      <button class="btn btn-g" onclick="closeAdmin()">Close</button>
+    </div>
   </div>
 </div>
 
@@ -2386,6 +2391,27 @@ function loadFeedback(){loadFeedbackInto('fbAdmin');}
 /* ── Admin panel: signups (approve) + submissions ── */
 function openAdmin(){if(!ADMIN)return;document.getElementById('adminOv').classList.add('open');adminTab('clients');}
 function closeAdmin(){document.getElementById('adminOv').classList.remove('open');}
+// Rebuild every competitor's daily insights + weekly reports from the data we already captured,
+// with the CURRENT logic (e.g. after a reporting change) — regenerates this week AND the just-
+// completed week so the report users see refreshes too. Server does it in the background; no new
+// scraping. Uses the admin key already stored in this browser, so no re-auth.
+function refreshReports(){
+  if(!ADMIN)return;
+  var btn=document.getElementById('refreshRepBtn'),st=document.getElementById('refreshRepSt');
+  if(btn&&btn.disabled)return;
+  if(!confirm('Rebuild all competitor reports with the latest logic?\n\nThis re-reads the data we already captured (no new scraping) and refreshes every daily read + weekly report. It runs in the background and takes about a minute.'))return;
+  if(btn){btn.disabled=true;btn.textContent='↻ Rebuilding…';}
+  if(st){st.style.color='';st.textContent='Starting…';}
+  fetch(API+'/api/admin/refresh',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({key:adminKey()})})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d&&d.already){if(st)st.textContent='Already rebuilding — give it a minute, then reload.';}
+      else if(d&&(d.started||d.ok)){if(st)st.textContent='✓ Rebuilding in the background — reports refresh over the next 1–2 minutes. Reload the page to see them.';}
+      else{if(st){st.style.color='#d66';st.textContent='Couldn’t start: '+((d&&d.error)||'unknown error')+'.';}if(btn)btn.disabled=false;}
+    })
+    .catch(function(){if(st){st.style.color='#d66';st.textContent='Network error — try again.';}if(btn)btn.disabled=false;})
+    .then(function(){setTimeout(function(){if(btn){btn.disabled=false;btn.textContent='↻ Refresh reports';}},90000);});
+}
 function adminTab(t){
   ['clients','users','subs'].forEach(function(x){var el=document.getElementById('atab-'+x);if(el)el.classList.toggle('on',t===x);});
   document.getElementById('adminBody').innerHTML='<div class="adsload" style="padding:16px 0"><span class="spin"></span>Loading…</div>';
