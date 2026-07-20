@@ -192,7 +192,7 @@ async function filterToBrand(brand, ads, hostDom, desc) {
   // Meta's OWN attribution: the ad is branded content "<persona> with <BRAND>". A whole-word brand
   // match in that partner name is definitive (and precise — a "with Qure Skincare" ad never matches
   // "seranova"), so it keeps a brand's persona/advertorial ads that run onto neutral funnels.
-  const onBrandedContent = (a) => { const w = new Set(wordsOf(a.partner)); return [...keys].some((k) => k.length >= 4 && w.has(k)); };
+  const onBrandedContent = (a) => { const w = new Set(wordsOf((a.partner || '') + ' ' + (a.byline || ''))); return [...keys].some((k) => k.length >= 5 && w.has(k)); };
   // The brand's OWN alt domains a strict host match misses: a DISTINCTIVE (>=7-char) brand name as a
   // whole domain label (regional site seranova.co.za) or a label = brand + a common descriptor
   // (seranovabeauty.com = "seranova"+"beauty", where Seranova runs its advertorial funnels). The
@@ -310,6 +310,8 @@ async function normalize(items, brand, country, host, debug) {
       // that share the same advertorial network (e.g. a "with Qure Skincare" ad under a Seranova search).
       partner: (snap.branded_content && (snap.branded_content.page_name || '')) || '',
       partnerId: String((snap.branded_content && snap.branded_content.page_id) || ''),
+      byline: clean(snap.byline || it.byline || ''),   // "<persona> with <BRAND>" line — Meta's other place for the brand association when branded_content is absent
+
       link: it.ad_library_url || (it.ad_archive_id ? 'https://www.facebook.com/ads/library/?id=' + it.ad_archive_id : ''),
     };
   }).filter((a) => a.text || a.image);
@@ -338,7 +340,7 @@ async function normalize(items, brand, country, host, debug) {
     rawItemKeys: Object.keys(items[0] || {}),                               // to spot a branded-content / "with <brand>" field
     rawSnapKeys: Object.keys((items[0] || {}).snapshot || {}),
     brandedSample: (items.slice(0, 60).map((it) => ({ byline: it.byline || (it.snapshot && it.snapshot.byline) || '', bc: it.branded_content || (it.snapshot && it.snapshot.branded_content) || '', page: it.page_name || (it.snapshot && it.snapshot.page_name) || '' })).find((x) => x.byline || x.bc) || null),
-    recent: ads.filter((a) => String(a.started || '') >= '2026-07-08').map((a) => ({ started: a.started, page: a.page, land: adDomain(a.landing), bc: a.partner || '', kept: keptSet.has(adKey(a)) })),
+    recent: ads.filter((a) => String(a.started || '') >= '2026-07-08').map((a) => ({ started: a.started, page: a.page, land: adDomain(a.landing), bc: a.partner || '', by: a.byline || '', kept: keptSet.has(adKey(a)) })),
   } : undefined;
   return {
     brand,
