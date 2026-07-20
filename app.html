@@ -1143,7 +1143,8 @@ function postCard(o){
   if(o.ad&&o.state==='off')                     ph='<span class="media-ph">AD NO LONGER ACTIVE<span class="ph-sub">Meta lists this ad inactive</span></span>';
   else if(o.ad&&(o.state==='stale'||expired))   ph='<span class="media-ph">AD LIKELY INACTIVE<span class="ph-sub">Last captured copy</span></span>';
   else if(o.ad)                                 ph='<span class="media-ph">No preview available</span>';
-  else                                          ph='<span class="media-ph">'+(expired?'Preview unavailable':'No preview available')+'</span>';
+  else if(expired)                              ph='<span class="media-ph">Preview unavailable<span class="ph-sub">Last captured copy</span></span>';
+  else                                          ph='<span class="media-ph">No preview available</span>';
   var go='<span class="go"><span><svg width="15" height="15" fill="none" viewBox="0 0 14 14"><path d="M5 9l4.2-4.2M5.5 4.8H9.2V8.5" stroke="#0b1311" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
   var clk=o.click?' onclick="'+o.click+';return false"':'';
   var du=o.url?' data-url="'+esc(o.url)+'"':'';
@@ -1926,7 +1927,15 @@ function openSoc(el){
   document.getElementById('adSub').textContent=[platLabel,p.kind||'Post',p.date?fmtDate(String(p.date).slice(0,10)):''].filter(Boolean).join(' · ');
   var imgUrl=p.image?API+'/api/img?u='+encodeURIComponent(p.image):'';
   var isVid=(p.kind==='Reel'||p.views!=null);
-  var media=imgUrl?'<a class="admedia'+(isVid?' vid':'')+'" href="'+esc(p.url||'#')+'" target="_blank" rel="noopener"><img src="'+esc(imgUrl)+'" alt="" onerror="var m=this.closest(\'.admedia\');if(m)m.style.display=\'none\'">'+(isVid?'<span class="admedia-play">▶</span>':'')+'</a>':'';
+  var pExpired=imgUrl&&imgExpired(imgUrl);
+  var media='';
+  if(imgUrl&&!pExpired){
+    media='<a class="admedia'+(isVid?' vid':'')+'" href="'+esc(p.url||'#')+'" target="_blank" rel="noopener"><img src="'+esc(imgUrl)+'" alt="" onerror="var m=this.closest(\'.admedia\');if(m)m.style.display=\'none\'">'+(isVid?'<span class="admedia-play">▶</span>':'')+'</a>';
+  }else if(pExpired){
+    // Expired post cover → say the platform stopped serving it (we're not claiming the post was
+    // removed — we've no reliable signal for that), instead of a blank frame that looks broken.
+    media='<div class="admedia admedia-off"><div class="admedia-ph"><b>Preview no longer available</b><span>This post’s image link has expired on the platform. The caption and analysis below are the last version we captured.</span></div></div>';
+  }
   var copy=p.text?'<div class="adcopy"><div class="adcopy-lbl">Caption</div><div class="adtext">'+foldedText(p.text)+'</div></div>':'';
   var stats=[];
   if(p.views!=null)stats.push(fmtNum(p.views)+' views');
