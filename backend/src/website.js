@@ -292,6 +292,13 @@ export function diffWebsite(a, b) {
 // current), then diffs it against the most recent earlier day.
 // `force` (admin only) re-captures now instead of waiting for the freshness window — each
 // force is a real screenshot + banner read, so it stays gated.
+// A screenshot we'd actually SHOW someone: present, not flagged as an error read, and bigger
+// than the ~28KB service error placeholders (real above-the-fold storefront JPEGs run 100KB+).
+// Display-selection only — nothing is ever deleted based on this.
+function plausibleShot(s) {
+  const d = s && s.data;
+  return !!(d && d.shot && String(d.shot).length > 60000 && !bannerLooksLikeError(d.banner));
+}
 export async function websiteCompare(host, url, day, force) {
   if (!host) { const e = new Error('Missing host.'); e.status = 400; throw e; }
   const shape = (s) => s ? { day: s.day, capturedAt: (s.data && s.data.capturedAt) || null, shot: (s.data && s.data.shot) || null, summary: (s.data && s.data.summary) || null } : null;
@@ -329,6 +336,20 @@ export async function websiteCompare(host, url, day, force) {
     await _capInFlight.get(hk).catch(() => { /* capture failure → serve what we have */ });
     recent = await recentSnapshots(host, 'website', 5);
   }
-  return mk(recent[0] || null, recent[1] || null);
+  const out = mk(recent[0] || null, recent[1] || null);
+  // Old ERROR frames can sit in history (stored before the discard guard existed). Never let one
+  // reach a viewer: if the slider's "before" frame is implausible, drop just its image (diffs
+  // keep using its summary), and offer the most recent PLAUSIBLE frame as the display fallback
+  // for when today has no shot.
+  if (out.before && out.before.shot && !plausibleShot(recent[1])) out.before.shot = null;
+  if (out.after && !out.after.shot) {
+    // Look further back than the 5-day compare window — after a bad stretch (service refused a
+    // site for days) the last good frame can be a week old; an honest dated image still beats
+    // an empty box.
+    const wide = await recentSnapshots(host, 'website', 15);
+    const lg = wide.slice(1).find(plausibleShot);
+    if (lg) out.lastGoodShot = { day: lg.day, shot: lg.data.shot };
+  }
+  return out;
 }
 const _capInFlight = new Map();   // host -> in-flight capture promise (single-flight guard)
