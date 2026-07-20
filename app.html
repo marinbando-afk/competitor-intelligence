@@ -558,6 +558,8 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .refresh-st:empty{display:none}
 .refresh-slk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap;cursor:pointer;align-self:center}
 .refresh-slk input{cursor:pointer;accent-color:var(--sage)}
+#updToast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--raised);border:1px solid var(--sage-d);color:var(--text);font-size:13px;padding:10px 16px;border-radius:22px;box-shadow:0 12px 30px rgba(0,0,0,.4);cursor:pointer;display:none}
+#updToast b{color:var(--sage)}
 /* ── AI chat ── */
 .chatfab{display:inline-flex;align-items:center;gap:8px;background:var(--sage);color:#0b1311;border:none;border-radius:24px;padding:12px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 12px 30px rgba(0,0,0,.42);transition:.15s}
 #dateNavWrap .datenav{margin-bottom:0}
@@ -2721,6 +2723,27 @@ function deleteUser(btn,email){
 render();
 loadMyBrand();
 paintAuth();
+/* ── update nudge: this is a long-lived single-page app (the founder keeps one tab open for
+   days), so freshly deployed features are invisible until a reload — which looked like "the
+   feature doesn't exist". Poll our own ETag (HEAD, no body) and offer a one-click reload
+   when a new version ships. ── */
+(function(){
+  if(location.protocol==='file:')return;
+  var base=null;
+  function head(){return fetch(location.pathname+location.search,{method:'HEAD',cache:'no-store'}).then(function(r){return r.headers.get('etag')||r.headers.get('last-modified')||'';}).catch(function(){return null;});}
+  function check(){head().then(function(v){
+    if(v==null||!v)return;
+    if(base===null){base=v;return;}
+    if(v!==base){
+      var t=document.getElementById('updToast');
+      if(!t){t=document.createElement('div');t.id='updToast';t.innerHTML='⬆ <b>WatchBack was updated</b> — click to reload and get the new features';t.onclick=function(){location.reload();};document.body.appendChild(t);}
+      t.style.display='block';
+    }
+  });}
+  check();
+  setInterval(check,15*60*1000);                                     // every 15 min
+  window.addEventListener('focus',check);                            // and when the tab is refocused
+})();
 if(RO){loadSharedComps();}
 else if(TOKEN){loadUserComps();
   // Refresh the stored profile (picks up the admin flag for sessions from before it existed).
