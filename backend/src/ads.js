@@ -193,12 +193,22 @@ async function filterToBrand(brand, ads, hostDom, desc) {
   // match in that partner name is definitive (and precise — a "with Qure Skincare" ad never matches
   // "seranova"), so it keeps a brand's persona/advertorial ads that run onto neutral funnels.
   const onBrandedContent = (a) => { const w = new Set(wordsOf(a.partner)); return [...keys].some((k) => k.length >= 4 && w.has(k)); };
+  // The brand's OWN alt domains a strict host match misses: a DISTINCTIVE (>=7-char) brand name as a
+  // whole domain label (regional site seranova.co.za) or a label = brand + a common descriptor
+  // (seranovabeauty.com = "seranova"+"beauty", where Seranova runs its advertorial funnels). The
+  // length guard keeps this OFF short/common names, so it never re-admits brodo.ma for "brodo".
+  const DESCR = /^(beauty|skincare|skin|care|cosmetics|shop|store|official|hq|co|labs?|club|online|global|world|group|brand|us|usa|uk|eu)$/;
+  const onAliasDomain = (a) => {
+    const dm = adDomain(a.landing); if (!dm) return false;
+    const labels = dm.split('.');
+    return [...keys].some((k) => k.length >= 7 && labels.some((L) => L === k || (L.startsWith(k) && DESCR.test(L.slice(k.length)))));
+  };
   // Precision first (founder rule: NEVER show a random business — better to miss a brand ad
   // than show a different company's). When we know the brand's domain, keep ONLY its own-domain
   // ads, its own-page ads, branded-content-to-the-brand ads, and AI-confirmed ones — bare brand-NAME
   // matching is disabled (it's what let "brodo.ma"/"BRODO Footwear" through). Name matching only fills
   // in when we have NO domain to anchor on (fail-open so a domain-less brand isn't blanked).
-  const stringKeep = (a) => onOwnDomain(a) || onBrandPage(a) || onBrandedContent(a) || (hostDom ? false : (!keys.size ? true : adMatchesBrand(a, keys)));
+  const stringKeep = (a) => onOwnDomain(a) || onBrandPage(a) || onBrandedContent(a) || onAliasDomain(a) || (hostDom ? false : (!keys.size ? true : adMatchesBrand(a, keys)));
   if (!process.env.ANTHROPIC_API_KEY) return ads.filter(stringKeep);
   const idOf = (a) => (a.advertiser || '') + '|' + (adDomain(a.landing) || '');
   // Attach a sample of each distinct advertiser's ad copy so the AI can sanity-check the
@@ -220,12 +230,12 @@ async function filterToBrand(brand, ads, hostDom, desc) {
     // the brand's advertorials that send traffic to a 3rd-party domain); other off-domain ads
     // follow the AI verdict — so a same-name ad on a DIFFERENT registrable domain (brodo.ma vs
     // brodo.com) is dropped, while the brand's own funnels (drink.brodo.com) always survive.
-    return ads.filter((a) => { if (onOwnDomain(a) || onBrandPage(a) || onBrandedContent(a)) return true; const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
+    return ads.filter((a) => { if (onOwnDomain(a) || onBrandPage(a) || onBrandedContent(a) || onAliasDomain(a)) return true; const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
   } catch (e) {
     // AI error → be CONSERVATIVE when we know the brand's domain: keep only its own-domain
     // ads + ads from its own pages (whole-word name matching is unreliable for a generic name
     // like "Brodo", which matches BRODO Footwear, brodo.ma, etc.). No known domain → names.
-    return ads.filter((a) => hostDom ? (onOwnDomain(a) || onBrandPage(a) || onBrandedContent(a)) : stringKeep(a));
+    return ads.filter((a) => hostDom ? (onOwnDomain(a) || onBrandPage(a) || onBrandedContent(a) || onAliasDomain(a)) : stringKeep(a));
   }
 }
 
