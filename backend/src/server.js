@@ -665,6 +665,28 @@ app.post('/api/admin/send-daily-briefs', async (req, res) => {
   })();
 });
 
+// Post THIS one weekly report (link + headline + summary) to the founder's Slack — powers the
+// "Send to Slack" button on report.html, for firing a freshly-updated report on demand. Admin-only,
+// synchronous so the button can show a real ✓/✕. Posts to SLACK_WEBHOOK_URL (the founder's channel).
+app.post('/api/admin/send-weekly', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  const host = String((req.body && req.body.host) || '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').trim();
+  const week = String((req.body && req.body.week) || '').trim() || null;
+  if (!host || host.indexOf('.') < 0) return res.status(400).json({ error: 'host required' });
+  try {
+    const w = await getWeekly(host, week);
+    if (!w || !w.report) return res.status(404).json({ error: 'No report to send yet.' });
+    const r = w.report;
+    const link = 'https://watchback.ai/report.html?host=' + encodeURIComponent(host) + (week ? '&week=' + encodeURIComponent(week) : '');
+    const bullets = (Array.isArray(r.summary) ? r.summary : []).slice(0, 4).map((b) => '• ' + b).join('\n');
+    const text = '📊 *' + (w.brand || host) + ' — Weekly report* (' + ((w.week && w.week.label) || '') + ')\n' +
+      (r.headline ? '_' + r.headline + '_\n' : '') + (bullets ? bullets + '\n' : '') + link;
+    const out = await postText(text);
+    if (out && out.sent) return res.json({ ok: true, sent: true });
+    return res.json({ ok: false, sent: false, error: (out && (out.reason || out.error)) || 'Slack not configured' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // One-time, HOST-SCOPED historical fix: re-read each stored day's banner from that day's
 // screenshot and regenerate that day's website read, so a past sale switch lands on the
 // day it visibly changed. Only the named host is touched.
