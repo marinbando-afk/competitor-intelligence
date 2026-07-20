@@ -136,7 +136,6 @@ function render(d){
   var s = d.stats || {};
   var stats = [
     [s.newAds, 'new ads launched'],
-    [(s.adsEnd != null ? s.adsEnd : '—'), 'ads active at week end'],
     [s.posts, 'posts published'],
     [s.emails, 'email campaigns'],
   ].map(function(p){ return '<div class="stat"><div class="n">' + esc(p[0] == null ? '—' : p[0]) + '</div><div class="l">' + p[1] + '</div></div>'; }).join('');

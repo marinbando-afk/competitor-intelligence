@@ -208,6 +208,8 @@ button{font-family:inherit;cursor:pointer}
 .wshot:hover{border-color:var(--sage-d)}
 .wshot img{width:100%;display:block;min-height:140px}
 .wshot-go{position:absolute;right:10px;bottom:10px;font-size:11px;font-weight:600;background:rgba(0,0,0,.6);color:#fff;padding:4px 11px;border-radius:14px;backdrop-filter:blur(4px)}
+.wshot-na{padding:26px 18px;font-size:13px;color:var(--muted);text-align:center;line-height:1.5}
+.wshot-na a{color:var(--sage-d);font-weight:600}
 .webcmp{margin-top:2px}
 .cmp{position:relative;max-width:600px;border-radius:11px;overflow:hidden;border:1px solid var(--line2);background:var(--raised);margin-bottom:10px}
 .cmp img{display:block;width:100%}
@@ -1538,7 +1540,7 @@ function loadWeb(box){
       }else if(hist){
         box.innerHTML='<div class="wbase">No website snapshot was captured on <b>'+esc(fmtShortDay(d.day))+'</b> — daily website tracking started after this date.</div>';return;
       }else{
-        vis='<div class="wshot"><img class="zoomable" src="'+API+'/api/shot?url='+encodeURIComponent(url)+'" loading="lazy" alt="" data-cap="Current storefront" data-href="'+esc(url)+'" onerror="var w=this.closest(\'.wshot\');if(w)w.style.display=\'none\'"><a class="wshot-go" href="'+esc(url)+'" target="_blank" rel="noopener">Open site ↗</a></div>';
+        vis='<div class="wshot"><img class="zoomable" src="'+API+'/api/shot?url='+encodeURIComponent(url)+'" loading="lazy" alt="" data-cap="Current storefront" data-href="'+esc(url)+'" onerror="var w=this.closest(\'.wshot\');if(w){w.innerHTML=\'<div class=&quot;wshot-na&quot;>Storefront preview unavailable right now — <a href=&quot;'+esc(url)+'&quot; target=_blank rel=noopener>open the site ↗</a></div>\';}"><a class="wshot-go" href="'+esc(url)+'" target="_blank" rel="noopener">Open site ↗</a></div>';
       }
       var chg;
       if(d.changes&&d.changes.length){

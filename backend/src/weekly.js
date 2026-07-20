@@ -10,7 +10,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { pool } from './db.js';
 import { diffWebsite } from './website.js';
 import { getMyBrand } from './brand.js';
-import { rootDomain } from './email.js';
+import { rootDomain, aliasDomains } from './email.js';
 
 const MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';
 let _client;
@@ -40,7 +40,7 @@ export async function getWeekly(host, week) {
 }
 
 // Compact, factual digest of the week for the analyst.
-async function weekDigest(host, start, end) {
+async function weekDigest(host, name, start, end) {
   const r = await pool.query(
     `SELECT channel, day::text AS day, data FROM snapshots WHERE host=$1 AND channel = ANY($2) AND day BETWEEN $3 AND $4 ORDER BY day ASC`,
     [host, ['ads', 'website', 'instagram', 'tiktok', 'facebook', 'insights'], start, end],
@@ -51,16 +51,14 @@ async function weekDigest(host, start, end) {
   const parts = [];
   const stats = { adsStart: null, adsEnd: null, newAds: 0, posts: 0, emails: 0, saleNow: false };
 
-  // Ads: active-count trajectory + ads launched inside the week (from the latest capture).
+  // Ads: which ads LAUNCHED inside the week (their real start dates). We deliberately do NOT
+  // report a total "active ads" count — Meta's Ad Library returns an incomplete sample, so
+  // that number is unreliable (usually an undercount) and must never be stated as fact.
   if (by.ads && by.ads.length) {
-    const counts = by.ads.map((x) => `${fmtDay(x.day.slice(0, 10))}: ${((x.data && x.data.ads) || []).length} active`);
     const last = by.ads[by.ads.length - 1].data || {};
     const ads = last.ads || [];
-    stats.adsStart = ((by.ads[0].data && by.ads[0].data.ads) || []).length;
-    stats.adsEnd = ads.length;
     const fresh = ads.filter((a) => a.started && a.started >= start && a.started <= end);
     stats.newAds = fresh.length;
-    parts.push('ADS — active count by day: ' + counts.join('; ') + '.');
     if (fresh.length) {
       parts.push('Ads LAUNCHED this week (' + fresh.length + '):');
       fresh.slice(0, 10).forEach((a) => parts.push(`  • [${a.started}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'}${a.page ? ' page:"' + a.page + '"' : ''}: ${oneLine(a.text).slice(0, 140)}`));
@@ -73,16 +71,23 @@ async function weekDigest(host, start, end) {
     stats.saleNow = !!(last.summary && last.summary.onSale);
     const changes = (first.summary && last.summary) ? diffWebsite(first.summary, last.summary) : [];
     const banners = [...new Set(by.website.map((x) => x.data && x.data.banner).filter(Boolean))];
-    parts.push('WEBSITE — ' + (last.summary ? `${last.summary.products} products, ${last.summary.onSale || 0} discounted at week end.` : 'no product feed.'));
+    // State sale STATUS, never a product COUNT — the catalogue feed is a partial read and the
+    // count is unreliable; "all N products discounted" is exactly the kind of false figure to avoid.
+    parts.push('WEBSITE — ' + (last.summary ? (last.summary.onSale ? 'a discount/sale is running across much of the catalogue at week end.' : 'no catalogue-wide discount at week end.') : 'no machine-readable product feed.'));
     if (banners.length) parts.push('On-site promo headline(s) captured this week: ' + banners.map((b) => `"${b}"`).join(' · '));
     parts.push(changes.length ? 'Changes across the week: ' + changes.join('; ') : 'No structural storefront changes across the week.');
   }
 
   // Social: posts PUBLISHED within the week (engagement = cumulative lifetime totals).
+  // Aggregate across EVERY daily capture in the week, deduped by url — each scrape only
+  // returns the ~9 most recent posts, so a Monday post can drop out of Sunday's capture;
+  // reading only the last day undercounts the week.
   for (const pf of ['instagram', 'tiktok', 'facebook']) {
     if (!by[pf] || !by[pf].length) continue;
     const last = by[pf][by[pf].length - 1].data || {};
-    const posts = (last.posts || []).filter((p) => { const d = String(p.date || '').slice(0, 10); return d >= start && d <= end; });
+    const seen = new Map();
+    for (const row of by[pf]) for (const p of ((row.data && row.data.posts) || [])) { const k = p.url || (String(p.text || '').slice(0, 40) + '|' + String(p.date || '')); if (!seen.has(k)) seen.set(k, p); }
+    const posts = [...seen.values()].filter((p) => { const d = String(p.date || '').slice(0, 10); return d >= start && d <= end; }).sort((a, b) => String(a.date).localeCompare(String(b.date)));
     stats.posts += posts.length;
     if (posts.length) {
       parts.push(pf.toUpperCase() + ` @${last.handle || '?'} — ${posts.length} post(s) published this week (engagement shown is lifetime-to-date):`);
@@ -90,11 +95,16 @@ async function weekDigest(host, start, end) {
     } else parts.push(pf.toUpperCase() + `: no new posts published this week.`);
   }
 
-  // Emails received in the window.
+  // Emails received in the window. Match the brand's OWN domain AND its sending-domain
+  // aliases (Seranova mails from seranovabeauty.com) — a strict sender_domain=host query
+  // reported 0 campaigns for alias-sending brands even in weeks they emailed. Same resolver
+  // getEmails uses, so the weekly and the daily panel never disagree again.
   try {
+    const root = rootDomain(host);
+    const froms = [root, ...(await aliasDomains(root, name || root))];
     const em = await pool.query(
-      `SELECT received_at::text AS d, subject, offer FROM emails WHERE sender_domain=$1 AND received_at >= $2 AND received_at < ($3::date + 1) ORDER BY received_at ASC`,
-      [rootDomain(host), start, end],
+      `SELECT received_at::text AS d, subject, offer FROM emails WHERE sender_domain = ANY($1) AND received_at >= $2 AND received_at < ($3::date + 1) ORDER BY received_at ASC`,
+      [froms, start, end],
     );
     stats.emails = em.rows.length;
     if (em.rows.length) {
@@ -111,7 +121,7 @@ export async function generateWeekly(host, name, weekStart) {
   if (!process.env.DATABASE_URL || !process.env.ANTHROPIC_API_KEY) return null;
   host = cleanHost(host);
   const end = addDays(weekStart, 6);
-  const digest = await weekDigest(host, weekStart, end);
+  const digest = await weekDigest(host, name, weekStart, end);
   if (!digest) return null;
 
   // The weekly report is a SINGLE shared per-host row, served UNAUTHENTICATED at a
@@ -123,6 +133,7 @@ export async function generateWeekly(host, name, weekStart) {
   const system =
     `You are WatchBack, a sharp eCommerce competitor-intelligence analyst writing the WEEKLY report on "${name}" for the week ${fmtDay(weekStart)}–${fmtDay(end)}. ` +
     `Rules, same as always: use ONLY the week's data below; cite dates, numbers, offers; every claim must trace to the data. Engagement counts are cumulative lifetime totals — a newer post showing fewer is normal, never a decline. Read deliberate moves as strategy with rationale; marketplace funnels are a channel choice, not a weakness. MATERIALITY: tiny fluctuations (an ad or two, one post) are routine rotation — never call them a pullback or strategic shift; reserve interpretation for material moves. Sanity-check every number ("would this look absurd to their own marketer?"). Complete sentences that never trail off.\n` +
+    `⛔ NEVER state a TOTAL count of active ads or catalogue products ("20 active ads", "all 12 products discounted") — our ad-library and catalogue reads are partial samples, so those totals are unreliable and usually undercount. Describe qualitatively ("running a steady ad set", "a sale across much of the catalogue") and only ever cite the ads that genuinely LAUNCHED this week (from their real start dates) and posts/emails PUBLISHED this week — those are grounded. Do NOT conclude a channel is inactive from a zero in the data unless the data explicitly says nothing was published.\n` +
     `Return ONLY minified JSON, no markdown: {"headline":"<the week in <=14 words>","summary":["<one takeaway, <=12 words, telegraphic — lead with the fact, drop filler words>", ...4 to 6 bullets, the week's most important developments in priority order],"timeline":[{"day":"Mon 29 Jun","channel":"ads|social|website|email","event":"<one dated, real event, <=22 words>"}, ...only real dated events from the data, max 8, chronological],"channels":{"ads":{"summary":"<=20 words","bullets":["<=22 words each", ...max 3]},"social":{...same},"website":{...same},"email":{...same}},"move":"<${me && me.profile ? 'ONE concrete counter-move for ' + me.name + ' grounded in their profile below, realistic about cost/effort' : 'ONE concrete, realistic counter-move for a brand competing with them'}, 2 sentences max>"}` +
     (me && me.profile ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}` : '');
 
