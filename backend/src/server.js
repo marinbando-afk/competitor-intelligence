@@ -426,6 +426,22 @@ app.get('/api/insights', aiLimit, async (req, res) => {
 // One-line marketing angle (+ how YOUR brand could apply it) for a single ad/post.
 // Quick Anthropic balance probe (cached ~5 min) — so I can check if AI credits ran dry.
 app.get('/api/credits', async (req, res) => { res.json(await creditStatus(req.query.fresh === '1')); });
+// Screenshot quota probe — numbers only, the key never leaves the server. Answers "how many
+// screenshots do we have left this month?" without opening the ScreenshotOne dashboard.
+let _shotUsage = { at: 0, val: null };
+app.get('/api/shot-usage', async (req, res) => {
+  try {
+    if (_shotUsage.val && Date.now() - _shotUsage.at < 10 * 60 * 1000) return res.json({ ..._shotUsage.val, cached: true });
+    const key = process.env.SCREENSHOTONE_KEY;
+    if (!key) return res.json({ configured: false });
+    const r = await fetch('https://api.screenshotone.com/usage?access_key=' + encodeURIComponent(key));
+    if (!r.ok) return res.json({ configured: true, ok: false, status: r.status });
+    const j = await r.json();
+    const val = { configured: true, ok: true, total: j.total, used: j.used, available: j.available };
+    _shotUsage = { at: Date.now(), val };
+    res.json(val);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 // Send the Slack daily brief now (on-demand / for testing). Posts only to your SLACK_WEBHOOK_URL.
 app.get('/api/slack-test', async (req, res) => {
   if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
