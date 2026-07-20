@@ -194,7 +194,8 @@ app.get('/api/weekly', async (req, res) => {
 app.get('/api/ads', async (req, res) => {
   try {
     const qh = String(req.query.host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase();
-    const force = req.query.force === '1';
+    const debug = req.query.debug === '1';
+    const force = req.query.force === '1' || debug;
     const pageId = String(req.query.pageId || '').replace(/\D/g, '');   // page-scoped probe (temporary, not persisted)
     let data = null;
     // FAST PATH: serve the PERSISTED daily capture (Postgres, survives restarts) so a
@@ -213,7 +214,7 @@ app.get('/api/ads', async (req, res) => {
         try { const t = (await allBrands()).find((b) => b.host === qh); if (t) { brand = t.name; country = t.country; } }
         catch (e) { /* canonicalization is best-effort */ }
       }
-      data = await fetchAds(brand, country, force || !!pageId, false, qh, pageId);
+      data = await fetchAds(brand, country, force || !!pageId, false, qh, pageId, debug);
       // On an explicit force-refresh of a tracked competitor, persist the fresh capture so the
       // AI-read/insights (which read the saved 'ads' snapshot) reflect the same attribution.
       // Carry forward the pre-computed creative analysis (budget 0 = reuse only, no new vision
@@ -233,6 +234,7 @@ app.get('/api/ads', async (req, res) => {
         }
       } catch (e) { /* fall back to the trimmed full list */ }
     }
+    if (debug && data._debug) out._debug = data._debug;
     res.json(out);
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });

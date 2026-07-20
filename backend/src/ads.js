@@ -18,7 +18,7 @@ let _ac;
 function aiClient() { if (!_ac) _ac = new Anthropic(); return _ac; }
 const _verdict = new Map();   // 'brand|advertiser|domain' -> { at, val } — cached AI brand-identity verdicts
 
-export async function fetchAds(brand, country, force, cacheOnly, host, pageId) {
+export async function fetchAds(brand, country, force, cacheOnly, host, pageId, debug) {
   brand = String(brand || '').trim();
   country = String(country || 'ALL').trim().toUpperCase();
   pageId = String(pageId || '').replace(/\D/g, '');   // numeric FB page id only (page-scoped scan)
@@ -66,7 +66,7 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId) {
     e.status = 502; throw e;
   }
   const items = await res.json();
-  const data = await normalize(Array.isArray(items) ? items : [], brand, country, host);
+  const data = await normalize(Array.isArray(items) ? items : [], brand, country, host, debug);
   cache.set(key, { at: Date.now(), data });
   return data;
 }
@@ -239,7 +239,7 @@ function dedupeAds(ads) {
 // Map the Facebook Ad Library actor's items to a clean, display-ready shape.
 // Many eComm ads are dynamic catalog ads whose body is a "{{product.brand}}"
 // template — the real copy and creative then live in the per-product `cards` array.
-async function normalize(items, brand, country, host) {
+async function normalize(items, brand, country, host, debug) {
   const ads = items.map((it) => {
     const snap = it.snapshot || {};
     const cards = Array.isArray(snap.cards) ? snap.cards : [];
@@ -300,6 +300,13 @@ async function normalize(items, brand, country, host) {
 
   const platforms = [...new Set(unique.flatMap((a) => a.platforms))];
   const newest = unique.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '';
+  const dbg = debug ? {
+    rawCount: ads.length,                                                   // items returned by the actor (after mapping, before brand-attribution)
+    keptCount: unique.length,
+    rawNewest: ads.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '',
+    rawJul: ads.filter((a) => String(a.started || '') >= '2026-07-01').map((a) => ({ started: a.started, page: a.page, land: adDomain(a.landing) })),
+    rawPages: [...new Set(ads.map((a) => a.page))].slice(0, 40),
+  } : undefined;
   return {
     brand,
     country,
@@ -308,6 +315,7 @@ async function normalize(items, brand, country, host) {
     platforms,
     newest,
     ads: unique.slice(0, 300),   // keep the full set for day-over-day "what's new" diffing
+    ...(dbg ? { _debug: dbg } : {}),
   };
 }
 
