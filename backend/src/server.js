@@ -20,7 +20,7 @@ import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warm
 import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, sendUserWeeklyLinks, sendUserDailyBriefs } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
-import { websiteCompare, mshotsShot } from './website.js';
+import { websiteCompare, mshotsShot, scrubWebsiteHistory } from './website.js';
 import { getInsights, generateInsights, quickAngle, creditStatus, enrichCreativeHooks, backfillWebsiteReads } from './insights.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
@@ -1105,6 +1105,10 @@ const PORT = process.env.PORT || 3000;
 function start() {
   if (JWT_IS_DEFAULT) console.warn('ℹ JWT_SECRET env is not set — using the persistent DB-generated secret (safe). Set JWT_SECRET in Railway to pin it explicitly.');
   app.listen(PORT, () => { console.log('✓ API listening on :' + PORT); startScheduler(); });
+  // Idempotent history scrub: removes rate-limit error frames stored in recent days (vision-
+  // verified one by one; real frames get stamped and never re-checked, so this is ~free after
+  // the first pass).
+  setTimeout(() => scrubWebsiteHistory(10).catch(() => {}), 30000);
 }
 // Start the server no matter what — if the DB isn't wired yet, accounts are
 // disabled but the ads endpoint still works. The JWT secret is resolved BEFORE

@@ -6,7 +6,8 @@
 //   GET /api/website-compare?host=theoodie.com&url=https://www.theoodie.com
 //     -> { after:{day,shot,summary}, before:{day,shot,summary}|null, changes:[...] }
 
-import { saveSnapshot, recentSnapshots, latestSnapshot } from './snapshots.js';
+import { saveSnapshot, recentSnapshots, latestSnapshot, saveSnapshotDay } from './snapshots.js';
+import { pool } from './db.js';
 import Anthropic from '@anthropic-ai/sdk';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
@@ -297,7 +298,44 @@ export function diffWebsite(a, b) {
 // Display-selection only — nothing is ever deleted based on this.
 function plausibleShot(s) {
   const d = s && s.data;
-  return !!(d && d.shot && String(d.shot).length > 60000 && !bannerLooksLikeError(d.banner));
+  return !!(d && d.shot && String(d.shot).length > 60000 && (d._shotOk || !bannerLooksLikeError(d.banner)));
+}
+
+// One-time history scrub (runs at boot, idempotent): error frames stored BEFORE the discard
+// guard existed (rate-limit placeholders from the 18-20 Jul deploy storm) still sit in recent
+// days. Each SUSPICIOUS frame (small, or error-flagged/empty banner) gets ONE vision check:
+// confirmed error → shot nulled + error banner cleared (summaries/diffs untouched); actually
+// fine → stamped _shotOk so it's never re-checked. After the first pass there's nothing left
+// to check, so later boots cost a single SQL scan and no AI.
+export async function scrubWebsiteHistory(days) {
+  if (!process.env.DATABASE_URL) return { checked: 0, cleaned: 0 };
+  let checked = 0, cleaned = 0, kept = 0;
+  try {
+    const r = await pool.query(
+      `SELECT host, to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots
+       WHERE channel = 'website' AND day >= CURRENT_DATE - $1::int
+         AND length(coalesce(data->>'shot','')) > 50 ORDER BY day DESC`, [days || 10]);
+    for (const row of r.rows) {
+      const d = row.data || {};
+      const len = String(d.shot || '').length;
+      const suspicious = !d._shotOk && (len < 60000 || bannerLooksLikeError(d.banner) || !d.banner);
+      if (!suspicious) continue;
+      checked++;
+      const read = await readBanner(d.shot, '');
+      if (read.error) {
+        d.shot = null;
+        if (bannerLooksLikeError(d.banner)) d.banner = '';
+        cleaned++;
+      } else {
+        d._shotOk = 1;                                  // verified real — never re-check
+        if (!d.banner && read.banner) d.banner = read.banner;   // bonus: recover the day's real banner
+        kept++;
+      }
+      await saveSnapshotDay(row.host, 'website', row.day, d);
+    }
+    if (checked) console.log(`✓ website history scrub: ${checked} suspicious frame(s) vision-checked — ${cleaned} error frame(s) removed, ${kept} verified real`);
+  } catch (e) { console.warn('scrubWebsiteHistory:', e.message); }
+  return { checked, cleaned };
 }
 export async function websiteCompare(host, url, day, force) {
   if (!host) { const e = new Error('Missing host.'); e.status = 400; throw e; }
@@ -313,7 +351,16 @@ export async function websiteCompare(host, url, day, force) {
   // Historical view — the capture on `day` vs the most recent earlier capture (no live re-capture).
   if (day) {
     const recent = await recentSnapshots(host, 'website', 40);   // sorted day DESC
-    return mk(recent.find((s) => s.day === day) || null, recent.find((s) => s.day < day) || null, { day });
+    const before = recent.find((s) => s.day < day) || null;
+    const out = mk(recent.find((s) => s.day === day) || null, before, { day });
+    // Same error-frame protections as the latest view: never slider on an implausible frame,
+    // and when this day's shot failed/was scrubbed, offer the nearest good frame, dated.
+    if (out.before && out.before.shot && !plausibleShot(before)) out.before.shot = null;
+    if (out.after && !out.after.shot) {
+      const lg = recent.find((s) => s.day <= day && plausibleShot(s)) || recent.find(plausibleShot);
+      if (lg) out.lastGoodShot = { day: lg.day, shot: lg.data.shot };
+    }
+    return out;
   }
 
   // Latest view — make sure today's capture is fresh, then diff the two most recent.
