@@ -18,7 +18,8 @@ let _ac;
 function aiClient() { if (!_ac) _ac = new Anthropic(); return _ac; }
 const _verdict = new Map();   // 'brand|advertiser|domain' -> { at, val } — cached AI brand-identity verdicts
 
-export async function fetchAds(brand, country, force, cacheOnly, host, pageId) {
+export async function fetchAds(brand, country, force, cacheOnly, host, pageId, opts) {
+  opts = opts || {};
   brand = String(brand || '').trim();
   country = String(country || 'ALL').trim().toUpperCase();
   pageId = String(pageId || '').replace(/\D/g, '');   // numeric FB page id only (page-scoped scan)
@@ -33,15 +34,15 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId) {
 
   // PAGE-SCOPED scan pulls one confirmed brand page's ads directly (no keyword flood);
   // otherwise a keyword search by brand name.
+  // opts.sortUrl adds the Ad Library's own recency sort to the URL (the actor scrapes whatever URL
+  // we give it, so this is honoured even for keyword search, unlike scrapePageAds.sortBy which only
+  // sorts the page-ads action). TEST harness for finding the config that catches brand-new launches.
+  const sortQ = opts.sortUrl ? '&search_type=keyword_unordered&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped' : '';
   const searchUrl = pageId
     ? ('https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=' + encodeURIComponent(country) + '&view_all_page_id=' + pageId + '&search_type=page&media_type=all')
-    : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + '&media_type=all');
+    : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + sortQ + '&media_type=all');
 
-  // Covers the common input shapes across Meta Ad Library actors — extra fields are ignored.
-  // With most_recent sorting (below), the NEWEST ads are always in the first N, so we no longer
-  // need a huge cap to catch them — 200 keeps a solid recent profile while newest are guaranteed,
-  // at far less Apify cost than a blind deep pull. ADS_COUNT env overrides.
-  const ADS_N = Number(process.env.ADS_COUNT) || 200;
+  const ADS_N = Number(opts.n) || Number(process.env.ADS_COUNT) || 200;
   const input = {
     urls: [{ url: searchUrl }],
     startUrls: [{ url: searchUrl }],
@@ -51,13 +52,10 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId) {
     country,
     activeStatus: pageId ? 'all' : 'active',
     scrapePageAds: true,
-    // Sort NEWEST-first. The actor defaults to impressions_desc, which buries a heavy advertiser's
-    // brand-new (low-impression) ads far past our cap — that's why Seranova's Jul 18-19 launches
-    // never reached us. With most_recent, the newest are always in the first N (dot-notation keys
-    // per the actor's schema; extra keys are ignored if unused, so this is safe & additive).
     'scrapePageAds.sortBy': 'most_recent',
     'scrapePageAds.activeStatus': pageId ? 'all' : 'active',
     'scrapePageAds.countryCode': country,
+    ...(opts.period ? { 'scrapePageAds.period': opts.period } : {}),   // last7d/last14d/last30d — filter to recent launches
     ...(pageId ? { pageId, pageIds: [pageId] } : {}),   // some actors take the page id directly
   };
 
@@ -76,7 +74,7 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId) {
     e.status = 502; throw e;
   }
   const items = await res.json();
-  const data = await normalize(Array.isArray(items) ? items : [], brand, country, host);
+  const data = await normalize(Array.isArray(items) ? items : [], brand, country, host, opts.debug);
   cache.set(key, { at: Date.now(), data });
   return data;
 }
@@ -283,7 +281,7 @@ export function dedupeConcepts(ads) {
 // Map the Facebook Ad Library actor's items to a clean, display-ready shape.
 // Many eComm ads are dynamic catalog ads whose body is a "{{product.brand}}"
 // template — the real copy and creative then live in the per-product `cards` array.
-async function normalize(items, brand, country, host) {
+async function normalize(items, brand, country, host, debug) {
   const ads = items.map((it) => {
     const snap = it.snapshot || {};
     const cards = Array.isArray(snap.cards) ? snap.cards : [];
@@ -352,6 +350,13 @@ async function normalize(items, brand, country, host) {
 
   const platforms = [...new Set(unique.flatMap((a) => a.platforms))];
   const newest = unique.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '';
+  const dbg = debug ? {
+    rawCount: ads.length,
+    keptCount: unique.length,
+    rawNewest: ads.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '',
+    rawStarts: [...new Set(ads.map((a) => a.started).filter(Boolean))].sort().slice(-14),
+    recentRaw: ads.filter((a) => String(a.started || '') >= '2026-07-13').slice(0, 15).map((a) => ({ started: a.started, page: a.page, land: adDomain(a.landing), kept: unique.some((u) => adKey(u) === adKey(a)) })),
+  } : undefined;
   return {
     brand,
     country,
@@ -360,6 +365,7 @@ async function normalize(items, brand, country, host) {
     platforms,
     newest,
     ads: unique.slice(0, 300),   // keep the full set for day-over-day "what's new" diffing
+    ...(dbg ? { _debug: dbg } : {}),
   };
 }
 
