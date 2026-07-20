@@ -713,11 +713,31 @@ app.get('/api/admin/clients', async (req, res) => {
   if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   try {
     await healStaleSetup();   // tidy every client's stale 'setup' row while we're here
-    const us = await pool.query('SELECT id, email, approved, share_token, max_competitors, created_at FROM users WHERE admin = FALSE ORDER BY created_at DESC');
+    const us = await pool.query('SELECT id, email, approved, share_token, max_competitors, created_at, slack_webhook FROM users WHERE admin = FALSE ORDER BY created_at DESC');
     const cs = await pool.query('SELECT id, user_id, name, host, url, country, status, handles FROM competitors ORDER BY created_at ASC');
     const byUser = {};
     for (const c of cs.rows) (byUser[c.user_id] = byUser[c.user_id] || []).push(c);
-    res.json({ dflt: DEFAULT_MAX_COMPETITORS, warm: await warmUsage(), clients: us.rows.map((u) => ({ id: u.id, email: u.email, approved: u.approved, share_token: u.share_token, max_competitors: u.max_competitors, created_at: u.created_at, competitors: byUser[u.id] || [] })) });
+    res.json({ dflt: DEFAULT_MAX_COMPETITORS, warm: await warmUsage(), clients: us.rows.map((u) => ({ id: u.id, email: u.email, approved: u.approved, share_token: u.share_token, max_competitors: u.max_competitors, created_at: u.created_at, slack: isSlackWebhook(u.slack_webhook), competitors: byUser[u.id] || [] })) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Post ONE client their weekly report links to THEIR own Slack (they connected it). Admin-only,
+// synchronous so the button in the Clients panel can show a real ✓/✕.
+app.post('/api/admin/clients/:id/send-weekly', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const id = Number(req.params.id);
+    const u = await pool.query('SELECT slack_webhook FROM users WHERE id = $1 AND admin = FALSE', [id]);
+    if (!u.rows[0]) return res.status(404).json({ error: 'No such client.' });
+    if (!isSlackWebhook(u.rows[0].slack_webhook)) return res.json({ ok: false, sent: false, error: 'This client has no Slack connected.' });
+    const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [id]);
+    if (!cs.rows.length) return res.json({ ok: false, sent: false, error: 'This client has no competitors.' });
+    let label = '';
+    try { const w0 = await getWeekly(cs.rows[0].host); if (w0 && w0.week) label = w0.week.label || ''; } catch (e) { /* label optional */ }
+    const text = '📊 *Weekly competitor reports are ready*' + (label ? ' (' + label + ')' : '') + ':\n' +
+      cs.rows.map((c) => '• ' + c.name + ' — https://watchback.ai/report.html?host=' + c.host).join('\n');
+    const out = await postTo(u.rows[0].slack_webhook, text);
+    return res.json({ ok: !!(out && out.sent), sent: !!(out && out.sent), count: cs.rows.length, error: out && out.error });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

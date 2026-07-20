@@ -2582,12 +2582,24 @@ function clientCard(c){
     +'<div class="cl-top"><div style="min-width:0"><div class="au-em">'+esc(c.email)+'</div><div class="au-sub">joined '+esc(fmtDay(c.created_at))+'</div></div>'
     +'<button class="cl-del" title="Delete this client and their data" onclick="deleteClient('+c.id+',\''+esc(c.email)+'\')">Delete</button></div>'
     +(link?'<div class="cl-lbl">Read-only share link</div><div class="cl-share-row"><input class="cl-in cl-link" id="cllink-'+c.id+'" readonly value="'+esc(link)+'" onclick="this.select()"><button class="cl-mini" onclick="copyClientLink('+c.id+',this)">Copy</button><button class="cl-mini" title="New link — the old one stops working" onclick="rotateShare('+c.id+',this)">Rotate</button></div>':'')
+    +'<div class="cl-lbl">Weekly report → Slack</div><div class="cl-share-row"><button class="cl-mini add" onclick="sendClientWeekly('+c.id+',this)"'+(c.slack?'':' disabled')+'>⚡ Send to Slack</button><span class="cl-none" style="align-self:center">'+(c.slack?'posts this client’s report links to their Slack':'client hasn’t connected Slack yet')+'</span></div>'
     +'<div class="cl-lbl">Competitors — '+used+' of '+lim+(c.max_competitors==null?' (default)':'')+(atCap?' · <span style="color:var(--gold)">at limit</span>':'')+'</div><div class="cl-comps">'+comps+'</div>'
     +'<div class="cl-addrow"><input class="cl-in" id="clch-'+c.id+'" placeholder="competitor domain — e.g. allbirds.com"><input class="cl-in cl-nm" id="clcn-'+c.id+'" placeholder="name (optional)"><button class="cl-mini add" onclick="clientAddComp('+c.id+',this)">Add</button></div>'
     +'<div class="cl-err" id="clerr-'+c.id+'"></div>'
     +'<div class="cl-lbl">Competitor limit</div>'
     +'<div class="cl-share-row"><input class="cl-in cl-nm" id="cllim-'+c.id+'" type="number" min="0" max="500" value="'+(c.max_competitors==null?'':c.max_competitors)+'" placeholder="default ('+CLIENT_DFLT+')"><button class="cl-mini" onclick="setClientLimit('+c.id+',this)">Save limit</button><span class="cl-none" style="align-self:center">blank = default ('+CLIENT_DFLT+')</span></div>'
     +'<button class="cl-reset" onclick="resetClientPass('+c.id+',\''+esc(c.email)+'\')">Reset password…</button></div>';
+}
+function sendClientWeekly(id,btn){
+  if(btn&&btn.disabled)return;
+  if(!confirm('Post this client their weekly report links to their own Slack now?'))return;
+  var old=btn.textContent;btn.disabled=true;btn.textContent='Sending…';
+  fetch(adminUrl('/api/admin/clients/'+id+'/send-weekly'),{method:'POST',headers:adminHeaders(true),body:'{}'})
+    .then(function(r){return r.json();}).then(function(d){
+      btn.textContent=(d&&d.sent)?'Sent to Slack ✓':('✕ '+((d&&d.error)||'failed'));
+      setTimeout(function(){btn.textContent=old;btn.disabled=false;},3000);
+    })
+    .catch(function(){btn.textContent='✕ error';setTimeout(function(){btn.textContent=old;btn.disabled=false;},3000);});
 }
 function setClientLimit(id,btn){
   var v=(document.getElementById('cllim-'+id).value||'').trim();
