@@ -189,8 +189,9 @@ button{font-family:inherit;cursor:pointer}
 .adthumb{width:188px;flex-shrink:0;border-radius:12px;overflow:hidden;border:1px solid var(--line2);background:var(--panel2);text-decoration:none;display:block;scroll-snap-align:start;transition:transform .16s,border-color .16s,box-shadow .16s}
 .adthumb:hover{transform:translateY(-3px);border-color:var(--sage-d);box-shadow:0 14px 30px rgba(0,0,0,.34)}
 .adthumb .media{position:relative;width:100%;height:212px;background:var(--raised);overflow:hidden;display:block}
+.adthumb .media-ph{display:none}
 .adthumb .media.noimg{display:flex;align-items:center;justify-content:center}
-.adthumb .media.noimg::after{content:'▶';font-size:32px;color:var(--sage);opacity:.4;position:relative;z-index:2}
+.adthumb .media.noimg .media-ph{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);position:relative;z-index:2;text-align:center;padding:0 12px}
 .adthumb .media img{width:100%;height:100%;object-fit:cover;display:block}
 .adthumb .media.noimg::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 38%,rgba(87,210,207,.12),transparent 70%)}
 .adthumb .nw{position:absolute;top:10px;left:10px;z-index:3;font-size:9px;font-weight:600;letter-spacing:.05em;background:var(--sage);color:#0b1311;padding:2px 8px;border-radius:20px;text-transform:uppercase}
@@ -1096,13 +1097,28 @@ var PLAT={FACEBOOK:'Facebook',INSTAGRAM:'Instagram',AUDIENCE_NETWORK:'Audience',
 function prettyPlat(p){return PLAT[p]||p;}
 function fmtDate(s){var p=String(s||'').split('-');if(p.length!==3)return s||'';var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return parseInt(p[2],10)+' '+mo[(parseInt(p[1],10)||1)-1];}
 function isRecent(s){var t=Date.parse((s||'')+'T00:00:00');return !isNaN(t)&&(Date.now()-t)<18*864e5;}
+// Meta/Facebook sign their image + thumbnail URLs with an expiry — the hex `oe=` param is a
+// unix timestamp. Past it, the CDN 403s the URL and no proxy/rewrite can revive it (the
+// signature is dead). Detect that up front (handles both the raw URL and our /api/img?u=…
+// proxy wrapper) so we skip a doomed request and CALL IT OUT on the card instead of showing
+// a broken frame. Founder, 20 Jul: "when that happens, call it out."
+function imgExpired(u){
+  u=String(u||'');
+  var w=/[?&]u=([^&]+)/.exec(u); if(w){try{u=decodeURIComponent(w[1]);}catch(e){}}
+  var m=/[?&]oe=([0-9A-Fa-f]+)/.exec(u); if(!m)return false;
+  var exp=parseInt(m[1],16);
+  return exp>0 && exp*1000 < Date.now();
+}
 function postCard(o){
-  var img=o.image?'<img src="'+esc(o.image)+'" loading="lazy" onerror="this.style.display=\'none\';this.parentNode.classList.add(\'noimg\')">':'';
+  var expired=o.image&&imgExpired(o.image);
+  var show=o.image&&!expired;
+  var img=show?'<img src="'+esc(o.image)+'" loading="lazy" onerror="this.style.display=\'none\';this.parentNode.classList.add(\'noimg\')">':'';
+  var ph='<span class="media-ph">'+(expired?'Preview expired':'No preview available')+'</span>';
   var go='<span class="go"><span><svg width="15" height="15" fill="none" viewBox="0 0 14 14"><path d="M5 9l4.2-4.2M5.5 4.8H9.2V8.5" stroke="#0b1311" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
   var clk=o.click?' onclick="'+o.click+';return false"':'';
   var du=o.url?' data-url="'+esc(o.url)+'"':'';
   return '<a class="adthumb" href="'+esc(o.link||'#')+'" target="_blank" rel="noopener"'+clk+du+'>'
-    +'<span class="media'+(o.image?'':' noimg')+'">'+img+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+(o.stats?'<span class="cstats">'+o.stats+'</span>':'')+go+'</span>'
+    +'<span class="media'+(show?'':' noimg')+'">'+img+ph+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+(o.stats?'<span class="cstats">'+o.stats+'</span>':'')+go+'</span>'
     +'<span class="cap">'+esc(o.cap||'')+'</span></a>';
 }
 /* ── Expandable screenshots — generic lightbox. Any <img class="zoomable"> (or any
