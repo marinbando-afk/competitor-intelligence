@@ -263,7 +263,7 @@ function dedupeAds(ads) {
 // variants). Unlike dedupeAds this IGNORES domain/format/page and collapses on the creative itself —
 // same image, same opening hook (first ~50 chars), or high copy-token overlap — so the same
 // advertorial run by 10 rotating personas onto 10 funnels reports as ONE concept.
-function dedupeConcepts(ads) {
+export function dedupeConcepts(ads) {
   const kept = [], meta = [];
   for (const a of ads) {
     const t = normDup(a.text || a.title), tk = dupToks(a.text || a.title), pref = t.slice(0, 50), f = fmtOf(a);
