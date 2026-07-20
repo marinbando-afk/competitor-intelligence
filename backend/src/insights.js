@@ -59,6 +59,17 @@ const dayOf = (s) => String(s || '').split('T')[0].split(' ')[0];
 function adHost(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
 const INS_STOP = new Set(['the', 'and', 'for', 'shop', 'store', 'official', 'ltd', 'inc', 'llc', 'brand', 'online', 'cosmetics', 'beauty', 'skin', 'care', 'fashion', 'clothing', 'apparel', 'group', 'collective', 'australia']);
 function brandToks(name) { return [...new Set(String(name || '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !INS_STOP.has(w)))]; }
+// DETERMINISTIC backstop: the model keeps parroting a TOTAL ad count from an incomplete sample
+// ("10 of 19 ads", "19 active ads") however firmly the prompt forbids it (founder flagged it 3×),
+// so strip/soften total-count-of-ads phrasing from any generated text. Deltas the founder allows
+// ("3 new ads", "2 ads launched this week") are left intact.
+function stripAdTotals(s) {
+  if (!s) return s;
+  return String(s)
+    .replace(/\b\d+\s+of\s+(?:their\s+|its\s+)?\d+\s+ads\b/gi, 'many of their ads')          // "10 of 19 ads"
+    .replace(/\b\d+\+?\s+(?:active|live|running|total|current)\s+ads\b/gi, 'their ads')       // "19 active ads"
+    .replace(/\b(?:across|spanning|of)\s+(?:their\s+|its\s+)?\d+\+?\s+ads\b/gi, 'across their ads');   // "across 19 ads"
+}
 // Shared funnel analysis — pages + landing domains across ALL ads, flagging genuine
 // third-party placements (publisher advertorials, media/affiliate partners) vs the
 // brand's own pages/domains. EXPORTED so the chat uses the exact same view as this
@@ -72,17 +83,22 @@ export function funnelFacts(ads, brand) {
   let toks = brandToks(brand);
   if (!toks.length && doms.length) { const sld = doms[0][0].split('.')[0]; if (sld.length >= 3) toks = [sld]; } // fallback: the dominant domain's root
   const own = (s) => { s = String(s || '').toLowerCase(); return !toks.length || toks.some((t) => s.indexOf(t) >= 0); };
+  const isThird = (a) => (oneLine(a.page) && !own(a.page)) || (adHost(a.landing) && !own(adHost(a.landing)));
   const thirdPages = pages.filter(([p]) => p !== '?' && !own(p));
   const thirdDoms = doms.filter(([dm]) => !own(dm));
   const ownDoms = doms.filter(([dm]) => own(dm));
+  // We NEVER expose a total ad count or per-ad tallies to the model — Meta's Ad Library returns an
+  // INCOMPLETE sample, so any "N ads" / "X of Y ads" it parrots is wrong-low (founder said this ~3×).
+  // Order conveys prevalence; a qualitative share word replaces the count.
+  const thirdRatio = ads.length ? ads.filter(isThird).length / ads.length : 0;
+  const shareWord = thirdRatio >= 0.66 ? 'most' : thirdRatio >= 0.4 ? 'about half' : thirdRatio >= 0.15 ? 'a sizeable share' : 'a few';
   const text = [
-    `FUNNEL FACTS (computed across all ${ads.length} ads — ground truth, do NOT contradict):`,
-    `  Ad pages: ${pages.slice(0, 8).map(([p, n]) => `"${p}"×${n}`).join(', ')}.`,
-    thirdPages.length ? `  >> THIRD-PARTY pages (not the brand's own): ${thirdPages.map(([p, n]) => `"${p}"×${n}`).join(', ')} — publisher/advertorial or media-partner placements, worth surfacing.` : `  All ads run from the brand's own page(s).`,
-    `  Landing domains: ${doms.slice(0, 10).map(([dm, n]) => `${dm}×${n}`).join(', ')}.`,
-    thirdDoms.length ? `  >> THIRD-PARTY landing domains (off the brand's own sites): ${thirdDoms.map(([dm, n]) => `${dm}×${n}`).join(', ')} — they're sending traffic off-domain.` : `  All landings on the brand's own domain(s)${ownDoms.length > 1 ? ` (multiple regional sites: ${ownDoms.map(([dm]) => dm).join(', ')})` : ''}.`,
+    `FUNNEL FACTS (ground truth — do NOT contradict; and NEVER state a number/total of ads or "X of Y ads": our capture is an incomplete sample, so describe prevalence qualitatively — most / about half / a few — never a count):`,
+    `  Ad pages (most-used first): ${pages.slice(0, 8).map(([p]) => `"${p}"`).join(', ')}.`,
+    thirdPages.length ? `  >> THIRD-PARTY pages (not the brand's own) — ${shareWord} of their ad mix: ${thirdPages.map(([p]) => `"${p}"`).join(', ')} — publisher/advertorial or media-partner placements, worth surfacing.` : `  All ads run from the brand's own page(s).`,
+    `  Landing domains (most-used first): ${doms.slice(0, 10).map(([dm]) => dm).join(', ')}.`,
+    thirdDoms.length ? `  >> THIRD-PARTY landing domains (off the brand's own sites): ${thirdDoms.map(([dm]) => dm).join(', ')} — they're sending traffic off-domain.` : `  All landings on the brand's own domain(s)${ownDoms.length > 1 ? ` (multiple regional sites: ${ownDoms.map(([dm]) => dm).join(', ')})` : ''}.`,
   ].join('\n');
-  const isThird = (a) => (oneLine(a.page) && !own(a.page)) || (adHost(a.landing) && !own(adHost(a.landing)));
   return { text, own, isThird };
 }
 // The capture day a snapshot row is stamped with, as a Date — so timing facts are computed
@@ -103,7 +119,7 @@ function fmtAds(d, today) {
   const third = ads.filter(ff.isThird), first = ads.filter((a) => !ff.isThird(a));
   const sample = third.slice(0, 6).concat(first.slice(0, Math.max(6, 16 - Math.min(third.length, 6))));
   const lines = sample.map((a) => `- [${a.started || '?'}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'} · page:"${a.page || '?'}"${ff.own(a.page) ? '' : ' (3RD-PARTY)'}${a.cta ? ` · cta:"${a.cta}"` : ''}${a.landing ? ` · lands:${adHost(a.landing)}${ff.own(adHost(a.landing)) ? '' : ' (3RD-PARTY)'}` : ''} :: ${oneLine(a.text).slice(0, 170)}`);
-  return [`${d.active || ads.length} active ad(s) on ${(d.platforms || []).join('/') || '?'}; newest ${d.newest || '?'}.`, ff.text, 'SAMPLE ADS:'].concat(lines).join('\n')
+  return [`Active on ${(d.platforms || []).join('/') || '?'}; newest ad ${d.newest || '?'}. (NEVER state a total number of ads — this is an incomplete sample.)`, ff.text, 'SAMPLE ADS (a partial sample, NOT the full set — never count them):'].concat(lines).join('\n')
     + (today ? offerFacts(ads, today) : '');
 }
 function fmtPosts(posts, label, noEng) {
@@ -286,7 +302,7 @@ async function landingFormats(ads) {
 
 // ── per-channel analyst guidance ──────────────────────────────────────────────
 const GUIDE = {
-  ads: 'their Meta/Facebook ads. If an OFFER TIMING FACTS block is present it is ground truth and TOP priority — a live ad is leaning on an OUT-OF-SEASON occasion; name the occasion and the numbers, and never soften it into generic "persistent discounting". BUT if MULTIPLE occasion pretexts are running at once or at similar discount depth (e.g. "Mother’s Day", "4th of July", "senior discount", a "hidden code they forgot to deactivate"), read it as ROTATING-PRETEXT / evergreen anchor-pricing — ONE deliberate tactic where the occasion is a costume and that % off is their real everyday price — not several separate stale sales, and don’t itemise how "stale" each one is. Use the FUNNEL FACTS block as ground truth for pages and landing domains — NEVER claim there are no third-party pages or off-domain landings unless the facts confirm it; if any THIRD-PARTY page or domain is listed (e.g. a news-publisher advertorial / native ad, an affiliate or media-partner funnel), SURFACE it as a notable tactic. LANDING-PAGE FORMAT: when a LANDING PAGE FORMATS block is provided, state each landing page\'s ACTUAL format from it (listicle, advertorial, third-party review, sales page, product page, quiz funnel, etc.) — those were produced by fetching and reading the real page. NEVER infer a landing page\'s format, purpose, or that it is a "staging"/"test"/"pre-launch"/"variant" page from its URL or subdomain name (e.g. do not assume "pre." means pre-launch); if a page is marked not-analyzable, say it wasn\'t read rather than guessing. If ads drive to a MARKETPLACE listing (Amazon, Walmart, Target, TikTok Shop, etc.) rather than the brand\'s own site, treat it as a DELIBERATE channel strategy, not a weakness — name why it is often smart (marketplace reviews/ratings as social proof, Prime trust and fast shipping, higher marketplace conversion, best-seller-rank/category dominance, Subscribe & Save retention) and what it signals; NEVER frame driving marketplace sales as "not driving sales" or a DTC shortfall — it IS driving sales, just through a chosen channel with different tradeoffs. Also surface, only if present: what is NEW vs the previous capture; the HOOKS and ANGLES in the copy; creative FORMATS (video vs image/carousel); whether they test multiple regional own-domains. Do not over-generalize beyond what the facts and sample support.',
+  ads: 'their Meta/Facebook ads. If an OFFER TIMING FACTS block is present it is ground truth and TOP priority — a live ad is leaning on an OUT-OF-SEASON occasion; name the occasion and the numbers, and never soften it into generic "persistent discounting". BUT if MULTIPLE occasion pretexts are running at once or at similar discount depth (e.g. "Mother’s Day", "4th of July", "senior discount", a "hidden code they forgot to deactivate"), read it as ROTATING-PRETEXT / evergreen anchor-pricing — ONE deliberate tactic where the occasion is a costume and that % off is their real everyday price — not several separate stale sales, and don’t itemise how "stale" each one is. Offers seen in ads live IN THE ADS — describe them as "an ad runs X", never as their current or site-wide sale (the current sale comes ONLY from the website). And NEVER state a total or number of ads (our capture is an incomplete sample) — describe prevalence qualitatively (most / about half / a few), never "X of Y ads". Use the FUNNEL FACTS block as ground truth for pages and landing domains — NEVER claim there are no third-party pages or off-domain landings unless the facts confirm it; if any THIRD-PARTY page or domain is listed (e.g. a news-publisher advertorial / native ad, an affiliate or media-partner funnel), SURFACE it as a notable tactic. LANDING-PAGE FORMAT: when a LANDING PAGE FORMATS block is provided, state each landing page\'s ACTUAL format from it (listicle, advertorial, third-party review, sales page, product page, quiz funnel, etc.) — those were produced by fetching and reading the real page. NEVER infer a landing page\'s format, purpose, or that it is a "staging"/"test"/"pre-launch"/"variant" page from its URL or subdomain name (e.g. do not assume "pre." means pre-launch); if a page is marked not-analyzable, say it wasn\'t read rather than guessing. If ads drive to a MARKETPLACE listing (Amazon, Walmart, Target, TikTok Shop, etc.) rather than the brand\'s own site, treat it as a DELIBERATE channel strategy, not a weakness — name why it is often smart (marketplace reviews/ratings as social proof, Prime trust and fast shipping, higher marketplace conversion, best-seller-rank/category dominance, Subscribe & Save retention) and what it signals; NEVER frame driving marketplace sales as "not driving sales" or a DTC shortfall — it IS driving sales, just through a chosen channel with different tradeoffs. Also surface, only if present: what is NEW vs the previous capture; the HOOKS and ANGLES in the copy; creative FORMATS (video vs image/carousel); whether they test multiple regional own-domains. Do not over-generalize beyond what the facts and sample support.',
   social: 'their organic social (Instagram / TikTok / Facebook). Engagement counts (views, likes, comments) are CUMULATIVE lifetime totals: they only ever climb, they grow with how long a post has been live, and a post does most of its growth in the first day or two. So a newer post almost always shows fewer than an older one, and that is normal — NOT a decline. NEVER frame a lower count — on a newer post, or versus a previous capture — as a drop, collapse, slump, dip, decay, or "reach/algorithm" problem, and never compute view/like deltas between captures (different posts are not comparable that way). What matters is STACKED engagement. Surface, only if present: which posts have accumulated the most total engagement; what is genuinely NEW since the previous capture (new posts / series); recurring HOOKS / ANGLES / themes; FORMATS (Reel / Carousel / Post); and any product or campaign focus.',
   website: 'their online storefront. A SALE means a DISCOUNT or a named sale EVENT — a % off, a $ off, a named occasion sale (Summer Sale, 4th of July, Black Friday, Anniversary), BOGO, clearance, a gift-with-purchase or a promo code. "Free shipping", "free returns", "new arrivals" and similar are EVERYDAY OPERATIONAL messaging, NOT a sale or a promo — never call them one, and never say a promo "went live" or "changed" because of them. ALWAYS lead with whether a genuine sale/promotion is ACTIVE right now (per the ACTIVE SALE / announcement-bar facts) — independent of whether it changed; an ONGOING, unchanged sale must still be named explicitly. When a sale is named by OCCASION, use that exact occasion name (e.g. "still running their Summer Sale, up to 70% off") — the occasion is valuable timing intel; never flatten it to a generic "an active sale". ⛔ NEVER cite a COUNT of discounted products ("66 of 90 products discounted") — that number is meaningless (variant/utility SKUs, and a permanent compare-at anchor is standing pricing, not news). Describe a sale ONLY by its occasion and headline discount. 🚀 A NEW PRODUCT LAUNCH is the single most important website signal — whenever the facts show products ADDED, LEAD with it and name the new product(s); a launch is high-value competitive intel worth surfacing above almost everything else on this channel. ⚠️ STOREFRONT ANNOUNCEMENT BARS ROTATE several slides (a sale slide, a free-shipping slide, a new-arrivals slide) and we capture whichever ONE was showing — so a banner that DIFFERS from last capture is almost always just the bar rotating to a different slide, NOT a promo change and NOT a sale starting or ending. NEVER report "sale ended / promo changed / free shipping replaced the sale" from the banner alone; a sale only genuinely started or ended if the ACTIVE SALE facts explicitly say "Sale started" / "Sale ended". Then surface what materially CHANGED: NEW PRODUCTS (lead with these), specific product price moves, products removed. Do NOT report a count of discounted products as a change. If nothing changed and no sale is active, say so in one line.',
   email: 'their email marketing. Surface: sending CADENCE; OFFER / discount patterns; recurring THEMES and angles; what is newest. Give a real read, not a list of subjects.',
@@ -314,8 +330,8 @@ function parseOut(txt) {
   }
   if (o && typeof o === 'object') {
     return {
-      summary: clip(o.summary, 240),
-      bullets: Array.isArray(o.bullets) ? o.bullets.map((b) => clip(b, 230)).filter(Boolean).slice(0, 5) : [],
+      summary: stripAdTotals(clip(o.summary, 240)),
+      bullets: Array.isArray(o.bullets) ? o.bullets.map((b) => stripAdTotals(clip(b, 230))).filter(Boolean).slice(0, 5) : [],
       apply: clip(o.apply, 260),
     };
   }
@@ -525,6 +541,9 @@ async function makeBrief(brand, out, me, today) {
     // every one ~64% off. That's not several forgotten sales — it's one deliberate always-on tactic.
     `⚠️ CRUCIAL — recognise ROTATING-PRETEXT / EVERGREEN discounting: when SEVERAL different occasion or "reason to discount" offers run AT THE SAME TIME, or land at a similar discount depth (e.g. a "Mother's Day 64% off" ad AND a "4th of July 58% off" AND a "senior discount" AND a "hidden code they forgot to deactivate", all live together), that is ONE deliberate anchor-pricing tactic, NOT several stale sales. Report it as a SINGLE finding — the occasion is a rotating PRETEXT and that ~% off is their PERMANENT real price — and cite the rotating pretexts as the evidence. Do NOT lead with, itemise, or compute how many weeks "stale" each individual occasion is, and NEVER imply they forgot to switch one off: the rotation is intentional. ` +
     `But NEVER report routine urgency devices — countdown timers, "Today only", "Ends tonight", "Last chance", "Limited time" — as a finding: they are standard eCommerce practice, not news, however long the ad has run.\n` +
+    // Founder repeated this 3×: ad offers ≠ site sale, and never a total ad count.
+    `⛔ AD-vs-SITE SALE (hard rule): an offer you see only in AD COPY (e.g. a "Mother's Day 64%-off code") is NOT the brand's sale. Do NOT put it in the verdict as a current/site-wide sale, and do NOT compute how many weeks "stale" its occasion is. The verdict's only "sale" is a LIVE WEBSITE sale from the website read. If an ad's offer must be referenced at all, write it explicitly as "in an ad" — never as a plain site-wide offer.\n` +
+    `⛔ NEVER state a number or total of ads ("19 ads", "10 of 19 ads", "10 active ads") — our capture is an incomplete sample. Describe prevalence qualitatively (most / about half / a few). Counts of NEW ads launched in a period are fine; totals are not.\n` +
     `Return ONLY minified JSON, no markdown, as SHORT, SCANNABLE BULLET POINTS (not paragraphs): {"verdict":["<THREAT ASSESSMENT — 2 to 3 bullets, each ONE tight point ≤ 13 words, telegraphic: LEAD with the key fact, cut filler/connective words. The most important strategic reads right now, concrete and specific>", ...],"move":["<RECOMMENDED COUNTER-OP — 2 to 3 bullets, each ONE concrete ${me && me.profile ? `move for ${me.name} grounded in their profile below` : 'move for a brand competing with them'}, ≤ 13 words, start with a verb, cut filler>", ...]}` +
     (me && me.profile ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}` : '');
   const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 500, system, messages: [{ role: 'user', content: parts.join('\n') }] });
@@ -535,8 +554,8 @@ async function makeBrief(brand, out, me, today) {
   let j = null;
   try { j = JSON.parse(txt.replace(/^```json?\s*/i, '').replace(/\s*```$/, '')); }
   catch (e) { const m = txt.match(/\{[\s\S]*\}/); if (m) { try { j = JSON.parse(m[0]); } catch (_) { /* give up */ } } }
-  const verdict = toBullets(j && j.verdict, 3);
-  if (verdict.length) return { verdict, move: toBullets(j && j.move, 3) };
+  const verdict = toBullets(j && j.verdict, 3).map(stripAdTotals);
+  if (verdict.length) return { verdict, move: toBullets(j && j.move, 3).map(stripAdTotals) };
   return null;
 }
 
