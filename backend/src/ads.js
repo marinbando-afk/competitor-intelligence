@@ -310,12 +310,15 @@ async function normalize(items, brand, country, host, debug) {
 
   const platforms = [...new Set(unique.flatMap((a) => a.platforms))];
   const newest = unique.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '';
+  const keptSet = new Set(unique.map(adKey));
   const dbg = debug ? {
     rawCount: ads.length,                                                   // items returned by the actor (after mapping, before brand-attribution)
     keptCount: unique.length,
     rawNewest: ads.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '',
-    rawJul: ads.filter((a) => String(a.started || '') >= '2026-07-01').map((a) => ({ started: a.started, page: a.page, land: adDomain(a.landing) })),
-    rawPages: [...new Set(ads.map((a) => a.page))].slice(0, 40),
+    rawItemKeys: Object.keys(items[0] || {}),                               // to spot a branded-content / "with <brand>" field
+    rawSnapKeys: Object.keys((items[0] || {}).snapshot || {}),
+    brandedSample: (items.slice(0, 60).map((it) => ({ byline: it.byline || (it.snapshot && it.snapshot.byline) || '', bc: it.branded_content || (it.snapshot && it.snapshot.branded_content) || '', page: it.page_name || (it.snapshot && it.snapshot.page_name) || '' })).find((x) => x.byline || x.bc) || null),
+    recent: ads.filter((a) => String(a.started || '') >= '2026-07-08').map((a) => ({ started: a.started, page: a.page, land: adDomain(a.landing), kept: keptSet.has(adKey(a)) })),
   } : undefined;
   return {
     brand,
