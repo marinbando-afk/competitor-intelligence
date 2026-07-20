@@ -266,14 +266,16 @@ function dedupeAds(ads) {
 function dedupeConcepts(ads) {
   const kept = [], meta = [];
   for (const a of ads) {
-    const t = normDup(a.text || a.title), tk = dupToks(a.text || a.title), pref = t.slice(0, 50);
+    const t = normDup(a.text || a.title), tk = dupToks(a.text || a.title), pref = t.slice(0, 50), f = fmtOf(a);
     let dup = false;
     for (let i = 0; i < kept.length; i++) {
       if (a.image && a.image === kept[i].image) { dup = true; break; }
       const m = meta[i];
-      if (tk.size >= 4 && (t === m.t || (pref.length >= 20 && pref === m.pref) || jaccard(tk, m.tk) >= 0.72)) { dup = true; break; }
+      // Same hook AND same format = a variation → collapse. Same hook in a DIFFERENT format
+      // (image vs video vs carousel) is a real format test worth keeping — so format is part of the key.
+      if (f === m.f && tk.size >= 4 && (t === m.t || (pref.length >= 20 && pref === m.pref) || jaccard(tk, m.tk) >= 0.72)) { dup = true; break; }
     }
-    if (!dup) { kept.push(a); meta.push({ t, tk, pref }); }
+    if (!dup) { kept.push(a); meta.push({ t, tk, pref, f }); }
   }
   return kept;
 }
@@ -426,8 +428,12 @@ export async function adsChanges(host, todayAds) {
     pages: uniq(fresh.filter((a) => a.tags.some((t) => t.k === 'page')).map((a) => a.page)),
     formats: uniq(fresh.flatMap((a) => a.tags.filter((t) => t.k === 'format').map((t) => t.v))),
   };
-  // Signals (new landings/pages/formats) stay computed from the FULL fresh set above — a new funnel
-  // is worth surfacing even if it's a variant — but the ads we REPORT collapse to distinct concepts.
-  const concepts = dedupeConcepts(fresh);
+  // Signals (new landings/pages/formats) stay computed from the FULL fresh set above. The ads we
+  // REPORT (a) collapse to distinct concepts and (b) are RANKED by the significance the founder set:
+  // new FB PAGE (handle) > new FUNNEL (landing URL) > new FORMAT/hook/angle. Rank BEFORE dedup so the
+  // representative kept for each concept is its highest-signal instance.
+  const rank = (a) => { const has = (k) => (a.tags || []).some((t) => t.k === k); return has('page') ? 3 : has('landing') ? 2 : has('format') ? 1 : 0; };
+  const ranked = fresh.slice().sort((x, y) => rank(y) - rank(x) || String(y.started || '').localeCompare(String(x.started || '')));
+  const concepts = dedupeConcepts(ranked);
   return { baseline: false, newCount: concepts.length, newAds: concepts.slice(0, 30), signals };
 }
