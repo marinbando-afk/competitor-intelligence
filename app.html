@@ -1577,7 +1577,10 @@ function loadWeb(box){
       if(d.before&&d.before.shot&&d.after&&d.after.shot){
         vis=cmpHTML(d.before,d.after)+'<div class="cmp-hint">drag the divider — left is '+esc(fmtShortDay(d.before.day))+', right is '+esc(fmtShortDay(d.after.day))+'</div>';
       }else if(d.after&&d.after.shot){
-        vis='<div class="wshot"><img class="zoomable" src="'+d.after.shot+'" alt="" data-cap="Current storefront" data-href="'+esc(url)+'"><a class="wshot-go" href="'+esc(url)+'" target="_blank" rel="noopener">Open site ↗</a></div>';
+        // shotFrom = change-gated capture: no visual change that day, so the frame is the last
+        // real screenshot — label it honestly instead of implying a fresh identical capture.
+        var unchanged=(d.after.shotFrom&&d.after.shotFrom!==d.after.day)?'<div class="cmp-hint">storefront visually unchanged — screenshot from '+esc(fmtShortDay(d.after.shotFrom))+', when it last changed</div>':'';
+        vis='<div class="wshot"><img class="zoomable" src="'+d.after.shot+'" alt="" data-cap="Current storefront" data-href="'+esc(url)+'"><a class="wshot-go" href="'+esc(url)+'" target="_blank" rel="noopener">Open site ↗</a></div>'+unchanged;
       }else if(d.lastGoodShot&&d.lastGoodShot.shot){
         // This day's screenshot failed (service rate-limited; the error image was discarded rather
         // than shown). The server picks the nearest VERIFIED-GOOD capture — never an error frame.

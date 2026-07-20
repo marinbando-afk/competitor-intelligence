@@ -196,32 +196,59 @@ export async function mshotsShot(url) {
 }
 
 // Capture today's fingerprint and persist it (one row per host/day; upserts).
+// CHANGE-GATED screenshots (founder, 20 Jul: "only post a new screenshot when the change occurs
+// — the same screenshot day over day doesn't make sense"). Cheap signals decide whether to spend
+// a screenshot: the product-feed diff, an HTML banner change, or a 7-day heartbeat (so every
+// brand still gets at least one fresh frame a week, catching pure-visual redesigns). On quiet
+// days we store `shotFrom: <day>` — a dated pointer to the last real frame — which also cuts
+// ScreenshotOne usage ~5-10× (likely back inside the free tier) and DB growth likewise.
 export async function captureWebsite(host, url) {
   const u = url || ('https://' + cleanHost(host));
-  const [summary, rawShot, homeText] = await Promise.all([siteSummary(host), siteShot(u), fetchHomeText(u)]);
-  let shot = rawShot;
-  // Read the banner from the screenshot (what's actually shown), not raw HTML — and detect
-  // when the "screenshot" is really the screenshot service's error page (rate-limited etc.).
-  let { banner, error: shotIsError } = await readBanner(shot, homeText);
-  if (shot && shotIsError) {
-    // Never store a rate-limit/error image or read a banner off it (Seranova sat on a
-    // "local_rate_limited" placeholder for days). Drop it; the fallback below keeps a real
-    // same-day frame if we have one, else it's left blank and the UI shows a clean
-    // "capture unavailable" state. Read the banner from the homepage HTML instead.
-    shot = null;
-    banner = await siteBannerFromShot(null, homeText);
+  const today = new Date().toISOString().slice(0, 10);
+  const [summary, homeText, prev] = await Promise.all([
+    siteSummary(host), fetchHomeText(u), latestSnapshot(host, 'website').catch(() => null),
+  ]);
+
+  const prevDay = prev ? String(prev.__day || '').slice(0, 10) : '';
+  const sameDayFrame = (prev && prevDay === today && prev.shot && !bannerLooksLikeError(prev.banner)) ? prev.shot : null;
+  // When did we last take a REAL frame? (prev may itself be a pointer row)
+  const lastFrameDay = prev ? (prev.shot ? prevDay : String(prev.shotFrom || '')) : '';
+  const frameAgeDays = lastFrameDay ? Math.round((Date.parse(today) - Date.parse(lastFrameDay)) / 864e5) : Infinity;
+
+  // HTML banner read — CHANGE SIGNAL only (cheap text model); the stored banner always comes
+  // from a rendered screenshot. Only a NON-EMPTY differing read counts, so announcement-bar
+  // rotation (the sale slide cycling out of the HTML slice) doesn't fire a shot every day.
+  const bnorm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
+  const htmlBanner = cleanBanner(await bannerRawFromText(homeText));
+  const bannerChanged = !!htmlBanner && bnorm(htmlBanner) !== bnorm(prev && prev.banner);
+  const summaryChanged = !!(prev && prev.summary && summary && diffWebsite(prev.summary, summary).length) || (!!summary !== !!(prev && prev.summary));
+  const changed = !prev || !lastFrameDay || frameAgeDays >= 7 || summaryChanged || bannerChanged;
+
+  if (!changed) {
+    // Quiet: keep today's own frame if we have one, else a dated pointer to the last real
+    // frame — no screenshot spent, and the UI says "unchanged since <day>" honestly.
+    const data = sameDayFrame
+      ? { summary, shot: sameDayFrame, banner: (prev && prev.banner) || '', capturedAt: new Date().toISOString() }
+      : { summary, shot: null, shotFrom: lastFrameDay, banner: (prev && prev.banner) || '', capturedAt: new Date().toISOString() };
+    await saveSnapshot(host, 'website', data);
+    return data;
   }
-  // A screenshot can also fail transiently (a site slow to reach network-idle inside the
-  // navigation timeout). This row UPSERTS, so writing the null straight through would
-  // blank a good frame we already hold for today and break the before/after slider —
-  // keep the existing frame instead (as long as it isn't itself an error image); the next
-  // capture replaces it with a fresh one.
+
+  // Something moved (or the weekly heartbeat is due) → spend a real screenshot, with the
+  // error-image guard.
+  let shot = await siteShot(u);
+  let { banner, error: shotIsError } = await readBanner(shot, homeText);
+  if (shot && shotIsError) { shot = null; banner = await siteBannerFromShot(null, homeText); }
   if (!shot) {
-    try {
-      const prev = await latestSnapshot(host, 'website');
-      const today = new Date().toISOString().slice(0, 10);
-      if (prev && prev.shot && !bannerLooksLikeError(prev.banner) && String(prev.__day || '').slice(0, 10) === today) shot = prev.shot;
-    } catch (e) { /* no prior frame to keep */ }
+    // Fresh shot failed → today's earlier good frame beats nothing; else a pointer to the last
+    // real frame (never to today itself — that row is about to be overwritten). The
+    // websiteCompare self-heal retries the capture later.
+    const refDay = (lastFrameDay && lastFrameDay !== today) ? lastFrameDay : '';
+    const data = sameDayFrame
+      ? { summary, shot: sameDayFrame, banner: (prev && prev.banner) || banner || '', capturedAt: new Date().toISOString() }
+      : { summary, shot: null, ...(refDay ? { shotFrom: refDay } : {}), banner, capturedAt: new Date().toISOString() };
+    await saveSnapshot(host, 'website', data);
+    return data;
   }
   const data = { summary, shot, banner, capturedAt: new Date().toISOString() };
   await saveSnapshot(host, 'website', data);
@@ -337,9 +364,24 @@ export async function scrubWebsiteHistory(days) {
   } catch (e) { console.warn('scrubWebsiteHistory:', e.message); }
   return { checked, cleaned };
 }
+// Resolve change-gated `shotFrom` pointers in place: a quiet day carries the DAY of the last
+// real frame instead of a copy of it — attach that frame's image so every consumer downstream
+// (slider, fallback picks, plausibility checks) just sees a shot, plus the source day for
+// honest "unchanged since X" labelling. Rows are this call's own query results — safe to mutate.
+function resolveShotRefs(rows) {
+  const byDay = new Map(rows.map((r) => [r.day, r]));
+  for (const r of rows) {
+    const d = r.data;
+    if (d && !d.shot && d.shotFrom) {
+      const src = byDay.get(String(d.shotFrom));
+      if (src && src.data && src.data.shot) d.shot = src.data.shot;
+    }
+  }
+  return rows;
+}
 export async function websiteCompare(host, url, day, force) {
   if (!host) { const e = new Error('Missing host.'); e.status = 400; throw e; }
-  const shape = (s) => s ? { day: s.day, capturedAt: (s.data && s.data.capturedAt) || null, shot: (s.data && s.data.shot) || null, summary: (s.data && s.data.summary) || null } : null;
+  const shape = (s) => s ? { day: s.day, capturedAt: (s.data && s.data.capturedAt) || null, shot: (s.data && s.data.shot) || null, shotFrom: (s.data && s.data.shotFrom) || null, summary: (s.data && s.data.summary) || null } : null;
   const mk = (after, before, extra) => ({
     host: cleanHost(host),
     after: shape(after), before: shape(before),
@@ -350,9 +392,10 @@ export async function websiteCompare(host, url, day, force) {
 
   // Historical view — the capture on `day` vs the most recent earlier capture (no live re-capture).
   if (day) {
-    const recent = await recentSnapshots(host, 'website', 40);   // sorted day DESC
+    const recent = resolveShotRefs(await recentSnapshots(host, 'website', 40));   // sorted day DESC
     const before = recent.find((s) => s.day < day) || null;
     const out = mk(recent.find((s) => s.day === day) || null, before, { day });
+    if (out.after && out.before && out.after.shot && out.after.shot === out.before.shot) out.before.shot = null;
     // Same error-frame protections as the latest view: never slider on an implausible frame,
     // and when this day's shot failed/was scrubbed, offer the nearest good frame, dated.
     if (out.before && out.before.shot && !plausibleShot(before)) out.before.shot = null;
@@ -364,14 +407,14 @@ export async function websiteCompare(host, url, day, force) {
   }
 
   // Latest view — make sure today's capture is fresh, then diff the two most recent.
-  let recent = await recentSnapshots(host, 'website', 5);
+  let recent = resolveShotRefs(await recentSnapshots(host, 'website', 10));
   const top = recent[0];
   const ageH = top && top.data && top.data.capturedAt ? (Date.now() - Date.parse(top.data.capturedAt)) / 3600000 : Infinity;
   // SELF-HEAL: today's capture stored WITHOUT a screenshot (the services were rate-limited and
   // the error image was rightly discarded) → retry on view, throttled to once per ~45 min per
   // host, so the panel heals itself the moment the screenshot service recovers instead of
   // showing "unavailable" until tomorrow.
-  const shotMissing = !!(top && top.data && !top.data.shot) && ageH * 60 > 45;
+  const shotMissing = !!(top && top.data && !top.data.shot && !top.data.shotFrom) && ageH * 60 > 45;
   if (force || ageH > 20 || shotMissing) {
     // SINGLE-FLIGHT per host: several viewers landing on a stale page at once (a shared link
     // doing the rounds) used to each trigger their own paid screenshot+banner capture (audit).
@@ -381,9 +424,12 @@ export async function websiteCompare(host, url, day, force) {
       _capInFlight.set(hk, captureWebsiteFull(host, url).finally(() => _capInFlight.delete(hk)));
     }
     await _capInFlight.get(hk).catch(() => { /* capture failure → serve what we have */ });
-    recent = await recentSnapshots(host, 'website', 5);
+    recent = resolveShotRefs(await recentSnapshots(host, 'website', 10));
   }
   const out = mk(recent[0] || null, recent[1] || null);
+  // Visually-unchanged day: after's image is literally before's frame — a slider of two
+  // identical images reads as a bug, so show the single view (frontend labels it honestly).
+  if (out.after && out.before && out.after.shot && out.after.shot === out.before.shot) out.before.shot = null;
   // Old ERROR frames can sit in history (stored before the discard guard existed). Never let one
   // reach a viewer: if the slider's "before" frame is implausible, drop just its image (diffs
   // keep using its summary), and offer the most recent PLAUSIBLE frame as the display fallback

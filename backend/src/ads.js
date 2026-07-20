@@ -43,7 +43,7 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
     ? ('https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=' + encodeURIComponent(country) + '&view_all_page_id=' + pageId + '&search_type=page&media_type=all')
     : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + sortQ + '&media_type=all');
 
-  const ADS_N = Number(process.env.ADS_COUNT) || 200;
+  const ADS_N = Number(process.env.ADS_COUNT) || 50;   // founder-set (20 Jul): newest-first sorting means 50 always contains the new launches; deeper pulls were pure Apify cost
   const input = {
     urls: [{ url: searchUrl }],
     startUrls: [{ url: searchUrl }],
