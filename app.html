@@ -196,6 +196,8 @@ button{font-family:inherit;cursor:pointer}
 .adthumb .media.noimg::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 38%,rgba(87,210,207,.12),transparent 70%)}
 .adthumb .nw{position:absolute;top:10px;left:10px;z-index:3;font-size:9px;font-weight:600;letter-spacing:.05em;background:var(--sage);color:#0b1311;padding:2px 8px;border-radius:20px;text-transform:uppercase}
 .adthumb .nw.vid,.adthumb .nw.alt{background:rgba(0,0,0,.62);color:#fff;letter-spacing:.02em}
+.adthumb .nw.off{background:rgba(0,0,0,.62);color:#e0b45f;letter-spacing:.02em}
+.adthumb .media-ph .ph-sub{display:block;margin-top:5px;font-size:9px;letter-spacing:0;text-transform:none;color:var(--faint)}
 .adthumb .pl{position:absolute;top:10px;right:10px;z-index:3;font-size:10px;font-weight:600;background:rgba(0,0,0,.6);color:#fff;padding:3px 9px;border-radius:20px;backdrop-filter:blur(4px)}
 .adthumb .cap{padding:11px 13px 13px;font-size:12.5px;line-height:1.46;color:var(--text);height:74px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
 .adthumb .go{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;opacity:0;background:rgba(12,16,9,.4);transition:opacity .16s}
@@ -291,6 +293,10 @@ button{font-family:inherit;cursor:pointer}
 .admedia{position:relative;display:block;background:var(--bg);max-height:430px;overflow:hidden}
 .admedia img{width:100%;height:auto;display:block;max-height:430px;object-fit:contain}
 .admedia-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;padding-left:3px;backdrop-filter:blur(3px)}
+.admedia-off{background:var(--raised);display:flex;align-items:center;justify-content:center;padding:34px 24px}
+.admedia-off .admedia-ph{text-align:center;line-height:1.5;max-width:420px}
+.admedia-off .admedia-ph b{display:block;font-size:14.5px;color:var(--text);margin-bottom:7px}
+.admedia-off .admedia-ph span{font-size:12.5px;color:var(--muted)}
 .adcopy{padding:15px 17px;border-bottom:1px solid var(--line2)}
 .adcta{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(227,169,44,.4);padding:3px 9px;border-radius:4px;margin-bottom:11px}
 .adtext{font-size:14px;line-height:1.55;color:var(--text);white-space:pre-wrap;word-break:break-word}
@@ -1116,11 +1122,28 @@ function imgExpired(u){
   var exp=parseInt(m[1],16);
   return exp>0 && exp*1000 < Date.now();
 }
+// An ad's live status, so a missing preview reads as the COMPETITOR's ad status, not a WatchBack
+// glitch (founder, 20 Jul). Two signals:
+//   'off'   — Meta's Ad Library flags it Inactive (a.active===false, its own is_active). RELIABLE.
+//   'stale' — we're serving a previously-captured copy whose signed oe= image URL has since died,
+//             i.e. the ad dropped out of today's live scrape. LIKELY inactive — but it can also be
+//             a transient partial-scrape miss (the 21-vs-27 case), so we only ever say "likely".
+// '' = looks active / unknown. Applies to ADS only; organic posts never get an activity claim.
+function adState(a){
+  if(!a) return '';
+  if(a.active===false) return 'off';
+  if(a.image && imgExpired(a.image)) return 'stale';
+  return '';
+}
 function postCard(o){
   var expired=o.image&&imgExpired(o.image);
   var show=o.image&&!expired;
   var img=show?'<img src="'+esc(o.image)+'" loading="lazy" onerror="this.style.display=\'none\';this.parentNode.classList.add(\'noimg\')">':'';
-  var ph='<span class="media-ph">'+(expired?'Preview expired':'No preview available')+'</span>';
+  var ph;
+  if(o.ad&&o.state==='off')                     ph='<span class="media-ph">AD NO LONGER ACTIVE<span class="ph-sub">Meta lists this ad inactive</span></span>';
+  else if(o.ad&&(o.state==='stale'||expired))   ph='<span class="media-ph">AD LIKELY INACTIVE<span class="ph-sub">Last captured copy</span></span>';
+  else if(o.ad)                                 ph='<span class="media-ph">No preview available</span>';
+  else                                          ph='<span class="media-ph">'+(expired?'Preview unavailable':'No preview available')+'</span>';
   var go='<span class="go"><span><svg width="15" height="15" fill="none" viewBox="0 0 14 14"><path d="M5 9l4.2-4.2M5.5 4.8H9.2V8.5" stroke="#0b1311" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
   var clk=o.click?' onclick="'+o.click+';return false"':'';
   var du=o.url?' data-url="'+esc(o.url)+'"':'';
@@ -1159,8 +1182,11 @@ var STAT_ICONS={
 function statIcon(t,v){return '<span class="cstat">'+STAT_ICONS[t]+esc(String(v))+'</span>';}
 function adThumb(a,i){
   var plat=(a.platforms&&a.platforms[0])?prettyPlat(a.platforms[0]):'Meta';
-  var tl=isRecent(a.started)?'<span class="nw">New</span>':(a.hasVideo?'<span class="nw vid">▶ Video</span>':'');
-  return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,cap:String(a.text||a.title||''),click:'openAd('+i+')'});
+  var st=adState(a);
+  // A Meta-confirmed-inactive ad that still has a valid image shows the image + an "Inactive"
+  // badge (the 'stale'/expired case has no image, so it falls to the media-ph label instead).
+  var tl=st==='off'?'<span class="nw off">Inactive</span>':(isRecent(a.started)?'<span class="nw">New</span>':(a.hasVideo?'<span class="nw vid">▶ Video</span>':''));
+  return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,cap:String(a.text||a.title||''),click:'openAd('+i+')',ad:true,state:st});
 }
 var ADS_SHOWN=[];
 function adsHTML(d){
@@ -1820,11 +1846,21 @@ function openAd(i){
   var ov=document.getElementById('adOv');if(!ov)return;
   document.getElementById('adPage').textContent=a.page||'Advertiser';
   var plats=(a.platforms||[]).map(prettyPlat).join(' · ');
-  document.getElementById('adSub').textContent=(a.started?'Running since '+fmtDate(a.started):'Active ad')+(plats?' · '+plats:'');
+  var st=adState(a);
+  // Don't claim "Active" for an ad Meta flags inactive (or one we can only show from a stale copy).
+  var subLead=st==='off'?'No longer active':(st==='stale'?'Likely no longer active':(a.started?'Running since '+fmtDate(a.started):'Active ad'));
+  var subStart=(st&&a.started)?' · started '+fmtDate(a.started):'';
+  document.getElementById('adSub').textContent=subLead+subStart+(plats?' · '+plats:'');
   var media='';
-  if(a.image){
+  var mExpired=a.image&&imgExpired(a.image);
+  if(a.image&&!mExpired){
     var inner='<img src="'+esc(a.image)+'" alt="" onerror="var m=this.closest(\'.admedia\');if(m)m.style.display=\'none\'">'+(a.hasVideo?'<span class="admedia-play">▶</span>':'');
     media=(a.hasVideo&&a.link)?'<a class="admedia vid" href="'+esc(a.link)+'" target="_blank" rel="noopener" title="Watch in Meta Ad Library">'+inner+'</a>':'<div class="admedia">'+inner+'</div>';
+  }else if(mExpired){
+    // Expired image → say WHY (the ad isn't running) instead of a blank frame that looks broken.
+    var offLead=st==='off'?'This ad is no longer active':'This ad is likely no longer active';
+    var offSub=st==='off'?'Meta lists it inactive, so it no longer serves a preview. The ad copy and analysis below are the last version we captured.':'It has dropped out of Meta’s live ad library, so its preview is no longer served. Below is the last copy we captured.';
+    media='<div class="admedia admedia-off"><div class="admedia-ph"><b>'+offLead+'</b><span>'+offSub+'</span></div></div>';
   }
   // Label it "Ad copy" so it reads unmistakably as the advertiser's own words (not our
   // analysis), fold long copy the way Facebook does, then close with the headline + CTA.
