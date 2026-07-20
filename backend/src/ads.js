@@ -259,6 +259,24 @@ function dedupeAds(ads) {
   }
   return kept;
 }
+// Concept-level dedup for the "NEW ADS" report (founder: show new CONCEPTS, not 10 near-identical
+// variants). Unlike dedupeAds this IGNORES domain/format/page and collapses on the creative itself —
+// same image, same opening hook (first ~50 chars), or high copy-token overlap — so the same
+// advertorial run by 10 rotating personas onto 10 funnels reports as ONE concept.
+function dedupeConcepts(ads) {
+  const kept = [], meta = [];
+  for (const a of ads) {
+    const t = normDup(a.text || a.title), tk = dupToks(a.text || a.title), pref = t.slice(0, 50);
+    let dup = false;
+    for (let i = 0; i < kept.length; i++) {
+      if (a.image && a.image === kept[i].image) { dup = true; break; }
+      const m = meta[i];
+      if (tk.size >= 4 && (t === m.t || (pref.length >= 20 && pref === m.pref) || jaccard(tk, m.tk) >= 0.72)) { dup = true; break; }
+    }
+    if (!dup) { kept.push(a); meta.push({ t, tk, pref }); }
+  }
+  return kept;
+}
 
 // Map the Facebook Ad Library actor's items to a clean, display-ready shape.
 // Many eComm ads are dynamic catalog ads whose body is a "{{product.brand}}"
@@ -383,7 +401,7 @@ export async function adsChanges(host, todayAds) {
   // few days is new regardless of capture depth, so still surface those (not in prev, started recently).
   if (!prev.length || prev.length < today.length * 0.6) {
     const prevIds0 = new Set(prev.map(adKey));
-    const freshNew = today.filter((a) => !prevIds0.has(adKey(a)) && startedRecently(a.started, tStr, 4));
+    const freshNew = dedupeConcepts(today.filter((a) => !prevIds0.has(adKey(a)) && startedRecently(a.started, tStr, 4)));
     return { baseline: true, newCount: freshNew.length, newAds: freshNew.slice(0, 30).map((a) => ({ ...a, tags: [] })), signals: { landings: [], pages: [], formats: [] } };
   }
   const prevIds = new Set(prev.map(adKey));
@@ -408,5 +426,8 @@ export async function adsChanges(host, todayAds) {
     pages: uniq(fresh.filter((a) => a.tags.some((t) => t.k === 'page')).map((a) => a.page)),
     formats: uniq(fresh.flatMap((a) => a.tags.filter((t) => t.k === 'format').map((t) => t.v))),
   };
-  return { baseline: false, newCount: fresh.length, newAds: fresh.slice(0, 30), signals };
+  // Signals (new landings/pages/formats) stay computed from the FULL fresh set above — a new funnel
+  // is worth surfacing even if it's a variant — but the ads we REPORT collapse to distinct concepts.
+  const concepts = dedupeConcepts(fresh);
+  return { baseline: false, newCount: concepts.length, newAds: concepts.slice(0, 30), signals };
 }
