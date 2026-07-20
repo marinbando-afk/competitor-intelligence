@@ -606,19 +606,27 @@ let _adminRefreshing = false;
 app.post('/api/admin/refresh', async (req, res) => {
   if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   if (_adminRefreshing) return res.json({ ok: true, already: true });
+  const onlyHost = String((req.body && req.body.host) || req.query.host || '').toLowerCase().trim();   // limit to one brand
+  const wk = String((req.body && req.body.week) || req.query.week || '').trim();                       // explicit weekStart (a Monday, YYYY-MM-DD)
   _adminRefreshing = true;
-  res.json({ ok: true, started: true });
+  res.json({ ok: true, started: true, host: onlyHost || 'all', week: wk || 'current+previous' });
   (async () => {
     let n = 0;
     try {
-      const brands = await allBrands();
+      let brands = await allBrands();
+      if (onlyHost) brands = brands.filter((b) => b.host === onlyHost);
       const curMon = mondayOf(new Date().toISOString().slice(0, 10));
+      const prevMon = mondayOf(new Date(Date.parse(curMon) - 7 * 864e5).toISOString().slice(0, 10));
+      // Which week(s) to (re)generate: the explicit week if given, else BOTH the current draft and
+      // the just-completed week — so the report users actually see (last week's, served as the
+      // latest snapshot on a Monday) refreshes too, not only the near-empty current-week draft.
+      const weeks = wk ? [wk] : [...new Set([curMon, prevMon])];
       for (const b of brands) {
         try { await generateInsights(b.name, b.host); } catch (e) { /* best-effort */ }
-        try { await generateWeekly(b.host, b.name, curMon); } catch (e) { /* best-effort */ }
+        for (const w of weeks) { try { await generateWeekly(b.host, b.name, w); } catch (e) { /* best-effort */ } }
         n++;
       }
-      console.log('✓ admin refresh: regenerated insights+weekly for ' + n + ' brand(s)');
+      console.log('✓ admin refresh: regenerated insights+weekly (' + weeks.join(',') + ') for ' + n + ' brand(s)' + (onlyHost ? ' [host=' + onlyHost + ']' : ''));
     } catch (e) { console.warn('admin refresh:', e.message); }
     finally { _adminRefreshing = false; }
   })();
