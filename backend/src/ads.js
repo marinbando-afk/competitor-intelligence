@@ -189,12 +189,16 @@ async function filterToBrand(brand, ads, hostDom, desc) {
   for (const a of ads) { const p = a.pageId; if (!p) continue; (pg[p] = pg[p] || { total: 0, own: 0 }).total++; if (onOwnDomain(a)) pg[p].own++; }
   const brandPages = new Set(Object.keys(pg).filter((p) => pg[p].own > 0 && pg[p].own * 2 >= pg[p].total));
   const onBrandPage = (a) => !!(a.pageId && brandPages.has(a.pageId));
+  // Meta's OWN attribution: the ad is branded content "<persona> with <BRAND>". A whole-word brand
+  // match in that partner name is definitive (and precise — a "with Qure Skincare" ad never matches
+  // "seranova"), so it keeps a brand's persona/advertorial ads that run onto neutral funnels.
+  const onBrandedContent = (a) => { const w = new Set(wordsOf(a.partner)); return [...keys].some((k) => k.length >= 4 && w.has(k)); };
   // Precision first (founder rule: NEVER show a random business — better to miss a brand ad
   // than show a different company's). When we know the brand's domain, keep ONLY its own-domain
-  // ads, its own-page ads, and AI-confirmed ones — bare brand-NAME matching is disabled (it's
-  // what let "brodo.ma"/"BRODO Footwear" through). Name matching only fills in when we have NO
-  // domain to anchor on (fail-open so a domain-less brand isn't blanked).
-  const stringKeep = (a) => onOwnDomain(a) || onBrandPage(a) || (hostDom ? false : (!keys.size ? true : adMatchesBrand(a, keys)));
+  // ads, its own-page ads, branded-content-to-the-brand ads, and AI-confirmed ones — bare brand-NAME
+  // matching is disabled (it's what let "brodo.ma"/"BRODO Footwear" through). Name matching only fills
+  // in when we have NO domain to anchor on (fail-open so a domain-less brand isn't blanked).
+  const stringKeep = (a) => onOwnDomain(a) || onBrandPage(a) || onBrandedContent(a) || (hostDom ? false : (!keys.size ? true : adMatchesBrand(a, keys)));
   if (!process.env.ANTHROPIC_API_KEY) return ads.filter(stringKeep);
   const idOf = (a) => (a.advertiser || '') + '|' + (adDomain(a.landing) || '');
   // Attach a sample of each distinct advertiser's ad copy so the AI can sanity-check the
@@ -216,12 +220,12 @@ async function filterToBrand(brand, ads, hostDom, desc) {
     // the brand's advertorials that send traffic to a 3rd-party domain); other off-domain ads
     // follow the AI verdict — so a same-name ad on a DIFFERENT registrable domain (brodo.ma vs
     // brodo.com) is dropped, while the brand's own funnels (drink.brodo.com) always survive.
-    return ads.filter((a) => { if (onOwnDomain(a) || onBrandPage(a)) return true; const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
+    return ads.filter((a) => { if (onOwnDomain(a) || onBrandPage(a) || onBrandedContent(a)) return true; const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
   } catch (e) {
     // AI error → be CONSERVATIVE when we know the brand's domain: keep only its own-domain
     // ads + ads from its own pages (whole-word name matching is unreliable for a generic name
     // like "Brodo", which matches BRODO Footwear, brodo.ma, etc.). No known domain → names.
-    return ads.filter((a) => hostDom ? (onOwnDomain(a) || onBrandPage(a)) : stringKeep(a));
+    return ads.filter((a) => hostDom ? (onOwnDomain(a) || onBrandPage(a) || onBrandedContent(a)) : stringKeep(a));
   }
 }
 
@@ -290,6 +294,12 @@ async function normalize(items, brand, country, host, debug) {
       landing: snap.link_url || (cards[0] && cards[0].link_url) || '',
       started: String(it.start_date_formatted || it.start_date || '').split(' ')[0],
       active: it.is_active !== false,
+      // Branded-content partner ("<persona> with <BRAND>" in the Ad Library) — Meta's OWN attribution
+      // of an advertorial to the brand it promotes. The precise way to keep a brand's persona/affiliate
+      // ads (which run from other pages onto neutral funnels) while excluding a DIFFERENT brand's ads
+      // that share the same advertorial network (e.g. a "with Qure Skincare" ad under a Seranova search).
+      partner: (snap.branded_content && (snap.branded_content.page_name || '')) || '',
+      partnerId: String((snap.branded_content && snap.branded_content.page_id) || ''),
       link: it.ad_library_url || (it.ad_archive_id ? 'https://www.facebook.com/ads/library/?id=' + it.ad_archive_id : ''),
     };
   }).filter((a) => a.text || a.image);
@@ -318,7 +328,7 @@ async function normalize(items, brand, country, host, debug) {
     rawItemKeys: Object.keys(items[0] || {}),                               // to spot a branded-content / "with <brand>" field
     rawSnapKeys: Object.keys((items[0] || {}).snapshot || {}),
     brandedSample: (items.slice(0, 60).map((it) => ({ byline: it.byline || (it.snapshot && it.snapshot.byline) || '', bc: it.branded_content || (it.snapshot && it.snapshot.branded_content) || '', page: it.page_name || (it.snapshot && it.snapshot.page_name) || '' })).find((x) => x.byline || x.bc) || null),
-    recent: ads.filter((a) => String(a.started || '') >= '2026-07-08').map((a) => ({ started: a.started, page: a.page, land: adDomain(a.landing), kept: keptSet.has(adKey(a)) })),
+    recent: ads.filter((a) => String(a.started || '') >= '2026-07-08').map((a) => ({ started: a.started, page: a.page, land: adDomain(a.landing), bc: a.partner || '', kept: keptSet.has(adKey(a)) })),
   } : undefined;
   return {
     brand,
