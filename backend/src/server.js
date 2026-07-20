@@ -17,7 +17,7 @@ import { randomBytes } from 'crypto';
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
 import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, TRACKED } from './refresh.js';
-import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo } from './slack.js';
+import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, sendUserWeeklyLinks } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare, mshotsShot } from './website.js';
@@ -608,10 +608,11 @@ app.post('/api/admin/refresh', async (req, res) => {
   if (_adminRefreshing) return res.json({ ok: true, already: true });
   const onlyHost = String((req.body && req.body.host) || req.query.host || '').toLowerCase().trim();   // limit to one brand
   const wk = String((req.body && req.body.week) || req.query.week || '').trim();                       // explicit weekStart (a Monday, YYYY-MM-DD)
+  const toSlack = (req.body && req.body.slack === true) || req.query.slack === '1';                    // also post the refreshed report links to each client's own Slack
   _adminRefreshing = true;
-  res.json({ ok: true, started: true, host: onlyHost || 'all', week: wk || 'current+previous' });
+  res.json({ ok: true, started: true, host: onlyHost || 'all', week: wk || 'current+previous', slack: toSlack });
   (async () => {
-    let n = 0;
+    let n = 0, weekLabel = '';
     try {
       let brands = await allBrands();
       if (onlyHost) brands = brands.filter((b) => b.host === onlyHost);
@@ -623,10 +624,16 @@ app.post('/api/admin/refresh', async (req, res) => {
       const weeks = wk ? [wk] : [prevMon];
       for (const b of brands) {
         try { await generateInsights(b.name, b.host); } catch (e) { /* best-effort */ }
-        for (const w of weeks) { try { await generateWeekly(b.host, b.name, w); } catch (e) { /* best-effort */ } }
+        for (const w of weeks) { try { const r = await generateWeekly(b.host, b.name, w); if (r && r.week && r.week.label) weekLabel = r.week.label; } catch (e) { /* best-effort */ } }
         n++;
       }
       console.log('✓ admin refresh: regenerated insights+weekly (' + weeks.join(',') + ') for ' + n + ' brand(s)' + (onlyHost ? ' [host=' + onlyHost + ']' : ''));
+      // Optionally re-fire the (now refreshed) weekly report links to each client's own Slack —
+      // same message the Monday scheduler sends. Webhooks are read server-side and never exposed.
+      if (toSlack) {
+        try { await sendUserWeeklyLinks(pool, weekLabel || (weeks[0] || '')); console.log('✓ admin refresh: weekly report links re-posted to clients\' Slack'); }
+        catch (e) { console.warn('admin refresh slack:', e.message); }
+      }
     } catch (e) { console.warn('admin refresh:', e.message); }
     finally { _adminRefreshing = false; }
   })();
