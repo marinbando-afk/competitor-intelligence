@@ -38,11 +38,10 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
     : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + '&media_type=all');
 
   // Covers the common input shapes across Meta Ad Library actors — extra fields are ignored.
-  // Meta returns matches in a NON-recency order, so a low cap silently drops the NEWEST ads for
-  // heavy advertisers (Seranova runs 500+ persona advertorials — at 100 our newest lagged ~2 weeks
-  // behind their real latest launch). 500 catches current newest; you only pay for results a brand
-  // actually has, so light advertisers are unaffected. ADS_COUNT env can tune it down for cost.
-  const ADS_N = Number(process.env.ADS_COUNT) || 500;
+  // With most_recent sorting (below), the NEWEST ads are always in the first N, so we no longer
+  // need a huge cap to catch them — 200 keeps a solid recent profile while newest are guaranteed,
+  // at far less Apify cost than a blind deep pull. ADS_COUNT env overrides.
+  const ADS_N = Number(process.env.ADS_COUNT) || 200;
   const input = {
     urls: [{ url: searchUrl }],
     startUrls: [{ url: searchUrl }],
@@ -52,6 +51,13 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
     country,
     activeStatus: pageId ? 'all' : 'active',
     scrapePageAds: true,
+    // Sort NEWEST-first. The actor defaults to impressions_desc, which buries a heavy advertiser's
+    // brand-new (low-impression) ads far past our cap — that's why Seranova's Jul 18-19 launches
+    // never reached us. With most_recent, the newest are always in the first N (dot-notation keys
+    // per the actor's schema; extra keys are ignored if unused, so this is safe & additive).
+    'scrapePageAds.sortBy': 'most_recent',
+    'scrapePageAds.activeStatus': pageId ? 'all' : 'active',
+    'scrapePageAds.countryCode': country,
     ...(pageId ? { pageId, pageIds: [pageId] } : {}),   // some actors take the page id directly
   };
 
