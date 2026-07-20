@@ -16,6 +16,11 @@ export const pool = new Pool({
     : undefined,
 });
 
+// Without this, one idle-client disconnect (managed Postgres recycles connections routinely)
+// is an unhandled 'error' event → the whole process crashes → Railway restarts it → another
+// boot-warm bill. Log and carry on; the pool replaces the dead client on the next query.
+pool.on('error', (err) => { console.warn('pg pool idle-client error (recovered):', err.message); });
+
 // Create tables on boot — no separate migration step to run.
 export async function initSchema() {
   await pool.query(`

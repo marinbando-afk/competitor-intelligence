@@ -78,9 +78,15 @@ export async function recentSnapshots(host, channel, limit) {
 export async function allSnapshots(host, channel) {
   if (!ok() || !host) return [];
   try {
+    // The NEWEST 60 days, returned oldest→newest (what every consumer expects). A plain
+    // `ORDER BY day ASC LIMIT 60` returned the OLDEST 60 — fine for the first two months of
+    // history, then the 14-day angle window and the sale-banner rotation guard would silently
+    // start reading two-month-old data forever (audit timebomb, would have hit ~late Aug).
     const r = await pool.query(
-      `SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots
-       WHERE host = $1 AND channel = $2 ORDER BY day ASC LIMIT 60`,
+      `SELECT day, data FROM (
+         SELECT to_char(day,'YYYY-MM-DD') AS day, data, day AS d FROM snapshots
+         WHERE host = $1 AND channel = $2 ORDER BY day DESC LIMIT 60
+       ) t ORDER BY d ASC`,
       [String(host).toLowerCase(), channel],
     );
     return r.rows.map((x) => ({ day: x.day, data: x.data }));

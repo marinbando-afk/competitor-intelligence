@@ -7,6 +7,7 @@
 //   GET  /api/emails?host=theoodie.com                    -> { emails, summary }
 
 import Anthropic from '@anthropic-ai/sdk';
+import crypto from 'crypto';
 import { pool } from './db.js';
 
 // The monitored inbox users subscribe to competitors' newsletters with.
@@ -71,10 +72,14 @@ export async function storeInbound(body) {
   const preview = (clean(p.text) || stripHtml(p.html)).slice(0, 320);
   const offer = detectOffer(p.subject + ' — ' + preview);
   const receivedAt = (p.dateStr && !isNaN(Date.parse(p.dateStr))) ? new Date(p.dateStr) : new Date();
+  // A NULL message_id defeats ON CONFLICT (NULLs never conflict in Postgres), so an inbound
+  // retry stored the same email twice (audit bug). Synthesize a stable id from the email's
+  // own identity when the header is missing — identical retries then dedupe like normal.
+  const msgId = p.messageId || ('synth:' + crypto.createHash('sha256').update([p.fromEmail, p.subject, String(p.dateStr || ''), preview.slice(0, 120)].join('|')).digest('hex').slice(0, 40));
   await pool.query(
     `INSERT INTO emails(message_id, sender_email, sender_domain, from_name, subject, preview, html, offer, received_at)
      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (message_id) DO NOTHING`,
-    [p.messageId, p.fromEmail.slice(0, 200), senderDomain, clean(p.fromName).slice(0, 160),
+    [msgId, p.fromEmail.slice(0, 200), senderDomain, clean(p.fromName).slice(0, 160),
      p.subject.slice(0, 400), preview, String(p.html || '').slice(0, 400000), offer, receivedAt],
   );
   return { ok: true, routedTo: senderDomain, subject: p.subject };
@@ -230,11 +235,18 @@ export async function getEmails(host, name) {
 }
 
 // Full stored HTML of one captured email, for the in-app preview.
-export async function getEmailHtml(idArg) {
+// host + name are REQUIRED: the id is a global sequential key, so without checking that the
+// email actually belongs to the named brand, `?id=N` was an unauthenticated walk over EVERY
+// captured email in the inbox (audit CRITICAL #2). Now an id only resolves through the brand
+// whose panel legitimately lists it (root domain + its verified sending aliases).
+export async function getEmailHtml(idArg, host, name) {
   const id = parseInt(idArg, 10);
   if (!process.env.DATABASE_URL || !id) return null;
+  const root = rootDomain(String(host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, ''));
+  if (!root) return null;
+  const froms = [root, ...(await aliasDomains(root, clean(name) || root.split('.')[0]))];
   const r = await pool.query(
-    'SELECT subject, from_name, sender_email, received_at, html FROM emails WHERE id = $1', [id]);
+    'SELECT subject, from_name, sender_email, received_at, html FROM emails WHERE id = $1 AND sender_domain = ANY($2)', [id, froms]);
   if (!r.rows[0]) return null;
   const e = r.rows[0];
   return { subject: e.subject || '(no subject)', from: e.from_name || e.sender_email, date: e.received_at, html: e.html || '' };

@@ -12,7 +12,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { initSchema, pool } from './db.js';
-import { signup, login, createUser, setPassword, changePassword, requireAuth, optionalUid, JWT_IS_DEFAULT } from './auth.js';
+import { signup, login, createUser, setPassword, changePassword, requireAuth, optionalUid, JWT_IS_DEFAULT, ensureJwtSecret } from './auth.js';
 import { randomBytes } from 'crypto';
 import { fetchAds, adsChanges } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
@@ -26,7 +26,7 @@ import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { systemStats } from './stats.js';
 import { getWeekly, generateWeekly, mondayOf } from './weekly.js';
-import { snapshotDays, snapshotForDay, recentSnapshots, saveSnapshot, latestSnapshot } from './snapshots.js';
+import { snapshotDays, snapshotForDay, recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost } from './snapshots.js';
 
 const app = express();
 // Emails can be large; also accept form-encoded posts from inbound-email services.
@@ -194,9 +194,12 @@ app.get('/api/weekly', async (req, res) => {
 app.get('/api/ads', async (req, res) => {
   try {
     const qh = String(req.query.host || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase();
-    const debug = req.query.debug === '1';
-    const force = req.query.force === '1' || debug;
-    const pageId = String(req.query.pageId || '').replace(/\D/g, '');   // page-scoped probe (temporary, not persisted)
+    // force / debug / pageId all trigger a PAID live scrape — admin only (audit: force was an
+    // open cost trigger; website-compare already had this gate, ads didn't).
+    const adminReq = await isAdminReq(req);
+    const debug = req.query.debug === '1' && adminReq;
+    const force = (req.query.force === '1' && adminReq) || debug;
+    const pageId = adminReq ? String(req.query.pageId || '').replace(/\D/g, '') : '';   // page-scoped probe (temporary, not persisted)
     let data = null;
     // FAST PATH: serve the PERSISTED daily capture (Postgres, survives restarts) so a
     // pre-warmed competitor's ads appear instantly — instead of waiting on a live scrape
@@ -287,7 +290,10 @@ app.get('/api/social', async (req, res) => {
     }
 
     // 2) No snapshot yet (a brand-new competitor) — pay the one-time live scrape, then persist
-    // it so every later view is instant.
+    // it so every later view is instant. Signed-in viewers only: an anonymous request with an
+    // arbitrary handle was an open paid-scrape trigger (audit). Demo brands always have
+    // snapshots, so anonymous demo visitors never reach this path anyway.
+    if (!(await viewUid(req)) && !(await isAdminReq(req))) return res.json({ handle: req.query.handle || '', posts: [], summary: null });
     const live = await fetchSocial(platform, req.query.handle, req.query.host);
     if (host && platform && live && live.posts && live.posts.length) {
       try { await saveSnapshot(host, platform, { ...live, _at: Date.now() }); } catch (e) { /* best-effort */ }
@@ -350,7 +356,13 @@ app.get('/api/emails-recent', async (req, res) => {
 // Full HTML of one captured email — for the in-app email preview.
 app.get('/api/email-html', async (req, res) => {
   try {
-    const r = await getEmailHtml(req.query.id);
+    // Same brand-name resolution as /api/emails, so aliasing works; the host scoping inside
+    // getEmailHtml is what stops cross-brand id enumeration.
+    const host = String(req.query.host || '').toLowerCase();
+    if (!isPublicHost(host)) return res.status(400).json({ error: 'host required' });
+    let name = req.query.name || '';
+    if (!name) { try { const t = (await allBrands()).find((b) => b.host === host); if (t) name = t.name; } catch (e) { /* fall back to the domain label */ } }
+    const r = await getEmailHtml(req.query.id, host, name);
     if (!r) return res.status(404).json({ error: 'not found' });
     res.json(r);
   } catch (e) {
@@ -399,9 +411,13 @@ app.get('/api/website-compare', async (req, res) => {
 });
 
 // AI insights — per-channel, context-aware read (cached daily, generated on demand).
-app.get('/api/insights', async (req, res) => {
+app.get('/api/insights', aiLimit, async (req, res) => {
   try {
-    res.json({ insights: await getInsights(req.query.host, req.query.name, req.query.refresh === '1', await viewUid(req)) });
+    // refresh=1 regenerates with a paid model run — signed-in viewers only (audit: this was
+    // an open, unthrottled paid-work trigger). Anonymous visitors get the cached read.
+    const uid = await viewUid(req);
+    const refresh = req.query.refresh === '1' && !!(uid || (await isAdminReq(req)));
+    res.json({ insights: await getInsights(req.query.host, req.query.name, refresh, uid) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -564,8 +580,7 @@ app.post('/api/signup', async (req, res) => {
     // Ping the founder so pending accounts get approved fast (manual billing model).
     if (r && r.pending) {
       postText('👤 *New WatchBack signup awaiting approval:* ' + r.email +
-        '\nApprove: https://competitor-intelligence-production-2629.up.railway.app/api/admin/approve?email=' + encodeURIComponent(r.email) + '&key=YOUR_ADMIN_KEY' +
-        '\nAll pending: …/api/admin/users?key=YOUR_ADMIN_KEY').catch(() => {});
+        '\nApprove it: https://watchback.ai/app.html → ⚙ Admin → Signups').catch(() => {});   // (the old message pasted a dead ...key=YOUR_ADMIN_KEY link — audit)
     }
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
@@ -611,14 +626,28 @@ app.post('/api/admin/refresh', async (req, res) => {
   const onlyHost = String((req.body && req.body.host) || req.query.host || '').toLowerCase().trim();   // limit to one brand
   const wk = String((req.body && req.body.week) || req.query.week || '').trim();                       // explicit weekStart (a Monday, YYYY-MM-DD)
   const toSlack = (req.body && req.body.slack === true) || req.query.slack === '1';                    // also post the refreshed report links to each client's own Slack
+  const rescan = (req.body && req.body.rescan === true) || req.query.rescan === '1';                   // force-rescrape ADS first (recency-sorted), so counts reflect reality
   const slackRecipients = toSlack ? await slackClientCount() : null;   // so the UI can say who it'll actually reach
   _adminRefreshing = true;
-  res.json({ ok: true, started: true, host: onlyHost || 'all', week: wk || 'current+previous', slack: toSlack, slackRecipients });
+  res.json({ ok: true, started: true, host: onlyHost || 'all', week: wk || 'current+previous', slack: toSlack, slackRecipients, rescan });
   (async () => {
     let n = 0, weekLabel = '';
     try {
       let brands = await allBrands();
       if (onlyHost) brands = brands.filter((b) => b.host === onlyHost);
+      // Optional ads re-scan BEFORE regenerating: pulls each brand's ads fresh with the fixed
+      // newest-first scraper and persists the capture (reusing already-computed creative hooks —
+      // budget 0 — so no new vision cost). Ads only: social/website/screenshots aren't what was
+      // wrong, and re-running them would multiply the cost for nothing.
+      if (rescan) {
+        for (const b of brands) {
+          try {
+            const a = await fetchAds(b.name, b.country, true, false, b.host);
+            if (a && a.ads && a.ads.length) { await enrichCreativeHooks(b.host, 'ads', 'ad', a.ads, { left: 0 }); await saveSnapshot(b.host, 'ads', a); }
+          } catch (e) { console.warn('rescan ads ' + b.host + ':', e.message); }
+        }
+        console.log('✓ admin refresh: ads re-scanned for ' + brands.length + ' brand(s)');
+      }
       const curMon = mondayOf(new Date().toISOString().slice(0, 10));
       const prevMon = mondayOf(new Date(Date.parse(curMon) - 7 * 864e5).toISOString().slice(0, 10));
       // Which week to (re)generate: the explicit week if given, else the LAST COMPLETED week —
@@ -861,7 +890,7 @@ app.post('/api/admin/announce', async (req, res) => {
       if (!isSlackWebhook(u.slack_webhook)) { results.push({ id: u.id, email: u.email, skipped: 'no Slack connected' }); continue; }
       const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [u.id]);
       const viewUrl = u.share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.share_token)) : 'https://watchback.ai/app.html';
-      const text = withNote(await buildDailyBrief(cs.rows, viewUrl));
+      const text = withNote(await buildDailyBrief(cs.rows, viewUrl, !preview));   // real send commits announce-once state; preview doesn't
       if (preview) results.push({ id: u.id, email: u.email, text });
       else { const r = await postTo(u.slack_webhook, text); results.push({ id: u.id, email: u.email, sent: !!(r && r.sent), error: r && r.error }); }
     }
@@ -953,7 +982,7 @@ app.post('/api/slack/test', aiLimit, requireAuth, async (req, res) => {
     const w = r.rows[0] && r.rows[0].slack_webhook;
     if (!w) return res.status(400).json({ error: 'No Slack connected yet.' });
     const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id=$1 ORDER BY created_at ASC', [req.user.uid]);
-    const s = await postTo(w, await buildDailyBrief(cs.rows));
+    const s = await postTo(w, await buildDailyBrief(cs.rows, null, true));   // real delivery
     res.json({ sent: s.sent });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1074,12 +1103,13 @@ app.delete('/api/competitors/:id', requireAuth, async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 function start() {
-  if (JWT_IS_DEFAULT) console.warn('⚠  JWT_SECRET is not set — sessions are signed with a PUBLIC default key. Set JWT_SECRET in Railway before real users sign in.');
+  if (JWT_IS_DEFAULT) console.warn('ℹ JWT_SECRET env is not set — using the persistent DB-generated secret (safe). Set JWT_SECRET in Railway to pin it explicitly.');
   app.listen(PORT, () => { console.log('✓ API listening on :' + PORT); startScheduler(); });
 }
 // Start the server no matter what — if the DB isn't wired yet, accounts are
-// disabled but the ads endpoint still works.
-initSchema().then(start).catch((err) => {
+// disabled but the ads endpoint still works. The JWT secret is resolved BEFORE
+// listening so no request is ever served under the old public default key.
+initSchema().then(ensureJwtSecret).then(start).catch((err) => {
   console.warn('DB not ready — accounts disabled, ads still work:', err.message);
-  start();
+  ensureJwtSecret().then(start).catch(() => start());
 });

@@ -781,6 +781,7 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
     <div id="adminBody"><div class="adsload" style="padding:16px 0"><span class="spin"></span>Loading…</div></div>
     <div class="m-act">
       <span id="refreshRepSt" class="refresh-st"></span>
+      <label class="refresh-slk" title="Re-scrape every competitor's ads (newest-first) before rebuilding, so new-ad counts reflect reality — takes a few extra minutes and uses Apify budget"><input type="checkbox" id="refreshRepRescan"> re-scan ads first</label>
       <label class="refresh-slk" title="After rebuilding, post the refreshed weekly report links to each client's own Slack channel"><input type="checkbox" id="refreshRepSlack"> also post to clients’ Slack</label>
       <button class="btn btn-g" id="sendBriefBtn" onclick="sendDailyBriefs()" title="Post each client their CURRENT daily brief to their own Slack now — same as the 8am send, but on demand">⚡ Send daily briefs</button>
       <button class="btn btn-g" id="refreshRepBtn" onclick="refreshReports()" title="Rebuild every competitor's daily insights + weekly reports from the data we already captured, using the current logic. No new scraping.">↻ Refresh reports</button>
@@ -943,7 +944,7 @@ function loadSharedComps(cb){
       registerCompetitors();render();USERCOMPS.forEach(function(x){loadInsights(x);});
       if(cb)cb();
     })
-    .catch(function(){if(cb)cb();});
+    .catch(function(){alert('Couldn’t load this shared view — check your connection and reload the page.');if(cb)cb();});
 }
 // Signing out also drops the cached ?admin= owner key — it must never outlive the session
 // and greet the next account that signs in on this browser.
@@ -1196,7 +1197,8 @@ function adThumb(a,i){
 }
 var ADS_SHOWN=[];
 function adsHTML(d){
-  if(!d||d.error)return '<div class="adsempty">No ads found in the Meta Ad Library right now.</div>';
+  if(d&&d.error)return '<div class="adsempty">⚠ Couldn’t check their ads right now (the scan errored) — this does NOT mean they have no ads. It retries on the next daily scan.</div>';
+  if(!d)return '<div class="adsempty">No ads found in the Meta Ad Library right now.</div>';
   ADS_SHOWN=d.ads||[];
   if(d.simple){
     if(!d.ads||!d.ads.length)return '<div class="adssum"><b>No new ads detected on this date.</b></div>';
@@ -1619,7 +1621,7 @@ function tryFetch(u){
 }
 function refreshLive(c){
   var path=c.host+'/products.json?limit=250';
-  var urls=['https://'+path,'https://corsproxy.io/?url='+encodeURIComponent('https://'+path),'https://api.allorigins.win/raw?url='+encodeURIComponent('https://'+path)];
+  var urls=['https://'+path];   // direct only — competitor domains must never route through third-party CORS proxies (audit privacy fix); if CORS blocks it, the cosmetic label simply doesn't show
   return urls.reduce(function(chain,u){return chain.then(function(prev){return prev?prev:tryFetch(u);});},Promise.resolve(null))
     .then(function(products){return products?summarize(products):null;});
 }
@@ -1813,7 +1815,8 @@ function openEml(id){
   if(tab)tab.style.display='none';_emlHtml='';
   body.innerHTML='<div class="adsload" style="padding:40px"><span class="spin"></span>Loading email…</div>';
   ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
-  fetch(API+'/api/email-html?id='+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(d){
+  var _c=currentComp();   // the email id only resolves scoped to its brand's host now (enumeration fix)
+  fetch(API+'/api/email-html?id='+encodeURIComponent(id)+(_c&&_c.host?'&host='+encodeURIComponent(_c.host):'')).then(function(r){return r.json();}).then(function(d){
     if(!d||d.error||!d.html){document.getElementById('emlSub').textContent='';body.innerHTML='<div class="wbase" style="margin:18px">Couldn’t load this email.</div>';return;}
     document.getElementById('emlFrom').textContent=d.from||'';
     document.getElementById('emlSub').textContent=d.subject||'(no subject)';
@@ -2169,7 +2172,7 @@ function patchComp(dbId,body){
     .then(function(d){
       if(d&&d.competitor){var c=mapServerComp(d.competitor);USERCOMPS=USERCOMPS.map(function(x){return x.dbId===c.dbId?c:x;});trackComp(c);editingComp=null;closeModal();state.sel=c.id;document.getElementById('app').dataset.view='detail';delete insightsCache[c.host];render();}
       else{var eU=document.getElementById('eU');eU.textContent=(d&&d.error)||'Could not save — please try again.';eU.style.display='block';}
-    }).catch(function(){});
+    }).catch(function(){var eU=document.getElementById('eU');if(eU){eU.textContent='Couldn’t reach the server — check your connection and try again.';eU.style.display='block';}});
 }
 // Accept a pasted URL or a bare handle and reduce it to the stored handle form.
 function normUrlHandle(p,val){
@@ -2225,7 +2228,7 @@ function saveComp(body,after){
       if(d&&d.competitor){var c=mapServerComp(d.competitor);USERCOMPS=USERCOMPS.filter(function(x){return x.dbId!==c.dbId;});USERCOMPS.unshift(c);trackComp(c);editingComp=null;state.sel=c.id;closeModal();document.getElementById('app').dataset.view='detail';delete insightsCache[c.host];render();if(after)after();}
       else{var eU=document.getElementById('eU');eU.textContent=(d&&d.error)||'Could not save — please try again.';eU.style.display='block';}
     })
-    .catch(function(){});
+    .catch(function(){var eU=document.getElementById('eU');if(eU){eU.textContent='Couldn’t reach the server — check your connection and try again.';eU.style.display='block';}});
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();closeCal();closeAuth();closeShare();closePw();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open')){var _cp=document.getElementById('confirmPanel');(_cp&&_cp.style.display!=='none')?confirmAdd():continueAdd();}if(e.key==='Enter'&&document.getElementById('authOv')&&document.getElementById('authOv').classList.contains('open'))submitAuth();});
 document.addEventListener('click',function(){closeCal();});
@@ -2468,18 +2471,19 @@ function refreshReports(){
   if(!ADMIN)return;
   var btn=document.getElementById('refreshRepBtn'),st=document.getElementById('refreshRepSt');
   var slkEl=document.getElementById('refreshRepSlack'),slk=!!(slkEl&&slkEl.checked);
+  var rsEl=document.getElementById('refreshRepRescan'),rs=!!(rsEl&&rsEl.checked);
   if(btn&&btn.disabled)return;
-  var msg='Rebuild all competitor reports with the latest logic?\n\nThis re-reads the data we already captured (no new scraping) and refreshes every daily read + weekly report. It runs in the background and takes about a minute.';
+  var msg='Rebuild all competitor reports with the latest logic?\n\n'+(rs?'It will FIRST re-scrape every competitor’s ads (newest-first — a few extra minutes, uses Apify budget), then refresh':'This re-reads the data we already captured (no new scraping) and refreshes')+' every daily read + weekly report. It runs in the background.';
   if(slk)msg+='\n\n⚡ It will ALSO post the refreshed weekly report links to each client’s Slack channel.';
   if(!confirm(msg))return;
   if(btn){btn.disabled=true;btn.textContent='↻ Rebuilding…';}
   if(st){st.style.color='';st.textContent='Starting…';}
-  fetch(API+'/api/admin/refresh',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({key:adminKey(),slack:slk})})
+  fetch(API+'/api/admin/refresh',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({key:adminKey(),slack:slk,rescan:rs})})
     .then(function(r){return r.json();})
     .then(function(d){
       if(d&&d.already){if(st)st.textContent='Already rebuilding — give it a minute, then reload.';}
       else if(d&&(d.started||d.ok)){
-        var msg='✓ Rebuilding in the background — reports refresh over the next 1–2 minutes.';
+        var msg='✓ Rebuilding in the background — reports refresh over the next '+(rs?'10–15 minutes (ads re-scan first)':'1–2 minutes')+'.';
         if(slk){ if(d.slackRecipients===0){ st.style.color='#d66'; msg+=' ⚠ But NO client has Slack connected, so no links will post — connect Slack per client first.'; } else { msg+=' Then report links post to '+(d.slackRecipients||'')+' client Slack channel(s).'; } }
         else { msg+=' Reload the page to see them.'; }
         if(st)st.textContent=msg;

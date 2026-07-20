@@ -113,7 +113,7 @@ async function newAngles(host, freshAds, todayStr) {
 // the fact is tenant-neutral — no client data. A fingerprint is treated as fresh while
 // firstSeen === today, so every client tracking the same brand still hears it on day one,
 // in whatever order their briefs happen to build; from day two, nobody does.
-async function newStaleOffers(host, ads, todayStr) {
+async function newStaleOffers(host, ads, todayStr, commit) {
   const flags = offerFlags(ads, new Date(todayStr + 'T00:00:00Z'));
   if (!flags.length) return [];
 
@@ -129,11 +129,16 @@ async function newStaleOffers(host, ads, todayStr) {
   }
   if (!fresh.length) return [];
 
-  const next = {};
-  const cutoff = new Date(Date.parse(todayStr) - OFFER_STATE_TTL_DAYS * DAY).toISOString().slice(0, 10);
-  for (const [fp, day] of Object.entries(seen)) if (typeof day === 'string' && day >= cutoff) next[fp] = day;
-  for (const f of fresh) if (!next[f.fp]) next[f.fp] = todayStr;
-  await saveSnapshot(host, OFFER_STATE, { seen: next });
+  // Only a REAL delivery marks the announcement as made — a PREVIEW (daily-brief preview,
+  // announce preview) used to consume the once-only state, so the actual morning brief then
+  // stayed silent about it forever (audit bug).
+  if (commit) {
+    const next = {};
+    const cutoff = new Date(Date.parse(todayStr) - OFFER_STATE_TTL_DAYS * DAY).toISOString().slice(0, 10);
+    for (const [fp, day] of Object.entries(seen)) if (typeof day === 'string' && day >= cutoff) next[fp] = day;
+    for (const f of fresh) if (!next[f.fp]) next[f.fp] = todayStr;
+    await saveSnapshot(host, OFFER_STATE, { seen: next });
+  }
 
   return fresh;
 }
@@ -159,7 +164,7 @@ async function saleBannerSeenRecently(host, banner, todayStr) {
 
 // Detect everything for one host. Returns a structured object; empty arrays / null
 // mean "no signal". Never throws — a subsystem with no data just yields nothing.
-export async function dailySignals(host) {
+export async function dailySignals(host, commit) {
   const out = { staleOffer: [], sale: null, funnel: [], fbPage: [], products: [], angle: [], activity: { ads: [], posts: [], emails: [], website: [] } };
   if (!host) return out;
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -208,7 +213,7 @@ export async function dailySignals(host) {
     if (todayAds.length) {
       // 0) Stale/fake offers — independent of adsChanges: a fake sale is worth announcing
       // even on the baseline capture, when there is no previous day to diff against.
-      try { out.staleOffer = await newStaleOffers(host, todayAds, todayStr); } catch (e) { /* no offer signal */ }
+      try { out.staleOffer = await newStaleOffers(host, todayAds, todayStr, !!commit); } catch (e) { /* no offer signal */ }
       const ch = await adsChanges(host, todayAds);
       if (ch && !ch.baseline) {
         out.funnel = (ch.signals.landings || []).filter((l) => l && l.domain);   // [{domain, url}]

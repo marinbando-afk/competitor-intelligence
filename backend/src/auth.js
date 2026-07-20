@@ -2,17 +2,33 @@
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { pool } from './db.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-insecure-change-me';
 const TOKEN_TTL = '30d';
 
-// True when JWT_SECRET hasn't been set — server.js warns loudly at boot so the
-// owner knows sessions are signed with a public, guessable key.
+// Session-signing secret. JWT_SECRET env wins; without it we DO NOT fall back to a public
+// default (audit CRITICAL #1: anyone could forge an admin token from the string in the repo).
+// Instead a random secret is generated ONCE and persisted in Postgres, so it survives
+// restarts/deploys and needs no manual setup. Existing sessions signed with the old public
+// default become invalid — users just sign in again, forged tokens die with it.
+let SECRET = process.env.JWT_SECRET || null;
 export const JWT_IS_DEFAULT = !process.env.JWT_SECRET;
+export async function ensureJwtSecret() {
+  if (SECRET) return;
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS app_secrets (name TEXT PRIMARY KEY, value TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+    await pool.query(`INSERT INTO app_secrets(name, value) VALUES('jwt', $1) ON CONFLICT (name) DO NOTHING`, [crypto.randomBytes(48).toString('hex')]);
+    const r = await pool.query(`SELECT value FROM app_secrets WHERE name = 'jwt'`);
+    if (r.rows[0]) SECRET = r.rows[0].value;
+  } catch (e) { console.warn('ensureJwtSecret:', e.message); }
+  // Absolute last resort (no DB at all): a per-boot random secret — sessions die on restart,
+  // but tokens are never forgeable.
+  if (!SECRET) SECRET = crypto.randomBytes(48).toString('hex');
+}
 
 function sign(user) {
-  return jwt.sign({ uid: user.id, email: user.email }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+  return jwt.sign({ uid: user.id, email: user.email }, SECRET, { expiresIn: TOKEN_TTL });
 }
 
 export async function signup(email, password) {
@@ -107,7 +123,7 @@ export function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    req.user = jwt.verify(token, SECRET);
     next();
   } catch {
     res.status(401).json({ error: 'Please sign in.' });
@@ -121,5 +137,5 @@ export function optionalUid(req) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
   if (!token) return null;
-  try { return jwt.verify(token, JWT_SECRET).uid || null; } catch { return null; }
+  try { return jwt.verify(token, SECRET).uid || null; } catch { return null; }
 }

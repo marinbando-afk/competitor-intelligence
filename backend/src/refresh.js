@@ -13,7 +13,7 @@ import { fetchAds } from './ads.js';
 import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
 import { captureWebsiteFull } from './website.js';
-import { generateInsights, enrichCreativeHooks } from './insights.js';
+import { generateInsights, enrichCreativeHooks, creditStatus } from './insights.js';
 import { saveSnapshot, latestSnapshot } from './snapshots.js';
 import { pool } from './db.js';
 import { ensureWeeklies } from './weekly.js';
@@ -155,17 +155,43 @@ export async function refreshAll(force) {
   if (running) { console.log('refresh already in progress — skipping'); return { skipped: true }; }
   running = true;
   const t0 = Date.now();
-  let ok = 0, fail = 0, brands = [];
+  let ok = 0, fail = 0, skipped = 0, brands = [];
   try {
     await syncTracked();
     brands = await allBrands();
-    for (const b of brands) { const r = await warmBrand(b, force); ok += r.ok; fail += r.fail; }
+    const today = new Date().toISOString().slice(0, 10);
+    for (const b of brands) {
+      // NON-FORCE runs (the boot warm 15s after every deploy) SKIP brands already captured
+      // today — the audit's #1 cost finding: every deploy re-ran the whole paid pipeline
+      // (Apify ads + 3 social scrapes + screenshots + Sonnet insights, per brand) because the
+      // freshness caches are in-memory and die with the process. The snapshot table is the
+      // durable freshness record, so consult IT. The nightly 23:00 warm passes force=true and
+      // still re-captures everything (end-of-day state, by design).
+      if (!force) {
+        try {
+          const r0 = await pool.query(`SELECT 1 FROM snapshots WHERE host = $1 AND day = $2 AND channel = 'website' LIMIT 1`, [b.host, today]);
+          if (r0.rows[0]) { skipped++; continue; }
+        } catch (e) { /* no DB → warm as before */ }
+      }
+      const r = await warmBrand(b, force); ok += r.ok; fail += r.fail;
+    }
+    if (skipped) console.log('✓ warm: skipped ' + skipped + ' brand(s) already captured today (deploy re-warm guard)');
   } finally {
     running = false;
   }
   lastWarm = Date.now();
   lastResult = { ok, fail };
   console.log('✓ nightly capture done: ' + ok + ' ok, ' + fail + ' failed in ' + Math.round((Date.now() - t0) / 1000) + 's');
+  // RETENTION (audit: snapshots grow unbounded at ~200-400KB/host/day, mostly base64 shots in
+  // JSONB). Keep the DATA (summaries/diffs/posts) forever — only the heavy blobs age out:
+  // screenshots after 90 days, raw email HTML after 6 months. Runs after the nightly warm.
+  if (force && process.env.DATABASE_URL) {
+    try {
+      const a = await pool.query(`UPDATE snapshots SET data = (data - 'shot') - 'changedShots' WHERE channel = 'website' AND day < CURRENT_DATE - 90 AND (data ? 'shot' OR data ? 'changedShots')`);
+      const b = await pool.query(`UPDATE emails SET html = NULL WHERE received_at < now() - interval '6 months' AND html IS NOT NULL`);
+      if (a.rowCount || b.rowCount) console.log('✓ retention: stripped ' + a.rowCount + ' old screenshot day(s), ' + b.rowCount + ' old email body(ies)');
+    } catch (e) { console.warn('retention:', e.message); }
+  }
   // NOTE: the daily Slack brief + weekly reports are NO LONGER sent from here. Capture runs at
   // END OF DAY so each snapshot holds a COMPLETE day; the brief is sent separately the next
   // MORNING (sendDailyDigest) reading that night's snapshot — so a brief covers a full calendar
@@ -177,6 +203,13 @@ export async function refreshAll(force) {
 // Runs in the morning; the snapshots it reads were taken at end-of-day by refreshAll, so each
 // brief reflects a full day of competitor activity.
 export async function sendDailyDigest() {
+  // ALERTING (audit: the credit probe existed but nothing ever called it — empty Anthropic
+  // credits meant silently blank AI reads until the founder noticed). One check per morning,
+  // straight to the founder's Slack.
+  try {
+    const c = await creditStatus(true);
+    if (c && c.ok === false && c.empty) postText('🚨 *Anthropic API credits are EMPTY* — all AI reads (insights, chat, weekly reports) are failing silently. Top up at console.anthropic.com → Billing.').catch(() => {});
+  } catch (e) { /* the probe must never block the briefs */ }
   let brands = [];
   try { brands = await allBrands(); } catch (e) { console.warn('digest allBrands:', e.message); return; }
   const clientBrands = brands.filter((b) => !TRACKED.some((t) => t.host === b.host));   // demos never go to Slack

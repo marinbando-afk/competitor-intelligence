@@ -171,7 +171,10 @@ export function offerFlags(ads, today) {
         last: iso(p.last), next: iso(p.next), daysSince: p.daysSince,
         monthsSince: months(p.daysSince), monthsUntil: months(p.daysUntil),
         createdAfter: createdAfter != null && createdAfter > STALE_DAYS ? createdAfter : null,
-        fp: 'occasion:' + p.label + ':' + sd,
+        // Undated ads used to all share fp 'occasion:<label>:?' — one announcement swallowed
+        // every other undated ad naming the same occasion (audit bug). Tie the fingerprint to
+        // the ad's own identity when there's no start date.
+        fp: 'occasion:' + p.label + ':' + (started ? sd : (link || blob.replace(/\s+/g, ' ').slice(0, 60))),
       });
     }
   }

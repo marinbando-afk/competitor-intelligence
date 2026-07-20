@@ -313,8 +313,16 @@ export async function websiteCompare(host, url, day, force) {
   const top = recent[0];
   const ageH = top && top.data && top.data.capturedAt ? (Date.now() - Date.parse(top.data.capturedAt)) / 3600000 : Infinity;
   if (force || ageH > 20) {
-    await captureWebsiteFull(host, url);
+    // SINGLE-FLIGHT per host: several viewers landing on a stale page at once (a shared link
+    // doing the rounds) used to each trigger their own paid screenshot+banner capture (audit).
+    // Everyone now awaits the one in-flight capture.
+    const hk = cleanHost(host);
+    if (!_capInFlight.has(hk)) {
+      _capInFlight.set(hk, captureWebsiteFull(host, url).finally(() => _capInFlight.delete(hk)));
+    }
+    await _capInFlight.get(hk).catch(() => { /* capture failure → serve what we have */ });
     recent = await recentSnapshots(host, 'website', 5);
   }
   return mk(recent[0] || null, recent[1] || null);
 }
+const _capInFlight = new Map();   // host -> in-flight capture promise (single-flight guard)

@@ -9,6 +9,7 @@
 // ANTHROPIC_API_KEY (falls back to no insights if absent).
 
 import Anthropic from '@anthropic-ai/sdk';
+import { pool } from './db.js';
 import { recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost, allSnapshots, saveSnapshotDay, snapshotForDay } from './snapshots.js';
 import { getEmails } from './email.js';
 import { diffWebsite, siteShot, siteBannerFromShot } from './website.js';
@@ -36,7 +37,7 @@ export async function creditStatus(force) {
   return val;
 }
 
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';            // the credit ping only — creative/angle reads moved to Sonnet (see creativeRead) on cost
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';           // the credit ping only (a balance probe needs the CHEAPEST model, not Opus — audit cost fix); creative/angle reads are in creativeRead
 const INSIGHTS_MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';  // daily per-channel summaries — Sonnet is plenty for summarizing, ~40% cheaper
 let _client;
 function client() { if (!_client) _client = new Anthropic(); return _client; }
@@ -236,7 +237,24 @@ async function visionClassifyLanding(host, url, adText) {
   } catch (e) { return { format: 'unknown', note: 'page could not be rendered' }; }
 }
 
+// Persisted L2 for landing-format classifications (audit cost fix: the in-memory 24h cache dies
+// with every deploy, so the same landing pages were re-fetched + re-classified again and again).
+// 7-day TTL: funnels change slowly; a week-old format read is still right.
+let _landTable = false;
+async function landCacheHydrate(hosts) {
+  if (!process.env.DATABASE_URL || !hosts.length) return;
+  try {
+    if (!_landTable) { await pool.query(`CREATE TABLE IF NOT EXISTS land_formats (host TEXT PRIMARY KEY, format TEXT, note TEXT, at TIMESTAMPTZ NOT NULL DEFAULT now())`); _landTable = true; }
+    const r = await pool.query(`SELECT host, format, note FROM land_formats WHERE host = ANY($1) AND at > now() - interval '7 days'`, [hosts]);
+    for (const row of r.rows) if (!_landCache.has(row.host)) _landCache.set(row.host, { at: Date.now(), val: { format: row.format, note: row.note || '' } });
+  } catch (e) { /* memory cache still works */ }
+}
+function landCachePersist(host, val) {
+  if (!process.env.DATABASE_URL || !val || val.format === 'unknown') return;   // don't pin a failed read for 7 days
+  pool.query(`INSERT INTO land_formats(host, format, note, at) VALUES($1,$2,$3,now()) ON CONFLICT (host) DO UPDATE SET format=$2, note=$3, at=now()`, [host, val.format, val.note || '']).catch(() => {});
+}
 async function classifyUrls(items) {   // items: [{ host, url }]
+  await landCacheHydrate([...new Set(items.map((it) => it.host))].filter((h) => !_landCache.has(h)));
   const out = new Map(), toFetch = [];
   for (const it of items) {
     const c = _landCache.get(it.host);
@@ -269,12 +287,12 @@ async function classifyUrls(items) {   // items: [{ host, url }]
     rich.forEach((f, idx) => {
       const hit = arr.find((x) => Number(x.i) === idx + 1);
       const val = hit ? { format: String(hit.format || 'other').slice(0, 40), note: String(hit.note || '').slice(0, 90) } : { format: 'unknown', note: '' };
-      out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val });
+      out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val }); landCachePersist(f.host, val);
     });
   }
   for (const f of thin.slice(0, 3)) {   // cap browser renders per run (vision cost)
     const val = await visionClassifyLanding(f.host, f.url, f.adText);
-    out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val });
+    out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val }); landCachePersist(f.host, val);
   }
   for (const f of thin.slice(3)) { const val = { format: 'unknown', note: 'not analyzed this run' }; out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val }); }
   return out;
@@ -666,7 +684,17 @@ export async function quickAngle(text, kind, image, video, uid) {
 //   • a per-competitor run BUDGET caps how many new reads happen per warm (bounds cost;
 //     leftover new creatives get their read on the next run). Ads consume the budget first.
 export function newHookBudget() { return { left: Number(process.env.AD_HOOK_CAP) || 30 }; }
-function creativeKey(a) { return String((a && (a.id || a.image || a.video || a.link)) || '').slice(0, 220); }
+// Cache identity for a creative's vision read. STABLE ids only: ad archive id / post permalink /
+// ad-library link. The old key fell through to the raw image URL — but social CDN URLs are SIGNED
+// with rotating params (oh/oe change every scrape), so the same post re-vision-read every single
+// day (~$30-50/mo of pure waste, audit cost finding). If only a media URL exists, key on its PATH
+// (the media id — stable) with the signed query stripped.
+function creativeKey(a) {
+  if (!a) return '';
+  const stable = a.id || a.url || a.link;
+  if (stable) return String(stable).slice(0, 220);
+  return String(a.image || a.video || '').split('?')[0].slice(0, 220);
+}
 export async function enrichCreativeHooks(host, channel, kind, items, budget) {
   if (!process.env.ANTHROPIC_API_KEY || !Array.isArray(items) || !items.length) return;
   budget = budget || newHookBudget();

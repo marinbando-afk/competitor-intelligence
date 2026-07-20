@@ -56,7 +56,7 @@ export async function buildDigest(brands) {
 // Layout: header, a blank row, then one line per brand — 💡 marks a brand with
 // moves (its signals listed beneath), ✅ marks an all-quiet brand — then a blank
 // row and a read-only view link teammates can open without an account.
-export async function buildDailyBrief(brands, viewUrl) {
+export async function buildDailyBrief(brands, viewUrl, commit) {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   const head = '🛰️ *WatchBack daily* · ' + today;
   if (!(brands || []).length) return head + '\nNo competitors on the watchlist yet.';
@@ -64,7 +64,7 @@ export async function buildDailyBrief(brands, viewUrl) {
   const blocks = [];
   for (const b of brands) {
     let s = null;
-    try { s = await dailySignals(b.host); } catch (e) { /* treat as quiet */ }
+    try { s = await dailySignals(b.host, !!commit); } catch (e) { /* treat as quiet */ }
     // Three tiers, so "quiet" never hides real activity:
     //   💡 a PRIORITY move (sale/funnel/FB page/products/angle/fake-sale) — the big callout
     //   🔹 ROUTINE activity — they shipped a new ad/email/post but nothing rose to priority
@@ -84,7 +84,7 @@ export async function buildDailyBrief(brands, viewUrl) {
 
 export async function postDailyBrief(brands, viewUrl) {
   if (!slackEnabled()) return { sent: false, reason: 'SLACK_WEBHOOK_URL not set' };
-  const text = await buildDailyBrief(brands, viewUrl);
+  const text = await buildDailyBrief(brands, viewUrl, true);   // real delivery → commit announce-once state
   return postText(text);
 }
 
@@ -119,7 +119,7 @@ export async function sendUserDailyBriefs(pool) {
         total++;
         // Teammate view link = this account's OWN read-only share link (opens without a login).
         const viewUrl = u.share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.share_token)) : 'https://watchback.ai/app.html';
-        const text = await buildDailyBrief(cs.rows, viewUrl);
+        const text = await buildDailyBrief(cs.rows, viewUrl, true);   // real delivery → commit announce-once state
         const r = await postTo(u.slack_webhook, text);
         if (r.sent) sent++;
       } catch (e) { /* skip this user */ }

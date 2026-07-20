@@ -154,10 +154,13 @@ export async function chat(body, uid) {
     (analysis ? `IN-APP ANALYSIS — the AI read currently shown to the user (this is established; be consistent with it):\n${analysis}\n\n` : '') +
     `DATA (as of ${today}):\n${data}`;
 
+  // PROMPT CACHING (audit cost fix): the system block (rules + full captured data, easily
+  // 10-50k tokens) is identical across every question in a conversation — marking it as a
+  // cache breakpoint makes follow-up turns read it at ~10% of the normal input price.
   const resp = await client().messages.create({
     model: MODEL,
     max_tokens: 1024,
-    system,
+    system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
     messages: buildMessages(body.messages, question),
   });
   const answer = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
