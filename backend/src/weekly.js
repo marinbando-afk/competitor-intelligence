@@ -78,7 +78,7 @@ async function weekDigest(host, name, start, end) {
     stats.newAds = fresh.length;
     if (fresh.length) {
       parts.push('Ads LAUNCHED this week (' + fresh.length + ' new ad' + (fresh.length === 1 ? '' : 's') + '):');
-      fresh.slice(0, 12).forEach((a) => parts.push(`  • [${a.started}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'}${a.page ? ' page:"' + a.page + '"' : ''}: ${oneLine(a.text).slice(0, 120)}`));
+      fresh.slice(0, 12).forEach((a) => parts.push(`  • [${a.started}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'}${a.page ? ' fb-page:"' + a.page + '"' : ''}: ${oneLine(a.text).slice(0, 120)}`));
       if (fresh.length > 12) parts.push(`  … and ${fresh.length - 12} more new ads (many share copy but carry DIFFERENT creatives — that is normal ecomm creative testing, count them all).`);
     } else if (caps.length) parts.push('No brand-new ads launched inside this week (running set is continuing creatives).');
   }

@@ -420,6 +420,25 @@ export async function adsChanges(host, todayAds, asOfDay) {
     pages: uniq(fresh.filter((a) => a.tags.some((t) => t.k === 'page')).map((a) => a.page)),
     formats: uniq(fresh.flatMap((a) => a.tags.filter((t) => t.k === 'format').map((t) => t.v))),
   };
+  // DROPPED Facebook-page detection (founder, 21 Jul — Tallowed Truth's 'Non-Woke Daily'
+  // advertorial page vanished and nothing called it out): a non-own Facebook page that
+  // advertised in the previous capture and has NO ads today has been retired — a notable
+  // funnel change. Only judged when BOTH captures look COMPLETE (comfortably under the
+  // scrape cap): for a heavy advertiser the newest-N window can't prove a page stopped.
+  const CAP = Number(process.env.ADS_COUNT) || 50;
+  signals.droppedPages = [];
+  if (prev.length < CAP * 0.9 && today.length < CAP * 0.9) {
+    const hostLabel = hostToDomain(host).split('.')[0].replace(/[^a-z0-9]/g, '');
+    const ownPg = (p) => { const c = String(p || '').toLowerCase().replace(/[^a-z0-9]/g, ''); return !hostLabel || !c || c.indexOf(hostLabel) >= 0 || hostLabel.indexOf(c) >= 0; };
+    const todayPg = new Set(today.map((a) => String(a.page || '').toLowerCase()).filter(Boolean));
+    const seenP = new Set();
+    for (const a of prev) {
+      const p = String(a.page || ''); const pl = p.toLowerCase();
+      if (!p || seenP.has(pl) || todayPg.has(pl) || ownPg(p)) continue;
+      seenP.add(pl); signals.droppedPages.push(p);
+    }
+    signals.droppedPages = signals.droppedPages.slice(0, 4);
+  }
   // EVERY fresh ad is reported — no dedup/collapse (FOUNDER RULE 20 Jul: each creative is a
   // distinct ad; the count is the real number of new launches). Ranking only orders the list:
   // new FB PAGE (handle) > new FUNNEL (landing URL) > new FORMAT, then newest first.

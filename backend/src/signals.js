@@ -218,6 +218,7 @@ export async function dailySignals(host, commit) {
       if (ch && !ch.baseline) {
         out.funnel = (ch.signals.landings || []).filter((l) => l && l.domain);   // [{domain, url}]
         out.fbPage = (ch.signals.pages || []).filter(Boolean);                    // [pageName]
+        out.fbPageGone = (ch.signals.droppedPages || []).filter(Boolean);         // retired whitelisted/partner pages
         out.angle = await newAngles(host, ch.newAds || [], todayStr);
         // Tier-2 "new ad": a genuinely NEWLY-LAUNCHED ad, judged by the ad's own START DATE —
         // NOT merely "appeared in today's capture but not yesterday's". Meta's Ad Library
@@ -291,7 +292,7 @@ export async function dailySignals(host, commit) {
 
 // True when any signal fired.
 export function hasSignal(s) {
-  return !!(s && ((s.staleOffer && s.staleOffer.length) || s.sale || (s.funnel && s.funnel.length) || (s.fbPage && s.fbPage.length) || (s.products && s.products.length) || (s.angle && s.angle.length)));
+  return !!(s && ((s.staleOffer && s.staleOffer.length) || s.sale || (s.funnel && s.funnel.length) || (s.fbPage && s.fbPage.length) || (s.fbPageGone && s.fbPageGone.length) || (s.products && s.products.length) || (s.angle && s.angle.length)));
 }
 
 // Render one brand's signals as Slack mrkdwn lines, in PRIORITY ORDER.
@@ -314,7 +315,8 @@ export function signalLines(s) {
   }
   if (s.sale) lines.push(s.sale);
   for (const f of (s.funnel || [])) lines.push('New funnel: ' + f.domain + link(f.url, 'open'));
-  for (const p of (s.fbPage || [])) lines.push('New FB page advertising: ' + p);
+  for (const p of (s.fbPage || [])) lines.push('New Facebook page advertising: ' + p);
+  for (const p of (s.fbPageGone || [])) lines.push('Facebook page retired: “' + p + '” has no ads anymore — that whitelisted/partner funnel is gone');
   for (const pr of (s.products || [])) lines.push(pr);
   for (const a of (s.angle || [])) lines.push('New angle (2wk+): ' + a.angle + link(a.link, 'view ad'));
   return lines;

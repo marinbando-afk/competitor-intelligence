@@ -362,6 +362,8 @@ a.adrow-v:hover{text-decoration:underline}
 .adthumb .pgc{left:8px;color:var(--gold);border:1px solid rgba(227,169,44,.5)}
 .adthumb .pgc.pt{color:var(--sage);border-color:var(--sage-d)}
 .adsig.pg.pt{border-color:var(--sage-d);color:var(--sage)}
+.adsig.pg.gone{border-style:dashed;opacity:.85}
+.adthumb .angletag{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--cyan,#4ec9d8);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .adthumb .vtc{right:8px;color:var(--cyan,#4ec9d8);border:1px solid rgba(78,201,216,.5)}
 .adthumb .pgc+.vtc{max-width:34%}
 a.adsig{text-decoration:none;cursor:pointer;transition:border-color .14s,background .14s}
@@ -1169,7 +1171,7 @@ function postCard(o){
   var du=o.url?' data-url="'+esc(o.url)+'"':'';
   return '<a class="adthumb" href="'+esc(o.link||'#')+'" target="_blank" rel="noopener"'+clk+du+'>'
     +'<span class="media'+(show?'':' noimg')+'">'+img+ph+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+(o.stats?'<span class="cstats">'+o.stats+'</span>':'')+(o.pg?'<span class="pgc'+(o.pgCls||'')+'" title="'+esc(o.pgTitle||('Runs from the Facebook page “'+o.pg+'”'))+'">'+esc(o.pg)+'</span>':'')+(o.vt?'<span class="vtc" title="'+esc(o.vtTitle||'Part of a variant test')+'">🎬 '+esc(o.vt)+'</span>':'')+go+'</span>'
-    +'<span class="cap">'+esc(o.cap||'')+'</span></a>';
+    +'<span class="cap">'+(o.tag?'<span class="angletag" title="'+esc(o.tagFull||'')+'">⚡ '+esc(o.tag)+'</span>':'')+esc(o.cap||'')+'</span></a>';
 }
 /* ── Expandable screenshots — generic lightbox. Any <img class="zoomable"> (or any
    element with [data-zoom] + data-full) opens full-size on click. Add the class to
@@ -1208,7 +1210,12 @@ function adThumb(a,i,pg,vt,vtTitle,pgCls,pgTitle){
   var tl=st==='off'?'<span class="nw off">Inactive</span>':(isRecent(a.started)?'<span class="nw">New</span>':(a.hasVideo?'<span class="nw vid">▶ Video</span>':''));
   // Every ad is its own card — no variation collapsing (founder rule 20 Jul: in ecomm the
   // creative IS the test; same copy + different video/image = a different ad).
-  return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,cap:String(a.text||a.title||''),click:'openAd('+i+')',ad:true,state:st,pg:pg||'',vt:vt||'',vtTitle:vtTitle||'',pgCls:pgCls||'',pgTitle:pgTitle||''});
+  // 2-3-word ANGLE tag on the thumbnail (founder, 21 Jul) — the essence of the ad's
+  // persuasion strategy visible without opening it; full angle in the tooltip + modal.
+  var tag='';
+  var angFull=String(a.angle||'').replace(/\s+/g,' ').trim();
+  if(angFull){tag=angFull.split(/\s+/).slice(0,3).join(' ').replace(/[—–\-,.;:]+$/,'');}
+  return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,cap:String(a.text||a.title||''),click:'openAd('+i+')',ad:true,state:st,pg:pg||'',vt:vt||'',vtTitle:vtTitle||'',pgCls:pgCls||'',pgTitle:pgTitle||'',tag:tag,tagFull:angFull});
 }
 /* ── Variant-test detection (founder, 21 Jul): surface — never merge — ads that are the
    same creative test. Two free, precise signals, both from data we already hold:
@@ -1298,9 +1305,12 @@ function adsHTML(d){
   if(d.signals){
     // "New page" chips FILTER the grid on click — the read calls these pages out, so one
     // click must show exactly the ads they refer to (founder, 21 Jul: "hard to find them").
-    (d.signals.pages||[]).forEach(function(p){sig.push('<span class="adsig pg click'+(ADS_PGF===p?' on':'')+'" data-pg="'+esc(p)+'" onclick="pgFilter(this.dataset.pg)" title="Show only this page’s ads">📄 New page · '+esc(p)+'</span>');});
-    (d.signals.landings||[]).forEach(function(l){var dom=(l&&l.domain)||l||'',url=(l&&l.url)||'';if(!dom)return;sig.push(url?('<a class="adsig ld" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer" title="'+esc(url)+'">⛳ New landing · '+esc(dom)+'</a>'):('<span class="adsig ld">⛳ New landing · '+esc(dom)+'</span>'));});
+    (d.signals.pages||[]).forEach(function(p){sig.push('<span class="adsig pg click'+(ADS_PGF===p?' on':'')+'" data-pg="'+esc(p)+'" onclick="pgFilter(this.dataset.pg)" title="Show only this Facebook page’s ads">📄 New Facebook page · '+esc(p)+'</span>');});
+    (d.signals.landings||[]).forEach(function(l){var dom=(l&&l.domain)||l||'',url=(l&&l.url)||'';if(!dom)return;sig.push(url?('<a class="adsig ld" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer" title="'+esc(url)+'">⛳ New landing page · '+esc(dom)+'</a>'):('<span class="adsig ld">⛳ New landing page · '+esc(dom)+'</span>'));});
     (d.signals.formats||[]).forEach(function(f){sig.push('<span class="adsig fm">🎬 New format · '+esc(f)+'</span>');});
+    // A retired whitelisted/partner Facebook page is news too (founder, 21 Jul — Tallowed
+    // Truth's 'Non-Woke Daily' advertorial page vanished silently).
+    (d.signals.droppedPages||[]).forEach(function(p){sig.push('<span class="adsig pg gone" title="This Facebook page advertised in the previous capture and has no ads in today’s — the brand appears to have retired this funnel">📄 Facebook page retired · '+esc(p)+'</span>');});
   }
   var all=d.ads||[];
   // Every OTHER Facebook page in the mix gets a clickable chip, labeled by the founder's
@@ -1312,7 +1322,7 @@ function adsHTML(d){
   Object.keys(pgN).sort(function(x,y){return pgN[y]-pgN[x];}).forEach(function(p){
     if((d.signals&&(d.signals.pages||[]).indexOf(p)>=0))return;   // already chipped as NEW above
     var k=pgK[p];
-    sig.push('<span class="adsig pg click'+(k==='partner'?' pt':'')+(ADS_PGF===p?' on':'')+'" data-pg="'+esc(p)+'" onclick="pgFilter(this.dataset.pg)" title="'+esc(PG_KIND_TITLE[k]||'')+' — click to show only this page’s ads">'+PG_KIND_ICON[k]+' '+esc(PG_KIND_LBL[k])+' · '+esc(p)+' · '+pgN[p]+' ad'+(pgN[p]===1?'':'s')+'</span>');
+    sig.push('<span class="adsig pg click'+(k==='partner'?' pt':'')+(ADS_PGF===p?' on':'')+'" data-pg="'+esc(p)+'" onclick="pgFilter(this.dataset.pg)" title="'+esc(PG_KIND_TITLE[k]||'')+' — click to show only this Facebook page’s ads">'+PG_KIND_ICON[k]+' '+esc(PG_KIND_LBL[k])+' · '+esc(p)+' ads</span>');
   });
   // Variant tests: same footage (via our vision read) or same copy → group ADJACENT + chip.
   var vg=adVariantGroups(all),vtSets=0;Object.keys(vg).forEach(function(k){if(vg[k].pos===1)vtSets++;});
@@ -2035,7 +2045,7 @@ function openAd(i){
     var kb='';
     if(pk==='partner')kb=' <span title="'+esc(PG_KIND_TITLE.partner)+'" style="font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--sage);border:1px solid var(--sage-d);border-radius:5px;padding:2px 7px;margin-left:8px;vertical-align:1px">🤝 PARTNERSHIP AD</span>';
     else if(pk==='white')kb=' <span title="'+esc(PG_KIND_TITLE.white)+'" style="font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--gold);border:1px solid rgba(227,169,44,.5);border-radius:5px;padding:2px 7px;margin-left:8px;vertical-align:1px">📄 WHITELISTING AD</span>';
-    rows+='<div class="adrow"><span class="adrow-k">Run from page</span><span class="adrow-v">'+esc(a.page)+kb+'</span></div>';
+    rows+='<div class="adrow"><span class="adrow-k">Facebook page</span><span class="adrow-v">'+esc(a.page)+kb+'</span></div>';
   }
   if(a._vt)rows+='<div class="adrow"><span class="adrow-k">Variant test</span><span class="adrow-v">'+a._vt.pos+' of '+a._vt.n+' — '+(a._vt.kind==='footage'?'the same footage tested with different hooks; the grouped 🎬 cards beside this one are its siblings':'the same copy tested with different creatives; the grouped 🎬 cards beside this one are its siblings')+'</span></div>';
   if(a.link)rows+='<div class="adrow"><span class="adrow-k">Source</span><a class="adrow-v" href="'+esc(a.link)+'" target="_blank" rel="noopener">Open in Meta Ad Library ↗</a></div>';
