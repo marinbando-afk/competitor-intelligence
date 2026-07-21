@@ -13,7 +13,7 @@
 
 import { recentSnapshots, allSnapshots, latestSnapshot, saveSnapshot } from './snapshots.js';
 import { diffWebsite } from './website.js';
-import { adsChanges } from './ads.js';
+import { adsChanges, adDomain, isFunnelUrl } from './ads.js';
 import { offerFlags, isSaleBanner } from './occasions.js';
 
 const DAY = 86400000;
@@ -214,7 +214,7 @@ export async function dailySignals(host, commit) {
       // 0) Stale/fake offers — independent of adsChanges: a fake sale is worth announcing
       // even on the baseline capture, when there is no previous day to diff against.
       try { out.staleOffer = await newStaleOffers(host, todayAds, todayStr, !!commit); } catch (e) { /* no offer signal */ }
-      const ch = await adsChanges(host, todayAds);
+      const ch = await adsChanges(host, todayAds, adSnap.day);   // diff as of the CAPTURE's day, not the wall clock
       if (ch && !ch.baseline) {
         out.funnel = (ch.signals.landings || []).filter((l) => l && l.domain);   // [{domain, url}]
         out.fbPage = (ch.signals.pages || []).filter(Boolean);                    // [pageName]
@@ -227,6 +227,29 @@ export async function dailySignals(host, commit) {
         // a real new ad is reported once; the date filter kills the reappearance false positives.
         out.activity.ads = (ch.newAds || []).filter((a) => startedWithinDays(a.started, todayStr, 3))
           .slice(0, 3).map((a) => ({ about: adAbout(a), link: a.link || '' }));
+      } else if (ch && ch.baseline) {
+        // BASELINE day (capture-depth jump): the ad-count diff is unreliable, but "have we EVER
+        // seen this page / landing domain before?" is depth-proof — a page identity doesn't
+        // inflate when the scrape pulls deeper. So the founder's priority signals (new FB page,
+        // new funnel) still fire on a baseline day, judged against ALL recent history; only the
+        // ad-count flood and angle work stay suppressed. (Glov's doctor-persona pages arrived
+        // on exactly such a day, 20 Jul, and the brief stayed silent — this is that fix.)
+        try {
+          const hist = (await allSnapshots(host, 'ads')).filter((s) => s.day && s.day < (adSnap.day || todayStr));
+          if (hist.length) {   // genuinely first capture ever → nothing to compare, stay quiet
+            const prevPages = new Set(), prevLand = new Set();
+            for (const s of hist) for (const a of ((s.data && s.data.ads) || [])) {
+              if (a.page) prevPages.add(String(a.page).toLowerCase());
+              const dm = adDomain(a.landing); if (dm) prevLand.add(dm);
+            }
+            out.fbPage = [...new Set(todayAds.filter((a) => a.page && !prevPages.has(String(a.page).toLowerCase())).map((a) => a.page))];
+            const seenDm = new Set();
+            for (const a of todayAds) {
+              const dm = adDomain(a.landing);
+              if (dm && !prevLand.has(dm) && !seenDm.has(dm) && isFunnelUrl(a.landing)) { seenDm.add(dm); out.funnel.push({ domain: dm, url: a.landing }); }
+            }
+          }
+        } catch (e) { /* stay quiet on a baseline day we can't judge */ }
       }
     }
   } catch (e) { /* no ads signal */ }

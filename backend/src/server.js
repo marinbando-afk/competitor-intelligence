@@ -229,7 +229,7 @@ app.get('/api/ads', async (req, res) => {
     const out = { active: data.active, newest: data.newest, platforms: data.platforms, country: data.country, ads: (data.ads || []).slice(0, 30) };
     if (req.query.host) {
       try {
-        const ch = await adsChanges(req.query.host, data.ads);
+        const ch = await adsChanges(req.query.host, data.ads, data.__day);   // anchor the diff on the served capture's own day
         if (ch) {
           out.newCount = ch.newCount; out.baseline = ch.baseline; out.signals = ch.signals;
           // Show the new ads when there are any; otherwise show current creatives so the section is never empty.

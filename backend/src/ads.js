@@ -360,7 +360,7 @@ function startedRecently(started, tStr, days) {
   const d = (Date.parse(tStr) - Date.parse(s)) / 86400000;
   return d >= 0 && d <= days;
 }
-function adDomain(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
+export function adDomain(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
 // A competitor's own host (e.g. "campbells.com" or "https://campbells.com/x") → bare domain.
 function hostToDomain(h) { h = String(h || '').trim(); if (!h) return ''; return adDomain(/^https?:\/\//i.test(h) ? h : ('https://' + h)); }
 function fmtOf(a) { return a.hasVideo ? 'video' : (a.format && /carousel/i.test(a.format) ? 'carousel' : 'image'); }
@@ -369,7 +369,7 @@ function fmtOf(a) { return a.hasVideo ? 'video' : (a.format && /carousel/i.test(
 // NOT an app deep-link, link-shortener, social/click redirect or other non-page URL
 // (those don't work when clicked and aren't real landing pages, e.g. cooltra.onelink.me).
 const JUNK_LANDING = /(?:^|\.)(onelink\.me|app\.link|go\.link|smart\.link|adj\.st|bnc\.lt|branch\.io|page\.link|bit\.ly|tinyurl\.com|t\.co|lnk\.to|linktr\.ee|rebrand\.ly|ow\.ly|buff\.ly|cutt\.ly|fb\.me|m\.me|wa\.me|api\.whatsapp\.com|l\.facebook\.com|lm\.facebook\.com)$/i;
-function isFunnelUrl(u) {
+export function isFunnelUrl(u) {
   if (!/^https?:\/\//i.test(String(u || ''))) return false;        // must be a real web URL
   const dom = adDomain(u);
   if (!dom || dom.indexOf('.') < 0 || /\s/.test(dom)) return false; // need a valid public domain
@@ -377,12 +377,17 @@ function isFunnelUrl(u) {
   return !JUNK_LANDING.test(dom);
 }
 
-export async function adsChanges(host, todayAds) {
+export async function adsChanges(host, todayAds, asOfDay) {
   const today = todayAds || [];
   if (!host) return null;
   const recent = await recentSnapshots(host, 'ads', 6);
-  const tStr = new Date().toISOString().slice(0, 10);
-  const prevSnap = recent.find((s) => s.day !== tStr && s.data && Array.isArray(s.data.ads) && s.data.ads.length);
+  // Anchor "today" to the DAY OF THE CAPTURE being analyzed, not the wall clock. The morning
+  // brief (8am) analyzes last night's 23:00 capture — with a wall-clock anchor, that capture's
+  // own day ≠ today, so it was picked as its own "previous" and every diff came back empty:
+  // ads signals (new funnel / new FB page / new ads) silently never fired in a morning brief
+  // (Glov's doctor-persona pages, 21 Jul). Callers pass the snapshot's day; live scrapes omit it.
+  const tStr = /^\d{4}-\d{2}-\d{2}$/.test(String(asOfDay || '')) ? String(asOfDay) : new Date().toISOString().slice(0, 10);
+  const prevSnap = recent.find((s) => s.day < tStr && s.data && Array.isArray(s.data.ads) && s.data.ads.length);
   const prev = (prevSnap && prevSnap.data.ads) || [];
   // No comparable prior capture (first run, or the previous scan was much shallower — e.g. right
   // after we raised the scrape cap) → treat as baseline: don't flag the whole diff, which would be
