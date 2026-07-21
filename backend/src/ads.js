@@ -377,6 +377,28 @@ export function isFunnelUrl(u) {
   return !JUNK_LANDING.test(dom);
 }
 
+// Does this Facebook page run ANY active ad right now? A minimal page-scoped scan (5 items)
+// — the definitive check behind the "page retired" signal. Cached per page per day so
+// repeated brief/panel builds never re-pay it. null = couldn't determine (treat as no proof).
+const _pageProbe = new Map();   // pageId -> { day, val }
+async function pageHasActiveAds(pageId, country) {
+  pageId = String(pageId || '').replace(/\D/g, '');
+  if (!TOKEN || !pageId) return null;
+  const day = new Date().toISOString().slice(0, 10);
+  const c = _pageProbe.get(pageId);
+  if (c && c.day === day) return c.val;
+  try {
+    const url = 'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country || 'ALL') + '&view_all_page_id=' + pageId + '&search_type=page&media_type=all';
+    const input = { urls: [{ url }], startUrls: [{ url }], count: 5, maxItems: 5, country: country || 'ALL', activeStatus: 'active', scrapePageAds: true, 'scrapePageAds.activeStatus': 'active' };
+    const res = await fetch('https://api.apify.com/v2/acts/' + ACTOR + '/run-sync-get-dataset-items?token=' + encodeURIComponent(TOKEN) + '&timeout=120', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+    if (!res.ok) return null;
+    const items = await res.json();
+    const val = Array.isArray(items) ? items.length > 0 : null;
+    _pageProbe.set(pageId, { day, val });
+    return val;
+  } catch (e) { return null; }
+}
+
 export async function adsChanges(host, todayAds, asOfDay) {
   const today = todayAds || [];
   if (!host) return null;
@@ -422,20 +444,34 @@ export async function adsChanges(host, todayAds, asOfDay) {
   };
   // DROPPED Facebook-page detection (founder, 21 Jul — Tallowed Truth's 'Non-Woke Daily'
   // advertorial page vanished and nothing called it out): a non-own Facebook page that
-  // advertised in the previous capture and has NO ads today has been retired — a notable
-  // funnel change. Only judged when BOTH captures look COMPLETE (comfortably under the
-  // scrape cap): for a heavy advertiser the newest-N window can't prove a page stopped.
-  const CAP = Number(process.env.ADS_COUNT) || 50;
+  // advertised in the previous capture and has NO ads today. Two proofs, precision-first:
+  //  1. FREE: today's newest-first capture reaches BACK past the page's newest ad — a
+  //     still-active ad inside the covered date range would have been captured.
+  //  2. PROBE: when the window can't prove it (the page's ads are older than the capture
+  //     reaches — maybe retired, maybe just buried under newer launches), ask Meta
+  //     directly: a tiny page-scoped scan (5 items, cached 24h, max 2/run) answers
+  //     "does this page run ANY active ad?" definitively. No proof → stay silent.
   signals.droppedPages = [];
-  if (prev.length < CAP * 0.9 && today.length < CAP * 0.9) {
+  {
     const hostLabel = hostToDomain(host).split('.')[0].replace(/[^a-z0-9]/g, '');
     const ownPg = (p) => { const c = String(p || '').toLowerCase().replace(/[^a-z0-9]/g, ''); return !hostLabel || !c || c.indexOf(hostLabel) >= 0 || hostLabel.indexOf(c) >= 0; };
     const todayPg = new Set(today.map((a) => String(a.page || '').toLowerCase()).filter(Boolean));
-    const seenP = new Set();
+    const oldestToday = today.map((a) => String(a.started || '').slice(0, 10)).filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s)).sort()[0] || '';
+    const cand = {};
     for (const a of prev) {
-      const p = String(a.page || ''); const pl = p.toLowerCase();
-      if (!p || seenP.has(pl) || todayPg.has(pl) || ownPg(p)) continue;
-      seenP.add(pl); signals.droppedPages.push(p);
+      const p = String(a.page || ''); const k = p.toLowerCase();
+      if (!p || todayPg.has(k) || ownPg(p)) continue;
+      const s = String(a.started || '').slice(0, 10);
+      if (!cand[k] || s > cand[k].s) cand[k] = { p, s, pageId: String(a.pageId || '') };
+    }
+    let probes = 0;
+    for (const k of Object.keys(cand)) {
+      const e = cand[k];
+      if (e.s && oldestToday && e.s >= oldestToday) { signals.droppedPages.push(e.p); continue; }   // proof 1
+      if (e.pageId && probes < 2) {                                                                 // proof 2
+        probes++;
+        try { if ((await pageHasActiveAds(e.pageId)) === false) signals.droppedPages.push(e.p); } catch (err) { /* no proof → silent */ }
+      }
     }
     signals.droppedPages = signals.droppedPages.slice(0, 4);
   }
