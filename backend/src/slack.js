@@ -6,6 +6,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { randomBytes } from 'crypto';
 import { getInsights } from './insights.js';
 import { dailySignals, signalLines, activityLines } from './signals.js';
+import { latestSnapshot } from './snapshots.js';
 import { pool } from './db.js';
 
 // The founder roll-up brief's "view" link must be a REAL read-only share link (opens
@@ -61,22 +62,37 @@ export async function buildDailyBrief(brands, viewUrl, commit) {
   const head = '🛰️ *WatchBack daily* · ' + today;
   if (!(brands || []).length) return head + '\nNo competitors on the watchlist yet.';
   const link = viewUrl || await founderShareUrl();
+  const todayISO = new Date().toISOString().slice(0, 10);
   const blocks = [];
   for (const b of brands) {
     let s = null;
     try { s = await dailySignals(b.host, !!commit); } catch (e) { /* treat as quiet */ }
+    // THE SYNC RULE (founder, 21 Jul): the Slack brief is a RECAP of the platform's own
+    // report — it must tell the same story the dashboard shows. So every brand's block
+    // leads with the top line of the SAME shared insights snapshot the app displays
+    // (cache-only read: latestSnapshot, never getInsights — no AI call, no self-heal,
+    // byte-identical to what the user sees in the app). The deterministic signal lines
+    // then list what CHANGED. Skipped only when the stored read is stale (>2 days) —
+    // better no quote than quoting old news as today's.
+    let read = '';
+    try {
+      const ins = await latestSnapshot(b.host, 'insights');
+      const v = ins && ins.brief && Array.isArray(ins.brief.verdict) && ins.brief.verdict[0];
+      const fresh = ins && ins.__day && (Date.parse(todayISO) - Date.parse(ins.__day)) <= 2 * 864e5;
+      if (v && fresh) read = '   _' + String(v).replace(/[\n_]+/g, ' ').trim() + '_';
+    } catch (e) { /* signals still carry the block */ }
     // Three tiers, so "quiet" never hides real activity:
     //   💡 a PRIORITY move (sale/funnel/FB page/products/angle/fake-sale) — the big callout
     //   🔹 ROUTINE activity — they shipped a new ad/email/post but nothing rose to priority
-    //   ✅ genuinely nothing new captured
+    //   ✅ genuinely nothing new captured (the current read still shown, so Slack and the
+    //      dashboard agree even on a quiet day)
     const sig = signalLines(s);
     if (sig.length) {
-      blocks.push('*' + b.name + '* 💡\n' + sig.map((l) => '   ' + l).join('\n'));
+      blocks.push('*' + b.name + '* 💡\n' + (read ? read + '\n' : '') + sig.map((l) => '   ' + l).join('\n'));
     } else {
       const act = activityLines(s);
-      blocks.push(act.length
-        ? '*' + b.name + '* 🔹 routine activity\n' + act.map((l) => '   ' + l).join('\n')
-        : '*' + b.name + '* — all quiet ✅');
+      if (act.length) blocks.push('*' + b.name + '* 🔹 routine activity\n' + (read ? read + '\n' : '') + act.map((l) => '   ' + l).join('\n'));
+      else blocks.push('*' + b.name + '* ✅ no new moves' + (read ? '\n' + read : ''));
     }
   }
   return head + '\n\n' + blocks.join('\n\n') + '\n\n🔗 <' + link + '|View the full dashboard & signals →>';
