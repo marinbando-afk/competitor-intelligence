@@ -364,6 +364,8 @@ a.adrow-v:hover{text-decoration:underline}
 .adsig.pg.pt{border-color:var(--sage-d);color:var(--sage)}
 .adsig.pg.gone{border-style:dashed;opacity:.85}
 .adthumb .angletag{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--cyan,#4ec9d8);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aliasnote{font-size:12.5px;line-height:1.6;border:1px dashed rgba(227,169,44,.45);border-radius:8px;padding:10px 13px;margin:0 0 14px;color:var(--text)}
+.aliasnote b{color:var(--gold)}
 .adthumb .vtc{right:8px;color:var(--cyan,#4ec9d8);border:1px solid rgba(78,201,216,.5)}
 .adthumb .pgc+.vtc{max-width:34%}
 a.adsig{text-decoration:none;cursor:pointer;transition:border-color .14s,background .14s}
@@ -1622,7 +1624,14 @@ function emlHTML(d,host){
       ? '<div class="subok">✓ Confirmation clicked — you’re on their list. Their first email lands with their next campaign, usually within a day or two; we’re checking automatically. <a href="#" class="rtry" style="font-weight:500" onclick="return undoConfirm(this,\''+esc(host)+'\')">Didn’t work?</a></div>'
       : '<div class="email-warn" style="margin:0 0 14px">⚠ <b>One click left:</b> open the confirmation email below and hit its confirm button — their campaigns only start arriving after you confirm.<button type="button" class="ew-go" onclick="return confirmDone(this,\''+esc(host)+'\')">I’ve clicked confirm ✓</button></div>';
   }
-  return confirmNote+sum+'<div class="emllist">'+d.emails.map(emlRow).join('')+'</div>';
+  // Static explainer when the brand emails from a DIFFERENT domain than its site (founder,
+  // 21 Jul: "very interesting insight — call it out"). Deterministic, no AI cost: the alias
+  // is already resolved server-side; what it MEANS is always the same deliverability story.
+  var aliasNote='';
+  if(d.alias&&d.alias.length){
+    aliasNote='<div class="aliasnote">📤 <b>Sends from a separate domain:</b> '+d.alias.map(esc).join(', ')+' — not their store domain ('+esc(host)+'). This is a <b>deliverability firewall</b>: high-volume senders isolate marketing email on a side domain so spam complaints can’t damage the main domain’s inbox placement. Read: their email program is built for aggressive volume <i>by design</i>.</div>';
+  }
+  return confirmNote+sum+aliasNote+'<div class="emllist">'+d.emails.map(emlRow).join('')+'</div>';
 }
 // Keep the catch-all inbox address visible + copyable even after emails start arriving
 // (so you can subscribe it to more competitors without losing it).
