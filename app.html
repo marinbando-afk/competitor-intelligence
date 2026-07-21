@@ -1214,7 +1214,12 @@ function adThumb(a,i,pg,vt,vtTitle,pgCls,pgTitle){
   // persuasion strategy visible without opening it; full angle in the tooltip + modal.
   var tag='';
   var angFull=String(a.angle||'').replace(/\s+/g,' ').trim();
-  if(angFull){tag=angFull.split(/\s+/).slice(0,3).join(' ').replace(/[—–\-,.;:]+$/,'');}
+  if(angFull){
+    var w=angFull.split(/\s+/).slice(0,3);
+    // never end the tag on a dangling connective ("…lipstick that")
+    while(w.length>1&&/^(that|with|for|and|the|of|to|in|a|an|as|via|beats|over)$/i.test(w[w.length-1].replace(/[^a-z]/gi,'')))w.pop();
+    tag=w.join(' ').replace(/[—–\-,.;:]+$/,'');
+  }
   return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,cap:String(a.text||a.title||''),click:'openAd('+i+')',ad:true,state:st,pg:pg||'',vt:vt||'',vtTitle:vtTitle||'',pgCls:pgCls||'',pgTitle:pgTitle||'',tag:tag,tagFull:angFull});
 }
 /* ── Variant-test detection (founder, 21 Jul): surface — never merge — ads that are the
