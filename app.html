@@ -360,6 +360,8 @@ a.adrow-v:hover{text-decoration:underline}
 /* On-card chips: which FB page runs the ad (bottom-left) + variant-test membership (bottom-right) */
 .adthumb .pgc,.adthumb .vtc{position:absolute;bottom:8px;z-index:3;font-family:var(--mono);font-size:9.5px;letter-spacing:.02em;padding:3px 7px;border-radius:5px;background:rgba(10,14,18,.82);max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .adthumb .pgc{left:8px;color:var(--gold);border:1px solid rgba(227,169,44,.5)}
+.adthumb .pgc.pt{color:var(--sage);border-color:var(--sage-d)}
+.adsig.pg.pt{border-color:var(--sage-d);color:var(--sage)}
 .adthumb .vtc{right:8px;color:var(--cyan,#4ec9d8);border:1px solid rgba(78,201,216,.5)}
 .adthumb .pgc+.vtc{max-width:34%}
 a.adsig{text-decoration:none;cursor:pointer;transition:border-color .14s,background .14s}
@@ -1166,7 +1168,7 @@ function postCard(o){
   var clk=o.click?' onclick="'+o.click+';return false"':'';
   var du=o.url?' data-url="'+esc(o.url)+'"':'';
   return '<a class="adthumb" href="'+esc(o.link||'#')+'" target="_blank" rel="noopener"'+clk+du+'>'
-    +'<span class="media'+(show?'':' noimg')+'">'+img+ph+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+(o.stats?'<span class="cstats">'+o.stats+'</span>':'')+(o.pg?'<span class="pgc" title="Runs from the Facebook page “'+esc(o.pg)+'”">📄 '+esc(o.pg)+'</span>':'')+(o.vt?'<span class="vtc" title="'+esc(o.vtTitle||'Part of a variant test')+'">🎬 '+esc(o.vt)+'</span>':'')+go+'</span>'
+    +'<span class="media'+(show?'':' noimg')+'">'+img+ph+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+(o.stats?'<span class="cstats">'+o.stats+'</span>':'')+(o.pg?'<span class="pgc'+(o.pgCls||'')+'" title="'+esc(o.pgTitle||('Runs from the Facebook page “'+o.pg+'”'))+'">'+esc(o.pg)+'</span>':'')+(o.vt?'<span class="vtc" title="'+esc(o.vtTitle||'Part of a variant test')+'">🎬 '+esc(o.vt)+'</span>':'')+go+'</span>'
     +'<span class="cap">'+esc(o.cap||'')+'</span></a>';
 }
 /* ── Expandable screenshots — generic lightbox. Any <img class="zoomable"> (or any
@@ -1198,7 +1200,7 @@ var STAT_ICONS={
   view:'<svg viewBox="0 0 16 16"><path d="M5.4 3.3l7.2 4.7-7.2 4.7z"/></svg>'
 };
 function statIcon(t,v){return '<span class="cstat">'+STAT_ICONS[t]+esc(String(v))+'</span>';}
-function adThumb(a,i,pg,vt,vtTitle){
+function adThumb(a,i,pg,vt,vtTitle,pgCls,pgTitle){
   var plat=(a.platforms&&a.platforms[0])?prettyPlat(a.platforms[0]):'Meta';
   var st=adState(a);
   // A Meta-confirmed-inactive ad that still has a valid image shows the image + an "Inactive"
@@ -1206,7 +1208,7 @@ function adThumb(a,i,pg,vt,vtTitle){
   var tl=st==='off'?'<span class="nw off">Inactive</span>':(isRecent(a.started)?'<span class="nw">New</span>':(a.hasVideo?'<span class="nw vid">▶ Video</span>':''));
   // Every ad is its own card — no variation collapsing (founder rule 20 Jul: in ecomm the
   // creative IS the test; same copy + different video/image = a different ad).
-  return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,cap:String(a.text||a.title||''),click:'openAd('+i+')',ad:true,state:st,pg:pg||'',vt:vt||'',vtTitle:vtTitle||''});
+  return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,cap:String(a.text||a.title||''),click:'openAd('+i+')',ad:true,state:st,pg:pg||'',vt:vt||'',vtTitle:vtTitle||'',pgCls:pgCls||'',pgTitle:pgTitle||''});
 }
 /* ── Variant-test detection (founder, 21 Jul): surface — never merge — ads that are the
    same creative test. Two free, precise signals, both from data we already hold:
@@ -1247,14 +1249,35 @@ function adVariantGroups(ads){
   });
   return out;
 }
-// Third-party page detection for the chips/filter: a page is the brand's OWN when the
-// collapsed names contain each other ("Glov Beauty" ⊂ "Glov Beauty"); anything else —
-// "Dr Jennifer Miller", persona pages — is a separate page worth surfacing.
+// Page attribution taxonomy (founder, 21 Jul):
+//   "Jenna with Smooche"  → PARTNERSHIP ad (Meta's official branded-content pairing)
+//   "Jenna" alone, advertising Smooche → WHITELISTING ad (brand runs ads through a 3rd-party page)
+//   "Smooche"             → BRANDED ad (the brand's own page)
 function _pgOwn(page,brand){
   var p=String(page||'').toLowerCase().replace(/[^a-z0-9]+/g,''),b=String(brand||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
   if(!p||!b)return true;
   return p.indexOf(b)>=0||b.indexOf(p)>=0;
 }
+// → 'own' | 'partner' | 'white'
+function adPageKind(a,brand){
+  if(!a)return 'own';
+  var clp=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'');};
+  var b=clp(brand);
+  var pg=String(a.page||'');
+  // Partnership: Meta's own pairing — the byline / branded-content partner names the brand
+  // ("Jenna with Smooche"), or the page label itself is "X with <Brand>".
+  var by=clp((a.partner||'')+' '+(a.byline||''));
+  if(b&&by&&by.indexOf(b)>=0)return 'partner';
+  if(b&&/\swith\s/i.test(pg)&&clp(pg).indexOf(b)>=0&&clp(pg)!==b)return 'partner';
+  if(_pgOwn(pg,brand))return 'own';
+  return 'white';   // 3rd-party page advertising the brand with no partnership label = whitelisting
+}
+var PG_KIND_LBL={partner:'Partnership',white:'Whitelisted'};
+var PG_KIND_ICON={partner:'🤝',white:'📄'};
+var PG_KIND_TITLE={
+  partner:'Partnership ad — Meta’s official branded-content pairing between this page and the brand',
+  white:'Whitelisting ad — the brand advertises through this third-party page’s identity (no partnership label)'
+};
 var ADS_DATA=null,ADS_BOX=null,ADS_BRAND='',ADS_PGF='';
 function pgFilter(p){ADS_PGF=(ADS_PGF===p)?'':String(p||'');if(ADS_BOX&&ADS_DATA)ADS_BOX.innerHTML=adsHTML(ADS_DATA);}
 var ADS_SHOWN=[];
@@ -1276,13 +1299,16 @@ function adsHTML(d){
     (d.signals.formats||[]).forEach(function(f){sig.push('<span class="adsig fm">🎬 New format · '+esc(f)+'</span>');});
   }
   var all=d.ads||[];
-  // Every OTHER Facebook page in the mix (persona/advertorial pages) gets a clickable chip —
-  // the discovery layer between "the read mentions Dr Sheryl Williams" and her actual ads.
+  // Every OTHER Facebook page in the mix gets a clickable chip, labeled by the founder's
+  // taxonomy — 🤝 Partnership ("X with Brand", Meta's official pairing) vs 📄 Whitelisted
+  // (a 3rd-party page running the brand's ads). The discovery layer between "the read
+  // mentions Dr Sheryl Williams" and her actual ads.
   var brand=d._brand||ADS_BRAND||'';
-  var pgN={};all.forEach(function(a){if(a.page&&!_pgOwn(a.page,brand))pgN[a.page]=(pgN[a.page]||0)+1;});
+  var pgN={},pgK={};all.forEach(function(a){if(!a.page)return;var k=adPageKind(a,brand);if(k==='own')return;pgN[a.page]=(pgN[a.page]||0)+1;pgK[a.page]=k;});
   Object.keys(pgN).sort(function(x,y){return pgN[y]-pgN[x];}).forEach(function(p){
     if((d.signals&&(d.signals.pages||[]).indexOf(p)>=0))return;   // already chipped as NEW above
-    sig.push('<span class="adsig pg click'+(ADS_PGF===p?' on':'')+'" data-pg="'+esc(p)+'" onclick="pgFilter(this.dataset.pg)" title="Show only this page’s ads">📄 '+esc(p)+' · '+pgN[p]+' ad'+(pgN[p]===1?'':'s')+'</span>');
+    var k=pgK[p];
+    sig.push('<span class="adsig pg click'+(k==='partner'?' pt':'')+(ADS_PGF===p?' on':'')+'" data-pg="'+esc(p)+'" onclick="pgFilter(this.dataset.pg)" title="'+esc(PG_KIND_TITLE[k]||'')+' — click to show only this page’s ads">'+PG_KIND_ICON[k]+' '+esc(PG_KIND_LBL[k])+' · '+esc(p)+' · '+pgN[p]+' ad'+(pgN[p]===1?'':'s')+'</span>');
   });
   // Variant tests: same footage (via our vision read) or same copy → group ADJACENT + chip.
   var vg=adVariantGroups(all),vtSets=0;Object.keys(vg).forEach(function(k){if(vg[k].pos===1)vtSets++;});
@@ -1301,12 +1327,13 @@ function adsHTML(d){
     var a=all[oi];
     if(ADS_PGF&&String(a.page||'')!==ADS_PGF)return;   // page filter active
     var v=vg[oi];
-    var pgChip=(a.page&&!_pgOwn(a.page,brand))?a.page:'';
+    var pk=adPageKind(a,brand);
+    var pgChip=(a.page&&pk!=='own')?(PG_KIND_ICON[pk]+' '+a.page):'';
     var vt=v?('Variant '+v.pos+'/'+v.n):'';
     var vtTitle=v?(v.kind==='footage'?'Same footage — different hooks tested':'Same copy — different creatives tested'):'';
     a._vt=v||null;   // so the ad modal can explain the variant test
     shown.push(a);
-    cardsArr.push(adThumb(a,shown.length-1,pgChip,vt,vtTitle));
+    cardsArr.push(adThumb(a,shown.length-1,pgChip,vt,vtTitle,pk==='partner'?' pt':'',PG_KIND_TITLE[pk]||''));
   });
   ADS_SHOWN=shown;
   var filterNote=ADS_PGF?'<div class="adssum" style="margin-top:2px">Showing <b>'+shown.length+' ad'+(shown.length===1?'':'s')+'</b> from the page “'+esc(ADS_PGF)+'” — <a href="#" onclick="pgFilter(\'\');return false">show all ads ✕</a></div>':'';
@@ -1999,7 +2026,13 @@ function openAd(i){
   var copy=bits?'<div class="adcopy">'+bits+'</div>':'';
   var rows=(a.text||a.title)?angleRowHTML():'';
   if(a.landing)rows+='<div class="adrow"><span class="adrow-k">Landing page</span><a class="adrow-v" href="'+esc(a.landing)+'" target="_blank" rel="noopener">'+esc(a.landing)+' ↗</a></div>';
-  if(a.page)rows+='<div class="adrow"><span class="adrow-k">Run from page</span><span class="adrow-v">'+esc(a.page)+(!_pgOwn(a.page,ADS_BRAND)?' <span style="font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--gold);border:1px solid rgba(227,169,44,.5);border-radius:5px;padding:2px 7px;margin-left:8px;vertical-align:1px">3RD-PARTY PAGE</span>':'')+'</span></div>';
+  if(a.page){
+    var pk=adPageKind(a,ADS_BRAND);
+    var kb='';
+    if(pk==='partner')kb=' <span title="'+esc(PG_KIND_TITLE.partner)+'" style="font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--sage);border:1px solid var(--sage-d);border-radius:5px;padding:2px 7px;margin-left:8px;vertical-align:1px">🤝 PARTNERSHIP AD</span>';
+    else if(pk==='white')kb=' <span title="'+esc(PG_KIND_TITLE.white)+'" style="font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--gold);border:1px solid rgba(227,169,44,.5);border-radius:5px;padding:2px 7px;margin-left:8px;vertical-align:1px">📄 WHITELISTING AD</span>';
+    rows+='<div class="adrow"><span class="adrow-k">Run from page</span><span class="adrow-v">'+esc(a.page)+kb+'</span></div>';
+  }
   if(a._vt)rows+='<div class="adrow"><span class="adrow-k">Variant test</span><span class="adrow-v">'+a._vt.pos+' of '+a._vt.n+' — '+(a._vt.kind==='footage'?'the same footage tested with different hooks; the grouped 🎬 cards beside this one are its siblings':'the same copy tested with different creatives; the grouped 🎬 cards beside this one are its siblings')+'</span></div>';
   if(a.link)rows+='<div class="adrow"><span class="adrow-k">Source</span><a class="adrow-v" href="'+esc(a.link)+'" target="_blank" rel="noopener">Open in Meta Ad Library ↗</a></div>';
   document.getElementById('adBody').innerHTML=media+copy+(rows?'<div class="adrows">'+rows+'</div>':'');
