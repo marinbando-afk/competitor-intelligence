@@ -1346,13 +1346,13 @@ function adsHTML(d){
     var a=all[oi];
     if(ADS_PGF&&String(a.page||'')!==ADS_PGF)return;   // page filter active
     var v=vg[oi];
-    var pk=adPageKind(a,brand);
-    var pgChip=(a.page&&pk!=='own')?(PG_KIND_ICON[pk]+' '+a.page):'';
+    // No page-name chip on the thumbnail (founder, 21 Jul: redundant) — the clickable page
+    // chips above the grid and the modal's Facebook-page row carry the attribution.
     var vt=v?('Variant '+v.pos+'/'+v.n):'';
     var vtTitle=v?(v.kind==='footage'?'Same footage — different hooks tested':'Same copy — different creatives tested'):'';
     a._vt=v||null;   // so the ad modal can explain the variant test
     shown.push(a);
-    cardsArr.push(adThumb(a,shown.length-1,pgChip,vt,vtTitle,pk==='partner'?' pt':'',PG_KIND_TITLE[pk]||''));
+    cardsArr.push(adThumb(a,shown.length-1,'',vt,vtTitle));
   });
   ADS_SHOWN=shown;
   var filterNote=ADS_PGF?'<div class="adssum" style="margin-top:2px">Showing <b>'+shown.length+' ad'+(shown.length===1?'':'s')+'</b> from the page “'+esc(ADS_PGF)+'” — <a href="#" onclick="pgFilter(\'\');return false">show all ads ✕</a></div>':'';
