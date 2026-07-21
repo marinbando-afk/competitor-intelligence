@@ -1264,12 +1264,16 @@ function adPageKind(a,brand){
   var clp=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'');};
   var b=clp(brand);
   var pg=String(a.page||'');
-  // Partnership: Meta's own pairing — the byline / branded-content partner names the brand
-  // ("Jenna with Smooche"), or the page label itself is "X with <Brand>".
-  var by=clp((a.partner||'')+' '+(a.byline||''));
-  if(b&&by&&by.indexOf(b)>=0)return 'partner';
+  var isOwn=_pgOwn(pg,brand);
+  // Partnership = an actual PAIRING, not just the brand's name in a byline field (the brand's
+  // own ads often carry byline "Smooche" — that's still a BRANDED ad, found 21 Jul). Real
+  // pairing signals: an "X with <Brand>" byline/page label, or Meta's branded_content partner
+  // naming the brand while the ad runs from a DIFFERENT page.
+  var rawBy=String(a.partner||'')+' '+String(a.byline||'');
+  var byC=clp(rawBy);
+  if(b&&byC&&byC.indexOf(b)>=0&&(/\swith\s/i.test(rawBy)||(!isOwn&&clp(a.partner||'').indexOf(b)>=0)))return 'partner';
   if(b&&/\swith\s/i.test(pg)&&clp(pg).indexOf(b)>=0&&clp(pg)!==b)return 'partner';
-  if(_pgOwn(pg,brand))return 'own';
+  if(isOwn)return 'own';
   return 'white';   // 3rd-party page advertising the brand with no partnership label = whitelisting
 }
 var PG_KIND_LBL={partner:'Partnership',white:'Whitelisted'};

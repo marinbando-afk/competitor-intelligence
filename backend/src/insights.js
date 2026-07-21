@@ -92,11 +92,17 @@ export function funnelFacts(ads, brand) {
   const clp = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
   const bcl = clp(brand);
   const kindOf = (a) => {
-    const by = clp((a.partner || '') + ' ' + (a.byline || ''));
+    // Partnership = an actual PAIRING, not just the brand's name in a byline field (the brand's
+    // own ads often carry byline "Smooche" — still a BRANDED ad): an "X with <Brand>" byline/
+    // page label, or a branded_content partner naming the brand while the ad runs from a
+    // DIFFERENT page.
+    const rawBy = (a.partner || '') + ' ' + (a.byline || '');
+    const byC = clp(rawBy);
     const pg = oneLine(a.page);
-    if (bcl && by && by.indexOf(bcl) >= 0) return 'partner';
+    const isOwn = own(pg);
+    if (bcl && byC && byC.indexOf(bcl) >= 0 && (/\swith\s/i.test(rawBy) || (!isOwn && clp(a.partner || '').indexOf(bcl) >= 0))) return 'partner';
     if (bcl && /\swith\s/i.test(pg) && clp(pg).indexOf(bcl) >= 0 && clp(pg) !== bcl) return 'partner';
-    return own(pg) ? 'own' : 'white';
+    return isOwn ? 'own' : 'white';
   };
   const kindByPage = {};
   ads.forEach((a) => { const p = oneLine(a.page); if (!p) return; const k = kindOf(a); if (k !== 'own' && !kindByPage[p]) kindByPage[p] = k; });
