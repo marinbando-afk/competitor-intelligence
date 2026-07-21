@@ -353,6 +353,15 @@ a.adrow-v:hover{text-decoration:underline}
 .adsig.pg{border-color:rgba(227,169,44,.45);color:var(--gold)}
 .adsig.ld{border-color:var(--sage-d);color:var(--sage)}
 .adsig.fm{border-color:rgba(98,189,126,.45);color:var(--quiet)}
+.adsig.vt{border-color:rgba(78,201,216,.45);color:var(--cyan,#4ec9d8)}
+.adsig.click{cursor:pointer}
+.adsig.click:hover{border-color:var(--gold);filter:brightness(1.15)}
+.adsig.on{background:rgba(227,169,44,.16);border-color:var(--gold)}
+/* On-card chips: which FB page runs the ad (bottom-left) + variant-test membership (bottom-right) */
+.adthumb .pgc,.adthumb .vtc{position:absolute;bottom:8px;z-index:3;font-family:var(--mono);font-size:9.5px;letter-spacing:.02em;padding:3px 7px;border-radius:5px;background:rgba(10,14,18,.82);max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.adthumb .pgc{left:8px;color:var(--gold);border:1px solid rgba(227,169,44,.5)}
+.adthumb .vtc{right:8px;color:var(--cyan,#4ec9d8);border:1px solid rgba(78,201,216,.5)}
+.adthumb .pgc+.vtc{max-width:34%}
 a.adsig{text-decoration:none;cursor:pointer;transition:border-color .14s,background .14s}
 a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .adssum b{color:var(--text);font-weight:600}
@@ -1157,7 +1166,7 @@ function postCard(o){
   var clk=o.click?' onclick="'+o.click+';return false"':'';
   var du=o.url?' data-url="'+esc(o.url)+'"':'';
   return '<a class="adthumb" href="'+esc(o.link||'#')+'" target="_blank" rel="noopener"'+clk+du+'>'
-    +'<span class="media'+(show?'':' noimg')+'">'+img+ph+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+(o.stats?'<span class="cstats">'+o.stats+'</span>':'')+go+'</span>'
+    +'<span class="media'+(show?'':' noimg')+'">'+img+ph+(o.tl||'')+(o.tr?'<span class="pl">'+esc(o.tr)+'</span>':'')+(o.stats?'<span class="cstats">'+o.stats+'</span>':'')+(o.pg?'<span class="pgc" title="Runs from the Facebook page “'+esc(o.pg)+'”">📄 '+esc(o.pg)+'</span>':'')+(o.vt?'<span class="vtc" title="'+esc(o.vtTitle||'Part of a variant test')+'">🎬 '+esc(o.vt)+'</span>':'')+go+'</span>'
     +'<span class="cap">'+esc(o.cap||'')+'</span></a>';
 }
 /* ── Expandable screenshots — generic lightbox. Any <img class="zoomable"> (or any
@@ -1189,7 +1198,7 @@ var STAT_ICONS={
   view:'<svg viewBox="0 0 16 16"><path d="M5.4 3.3l7.2 4.7-7.2 4.7z"/></svg>'
 };
 function statIcon(t,v){return '<span class="cstat">'+STAT_ICONS[t]+esc(String(v))+'</span>';}
-function adThumb(a,i){
+function adThumb(a,i,pg,vt,vtTitle){
   var plat=(a.platforms&&a.platforms[0])?prettyPlat(a.platforms[0]):'Meta';
   var st=adState(a);
   // A Meta-confirmed-inactive ad that still has a valid image shows the image + an "Inactive"
@@ -1197,8 +1206,57 @@ function adThumb(a,i){
   var tl=st==='off'?'<span class="nw off">Inactive</span>':(isRecent(a.started)?'<span class="nw">New</span>':(a.hasVideo?'<span class="nw vid">▶ Video</span>':''));
   // Every ad is its own card — no variation collapsing (founder rule 20 Jul: in ecomm the
   // creative IS the test; same copy + different video/image = a different ad).
-  return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,cap:String(a.text||a.title||''),click:'openAd('+i+')',ad:true,state:st});
+  return postCard({link:a.link,image:a.image||'',tl:tl,tr:plat,cap:String(a.text||a.title||''),click:'openAd('+i+')',ad:true,state:st,pg:pg||'',vt:vt||'',vtTitle:vtTitle||''});
 }
+/* ── Variant-test detection (founder, 21 Jul): surface — never merge — ads that are the
+   same creative test. Two free, precise signals, both from data we already hold:
+   • same FOOTAGE: our own vision read of each creative (the `creative` description from the
+     daily warm) describes the same scene — Meta re-encodes the file per ad, so URLs differ
+     even for identical videos; the description is the stable fingerprint.
+   • same COPY: identical normalized body text with different creatives (the classic ecomm
+     launch batch). Cards stay individual (every ad counts); they get grouped ADJACENT with
+     a 🎬 chip so the test is visible at a glance. ── */
+function _vtToks(s){var STOP={with:1,this:1,that:1,from:1,into:1,over:1,text:1,shot:1,image:1,video:1,style:1,format:1};return String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').split(/\s+/).filter(function(w){return w.length>=4&&!STOP[w];});}
+function _vtJac(a,b){if(!a.length||!b.length)return 0;var B={};b.forEach(function(w){B[w]=1;});var A={};a.forEach(function(w){A[w]=1;});var au=Object.keys(A),bu=Object.keys(B),i=0;au.forEach(function(w){if(B[w])i++;});return i/(au.length+bu.length-i);}
+function _vtCopy(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();}
+function adVariantGroups(ads){
+  var n=ads.length,gid=[],kinds=[];
+  for(var i=0;i<n;i++)gid[i]=i;
+  function root(x){while(gid[x]!==x)x=gid[x]=gid[gid[x]];return x;}
+  var toks=ads.map(function(a){return _vtToks(a.creative||'');});
+  var copies=ads.map(function(a){return _vtCopy(a.text||'');});
+  for(var x=0;x<n;x++)for(var y=x+1;y<n;y++){
+    var k='';
+    // Videos get a looser similarity bar (0.42 vs 0.55): the vision read describes a video by
+    // its cover frame in more variable wording ("athleisure" vs "athletic wear"), so same-footage
+    // video pairs score lower than same-layout statics. Verified on Glov 21 Jul: 0.55 missed the
+    // third of three identical berberine videos; 0.42-for-videos groups all three with zero
+    // over-merging among the static magnesium tests.
+    var th=(ads[x].hasVideo&&ads[y].hasVideo)?0.42:0.55;
+    if(copies[x]&&copies[x].length>=45&&copies[x]===copies[y])k='copy';
+    else if(toks[x].length>=5&&toks[y].length>=5&&!!ads[x].hasVideo===!!ads[y].hasVideo&&_vtJac(toks[x],toks[y])>=th)k='footage';
+    if(k){var rx=root(x),ry=root(y);if(rx!==ry)gid[ry]=rx;kinds[root(x)]=kinds[root(x)]==='footage'?'footage':(k==='footage'?'footage':(kinds[root(x)]||k));}
+  }
+  var groups={};
+  for(var z=0;z<n;z++){var r=root(z);(groups[r]=groups[r]||[]).push(z);}
+  var out={};// index -> {n,pos,kind}
+  Object.keys(groups).forEach(function(r){
+    var m=groups[r];if(m.length<2)return;
+    var kind=kinds[r]||'footage';
+    m.forEach(function(idx,pi){out[idx]={n:m.length,pos:pi+1,kind:kind,members:m};});
+  });
+  return out;
+}
+// Third-party page detection for the chips/filter: a page is the brand's OWN when the
+// collapsed names contain each other ("Glov Beauty" ⊂ "Glov Beauty"); anything else —
+// "Dr Jennifer Miller", persona pages — is a separate page worth surfacing.
+function _pgOwn(page,brand){
+  var p=String(page||'').toLowerCase().replace(/[^a-z0-9]+/g,''),b=String(brand||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+  if(!p||!b)return true;
+  return p.indexOf(b)>=0||b.indexOf(p)>=0;
+}
+var ADS_DATA=null,ADS_BOX=null,ADS_BRAND='',ADS_PGF='';
+function pgFilter(p){ADS_PGF=(ADS_PGF===p)?'':String(p||'');if(ADS_BOX&&ADS_DATA)ADS_BOX.innerHTML=adsHTML(ADS_DATA);}
 var ADS_SHOWN=[];
 function adsHTML(d){
   if(d&&d.error)return '<div class="adsempty">⚠ Couldn’t check their ads right now (the scan errored) — this does NOT mean they have no ads. It retries on the next daily scan.</div>';
@@ -1211,19 +1269,55 @@ function adsHTML(d){
   }
   var nc=d.newCount||0,sig=[];
   if(d.signals){
-    (d.signals.pages||[]).forEach(function(p){sig.push('<span class="adsig pg">📄 New page · '+esc(p)+'</span>');});
+    // "New page" chips FILTER the grid on click — the read calls these pages out, so one
+    // click must show exactly the ads they refer to (founder, 21 Jul: "hard to find them").
+    (d.signals.pages||[]).forEach(function(p){sig.push('<span class="adsig pg click'+(ADS_PGF===p?' on':'')+'" data-pg="'+esc(p)+'" onclick="pgFilter(this.dataset.pg)" title="Show only this page’s ads">📄 New page · '+esc(p)+'</span>');});
     (d.signals.landings||[]).forEach(function(l){var dom=(l&&l.domain)||l||'',url=(l&&l.url)||'';if(!dom)return;sig.push(url?('<a class="adsig ld" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer" title="'+esc(url)+'">⛳ New landing · '+esc(dom)+'</a>'):('<span class="adsig ld">⛳ New landing · '+esc(dom)+'</span>'));});
     (d.signals.formats||[]).forEach(function(f){sig.push('<span class="adsig fm">🎬 New format · '+esc(f)+'</span>');});
   }
+  var all=d.ads||[];
+  // Every OTHER Facebook page in the mix (persona/advertorial pages) gets a clickable chip —
+  // the discovery layer between "the read mentions Dr Sheryl Williams" and her actual ads.
+  var brand=d._brand||ADS_BRAND||'';
+  var pgN={};all.forEach(function(a){if(a.page&&!_pgOwn(a.page,brand))pgN[a.page]=(pgN[a.page]||0)+1;});
+  Object.keys(pgN).sort(function(x,y){return pgN[y]-pgN[x];}).forEach(function(p){
+    if((d.signals&&(d.signals.pages||[]).indexOf(p)>=0))return;   // already chipped as NEW above
+    sig.push('<span class="adsig pg click'+(ADS_PGF===p?' on':'')+'" data-pg="'+esc(p)+'" onclick="pgFilter(this.dataset.pg)" title="Show only this page’s ads">📄 '+esc(p)+' · '+pgN[p]+' ad'+(pgN[p]===1?'':'s')+'</span>');
+  });
+  // Variant tests: same footage (via our vision read) or same copy → group ADJACENT + chip.
+  var vg=adVariantGroups(all),vtSets=0;Object.keys(vg).forEach(function(k){if(vg[k].pos===1)vtSets++;});
+  if(vtSets)sig.push('<span class="adsig vt" title="Same creative tested with different hooks, or same copy with different creatives — grouped side by side below">🎬 '+vtSets+' variant test'+(vtSets===1?'':'s')+' running</span>');
   var sigHTML=sig.length?'<div class="adsigs">'+sig.join('')+'</div>':'';
-  var cards=(d.ads&&d.ads.length)?'<div class="adstrip">'+d.ads.map(adThumb).join('')+'</div>':'<div class="adsempty">No ad creatives available right now.</div>';
+  // Display order: cluster members ADJACENT (in first-member position), everything else in
+  // rank order. ADS_SHOWN mirrors the displayed order so openAd(i) opens the right ad.
+  var order=[],seen={};
+  all.forEach(function(a,i){
+    if(seen[i])return;
+    if(vg[i]&&vg[i].pos===1){vg[i].members.forEach(function(m){order.push(m);seen[m]=1;});}
+    else{order.push(i);seen[i]=1;}
+  });
+  var shown=[],cardsArr=[];
+  order.forEach(function(oi){
+    var a=all[oi];
+    if(ADS_PGF&&String(a.page||'')!==ADS_PGF)return;   // page filter active
+    var v=vg[oi];
+    var pgChip=(a.page&&!_pgOwn(a.page,brand))?a.page:'';
+    var vt=v?('Variant '+v.pos+'/'+v.n):'';
+    var vtTitle=v?(v.kind==='footage'?'Same footage — different hooks tested':'Same copy — different creatives tested'):'';
+    a._vt=v||null;   // so the ad modal can explain the variant test
+    shown.push(a);
+    cardsArr.push(adThumb(a,shown.length-1,pgChip,vt,vtTitle));
+  });
+  ADS_SHOWN=shown;
+  var filterNote=ADS_PGF?'<div class="adssum" style="margin-top:2px">Showing <b>'+shown.length+' ad'+(shown.length===1?'':'s')+'</b> from the page “'+esc(ADS_PGF)+'” — <a href="#" onclick="pgFilter(\'\');return false">show all ads ✕</a></div>':'';
+  var cards=cardsArr.length?'<div class="adstrip">'+cardsArr.join('')+'</div>':'<div class="adsempty">No ad creatives available right now.</div>';
   if(nc>0){
-    return '<div class="adssum"><b>'+nc+' new ad'+(nc===1?'':'s')+' today</b>'+(d.active?' · '+d.active+' active':'')+'</div>'+sigHTML+cards;
+    return '<div class="adssum"><b>'+nc+' new ad'+(nc===1?'':'s')+' today</b>'+(d.active?' · '+d.active+' active':'')+'</div>'+sigHTML+filterNote+cards;
   }
   var note=d.baseline
     ? '<div class="adssum"><b>'+(d.active||0)+' active ads</b> — establishing a baseline. From tomorrow, <b>new</b> ads (fresh creatives, angles, landing pages or Facebook pages) get flagged up top. Current creatives:</div>'
     : '<div class="adssum"><b>No new ads today</b>'+(d.active?' · '+d.active+' active':'')+' — same creatives still running. Current ads:</div>';
-  return note+sigHTML+cards;
+  return note+sigHTML+filterNote+cards;
 }
 function loadAds(box){
   var brand=box.getAttribute('data-brand'),country=box.getAttribute('data-country')||'ALL',host=box.getAttribute('data-host')||'';
@@ -1244,7 +1338,12 @@ function loadAds(box){
   }
   fetch(API+'/api/ads?brand='+encodeURIComponent(brand)+'&country='+encodeURIComponent(country)+'&host='+encodeURIComponent(host))
     .then(function(r){return r.json();})
-    .then(function(d){box.innerHTML=adsHTML(d);})
+    .then(function(d){
+      // Keep the page-filter + variant state per brand: switching competitor resets the filter.
+      if(ADS_BRAND!==brand)ADS_PGF='';
+      ADS_DATA=d;ADS_BOX=box;ADS_BRAND=brand;d._brand=brand;
+      box.innerHTML=adsHTML(d);
+    })
     .catch(function(){box.innerHTML='<div class="adsempty">Couldn’t reach the ad service just now — try again in a moment.</div>';});
 }
 function fmtNum(n){n=+n||0;return n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,'')+'M':(n>=1e3?(n/1e3).toFixed(1).replace(/\.0$/,'')+'k':''+n);}
@@ -1900,7 +1999,8 @@ function openAd(i){
   var copy=bits?'<div class="adcopy">'+bits+'</div>':'';
   var rows=(a.text||a.title)?angleRowHTML():'';
   if(a.landing)rows+='<div class="adrow"><span class="adrow-k">Landing page</span><a class="adrow-v" href="'+esc(a.landing)+'" target="_blank" rel="noopener">'+esc(a.landing)+' ↗</a></div>';
-  if(a.page)rows+='<div class="adrow"><span class="adrow-k">Run from page</span><span class="adrow-v">'+esc(a.page)+'</span></div>';
+  if(a.page)rows+='<div class="adrow"><span class="adrow-k">Run from page</span><span class="adrow-v">'+esc(a.page)+(!_pgOwn(a.page,ADS_BRAND)?' <span style="font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--gold);border:1px solid rgba(227,169,44,.5);border-radius:5px;padding:2px 7px;margin-left:8px;vertical-align:1px">3RD-PARTY PAGE</span>':'')+'</span></div>';
+  if(a._vt)rows+='<div class="adrow"><span class="adrow-k">Variant test</span><span class="adrow-v">'+a._vt.pos+' of '+a._vt.n+' — '+(a._vt.kind==='footage'?'the same footage tested with different hooks; the grouped 🎬 cards beside this one are its siblings':'the same copy tested with different creatives; the grouped 🎬 cards beside this one are its siblings')+'</span></div>';
   if(a.link)rows+='<div class="adrow"><span class="adrow-k">Source</span><a class="adrow-v" href="'+esc(a.link)+'" target="_blank" rel="noopener">Open in Meta Ad Library ↗</a></div>';
   document.getElementById('adBody').innerHTML=media+copy+(rows?'<div class="adrows">'+rows+'</div>':'');
   ov.classList.add('open');ov.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
