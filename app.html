@@ -1336,39 +1336,49 @@ function adsHTML(d){
   var vg=adVariantGroups(all),vtSets=0;Object.keys(vg).forEach(function(k){if(vg[k].pos===1)vtSets++;});
   if(vtSets)sig.push('<span class="adsig vt" title="Same creative tested with different hooks, or same copy with different creatives — grouped side by side below">🎬 '+vtSets+' variant test'+(vtSets===1?'':'s')+' running</span>');
   var sigHTML=sig.length?'<div class="adsigs">'+sig.join('')+'</div>':'';
-  // Display order: cluster members ADJACENT (in first-member position), everything else in
-  // rank order. ADS_SHOWN mirrors the displayed order so openAd(i) opens the right ad.
-  var order=[],seen={};
-  all.forEach(function(a,i){
-    if(seen[i])return;
-    if(vg[i]&&vg[i].pos===1){vg[i].members.forEach(function(m){order.push(m);seen[m]=1;});}
-    else{order.push(i);seen[i]=1;}
-  });
-  var shown=[],cardsArr=[];
-  order.forEach(function(oi){
-    var a=all[oi];
-    if(ADS_PGF&&String(a.page||'')!==ADS_PGF)return;   // page filter active
-    var v=vg[oi];
-    // No page-name chip on the thumbnail (founder, 21 Jul: redundant) — the clickable page
-    // chips above the grid and the modal's Facebook-page row carry the attribution.
-    var vt=v?('Variant '+v.pos+'/'+v.n):'';
-    var vtTitle=v?(v.kind==='footage'?'Same footage — different hooks tested':'Same copy — different creatives tested'):'';
+  var shown=[],cardsArr=[],more='';
+  function pushAd(a,v,vtLabel,vtTitle){
     a._vt=v||null;   // so the ad modal can explain the variant test
     shown.push(a);
-    cardsArr.push(adThumb(a,shown.length-1,'',vt,vtTitle));
-  });
+    cardsArr.push(adThumb(a,shown.length-1,'',vtLabel,vtTitle));
+  }
+  if(ADS_ALL||ADS_PGF){
+    // FULL view (after "Show all", or a page filter): every card, variant-test members ADJACENT.
+    var order=[],seen={};
+    all.forEach(function(a,i){
+      if(seen[i])return;
+      if(vg[i]&&vg[i].pos===1){vg[i].members.forEach(function(m){order.push(m);seen[m]=1;});}
+      else{order.push(i);seen[i]=1;}
+    });
+    order.forEach(function(oi){
+      var a=all[oi];
+      if(ADS_PGF&&String(a.page||'')!==ADS_PGF)return;
+      var v=vg[oi];
+      pushAd(a,v,v?('Variant '+v.pos+'/'+v.n):'',v?(v.kind==='footage'?'Same footage — different hooks tested':'Same copy — different creatives tested'):'');
+    });
+    if(ADS_ALL&&!ADS_PGF)more='<button type="button" class="adsig click" style="margin:12px auto 0;display:block" onclick="ADS_ALL=false;if(ADS_BOX&&ADS_DATA)ADS_BOX.innerHTML=adsHTML(ADS_DATA)">Show fewer ↑</button>';
+  }else{
+    // DEFAULT view (founder spec, 20+22 Jul): the NEW ad(s) lead, then 5-6 REPRESENTATIVE
+    // current ads — ONE card per variant test (dedup is display-only; counts stay totals) —
+    // then one expander for the whole capture.
+    var nc0=Math.min(d.newCount||0,all.length),reps=0,REPS_MAX=6;
+    all.forEach(function(a,i){
+      var v=vg[i];
+      if(i<nc0){
+        // every NEW ad is always shown, but siblings of an already-shown NEW variant collapse too
+        if(v&&v.pos!==1&&v.members&&v.members.some(function(m){return m<i&&m<nc0;}))return;
+        pushAd(a,v,v?('×'+v.n+' variants'):'',v?'One creative test — “Show all” reveals every variant':'');
+      }else{
+        if(reps>=REPS_MAX)return;
+        if(v&&v.pos!==1)return;   // one representative per variant test
+        reps++;
+        pushAd(a,v,v?('×'+v.n+' variants'):'',v?'One creative test — “Show all” reveals every variant':'');
+      }
+    });
+    if(all.length>shown.length)more='<button type="button" class="adsig click" style="margin:12px auto 0;display:block" onclick="adsShowAll()">Show all '+all.length+' captured ads ↓</button>';
+  }
   ADS_SHOWN=shown;
   var filterNote=ADS_PGF?'<div class="adssum" style="margin-top:2px">Showing <b>'+shown.length+' ad'+(shown.length===1?'':'s')+'</b> from the page “'+esc(ADS_PGF)+'” — <a href="#" onclick="pgFilter(\'\');return false">show all ads ✕</a></div>':'';
-  // Fold the grid past ~24 cards behind an expander (founder, 22 Jul: the rest of the
-  // capture was unreachable). Variant groups are never split across the fold.
-  var FOLD=24,more='';
-  if(!ADS_ALL&&!ADS_PGF&&cardsArr.length>FOLD+4){
-    var cut=FOLD;
-    while(cut<cardsArr.length&&shown[cut]&&shown[cut]._vt&&shown[cut]._vt.pos>1)cut++;   // don't split a variant test
-    more='<button type="button" class="adsig click" style="margin:12px auto 0;display:block" onclick="adsShowAll()">Show all '+cardsArr.length+' captured ads ↓</button>';
-    cardsArr=cardsArr.slice(0,cut);
-    ADS_SHOWN=shown.slice(0,cut);
-  }
   var cards=cardsArr.length?'<div class="adstrip">'+cardsArr.join('')+'</div>'+more:'<div class="adsempty">No ad creatives available right now.</div>';
   if(nc>0){
     return '<div class="adssum"><b>'+nc+' new ad'+(nc===1?'':'s')+' today</b>'+(d.active?' · '+d.active+' active':'')+'</div>'+sigHTML+filterNote+cards;
