@@ -68,19 +68,28 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
   // spaces, then the domain label ("currentbody"), and keep the first wording that returns
   // real results. Extra scrapes only ever run on a 0-result query, so this costs nothing
   // for the brands whose name already matches their branding.
-  const variants = [brand];
+  // EXACT PHRASE first (founder cases, 22 Jul): unordered matching turns a multi-word name
+  // into a junk magnet — "Pacific foods" matched every ad containing "pacific" AND "foods"
+  // (seafood restaurants…), the junk filled the newest-50 window, and 23 of the brand's 24
+  // real ads (its "X with Pacific Foods" partnership fleet) never made the capture. Exact
+  // phrase returns the clean set. Ladder: name (exact) → name-minus-spaces (exact) → domain
+  // label (exact) → name (unordered, the old behavior) as the last resort.
+  const variants = [{ q: brand, st: 'keyword_exact_phrase' }];
   if (!pageId) {
-    const pushV = (q) => { q = String(q || '').trim(); if (q && !variants.some((x) => x.toLowerCase() === q.toLowerCase())) variants.push(q); };
-    if (/\s/.test(brand)) pushV(brand.replace(/\s+/g, ''));
+    const pushV = (q, st) => { q = String(q || '').trim(); if (q && !variants.some((x) => x.q.toLowerCase() === q.toLowerCase() && x.st === st)) variants.push({ q, st }); };
+    if (/\s/.test(brand)) pushV(brand.replace(/\s+/g, ''), 'keyword_exact_phrase');
     const label = String(host || '').split('.')[0];
-    if (label && label.length >= 4) pushV(label);
+    if (label && label.length >= 4) pushV(label, 'keyword_exact_phrase');
+    pushV(brand, 'keyword_unordered');
   }
 
   let items = [], usedQuery = brand;
-  for (const q of variants) {
+  for (const v of variants) {
+    const q = v.q;
+    const sortQv = '&search_type=' + v.st + '&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped';
     const qUrl = pageId
       ? searchUrl
-      : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(q) + sortQ + '&media_type=all');
+      : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(q) + sortQv + '&media_type=all');
     const input = {
       urls: [{ url: qUrl }],
       startUrls: [{ url: qUrl }],
@@ -107,10 +116,10 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
     }
     items = await res.json();
     if (!Array.isArray(items)) items = [];
-    usedQuery = q;
+    usedQuery = q + (v.st === 'keyword_unordered' ? ' (unordered)' : '');
     if (items.length) break;                              // this wording found their ads
     if (pageId) break;                                    // page-scoped scans have no variants
-    if (q !== variants[variants.length - 1]) console.log('fetchAds ' + (host || brand) + ': query "' + q + '" returned 0 — retrying with the next branding variant');
+    if (v !== variants[variants.length - 1]) console.log('fetchAds ' + (host || brand) + ': query "' + q + '" [' + v.st + '] returned 0 — retrying with the next variant');
   }
   if (usedQuery !== brand && items.length) console.log('✓ fetchAds ' + (host || brand) + ': branding wording is "' + usedQuery + '" (tracked name "' + brand + '" finds nothing)');
 
