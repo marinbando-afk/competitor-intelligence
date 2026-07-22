@@ -34,7 +34,7 @@ for (const kv of String(process.env.AD_PAGE_IDS || '').split(',')) {
 // PAGE-FIRST coverage (founder doctrine, 22 Jul): "always check first what's coming from the
 // page, and then if there is any whitelisting ads."
 const _ownPages = new Map();   // host -> { day, ids }
-async function ownPageIdsFor(host) {
+export async function ownPageIdsFor(host) {
   const h = cleanAdsHost(host);
   if (!h) return [];
   const day = new Date().toISOString().slice(0, 10);

@@ -1412,6 +1412,12 @@ function loadAds(box){
       if(ADS_BRAND!==brand){ADS_PGF='';ADS_ALL=false;}
       ADS_DATA=d;ADS_BOX=box;ADS_BRAND=brand;d._brand=brand;
       box.innerHTML=adsHTML(d);
+      // "Open full Meta Ad Library" goes to the brand's PAGE inventory when we know its
+      // page id (founder, 22 Jul) — the keyword URL is only the fallback.
+      if(d.ownPageIds&&d.ownPageIds.length){
+        var al=box.parentNode&&box.parentNode.querySelector('.adlink');
+        if(al)al.href='https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&view_all_page_id='+encodeURIComponent(d.ownPageIds[0])+'&search_type=page&media_type=all';
+      }
     })
     .catch(function(){box.innerHTML='<div class="adsempty">Couldn’t reach the ad service just now — try again in a moment.</div>';});
 }

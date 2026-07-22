@@ -14,7 +14,7 @@ import cors from 'cors';
 import { initSchema, pool } from './db.js';
 import { signup, login, createUser, setPassword, changePassword, requireAuth, optionalUid, JWT_IS_DEFAULT, ensureJwtSecret } from './auth.js';
 import { randomBytes } from 'crypto';
-import { fetchAds, adsChanges } from './ads.js';
+import { fetchAds, adsChanges, ownPageIdsFor } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
 import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, TRACKED } from './refresh.js';
 import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, sendUserWeeklyLinks, sendUserDailyBriefs } from './slack.js';
@@ -247,6 +247,9 @@ app.get('/api/ads', async (req, res) => {
       } catch (e) { /* fall back to the trimmed full list */ }
     }
     if (debug && data._debug) out._debug = data._debug;
+    // The brand's own FB page id(s) — the app's "Open full Meta Ad Library" button links to
+    // the PAGE's ad inventory (founder, 22 Jul), not a keyword search that may be junk.
+    if (qh) { try { const op = await ownPageIdsFor(qh); if (op && op.length) out.ownPageIds = op; } catch (e) { /* link falls back to keyword */ } }
     res.json(out);
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
