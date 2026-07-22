@@ -29,6 +29,36 @@ for (const kv of String(process.env.AD_PAGE_IDS || '').split(',')) {
   if (h && /^\d+$/.test(id || '')) KNOWN_FB_PAGES[h.toLowerCase()] = id;
 }
 
+// The brand's OWN Facebook page id(s), derived from stored captures: pages whose ads mostly
+// land on the brand's domain (same rule attribution uses), seeded by KNOWN_FB_PAGES. Powers
+// PAGE-FIRST coverage (founder doctrine, 22 Jul): "always check first what's coming from the
+// page, and then if there is any whitelisting ads."
+const _ownPages = new Map();   // host -> { day, ids }
+async function ownPageIdsFor(host) {
+  const h = cleanAdsHost(host);
+  if (!h) return [];
+  const day = new Date().toISOString().slice(0, 10);
+  const c = _ownPages.get(h);
+  if (c && c.day === day) return c.ids;
+  let ids = KNOWN_FB_PAGES[h] ? [KNOWN_FB_PAGES[h]] : [];
+  try {
+    const snap = await latestSnapshot(h, 'ads');
+    const pg = {};
+    for (const a of ((snap && snap.ads) || [])) {
+      if (!a.pageId) continue;
+      (pg[a.pageId] = pg[a.pageId] || { total: 0, own: 0 }).total++;
+      const dm = adDomain(a.landing);
+      if (dm && (dm === h || dm.endsWith('.' + h))) pg[a.pageId].own++;
+    }
+    Object.entries(pg).filter(([, v]) => v.own > 0 && v.own * 2 >= v.total)
+      .sort((x, y) => y[1].own - x[1].own)
+      .forEach(([id]) => { if (!ids.includes(id)) ids.push(id); });
+  } catch (e) { /* keyword ladder still covers us */ }
+  ids = ids.slice(0, 2);
+  _ownPages.set(h, { day, ids });
+  return ids;
+}
+
 export async function fetchAds(brand, country, force, cacheOnly, host, pageId, debug) {
   brand = String(brand || '').trim();
   country = String(country || 'ALL').trim().toUpperCase();
@@ -83,45 +113,56 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
     pushV(brand, 'keyword_unordered');
   }
 
-  let items = [], usedQuery = brand;
-  for (const v of variants) {
-    const q = v.q;
-    const sortQv = '&search_type=' + v.st + '&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped';
-    const qUrl = pageId
-      ? searchUrl
-      : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(q) + sortQv + '&media_type=all');
+  async function runOne(qUrl, qTerm, activeSt, pid) {
     const input = {
       urls: [{ url: qUrl }],
       startUrls: [{ url: qUrl }],
-      searchTerms: pageId ? [] : [q],
+      searchTerms: qTerm ? [qTerm] : [],
       count: ADS_N,
       maxItems: ADS_N,
       country,
-      activeStatus: pageId ? 'all' : 'active',
+      activeStatus: activeSt,
       scrapePageAds: true,
       'scrapePageAds.sortBy': 'most_recent',
-      'scrapePageAds.activeStatus': pageId ? 'all' : 'active',
+      'scrapePageAds.activeStatus': activeSt,
       'scrapePageAds.countryCode': country,
-      ...(pageId ? { pageId, pageIds: [pageId] } : {}),   // some actors take the page id directly
+      ...(pid ? { pageId: pid, pageIds: [pid] } : {}),
     };
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) {
-      const t = await res.text().catch(() => '');
-      const e = new Error('Apify returned ' + res.status + '. ' + t.slice(0, 160));
-      e.status = 502; throw e;
-    }
-    items = await res.json();
-    if (!Array.isArray(items)) items = [];
-    usedQuery = q + (v.st === 'keyword_unordered' ? ' (unordered)' : '');
-    if (items.length) break;                              // this wording found their ads
-    if (pageId) break;                                    // page-scoped scans have no variants
-    if (v !== variants[variants.length - 1]) console.log('fetchAds ' + (host || brand) + ': query "' + q + '" [' + v.st + '] returned 0 — retrying with the next variant');
+    const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+    if (!res.ok) { const t = await res.text().catch(() => ''); const e = new Error('Apify returned ' + res.status + '. ' + t.slice(0, 160)); e.status = 502; throw e; }
+    const arr = await res.json();
+    return Array.isArray(arr) ? arr : [];
   }
-  if (usedQuery !== brand && items.length) console.log('✓ fetchAds ' + (host || brand) + ': branding wording is "' + usedQuery + '" (tracked name "' + brand + '" finds nothing)');
+
+  let items = [], usedQuery = brand;
+  if (pageId) {
+    items = await runOne(searchUrl, '', 'all', pageId);
+  } else {
+    // 1) PAGE-FIRST (founder doctrine, 22 Jul): the brand's own page(s) scanned directly —
+    //    Meta lists a page's ads exhaustively, so the core inventory never depends on the
+    //    keyword lottery ("bare bones" the phrase buried Bare Bones the brand).
+    if (host) {
+      for (const pid of await ownPageIdsFor(host)) {
+        try { items = items.concat(await runOne('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&view_all_page_id=' + pid + '&search_type=page&media_type=all', '', 'active', pid)); }
+        catch (e) { console.warn('fetchAds page-scan ' + host + ' [' + pid + ']:', e.message); }
+      }
+      if (items.length) console.log('✓ fetchAds ' + host + ': page-first scan captured ' + items.length + ' item(s) from the brand\'s own page(s)');
+    }
+    // 2) KEYWORD ladder — its job is the WHITELISTING/partnership ads other pages run.
+    let kw = [];
+    for (const v of variants) {
+      const q = v.q;
+      const sortQv = '&search_type=' + v.st + '&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped';
+      const qUrl = 'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(q) + sortQv + '&media_type=all';
+      try { kw = await runOne(qUrl, q, 'active'); } catch (e) { if (!items.length) throw e; console.warn('fetchAds keyword ' + (host || brand) + ':', e.message); break; }
+      usedQuery = q + (v.st === 'keyword_unordered' ? ' (unordered)' : '');
+      if (kw.length) break;
+      if (v !== variants[variants.length - 1]) console.log('fetchAds ' + (host || brand) + ': query "' + q + '" [' + v.st + '] returned 0 — retrying with the next variant');
+    }
+    // Merge: page inventory first, keyword finds after (normalize dedupes by ad id).
+    items = items.concat(kw);
+  }
+  if (usedQuery !== brand && items.length) console.log('✓ fetchAds ' + (host || brand) + ': keyword wording used: "' + usedQuery + '"');
 
   const data = await normalize(items, brand, country, host, debug);
   if (debug && data._debug) data._debug.usedQuery = usedQuery;
