@@ -1073,6 +1073,10 @@ function submitAuth(){
       paintAuth();closeAuth();document.getElementById('aP').value='';
       insightsCache={};angleCache={};clearMyBrandLocal();loadMyBrand();   // this account's own brand + tailored tips, never a previous session's
       var cp=document.getElementById('chatPanel');if(cp&&cp.classList.contains('open')){var cc=currentComp();if(cc)renderChat(cc);}   // clear the sign-in gate on an already-open chat
+      // Signing in is a CONTEXT SWITCH: always land on YOUR first competitor, even if you
+      // clicked around the demos before logging in (a pre-login click used to cancel the
+      // auto-landing, so login kept you on The Oodie — founder, 22 Jul, second report).
+      autoSel=true;
       loadUserComps(function(){var cb=pendingAfterAuth;pendingAfterAuth=null;if(cb)cb();});
     })
     .catch(function(){go.disabled=false;go.textContent=was;er.textContent='Network error — please try again.';er.style.display='block';});
