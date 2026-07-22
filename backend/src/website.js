@@ -233,6 +233,11 @@ export async function captureWebsite(host, url) {
   // When did we last take a REAL frame? (prev may itself be a pointer row)
   const lastFrameDay = prev ? (prev.shot ? prevDay : String(prev.shotFrom || '')) : '';
   const frameAgeDays = lastFrameDay ? Math.round((Date.parse(today) - Date.parse(lastFrameDay)) / 864e5) : Infinity;
+  // A same-day row flagged shotStale means a CHANGE day whose fresh shot FAILED (services
+  // refused) — the stored frame still shows the OLD state next to the NEW banner text
+  // (Seranova 21 Jul: read "Summer Sale", frame "4th of July"). Keep trying until a real
+  // frame lands; without this the pointer row reads as a quiet day and never re-shoots.
+  const stalePending = !!(prev && prevDay === today && prev.shotStale);
 
   // HTML banner read — CHANGE SIGNAL only (cheap text model); the stored banner always comes
   // from a rendered screenshot. Only a NON-EMPTY differing read counts, so announcement-bar
@@ -241,7 +246,7 @@ export async function captureWebsite(host, url) {
   const htmlBanner = cleanBanner(await bannerRawFromText(homeText));
   const bannerChanged = !!htmlBanner && bnorm(htmlBanner) !== bnorm(prev && prev.banner);
   const summaryChanged = !!(prev && prev.summary && summary && diffWebsite(prev.summary, summary).length) || (!!summary !== !!(prev && prev.summary));
-  const changed = !prev || !lastFrameDay || frameAgeDays >= 7 || summaryChanged || bannerChanged;
+  const changed = !prev || !lastFrameDay || frameAgeDays >= 7 || summaryChanged || bannerChanged || stalePending;
 
   if (!changed) {
     // Quiet: keep today's own frame if we have one, else a dated pointer to the last real
@@ -263,9 +268,12 @@ export async function captureWebsite(host, url) {
     // real frame (never to today itself — that row is about to be overwritten). The
     // websiteCompare self-heal retries the capture later.
     const refDay = (lastFrameDay && lastFrameDay !== today) ? lastFrameDay : '';
+    // shotStale marks "this pointer exists only because the shot FAILED on a change day" —
+    // it keeps both the capture gate and the view-time self-heal retrying until a real
+    // frame replaces it (a successful shot stores no flag, clearing it naturally).
     const data = sameDayFrame
       ? { summary, shot: sameDayFrame, banner: (prev && prev.banner) || banner || '', capturedAt: new Date().toISOString() }
-      : { summary, shot: null, ...(refDay ? { shotFrom: refDay } : {}), banner, capturedAt: new Date().toISOString() };
+      : { summary, shot: null, ...(refDay ? { shotFrom: refDay } : {}), banner, shotStale: true, capturedAt: new Date().toISOString() };
     await saveSnapshot(host, 'website', data);
     return data;
   }
@@ -433,7 +441,9 @@ export async function websiteCompare(host, url, day, force) {
   // the error image was rightly discarded) → retry on view, throttled to once per ~45 min per
   // host, so the panel heals itself the moment the screenshot service recovers instead of
   // showing "unavailable" until tomorrow.
-  const shotMissing = !!(top && top.data && !top.data.shot && !top.data.shotFrom) && ageH * 60 > 45;
+  // shotStale = a pointer born from a FAILED shot on a CHANGE day (the frame shows the old
+  // state next to the new banner text) — heal it exactly like a missing shot.
+  const shotMissing = !!(top && top.data && ((!top.data.shot && !top.data.shotFrom) || top.data.shotStale)) && ageH * 60 > 45;
   if (force || ageH > 20 || shotMissing) {
     // SINGLE-FLIGHT per host: several viewers landing on a stale page at once (a shared link
     // doing the rounds) used to each trigger their own paid screenshot+banner capture (audit).
