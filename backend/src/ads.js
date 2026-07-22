@@ -18,6 +18,17 @@ let _ac;
 function aiClient() { if (!_ac) _ac = new Anthropic(); return _ac; }
 const _verdict = new Map();   // 'brand|advertiser|domain' -> { at, val } — cached AI brand-identity verdicts
 
+// Confirmed Facebook page ids for brands whose KEYWORD search is a dead end (Meta's fuzzy
+// match returns pollution — "CurrentBody" surfaces romance-novel ads containing the phrase
+// "current body" — while the brand's own ads never rank). Page-scoped scanning via Meta's
+// own page identity has zero ambiguity. Extend without a deploy via env AD_PAGE_IDS
+// ("host:id,host:id"). CurrentBody's id read from the Ad Library typeahead, 22 Jul 2026.
+const KNOWN_FB_PAGES = { 'currentbody.com': '183065794653' };
+for (const kv of String(process.env.AD_PAGE_IDS || '').split(',')) {
+  const [h, id] = kv.split(':').map((x) => String(x || '').trim());
+  if (h && /^\d+$/.test(id || '')) KNOWN_FB_PAGES[h.toLowerCase()] = id;
+}
+
 export async function fetchAds(brand, country, force, cacheOnly, host, pageId, debug) {
   brand = String(brand || '').trim();
   country = String(country || 'ALL').trim().toUpperCase();
@@ -27,7 +38,9 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
 
   const key = brand.toLowerCase() + '|' + country + (pageId ? '|p:' + pageId : '');
   const hit = cache.get(key);
-  if (!force && hit && Date.now() - hit.at < TTL) return { ...hit.data, cached: true };
+  // A cached EMPTY capture never blocks a re-check — an empty result is cheap to re-verify
+  // and locking it in for the TTL is how "0 ads live" survived for hours after the fix.
+  if (!force && hit && Date.now() - hit.at < TTL && (hit.data.ads || []).length) return { ...hit.data, cached: true };
   // cacheOnly: never trigger a live scrape (used by the chat) — return empty on a miss.
   if (cacheOnly) return { brand, country, count: 0, active: 0, platforms: [], newest: '', ads: [], cacheMiss: true };
 
@@ -103,9 +116,17 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
 
   const data = await normalize(items, brand, country, host, debug);
   if (debug && data._debug) data._debug.usedQuery = usedQuery;
+  // KEYWORD DEAD END -> CONFIRMED-PAGE fallback: nothing attributable survived any wording
+  // variant, but we hold the brand's confirmed Facebook page id — scan the page itself.
+  if (!pageId && host && !data.ads.length && KNOWN_FB_PAGES[cleanAdsHost(host)]) {
+    console.log('fetchAds ' + host + ': keyword search kept 0 ads — falling back to confirmed page ' + KNOWN_FB_PAGES[cleanAdsHost(host)]);
+    const viaPage = await fetchAds(brand, country, true, false, host, KNOWN_FB_PAGES[cleanAdsHost(host)], debug);
+    if (viaPage && viaPage.ads && viaPage.ads.length) { cache.set(key, { at: Date.now(), data: viaPage }); return viaPage; }
+  }
   cache.set(key, { at: Date.now(), data });
   return data;
 }
+function cleanAdsHost(h) { return String(h || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase(); }
 
 function isTpl(s) { return !s || /\{\{[^}]*\}\}/.test(String(s)); }      // e.g. "{{product.brand}}"
 function clean(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
