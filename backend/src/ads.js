@@ -44,37 +44,65 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
     : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + sortQ + '&media_type=all');
 
   const ADS_N = Number(process.env.ADS_COUNT) || 50;   // founder-set (20 Jul): newest-first sorting means 50 always contains the new launches; deeper pulls were pure Apify cost
-  const input = {
-    urls: [{ url: searchUrl }],
-    startUrls: [{ url: searchUrl }],
-    searchTerms: pageId ? [] : [brand],
-    count: ADS_N,
-    maxItems: ADS_N,
-    country,
-    activeStatus: pageId ? 'all' : 'active',
-    scrapePageAds: true,
-    'scrapePageAds.sortBy': 'most_recent',
-    'scrapePageAds.activeStatus': pageId ? 'all' : 'active',
-    'scrapePageAds.countryCode': country,
-    ...(pageId ? { pageId, pageIds: [pageId] } : {}),   // some actors take the page id directly
-  };
-
   const endpoint =
     'https://api.apify.com/v2/acts/' + ACTOR +
     '/run-sync-get-dataset-items?token=' + encodeURIComponent(TOKEN) + '&timeout=300';
 
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  if (!res.ok) {
-    const t = await res.text().catch(() => '');
-    const e = new Error('Apify returned ' + res.status + '. ' + t.slice(0, 160));
-    e.status = 502; throw e;
+  // BRANDING-WORDING variants (founder rule, 22 Jul): the tracked NAME is how the client
+  // writes the brand ("Current Body"), but Meta's keyword search matches the brand's OWN
+  // wording — CurrentBody brands itself as ONE word, so the two-word query returned 0 ads
+  // for a brand running plenty. When a query comes back EMPTY, retry with the name minus
+  // spaces, then the domain label ("currentbody"), and keep the first wording that returns
+  // real results. Extra scrapes only ever run on a 0-result query, so this costs nothing
+  // for the brands whose name already matches their branding.
+  const variants = [brand];
+  if (!pageId) {
+    const pushV = (q) => { q = String(q || '').trim(); if (q && !variants.some((x) => x.toLowerCase() === q.toLowerCase())) variants.push(q); };
+    if (/\s/.test(brand)) pushV(brand.replace(/\s+/g, ''));
+    const label = String(host || '').split('.')[0];
+    if (label && label.length >= 4) pushV(label);
   }
-  const items = await res.json();
-  const data = await normalize(Array.isArray(items) ? items : [], brand, country, host, debug);
+
+  let items = [], usedQuery = brand;
+  for (const q of variants) {
+    const qUrl = pageId
+      ? searchUrl
+      : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(q) + sortQ + '&media_type=all');
+    const input = {
+      urls: [{ url: qUrl }],
+      startUrls: [{ url: qUrl }],
+      searchTerms: pageId ? [] : [q],
+      count: ADS_N,
+      maxItems: ADS_N,
+      country,
+      activeStatus: pageId ? 'all' : 'active',
+      scrapePageAds: true,
+      'scrapePageAds.sortBy': 'most_recent',
+      'scrapePageAds.activeStatus': pageId ? 'all' : 'active',
+      'scrapePageAds.countryCode': country,
+      ...(pageId ? { pageId, pageIds: [pageId] } : {}),   // some actors take the page id directly
+    };
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) {
+      const t = await res.text().catch(() => '');
+      const e = new Error('Apify returned ' + res.status + '. ' + t.slice(0, 160));
+      e.status = 502; throw e;
+    }
+    items = await res.json();
+    if (!Array.isArray(items)) items = [];
+    usedQuery = q;
+    if (items.length) break;                              // this wording found their ads
+    if (pageId) break;                                    // page-scoped scans have no variants
+    if (q !== variants[variants.length - 1]) console.log('fetchAds ' + (host || brand) + ': query "' + q + '" returned 0 — retrying with the next branding variant');
+  }
+  if (usedQuery !== brand && items.length) console.log('✓ fetchAds ' + (host || brand) + ': branding wording is "' + usedQuery + '" (tracked name "' + brand + '" finds nothing)');
+
+  const data = await normalize(items, brand, country, host, debug);
+  if (debug && data._debug) data._debug.usedQuery = usedQuery;
   cache.set(key, { at: Date.now(), data });
   return data;
 }
