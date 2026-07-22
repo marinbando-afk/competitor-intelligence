@@ -410,7 +410,7 @@ function resolveShotRefs(rows) {
 }
 export async function websiteCompare(host, url, day, force) {
   if (!host) { const e = new Error('Missing host.'); e.status = 400; throw e; }
-  const shape = (s) => s ? { day: s.day, capturedAt: (s.data && s.data.capturedAt) || null, shot: (s.data && s.data.shot) || null, shotFrom: (s.data && s.data.shotFrom) || null, summary: (s.data && s.data.summary) || null } : null;
+  const shape = (s) => s ? { day: s.day, capturedAt: (s.data && s.data.capturedAt) || null, shot: (s.data && s.data.shot) || null, shotFrom: (s.data && s.data.shotFrom) || null, shotStale: !!(s.data && s.data.shotStale), banner: (s.data && s.data.banner) || '', summary: (s.data && s.data.summary) || null } : null;
   const mk = (after, before, extra) => ({
     host: cleanHost(host),
     after: shape(after), before: shape(before),

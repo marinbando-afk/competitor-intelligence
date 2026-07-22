@@ -1735,7 +1735,15 @@ function loadWeb(box){
       }else if(d.after&&d.after.shot){
         // shotFrom = change-gated capture: no visual change that day, so the frame is the last
         // real screenshot — label it honestly instead of implying a fresh identical capture.
-        var unchanged=(d.after.shotFrom&&d.after.shotFrom!==d.after.day)?'<div class="cmp-hint">storefront visually unchanged — screenshot from '+esc(fmtShortDay(d.after.shotFrom))+', when it last changed</div>':'';
+        // shotStale = the site DID change (banner text) but the fresh screenshot failed — say
+        // exactly that; "visually unchanged" would contradict the read (Seranova, 22 Jul: text
+        // says Summer Sale, frame still shows 4th of July).
+        var unchanged='';
+        if(d.after.shotStale){
+          unchanged='<div class="cmp-hint">⚠ their site changed ('+(d.after.banner?'banner now “'+esc(d.after.banner)+'”':'new promo text')+') but is currently blocking our screenshot camera — showing the last frame ('+esc(fmtShortDay(d.after.shotFrom||d.after.day))+'); a fresh screenshot lands automatically once their site allows it, and the before/after slider appears then</div>';
+        }else if(d.after.shotFrom&&d.after.shotFrom!==d.after.day){
+          unchanged='<div class="cmp-hint">storefront visually unchanged — screenshot from '+esc(fmtShortDay(d.after.shotFrom))+', when it last changed</div>';
+        }
         vis='<div class="wshot"><img class="zoomable" src="'+d.after.shot+'" alt="" data-cap="Current storefront" data-href="'+esc(url)+'"><a class="wshot-go" href="'+esc(url)+'" target="_blank" rel="noopener">Open site ↗</a></div>'+unchanged;
       }else if(d.lastGoodShot&&d.lastGoodShot.shot){
         // This day's screenshot failed (service rate-limited; the error image was discarded rather
