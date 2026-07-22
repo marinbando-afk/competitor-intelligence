@@ -143,6 +143,7 @@ export async function siteSummary(host) {
 // fetched once per boot from the Apify account we already use for scraping (it is NOT the API
 // token) and cached; never logged. If the plan has no residential access the proxied request
 // simply fails and we fall through — no worse than before.
+export const shotDiag = { residential: null };   // last residential-proxy attempt outcome — surfaced via /api/shot-usage
 let _apifyProxyAuth = null;
 async function apifyResidentialProxy() {
   if (_apifyProxyAuth !== null) return _apifyProxyAuth || null;
@@ -209,14 +210,20 @@ export async function siteShot(url) {
   } catch (e) { /* fall through to the residential attempt */ }
   try {
     const prox = await apifyResidentialProxy();
+    if (!prox) shotDiag.residential = { at: new Date().toISOString(), verdict: 'no proxy password from Apify account (token missing or account API refused)' };
     if (prox) {
       const r = await fetch(base + '&wait_until=load&delay=8&navigation_timeout=40&proxy=' + encodeURIComponent(prox), { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(90000) });
       if (r.ok) {
         const buf = Buffer.from(await r.arrayBuffer());
-        if (buf.length >= 1200) { console.log('✓ siteShot ' + cleanHost(url) + ': residential-proxy attempt succeeded'); return 'data:image/jpeg;base64,' + buf.toString('base64'); }
-      } else { console.warn('siteShot ' + cleanHost(url) + ' [residential]: screenshotone ' + r.status + ' — ' + (await r.text().catch(() => '')).slice(0, 120)); }
+        if (buf.length >= 1200) { shotDiag.residential = { at: new Date().toISOString(), verdict: 'WORKING' }; console.log('✓ siteShot ' + cleanHost(url) + ': residential-proxy attempt succeeded'); return 'data:image/jpeg;base64,' + buf.toString('base64'); }
+        shotDiag.residential = { at: new Date().toISOString(), verdict: 'connected but tiny image (' + buf.length + 'b)' };
+      } else {
+        const body = (await r.text().catch(() => '')).slice(0, 200);
+        shotDiag.residential = { at: new Date().toISOString(), verdict: 'screenshotone ' + r.status, detail: body.slice(0, 160) };
+        console.warn('siteShot ' + cleanHost(url) + ' [residential]: screenshotone ' + r.status + ' — ' + body.slice(0, 120));
+      }
     }
-  } catch (e) { /* fall through to mShots */ }
+  } catch (e) { shotDiag.residential = { at: new Date().toISOString(), verdict: 'attempt threw: ' + String(e && e.message).slice(0, 120) }; /* fall through to mShots */ }
   // ScreenshotOne couldn't render it — some storefronts 502 it outright (seranova.com, 18 Jul)
   // even though the site loads fine in a real browser. Fall back to a DIFFERENT engine
   // (WordPress mShots) so the storefront still gets a picture instead of a blank panel.

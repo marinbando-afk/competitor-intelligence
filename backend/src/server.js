@@ -20,7 +20,7 @@ import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warm
 import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, sendUserWeeklyLinks, sendUserDailyBriefs } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
 import { chat } from './chat.js';
-import { websiteCompare, mshotsShot, scrubWebsiteHistory } from './website.js';
+import { websiteCompare, mshotsShot, scrubWebsiteHistory, shotDiag } from './website.js';
 import { getInsights, generateInsights, quickAngle, creditStatus, enrichCreativeHooks, backfillWebsiteReads } from './insights.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
@@ -431,13 +431,13 @@ app.get('/api/credits', async (req, res) => { res.json(await creditStatus(req.qu
 let _shotUsage = { at: 0, val: null };
 app.get('/api/shot-usage', async (req, res) => {
   try {
-    if (_shotUsage.val && Date.now() - _shotUsage.at < 10 * 60 * 1000) return res.json({ ..._shotUsage.val, cached: true });
+    if (_shotUsage.val && Date.now() - _shotUsage.at < 10 * 60 * 1000) return res.json({ ..._shotUsage.val, residential: shotDiag.residential, cached: true });
     const key = process.env.SCREENSHOTONE_KEY;
     if (!key) return res.json({ configured: false });
     const r = await fetch('https://api.screenshotone.com/usage?access_key=' + encodeURIComponent(key));
     if (!r.ok) return res.json({ configured: true, ok: false, status: r.status });
     const j = await r.json();
-    const val = { configured: true, ok: true, total: j.total, used: j.used, available: j.available };
+    const val = { configured: true, ok: true, total: j.total, used: j.used, available: j.available, residential: shotDiag.residential };
     _shotUsage = { at: Date.now(), val };
     res.json(val);
   } catch (e) { res.status(500).json({ error: e.message }); }
