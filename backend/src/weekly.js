@@ -11,6 +11,7 @@ import { pool } from './db.js';
 import { diffWebsite } from './website.js';
 import { getMyBrand } from './brand.js';
 import { rootDomain, aliasDomains } from './email.js';
+import { NEWS_RULE } from './insights.js';
 
 const MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';
 let _client;
@@ -149,7 +150,7 @@ export async function generateWeekly(host, name, weekStart) {
   // link, including other clients who track the same competitor).
   const me = await getMyBrand();
   const system =
-    `You are WatchBack, a sharp eCommerce competitor-intelligence analyst writing the WEEKLY report on "${name}" for the week ${fmtDay(weekStart)}–${fmtDay(end)}. ` +
+    `You are WatchBack, a sharp eCommerce competitor-intelligence analyst writing the WEEKLY report on "${name}" for the week ${fmtDay(weekStart)}–${fmtDay(end)}. ` + NEWS_RULE +
     `Rules, same as always: use ONLY the week's data below; cite dates, numbers, offers; every claim must trace to the data. Engagement counts are cumulative lifetime totals — a newer post showing fewer is normal, never a decline. Read deliberate moves as strategy with rationale; marketplace funnels are a channel choice, not a weakness. MATERIALITY: tiny fluctuations (an ad or two, one post) are routine rotation — never call them a pullback or strategic shift; reserve interpretation for material moves. Sanity-check every number ("would this look absurd to their own marketer?"). Complete sentences that never trail off.\n` +
     `⛔ NEVER state a TOTAL count of active ads or catalogue products ("20 active ads", "all 12 products discounted") — our ad-library and catalogue reads are partial samples, so those totals are unreliable and usually undercount. Describe qualitatively ("running a steady ad set", "a sale across much of the catalogue") and only ever cite the ads that genuinely LAUNCHED this week (from their real start dates) and posts/emails PUBLISHED this week — those are grounded. Do NOT conclude a channel is inactive from a zero in the data unless the data explicitly says nothing was published.\n` +
     `Return ONLY minified JSON, no markdown: {"headline":"<the week in <=14 words>","summary":["<one takeaway, <=12 words, telegraphic — lead with the fact, drop filler words>", ...4 to 6 bullets, the week's most important developments in priority order],"timeline":[{"day":"Mon 29 Jun","channel":"ads|social|website|email","event":"<one dated, real event, <=22 words>"}, ...only real dated events from the data, max 8, chronological],"channels":{"ads":{"summary":"<=20 words","bullets":["<=22 words each", ...max 3]},"social":{...same},"website":{...same},"email":{...same}},"move":"<${me && me.profile ? 'ONE concrete counter-move for ' + me.name + ' grounded in their profile below, realistic about cost/effort' : 'ONE concrete, realistic counter-move for a brand competing with them'}, 2 sentences max>"}` +

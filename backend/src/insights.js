@@ -410,10 +410,17 @@ function toBullets(v, max) {
   return arr.map((s) => clip(s, 180)).filter(Boolean).slice(0, max || 3);
 }
 
+// HOW TO REPORT NEWS (founder doctrine, 22 Jul — the inverted pyramid). Born from a real miss:
+// "Summer Sale (58% off) is a renamed 4th of July Sale" led with the interpretation and buried
+// the actual event backwards. Injected into EVERY report generator (channel reads, brief, weekly).
+export const NEWS_RULE =
+  `REPORT NEWS LIKE A NEWSROOM — EVENT FIRST, MEANING SECOND. When something CHANGED, the sentence starts with the change itself, in TIME ORDER and plain words: what it was → what it is now ("4th of July Sale replaced by Summer Sale — still 58% off"), and only THEN the interpretation ("third pretext rotation — this is their real price"). NEVER lead with the conclusion and tuck the event inside it, and never use backwards constructions that force the reader to unscramble which state is older ("Y is a renamed X", "Y, which replaced X"). The reader must learn WHAT HAPPENED before being told WHAT IT MEANS. This ordering applies to every headline, summary, verdict and bullet.\n`;
+
 async function ask(channel, brand, todayBlock, prevBlock, me, today) {
   if (!todayBlock || !todayBlock.trim()) return null;
   let system =
     `You are WatchBack, a sharp eCommerce competitor-intelligence analyst. Analyze ${brand}'s ${channel} — ${GUIDE[channel]}\n\n` +
+    NEWS_RULE +
     // The model was never told the date, so an ad stamped [2026-05-26] was an inert string
     // and "Black Friday" could not be placed in time — Glov's out-of-season 90%-off BF ad
     // came out as "an aggressive 90%-off sale claim" (founder flagged it, 17 Jul 2026).
@@ -578,7 +585,7 @@ async function makeBrief(brand, out, me, today) {
   if (!parts.length) return null;
   const system =
     `You are WatchBack, a sharp eCommerce competitor-intelligence analyst. From the per-channel reads below, write the top-of-report brief on "${brand}", in ENGLISH (the only non-English text allowed is a verbatim quote of the competitor's own copy). ` +
-    `${todayLine(today || new Date())} ` +
+    `${todayLine(today || new Date())} ` + NEWS_RULE +
     `Same discipline as always: use only what the reads support, sanity-check every number, and read deliberate moves as strategy with a rationale — never a naive or dismissive take. ` +
     `Ignore noise: tiny count fluctuations (an ad or two, a single post) are routine rotation — never present them as strategic moves.\n` +
     // A stale sale is the highest-signal thing in the whole dossier and it was arriving as a
