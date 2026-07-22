@@ -1171,6 +1171,12 @@ function start() {
       }
     } catch (e) { console.warn('one-off bonafide cleanup:', e.message); }
   }, 45000);
+  // One-off (22 Jul, idempotent-ish — delete once logged): regenerate Zoup's read NOW under
+  // the fixed Page-Like labeling; the stored one still says ads "drive to Facebook login".
+  setTimeout(async () => {
+    try { await generateInsights('Zoup', 'zoupbroth.com'); console.log('✓ one-off: Zoup insights regenerated (Page-Like wording fix)'); }
+    catch (e) { console.warn('one-off zoup regen:', e.message); }
+  }, 50000);
 }
 // Start the server no matter what — if the DB isn't wired yet, accounts are
 // disabled but the ads endpoint still works. The JWT secret is resolved BEFORE
