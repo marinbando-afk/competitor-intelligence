@@ -42,7 +42,7 @@ const TKEY = '__tracked__';
 // MAX_USER_BRANDS on Railway if the watch-list ever outgrows it. `>= 0` guard so an explicit
 // env of 0 is still honoured.
 const _maxUserEnv = Number(process.env.MAX_USER_BRANDS);
-const MAX_USER = Number.isFinite(_maxUserEnv) ? _maxUserEnv : 25;   // founder-set cost ceiling (20 Jul); raise via MAX_USER_BRANDS env when the client base outgrows it
+const MAX_USER = Number.isFinite(_maxUserEnv) ? _maxUserEnv : 30;   // founder-set cost ceiling (raised 25→30, 22 Jul); MAX_USER_BRANDS env still overrides
 function cleanHost(h) { return String(h || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase(); }
 
 export async function getTracked() {
