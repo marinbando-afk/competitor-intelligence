@@ -201,7 +201,7 @@ export async function siteShot(url) {
         '&url=' + encodeURIComponent(finalUrl) +
         '&format=jpg&image_quality=72&viewport_width=1280&viewport_height=800' +
         '&block_cookie_banners=true&block_banners_by_heuristics=true&block_ads=true&block_chats=true&cache=false';
-      const r = await fetch(b2 + '&wait_until=load&delay=8&navigation_timeout=40', { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(90000) });
+      const r = await fetch(b2 + '&wait_until=load&delay=8&navigation_timeout=30', { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(90000) });
       if (r.ok) {
         const buf = Buffer.from(await r.arrayBuffer());
         if (buf.length >= 1200) return 'data:image/jpeg;base64,' + buf.toString('base64');
@@ -212,7 +212,7 @@ export async function siteShot(url) {
     const prox = await apifyResidentialProxy();
     if (!prox) shotDiag.residential = { at: new Date().toISOString(), verdict: 'no proxy password from Apify account (token missing or account API refused)' };
     if (prox) {
-      const r = await fetch(base + '&wait_until=load&delay=8&navigation_timeout=40&proxy=' + encodeURIComponent(prox), { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(90000) });
+      const r = await fetch(base + '&wait_until=load&delay=8&navigation_timeout=30&proxy=' + encodeURIComponent(prox), { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(90000) });
       if (r.ok) {
         const buf = Buffer.from(await r.arrayBuffer());
         if (buf.length >= 1200) { shotDiag.residential = { at: new Date().toISOString(), verdict: 'WORKING' }; console.log('✓ siteShot ' + cleanHost(url) + ': residential-proxy attempt succeeded'); return 'data:image/jpeg;base64,' + buf.toString('base64'); }
