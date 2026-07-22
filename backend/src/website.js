@@ -139,6 +139,25 @@ export async function siteSummary(host) {
 
 // One above-the-fold screenshot as a base64 data URL (so before/after frames are
 // stored and pixel-aligned). Needs SCREENSHOTONE_KEY; returns null without it.
+// Apify residential proxy URL for the last-resort screenshot attempt. The proxy password is
+// fetched once per boot from the Apify account we already use for scraping (it is NOT the API
+// token) and cached; never logged. If the plan has no residential access the proxied request
+// simply fails and we fall through — no worse than before.
+let _apifyProxyAuth = null;
+async function apifyResidentialProxy() {
+  if (_apifyProxyAuth !== null) return _apifyProxyAuth || null;
+  const tok = process.env.APIFY_TOKEN;
+  if (!tok) { _apifyProxyAuth = ''; return null; }
+  try {
+    const r = await fetch('https://api.apify.com/v2/users/me?token=' + encodeURIComponent(tok));
+    if (!r.ok) { _apifyProxyAuth = ''; return null; }
+    const j = await r.json();
+    const pw = j && j.data && j.data.proxy && j.data.proxy.password;
+    _apifyProxyAuth = pw ? ('http://groups-RESIDENTIAL:' + pw + '@proxy.apify.com:8000') : '';
+  } catch (e) { _apifyProxyAuth = ''; }
+  return _apifyProxyAuth || null;
+}
+
 export async function siteShot(url) {
   const key = process.env.SCREENSHOTONE_KEY;
   if (!key || !/^https?:\/\//i.test(String(url || ''))) return null;
@@ -166,10 +185,13 @@ export async function siteShot(url) {
       return 'data:image/jpeg;base64,' + buf.toString('base64');
     } catch (e) { /* try the laxer wait */ }
   }
-  // Both waits failed. One more targeted attempt before switching engines: shoot the CANONICAL
-  // url (following the site's own redirect — currentbody.com 301s to www.currentbody.com) with a
-  // longer settle delay, which is what Cloudflare-challenged storefronts need. The redirect hop
-  // plus challenge inside a short window is exactly where the first attempts die.
+  // Both waits failed. Escalation ladder before switching engines:
+  //  1) CANONICAL url retry (redirect hop + challenge inside a short window kills attempt 1)
+  //  2) RESIDENTIAL-PROXY retry — bot-defended storefronts (Seranova, CurrentBody) refuse
+  //     datacenter IPs, which is what ScreenshotOne's own egress uses. Routing the SAME
+  //     ScreenshotOne render through Apify's residential pool (already on the plan we pay
+  //     for) makes the request look like a home browser. Fires ONLY here, after everything
+  //     cheaper failed — costs a few cents of proxy data on those rare occasions.
   try {
     const probe = await fetch(url, { method: 'HEAD', redirect: 'follow', headers: { 'User-Agent': UA } }).catch(() => null);
     const finalUrl = probe && probe.url && probe.url !== url ? probe.url : null;
@@ -183,6 +205,16 @@ export async function siteShot(url) {
         const buf = Buffer.from(await r.arrayBuffer());
         if (buf.length >= 1200) return 'data:image/jpeg;base64,' + buf.toString('base64');
       } else { console.warn('siteShot ' + cleanHost(url) + ' [canonical retry]: screenshotone ' + r.status); }
+    }
+  } catch (e) { /* fall through to the residential attempt */ }
+  try {
+    const prox = await apifyResidentialProxy();
+    if (prox) {
+      const r = await fetch(base + '&wait_until=load&delay=8&navigation_timeout=40&proxy=' + encodeURIComponent(prox), { headers: { 'User-Agent': UA } });
+      if (r.ok) {
+        const buf = Buffer.from(await r.arrayBuffer());
+        if (buf.length >= 1200) { console.log('✓ siteShot ' + cleanHost(url) + ': residential-proxy attempt succeeded'); return 'data:image/jpeg;base64,' + buf.toString('base64'); }
+      } else { console.warn('siteShot ' + cleanHost(url) + ' [residential]: screenshotone ' + r.status + ' — ' + (await r.text().catch(() => '')).slice(0, 120)); }
     }
   } catch (e) { /* fall through to mShots */ }
   // ScreenshotOne couldn't render it — some storefronts 502 it outright (seranova.com, 18 Jul)
