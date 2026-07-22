@@ -448,6 +448,7 @@ export async function websiteCompare(host, url, day, force) {
     after: shape(after), before: shape(before),
     changes: (before && after) ? diffWebsite(before.data && before.data.summary, after.data && after.data.summary) : [],
     changedShots: (after && after.data && after.data.changedShots) || [],
+    ...(_capErr.has(cleanHost(host)) ? { capError: _capErr.get(cleanHost(host)) } : {}),
     ...extra,
   });
 
@@ -500,7 +501,10 @@ export async function websiteCompare(host, url, day, force) {
     // Everyone now awaits the one in-flight capture.
     const hk = cleanHost(host);
     if (!_capInFlight.has(hk)) {
-      _capInFlight.set(hk, captureWebsiteFull(host, url).finally(() => _capInFlight.delete(hk)));
+      _capInFlight.set(hk, captureWebsiteFull(host, url)
+        .then((d) => { _capErr.delete(hk); return d; })
+        .catch((e) => { _capErr.set(hk, { at: new Date().toISOString(), msg: String((e && e.message) || e).slice(0, 220) }); throw e; })
+        .finally(() => _capInFlight.delete(hk)));
     }
     await _capInFlight.get(hk).catch(() => { /* capture failure → serve what we have */ });
     recent = resolveShotRefs(await recentSnapshots(host, 'website', 10));
@@ -525,3 +529,4 @@ export async function websiteCompare(host, url, day, force) {
   return out;
 }
 const _capInFlight = new Map();   // host -> in-flight capture promise (single-flight guard)
+const _capErr = new Map();        // host -> last heal-capture failure {at, msg} — surfaced in the compare response for diagnosis
