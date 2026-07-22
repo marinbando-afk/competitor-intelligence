@@ -1296,8 +1296,9 @@ var PG_KIND_TITLE={
   partner:'Partnership ad — Meta’s official branded-content pairing between this page and the brand',
   white:'Whitelisting ad — the brand advertises through this third-party page’s identity (no partnership label)'
 };
-var ADS_DATA=null,ADS_BOX=null,ADS_BRAND='',ADS_PGF='';
+var ADS_DATA=null,ADS_BOX=null,ADS_BRAND='',ADS_PGF='',ADS_ALL=false;
 function pgFilter(p){ADS_PGF=(ADS_PGF===p)?'':String(p||'');if(ADS_BOX&&ADS_DATA)ADS_BOX.innerHTML=adsHTML(ADS_DATA);}
+function adsShowAll(){ADS_ALL=true;if(ADS_BOX&&ADS_DATA)ADS_BOX.innerHTML=adsHTML(ADS_DATA);}
 var ADS_SHOWN=[];
 function adsHTML(d){
   if(d&&d.error)return '<div class="adsempty">⚠ Couldn’t check their ads right now (the scan errored) — this does NOT mean they have no ads. It retries on the next daily scan.</div>';
@@ -1358,7 +1359,17 @@ function adsHTML(d){
   });
   ADS_SHOWN=shown;
   var filterNote=ADS_PGF?'<div class="adssum" style="margin-top:2px">Showing <b>'+shown.length+' ad'+(shown.length===1?'':'s')+'</b> from the page “'+esc(ADS_PGF)+'” — <a href="#" onclick="pgFilter(\'\');return false">show all ads ✕</a></div>':'';
-  var cards=cardsArr.length?'<div class="adstrip">'+cardsArr.join('')+'</div>':'<div class="adsempty">No ad creatives available right now.</div>';
+  // Fold the grid past ~24 cards behind an expander (founder, 22 Jul: the rest of the
+  // capture was unreachable). Variant groups are never split across the fold.
+  var FOLD=24,more='';
+  if(!ADS_ALL&&!ADS_PGF&&cardsArr.length>FOLD+4){
+    var cut=FOLD;
+    while(cut<cardsArr.length&&shown[cut]&&shown[cut]._vt&&shown[cut]._vt.pos>1)cut++;   // don't split a variant test
+    more='<button type="button" class="adsig click" style="margin:12px auto 0;display:block" onclick="adsShowAll()">Show all '+cardsArr.length+' captured ads ↓</button>';
+    cardsArr=cardsArr.slice(0,cut);
+    ADS_SHOWN=shown.slice(0,cut);
+  }
+  var cards=cardsArr.length?'<div class="adstrip">'+cardsArr.join('')+'</div>'+more:'<div class="adsempty">No ad creatives available right now.</div>';
   if(nc>0){
     return '<div class="adssum"><b>'+nc+' new ad'+(nc===1?'':'s')+' today</b>'+(d.active?' · '+d.active+' active':'')+'</div>'+sigHTML+filterNote+cards;
   }
@@ -1388,7 +1399,7 @@ function loadAds(box){
     .then(function(r){return r.json();})
     .then(function(d){
       // Keep the page-filter + variant state per brand: switching competitor resets the filter.
-      if(ADS_BRAND!==brand)ADS_PGF='';
+      if(ADS_BRAND!==brand){ADS_PGF='';ADS_ALL=false;}
       ADS_DATA=d;ADS_BOX=box;ADS_BRAND=brand;d._brand=brand;
       box.innerHTML=adsHTML(d);
     })
