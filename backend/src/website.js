@@ -388,31 +388,8 @@ export async function scrubWebsiteHistory(days) {
       await saveSnapshotDay(row.host, 'website', row.day, d);
     }
     if (checked) console.log(`✓ website history scrub: ${checked} suspicious frame(s) vision-checked — ${cleaned} error frame(s) removed, ${kept} verified real`);
-    // One idempotent pass for pointer rows that PREDATE the shotStale flag: a pointer whose
-    // banner DIFFERS from its source frame's banner is the failed-shot-on-a-change-day
-    // signature (quiet-day pointers always copy the source banner verbatim). Stamp them so
-    // the view-time self-heal retries the screenshot (Seranova 21 Jul: read "Summer Sale",
-    // pointed frame still showing "4th of July").
-    const p = await pool.query(
-      `SELECT host, to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots
-       WHERE channel = 'website' AND day >= CURRENT_DATE - 2
-         AND coalesce(data->>'shot','') = '' AND coalesce(data->>'shotFrom','') <> ''
-         AND coalesce(data->>'shotStale','') = ''`);
-    for (const row of p.rows) {
-      const d = row.data || {};
-      try {
-        const src = await pool.query(
-          `SELECT data->>'banner' AS b FROM snapshots WHERE channel='website' AND host=$1 AND to_char(day,'YYYY-MM-DD')=$2`,
-          [row.host, String(d.shotFrom).slice(0, 10)]);
-        const srcBanner = (src.rows[0] && src.rows[0].b) || '';
-        const norm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
-        if (d.banner && norm(d.banner) !== norm(srcBanner)) {
-          d.shotStale = true;
-          await saveSnapshotDay(row.host, 'website', row.day, d);
-          console.log(`✓ stamped stale change-day pointer: ${row.host} ${row.day} (banner differs from ${d.shotFrom} frame)`);
-        }
-      } catch (err) { /* best-effort per row */ }
-    }
+    // (Stale change-day POINTERS — banner text differing from the pointed frame — are
+    // detected and stamped at VIEW time in websiteCompare, where both banners are in hand.)
   } catch (e) { console.warn('scrubWebsiteHistory:', e.message); }
   return { checked, cleaned };
 }
@@ -426,7 +403,7 @@ function resolveShotRefs(rows) {
     const d = r.data;
     if (d && !d.shot && d.shotFrom) {
       const src = byDay.get(String(d.shotFrom));
-      if (src && src.data && src.data.shot) d.shot = src.data.shot;
+      if (src && src.data && src.data.shot) { d.shot = src.data.shot; d._srcBanner = String(src.data.banner || ''); }
     }
   }
   return rows;
@@ -461,6 +438,22 @@ export async function websiteCompare(host, url, day, force) {
   // Latest view — make sure today's capture is fresh, then diff the two most recent.
   let recent = resolveShotRefs(await recentSnapshots(host, 'website', 10));
   const top = recent[0];
+  // VIEW-TIME staleness check: a pointer row whose banner text DIFFERS from its source
+  // frame's banner is showing yesterday's picture next to today's read (Seranova: banner
+  // "Summer Sale", pointed frame still "4th of July"). Stamp it shotStale so this view's
+  // self-heal — and the capture gate — retry a real screenshot. Detected here, at render,
+  // so no boot pass has to have run and legacy rows heal the first time anyone looks.
+  if (top && top.data && top.data.shotFrom && !top.data.shotStale && top.data._srcBanner !== undefined) {
+    const bn = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
+    if (top.data.banner && bn(top.data.banner) !== bn(top.data._srcBanner)) {
+      top.data.shotStale = true;   // in memory, so this request's heal check sees it
+      try {
+        const clean = { ...top.data, shot: null, shotStale: true };   // never persist the attached frame
+        delete clean._srcBanner;
+        await saveSnapshotDay(cleanHost(host), 'website', top.day, clean);
+      } catch (e) { /* stamp is best-effort; the in-memory flag still heals this view */ }
+    }
+  }
   const ageH = top && top.data && top.data.capturedAt ? (Date.now() - Date.parse(top.data.capturedAt)) / 3600000 : Infinity;
   // SELF-HEAL: today's capture stored WITHOUT a screenshot (the services were rate-limited and
   // the error image was rightly discarded) → retry on view, throttled to once per ~45 min per
