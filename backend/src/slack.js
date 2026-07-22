@@ -87,11 +87,14 @@ export async function buildDailyBrief(brands, viewUrl, commit) {
     //   ✅ genuinely nothing new captured (the current read still shown, so Slack and the
     //      dashboard agree even on a quiet day)
     const sig = signalLines(s);
+    // BULLETED layout (founder, 22 Jul): the italic read is the brand's summary line;
+    // every change line below it is a bullet — scannable instead of a wall of text.
+    const bullets = (ls) => ls.map((l) => '   • ' + l).join('\n');
     if (sig.length) {
-      blocks.push('*' + b.name + '* 💡\n' + (read ? read + '\n' : '') + sig.map((l) => '   ' + l).join('\n'));
+      blocks.push('*' + b.name + '* 💡\n' + (read ? read + '\n' : '') + bullets(sig));
     } else {
       const act = activityLines(s);
-      if (act.length) blocks.push('*' + b.name + '* 🔹 routine activity\n' + (read ? read + '\n' : '') + act.map((l) => '   ' + l).join('\n'));
+      if (act.length) blocks.push('*' + b.name + '* 🔹 routine activity\n' + (read ? read + '\n' : '') + bullets(act));
       else blocks.push('*' + b.name + '* ✅ no new moves' + (read ? '\n' + read : ''));
     }
   }

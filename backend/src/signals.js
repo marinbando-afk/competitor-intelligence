@@ -334,8 +334,12 @@ export function signalLines(s) {
   }
   if (s.sale) lines.push(s.sale);
   for (const f of (s.funnel || [])) lines.push('New funnel: ' + f.domain + funnelExplain(f.domain) + link(f.url, 'open'));
-  for (const p of (s.fbPage || [])) lines.push('New Facebook page advertising: ' + p);
-  for (const p of (s.fbPageGone || [])) lines.push('Facebook page retired: “' + p + '” has no ads anymore — that whitelisted/partner funnel is gone');
+  // Same-type signals MERGE into one line (founder, 22 Jul: the brief was getting messy —
+  // two "New Facebook page advertising" rows for one brand is noise, one row is signal).
+  const fp = (s.fbPage || []).filter(Boolean);
+  if (fp.length) lines.push('New Facebook page' + (fp.length > 1 ? 's' : '') + ' advertising: ' + fp.join(', '));
+  const fg = (s.fbPageGone || []).filter(Boolean);
+  if (fg.length) lines.push('Facebook page' + (fg.length > 1 ? 's' : '') + ' retired: ' + fg.map((p) => '“' + p + '”').join(', ') + ' — ' + (fg.length > 1 ? 'those whitelisted/partner funnels are' : 'that whitelisted/partner funnel is') + ' gone');
   for (const pr of (s.products || [])) lines.push(pr);
   for (const a of (s.angle || [])) lines.push('New angle (2wk+): ' + a.angle + link(a.link, 'view ad'));
   return lines;
