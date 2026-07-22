@@ -1125,6 +1125,22 @@ function start() {
   // verified one by one; real frames get stamped and never re-checked, so this is ~free after
   // the first pass).
   setTimeout(() => scrubWebsiteHistory(10).catch(() => {}), 30000);
+  // One-off data repair (22 Jul 2026, idempotent — delete this block once it has logged in
+  // production): the 18 Jul attribution leak (fail-open verdict rows, fixed in ads.js) stored
+  // six Alibaba.com ads in rubberb.com's ads capture; strip them from that stored day so the
+  // history view stops showing a different company's ads as Rubber B's.
+  setTimeout(async () => {
+    try {
+      const r = await pool.query(`SELECT data FROM snapshots WHERE host='rubberb.com' AND channel='ads' AND to_char(day,'YYYY-MM-DD')='2026-07-18'`);
+      const d = r.rows[0] && r.rows[0].data;
+      if (d && Array.isArray(d.ads) && d.ads.some((a) => /alibaba/i.test(a.page || ''))) {
+        d.ads = d.ads.filter((a) => !/alibaba/i.test(a.page || ''));
+        d.active = d.ads.length;
+        await pool.query(`UPDATE snapshots SET data=$1 WHERE host='rubberb.com' AND channel='ads' AND to_char(day,'YYYY-MM-DD')='2026-07-18'`, [JSON.stringify(d)]);
+        console.log('✓ one-off: stripped Alibaba ads from rubberb.com 2026-07-18 capture (' + d.ads.length + ' real ads kept)');
+      }
+    } catch (e) { console.warn('one-off rubberb cleanup:', e.message); }
+  }, 40000);
 }
 // Start the server no matter what — if the DB isn't wired yet, accounts are
 // disabled but the ads endpoint still works. The JWT secret is resolved BEFORE

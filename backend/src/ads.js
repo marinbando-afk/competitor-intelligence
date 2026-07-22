@@ -154,16 +154,24 @@ async function sameBrandVerdicts(brand, hint, distinct, desc) {
       `Do NOT call it the same just because the brand's letters appear inside another word ("Super Hoodie"/"Foodie Flavours" are DIFFERENT from "The Oodie"). ` +
       `PRECISION FIRST: it is far better to MISS one of the brand's ads than to include a DIFFERENT company's ad. When you are not confident it's the target brand, answer DIFFERENT. When the advertiser's domain/industry doesn't clearly match the official site, answer DIFFERENT. ` +
       `Return ONLY minified JSON: {"v":[{"i":1,"same":true|false}, ...]}, one entry per row.`;
-    const resp = await aiClient().messages.create({ model: BRAND_MATCH_MODEL, max_tokens: 1000, system, messages: [{ role: 'user', content: rows }] });
+    // 3000 tokens: a deep scrape can surface 50+ distinct advertisers; a tight budget made
+    // the model silently return a PARTIAL verdict list (the 18 Jul leak's other half).
+    const resp = await aiClient().messages.create({ model: BRAND_MATCH_MODEL, max_tokens: 3000, system, messages: [{ role: 'user', content: rows }] });
     const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim().replace(/^```(?:json)?|```$/g, '').trim();
     const parsed = JSON.parse(txt);
     const arr = Array.isArray(parsed.v) ? parsed.v : [];
     if (!arr.length) throw new Error('no verdicts');
     ask.forEach((d, idx) => {
       const hitv = arr.find((x) => Number(x.i) === idx + 1);
-      const val = hitv ? !!hitv.same : true;   // keep if the model skipped a row
+      // FAIL CLOSED on a skipped row (founder precision doctrine). The old default was
+      // `true` — on 18 Jul a deep scrape produced a row list the model answered only
+      // partially, and every unanswered advertiser was KEPT: six Alibaba.com ads shipped
+      // as "Rubber B's". A skipped row is now DIFFERENT; the brand's own ads can't be
+      // lost by this — own-domain/own-page/branded-content/alias ads are kept BEFORE the
+      // verdict is consulted. Skips are NOT cached, so the next capture re-asks.
+      const val = hitv ? !!hitv.same : false;
       out.set(d.id, val);
-      _verdict.set(brand.toLowerCase() + '|' + d.advertiser.toLowerCase() + '|' + d.domain.toLowerCase(), { at: Date.now(), val });
+      if (hitv) _verdict.set(brand.toLowerCase() + '|' + d.advertiser.toLowerCase() + '|' + d.domain.toLowerCase(), { at: Date.now(), val });
     });
   }
   return out;

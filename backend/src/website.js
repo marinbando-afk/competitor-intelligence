@@ -360,6 +360,11 @@ export function diffWebsite(a, b) {
   let priceChanges = 0;
   for (const h in bm) {
     if (am[h] && am[h].price != null && bm[h].price != null && Math.abs(am[h].price - bm[h].price) >= 0.01) {
+      // A 0 price is a PLACEHOLDER (pre-launch listing, free-gift SKU), not a price — a
+      // "0 → 38" line means nothing to a marketer (founder, 22 Jul: "what does 0 -> 38
+      // mean?"). A product gaining its first real price is a LAUNCH, and the new-products
+      // line below carries launches by NAME.
+      if (!(am[h].price > 0 && bm[h].price > 0)) continue;
       if (priceChanges < 4) out.push('“' + (bm[h].title || h) + '”  ' + money(am[h].price) + ' → ' + money(bm[h].price));
       priceChanges++;
     }
@@ -368,8 +373,11 @@ export function diffWebsite(a, b) {
 
   const added = Object.keys(bm).filter((h) => !am[h]);
   const removed = Object.keys(am).filter((h) => !bm[h]);
-  if (added.length) out.push(added.length + ' new product' + (added.length > 1 ? 's' : '') + (added.length <= 2 ? ': “' + added.map((h) => bm[h].title || h).join('”, “') + '”' : ''));
-  if (removed.length) out.push(removed.length + ' product' + (removed.length > 1 ? 's' : '') + ' removed');
+  // ALWAYS name the products (founder rule, 22 Jul: "never report just a number of products
+  // removed or added" — a count without names is useless to a marketing team).
+  const nameList = (hs, m) => hs.slice(0, 3).map((h) => '“' + ((m[h] && m[h].title) || h) + '”').join(', ') + (hs.length > 3 ? ' + ' + (hs.length - 3) + ' more' : '');
+  if (added.length) out.push(added.length + ' new product' + (added.length > 1 ? 's' : '') + ': ' + nameList(added, bm));
+  if (removed.length) out.push(removed.length + ' product' + (removed.length > 1 ? 's' : '') + ' removed: ' + nameList(removed, am));
   if (a.min != null && b.min != null && Math.abs(a.min - b.min) >= 0.01) out.push('Lowest price ' + money(a.min) + ' → ' + money(b.min));
 
   return out.slice(0, 7);

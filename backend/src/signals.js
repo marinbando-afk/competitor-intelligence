@@ -291,6 +291,25 @@ export async function dailySignals(host, commit) {
 }
 
 // True when any signal fired.
+// A funnel domain means nothing to a non-specialist reader ("what the fuck is shop.mikmak.ai?"
+// — founder, 22 Jul). Known retail-tech platforms get a plain-words explanation; anything
+// unrecognized is at least labeled as a third-party funnel page.
+const FUNNEL_KNOWN = [
+  [/(^|\.)mikmak\.(ai|com)$/, 'MikMak, a "where to buy" page that routes shoppers to retailers like Amazon/Walmart/Target'],
+  [/(^|\.)instacart\.com$/, 'Instacart — grocery-delivery retail funnel'],
+  [/(^|\.)amzn\.to$|(^|\.)amazon\./, 'their Amazon listing'],
+  [/(^|\.)shop\.app$/, 'Shopify\'s Shop app storefront'],
+  [/(^|\.)linktr\.ee$/, 'a Linktree link hub'],
+  [/(^|\.)walmart\.com$/, 'their Walmart listing'],
+  [/(^|\.)target\.com$/, 'their Target listing'],
+  [/(^|\.)tiktok\.com$/, 'their TikTok Shop'],
+];
+function funnelExplain(domain) {
+  const d = String(domain || '').toLowerCase();
+  for (const [re, what] of FUNNEL_KNOWN) if (re.test(d)) return ' — ' + what;
+  return ' — a third-party landing/funnel page (not their own site)';
+}
+
 export function hasSignal(s) {
   return !!(s && ((s.staleOffer && s.staleOffer.length) || s.sale || (s.funnel && s.funnel.length) || (s.fbPage && s.fbPage.length) || (s.fbPageGone && s.fbPageGone.length) || (s.products && s.products.length) || (s.angle && s.angle.length)));
 }
@@ -314,7 +333,7 @@ export function signalLines(s) {
       f.running + ' days' + link(f.link, 'view ad'));
   }
   if (s.sale) lines.push(s.sale);
-  for (const f of (s.funnel || [])) lines.push('New funnel: ' + f.domain + link(f.url, 'open'));
+  for (const f of (s.funnel || [])) lines.push('New funnel: ' + f.domain + funnelExplain(f.domain) + link(f.url, 'open'));
   for (const p of (s.fbPage || [])) lines.push('New Facebook page advertising: ' + p);
   for (const p of (s.fbPageGone || [])) lines.push('Facebook page retired: “' + p + '” has no ads anymore — that whitelisted/partner funnel is gone');
   for (const pr of (s.products || [])) lines.push(pr);
