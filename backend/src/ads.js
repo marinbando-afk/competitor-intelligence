@@ -303,10 +303,21 @@ async function filterToBrand(brand, ads, hostDom, desc) {
   // (seranovabeauty.com = "seranova"+"beauty", where Seranova runs its advertorial funnels). The
   // length guard keeps this OFF short/common names, so it never re-admits brodo.ma for "brodo".
   const DESCR = /^(beauty|skincare|skin|care|cosmetics|shop|store|official|hq|co|labs?|club|online|global|world|group|brand|us|usa|uk|eu)$/;
+  // A COUNTRY-TLD twin is NOT auto-own (found 22 Jul): bonafide.com.ar is Café Bonafide,
+  // a century-old ARGENTINE chocolate chain — not Bonafide Provisions, the US broth brand.
+  // Two unrelated companies can share a trade name across countries, so an exact-label match
+  // on a DIFFERENT suffix than the brand's own domain goes to the AI judge (which holds the
+  // site descriptor and fails closed) instead of auto-keeping. Same-suffix aliases
+  // (seranovabeauty.com for seranova.com) still auto-keep.
+  const hostSuffix = hostDom ? hostDom.split('.').slice(1).join('.') : '';
   const onAliasDomain = (a) => {
     const dm = adDomain(a.landing); if (!dm) return false;
     const labels = dm.split('.');
-    return [...keys].some((k) => k.length >= 7 && labels.some((L) => L === k || (L.startsWith(k) && DESCR.test(L.slice(k.length)))));
+    return [...keys].some((k) => k.length >= 7 && labels.some((L, i) => {
+      if (!(L === k || (L.startsWith(k) && DESCR.test(L.slice(k.length))))) return false;
+      if (!hostSuffix) return true;                                   // no domain anchor → old behavior
+      return labels.slice(i + 1).join('.') === hostSuffix;            // ccTLD twin → judge decides
+    }));
   };
   // Precision first (founder rule: NEVER show a random business — better to miss a brand ad
   // than show a different company's). When we know the brand's domain, keep ONLY its own-domain

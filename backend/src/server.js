@@ -1153,6 +1153,24 @@ function start() {
       }
     } catch (e) { console.warn('one-off rubberb cleanup:', e.message); }
   }, 40000);
+  // One-off data repair (22 Jul, idempotent — delete once logged): the alias-domain rule
+  // attributed Café Bonafide's (Argentina, bonafide.com.ar) ads to Bonafide Provisions (US
+  // broth). Strip every bonafide.com.ar-landing ad from that host's stored ads captures.
+  setTimeout(async () => {
+    try {
+      const r = await pool.query(`SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots WHERE host='bonafideprovisions.com' AND channel='ads'`);
+      for (const row of r.rows) {
+        const d = row.data || {};
+        if (!Array.isArray(d.ads)) continue;
+        const keep = d.ads.filter((a) => !/(^|\.)bonafide\.com\.ar$/i.test((() => { try { return new URL(a.landing).hostname.replace(/^www\./, ''); } catch (e) { return ''; } })()));
+        if (keep.length !== d.ads.length) {
+          d.ads = keep; d.active = keep.length;
+          await pool.query(`UPDATE snapshots SET data=$1 WHERE host='bonafideprovisions.com' AND channel='ads' AND to_char(day,'YYYY-MM-DD')=$2`, [JSON.stringify(d), row.day]);
+          console.log('✓ one-off: stripped Café-Bonafide(AR) ads from bonafideprovisions.com ' + row.day + ' (' + keep.length + ' kept)');
+        }
+      }
+    } catch (e) { console.warn('one-off bonafide cleanup:', e.message); }
+  }, 45000);
 }
 // Start the server no matter what — if the DB isn't wired yet, accounts are
 // disabled but the ads endpoint still works. The JWT secret is resolved BEFORE
