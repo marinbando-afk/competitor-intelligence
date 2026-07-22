@@ -25,7 +25,7 @@ function cleanHost(host) {
 // promos always sit near the top of the page).
 async function fetchHomeText(url) {
   try {
-    const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'text/html' } });
+    const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'text/html' }, signal: AbortSignal.timeout(20000) });
     if (!r.ok) return '';
     const html = await r.text();
     return html
@@ -112,7 +112,7 @@ export async function siteBannerFromShot(shot, homeText) { return (await readBan
 export async function siteSummary(host) {
   const base = 'https://' + cleanHost(host);
   try {
-    const r = await fetch(base + '/products.json?limit=250', { headers: { 'User-Agent': UA, Accept: 'application/json' } });
+    const r = await fetch(base + '/products.json?limit=250', { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(20000) });
     if (!r.ok) return null;
     const j = await r.json();
     const products = Array.isArray(j.products) ? j.products : [];
@@ -149,7 +149,7 @@ async function apifyResidentialProxy() {
   const tok = process.env.APIFY_TOKEN;
   if (!tok) { _apifyProxyAuth = ''; return null; }
   try {
-    const r = await fetch('https://api.apify.com/v2/users/me?token=' + encodeURIComponent(tok));
+    const r = await fetch('https://api.apify.com/v2/users/me?token=' + encodeURIComponent(tok), { signal: AbortSignal.timeout(15000) });
     if (!r.ok) { _apifyProxyAuth = ''; return null; }
     const j = await r.json();
     const pw = j && j.data && j.data.proxy && j.data.proxy.password;
@@ -178,7 +178,7 @@ export async function siteShot(url) {
   // fall back to the laxer 'load' rather than lose the screenshot entirely.
   for (const wait of ['networkidle2', 'load']) {
     try {
-      const r = await fetch(base + '&wait_until=' + wait + '&delay=3&navigation_timeout=25', { headers: { 'User-Agent': UA } });
+      const r = await fetch(base + '&wait_until=' + wait + '&delay=3&navigation_timeout=25', { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(75000) });
       if (!r.ok) { console.warn('siteShot ' + cleanHost(url) + ' [' + wait + ']: screenshotone ' + r.status + ' — ' + (await r.text().catch(() => '')).slice(0, 160)); continue; }
       const buf = Buffer.from(await r.arrayBuffer());
       if (buf.length < 1200) continue;   // too small to be a real screenshot
@@ -193,14 +193,14 @@ export async function siteShot(url) {
   //     for) makes the request look like a home browser. Fires ONLY here, after everything
   //     cheaper failed — costs a few cents of proxy data on those rare occasions.
   try {
-    const probe = await fetch(url, { method: 'HEAD', redirect: 'follow', headers: { 'User-Agent': UA } }).catch(() => null);
+    const probe = await fetch(url, { method: 'HEAD', redirect: 'follow', headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(15000) }).catch(() => null);
     const finalUrl = probe && probe.url && probe.url !== url ? probe.url : null;
     if (finalUrl) {
       const b2 = 'https://api.screenshotone.com/take?access_key=' + encodeURIComponent(key) +
         '&url=' + encodeURIComponent(finalUrl) +
         '&format=jpg&image_quality=72&viewport_width=1280&viewport_height=800' +
         '&block_cookie_banners=true&block_banners_by_heuristics=true&block_ads=true&block_chats=true&cache=false';
-      const r = await fetch(b2 + '&wait_until=load&delay=8&navigation_timeout=40', { headers: { 'User-Agent': UA } });
+      const r = await fetch(b2 + '&wait_until=load&delay=8&navigation_timeout=40', { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(90000) });
       if (r.ok) {
         const buf = Buffer.from(await r.arrayBuffer());
         if (buf.length >= 1200) return 'data:image/jpeg;base64,' + buf.toString('base64');
@@ -210,7 +210,7 @@ export async function siteShot(url) {
   try {
     const prox = await apifyResidentialProxy();
     if (prox) {
-      const r = await fetch(base + '&wait_until=load&delay=8&navigation_timeout=40&proxy=' + encodeURIComponent(prox), { headers: { 'User-Agent': UA } });
+      const r = await fetch(base + '&wait_until=load&delay=8&navigation_timeout=40&proxy=' + encodeURIComponent(prox), { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(90000) });
       if (r.ok) {
         const buf = Buffer.from(await r.arrayBuffer());
         if (buf.length >= 1200) { console.log('✓ siteShot ' + cleanHost(url) + ': residential-proxy attempt succeeded'); return 'data:image/jpeg;base64,' + buf.toString('base64'); }
@@ -232,7 +232,7 @@ export async function mshotsShot(url) {
   const target = 'https://s.wordpress.com/mshots/v1/' + encodeURIComponent(url) + '?w=1280';
   for (let i = 0; i < 6; i++) {
     try {
-      const r = await fetch(target, { headers: { 'User-Agent': UA }, redirect: 'follow' });
+      const r = await fetch(target, { headers: { 'User-Agent': UA }, redirect: 'follow', signal: AbortSignal.timeout(20000) });
       if (r.ok) {
         const ct = (r.headers.get('content-type') || '').toLowerCase();
         const buf = Buffer.from(await r.arrayBuffer());
@@ -501,7 +501,15 @@ export async function websiteCompare(host, url, day, force) {
     // Everyone now awaits the one in-flight capture.
     const hk = cleanHost(host);
     if (!_capInFlight.has(hk)) {
-      _capInFlight.set(hk, captureWebsiteFull(host, url)
+      // 3-minute circuit breaker: every fetch inside the capture now carries its own hard
+      // timeout, but if anything still wedges, the race guarantees the single-flight slot
+      // frees and the failure lands in _capErr instead of silently bricking heals for the
+      // host until the next deploy (which is exactly what happened to Seranova, 22 Jul).
+      const capped = Promise.race([
+        captureWebsiteFull(host, url),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('capture timed out after 180s')), 180000)),
+      ]);
+      _capInFlight.set(hk, capped
         .then((d) => { _capErr.delete(hk); return d; })
         .catch((e) => { _capErr.set(hk, { at: new Date().toISOString(), msg: String((e && e.message) || e).slice(0, 220) }); throw e; })
         .finally(() => _capInFlight.delete(hk)));
