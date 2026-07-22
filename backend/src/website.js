@@ -388,6 +388,31 @@ export async function scrubWebsiteHistory(days) {
       await saveSnapshotDay(row.host, 'website', row.day, d);
     }
     if (checked) console.log(`✓ website history scrub: ${checked} suspicious frame(s) vision-checked — ${cleaned} error frame(s) removed, ${kept} verified real`);
+    // One idempotent pass for pointer rows that PREDATE the shotStale flag: a pointer whose
+    // banner DIFFERS from its source frame's banner is the failed-shot-on-a-change-day
+    // signature (quiet-day pointers always copy the source banner verbatim). Stamp them so
+    // the view-time self-heal retries the screenshot (Seranova 21 Jul: read "Summer Sale",
+    // pointed frame still showing "4th of July").
+    const p = await pool.query(
+      `SELECT host, to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots
+       WHERE channel = 'website' AND day >= CURRENT_DATE - 2
+         AND coalesce(data->>'shot','') = '' AND coalesce(data->>'shotFrom','') <> ''
+         AND coalesce(data->>'shotStale','') = ''`);
+    for (const row of p.rows) {
+      const d = row.data || {};
+      try {
+        const src = await pool.query(
+          `SELECT data->>'banner' AS b FROM snapshots WHERE channel='website' AND host=$1 AND to_char(day,'YYYY-MM-DD')=$2`,
+          [row.host, String(d.shotFrom).slice(0, 10)]);
+        const srcBanner = (src.rows[0] && src.rows[0].b) || '';
+        const norm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
+        if (d.banner && norm(d.banner) !== norm(srcBanner)) {
+          d.shotStale = true;
+          await saveSnapshotDay(row.host, 'website', row.day, d);
+          console.log(`✓ stamped stale change-day pointer: ${row.host} ${row.day} (banner differs from ${d.shotFrom} frame)`);
+        }
+      } catch (err) { /* best-effort per row */ }
+    }
   } catch (e) { console.warn('scrubWebsiteHistory:', e.message); }
   return { checked, cleaned };
 }
