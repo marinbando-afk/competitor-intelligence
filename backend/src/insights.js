@@ -10,7 +10,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { pool } from './db.js';
-import { urlAlive } from './ads.js';
+import { urlAlive, foldTxt } from './ads.js';
 import { recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost, allSnapshots, saveSnapshotDay, snapshotForDay } from './snapshots.js';
 import { getEmails } from './email.js';
 import { diffWebsite, siteShot, siteBannerFromShot } from './website.js';
@@ -60,7 +60,7 @@ const dayOf = (s) => String(s || '').split('T')[0].split(' ')[0];
 // ── compact, diff-friendly text for each channel ──────────────────────────────
 function adHost(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
 const INS_STOP = new Set(['the', 'and', 'for', 'shop', 'store', 'official', 'ltd', 'inc', 'llc', 'brand', 'online', 'cosmetics', 'beauty', 'skin', 'care', 'fashion', 'clothing', 'apparel', 'group', 'collective', 'australia']);
-function brandToks(name) { return [...new Set(String(name || '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !INS_STOP.has(w)))]; }
+function brandToks(name) { return [...new Set(foldTxt(name).split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !INS_STOP.has(w)))]; }
 // DETERMINISTIC backstop: the model keeps parroting a TOTAL ad count from an incomplete sample
 // ("10 of 19 ads", "19 active ads") however firmly the prompt forbids it (founder flagged it 3×),
 // so strip/soften total-count-of-ads phrasing from any generated text. Deltas the founder allows
@@ -84,13 +84,13 @@ export function funnelFacts(ads, brand) {
   const doms = Object.entries(domN).sort((x, y) => y[1] - x[1]);
   let toks = brandToks(brand);
   if (!toks.length && doms.length) { const sld = doms[0][0].split('.')[0]; if (sld.length >= 3) toks = [sld]; } // fallback: the dominant domain's root
-  const own = (s) => { s = String(s || '').toLowerCase(); return !toks.length || toks.some((t) => s.indexOf(t) >= 0); };
+  const own = (s) => { s = foldTxt(s); return !toks.length || toks.some((t) => s.indexOf(t) >= 0); };
   const isThird = (a) => (oneLine(a.page) && !own(a.page)) || (adHost(a.landing) && !own(adHost(a.landing)));
   // Page attribution taxonomy (founder, 21 Jul — use these EXACT terms):
   //   "Jenna with Smooche" → PARTNERSHIP ad (Meta's official branded-content pairing)
   //   "Jenna" alone advertising the brand → WHITELISTING ad (brand runs ads through a 3rd-party page)
   //   "Smooche" → BRANDED ad (the brand's own page)
-  const clp = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const clp = (s) => foldTxt(s).replace(/[^a-z0-9]+/g, '');
   const bcl = clp(brand);
   const kindOf = (a) => {
     // Partnership = an actual PAIRING, not just the brand's name in a byline field (the brand's

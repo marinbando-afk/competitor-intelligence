@@ -187,21 +187,32 @@ function cardMedia(c) { return c.original_image_url || c.resized_image_url || c.
 // where a distinctive brand word appears in the page name, landing domain, or copy.
 const BRAND_STOP = new Set(['the', 'and', 'for', 'shop', 'store', 'official', 'ltd', 'inc', 'llc', 'brand', 'online', 'buy', 'get', 'app', 'mobility', 'cosmetics', 'beauty', 'skincare', 'skin', 'care', 'fashion', 'clothing', 'apparel', 'wear', 'home', 'studio', 'company', 'group', 'global', 'world', 'collective']);
 function brandTokens(brand) {
-  return [...new Set(String(brand || '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !BRAND_STOP.has(w)))];
+  return [...new Set(foldTxt(brand).split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !BRAND_STOP.has(w)))];
 }
 // The set of strings that identify the brand: its distinctive name words, PLUS the
 // whole name with separators removed (so "The Oodie" → "theoodie", which is how it
 // appears in its own domain theoodie.com and page name).
 function brandKeys(brand) {
   const keys = new Set(brandTokens(brand));
-  const full = String(brand || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const full = foldTxt(brand).replace(/[^a-z0-9]+/g, '');
   if (full.length >= 4) keys.add(full);
   return keys;
 }
 // Split a name/domain into lowercased alphanumeric words. Domains break on dots AND
 // hyphens ("super-hoodie.com" → super, hoodie, com), so a short key like "oodie" can
 // never silently match inside "hoodie"/"foodie".
-function wordsOf(s) { return String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean); }
+// Fold Nordic/accented characters BEFORE any name comparison (found 23 Jul): stripping
+// non-ASCII turned "Frøya Organics" into "fryaorganics" while the tracked name folds to
+// "froyaorganics" — no match, so the brand's OWN page classified as a whitelisted 3rd party.
+const FOLD_MAP = { 'ø': 'o', 'æ': 'ae', 'å': 'a', 'œ': 'oe', 'ß': 'ss', 'đ': 'd', 'ð': 'd', 'þ': 'th', 'ł': 'l' };
+export function foldTxt(s) {
+  return String(s || '').toLowerCase().replace(/[\u00c0-\u024f]/g, (ch) => {
+    if (FOLD_MAP[ch]) return FOLD_MAP[ch];
+    const d = ch.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+    return d || ch;
+  });
+}
+function wordsOf(s) { return foldTxt(s).split(/[^a-z0-9]+/).filter(Boolean); }
 function adMatchesBrand(a, keys) {
   if (!keys.size) return true; // no distinctive key → don't filter (fail open)
   // Attribute by IDENTITY, not body copy: a brand key must appear as a WHOLE WORD in
@@ -598,7 +609,7 @@ export async function adsChanges(host, todayAds, asOfDay) {
   signals.droppedPages = [];
   {
     const hostLabel = hostToDomain(host).split('.')[0].replace(/[^a-z0-9]/g, '');
-    const ownPg = (p) => { const c = String(p || '').toLowerCase().replace(/[^a-z0-9]/g, ''); return !hostLabel || !c || c.indexOf(hostLabel) >= 0 || hostLabel.indexOf(c) >= 0; };
+    const ownPg = (p) => { const c = foldTxt(p).replace(/[^a-z0-9]/g, ''); return !hostLabel || !c || c.indexOf(hostLabel) >= 0 || hostLabel.indexOf(c) >= 0; };
     const todayPg = new Set(today.map((a) => String(a.page || '').toLowerCase()).filter(Boolean));
     const oldestToday = today.map((a) => String(a.started || '').slice(0, 10)).filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s)).sort()[0] || '';
     const cand = {};

@@ -228,7 +228,7 @@ app.get('/api/ads', async (req, res) => {
     }
     // Serve the FULL stored capture (<= ADS_COUNT) — the app folds the grid past ~24 cards
   // behind a "show all" expander (founder, 22 Jul: couldn't see the rest of the capture).
-  const out = { active: data.active, newest: data.newest, platforms: data.platforms, country: data.country, ads: (data.ads || []).slice(0, 60) };
+  const out = { active: data.active, newest: data.newest, platforms: data.platforms, country: data.country, day: data.__day || null, ads: (data.ads || []).slice(0, 60) };
     if (req.query.host) {
       try {
         const ch = await adsChanges(req.query.host, data.ads, data.__day);   // anchor the diff on the served capture's own day

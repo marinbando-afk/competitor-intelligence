@@ -1271,15 +1271,19 @@ function adVariantGroups(ads){
 //   "Jenna with Smooche"  → PARTNERSHIP ad (Meta's official branded-content pairing)
 //   "Jenna" alone, advertising Smooche → WHITELISTING ad (brand runs ads through a 3rd-party page)
 //   "Smooche"             → BRANDED ad (the brand's own page)
+// Fold Nordic/accented characters before comparing names ("Frøya Organics" must equal
+// "Froya Organics" — the ø made the brand's OWN page classify as whitelisted, 23 Jul).
+var _FOLD={'\u00f8':'o','\u00e6':'ae','\u00e5':'a','\u0153':'oe','\u00df':'ss','\u0111':'d','\u00f0':'d','\u00fe':'th','\u0142':'l'};
+function foldTxt(s){return String(s||'').toLowerCase().replace(/[\u00c0-\u024f]/g,function(ch){if(_FOLD[ch])return _FOLD[ch];var d=ch.normalize('NFKD').replace(/[\u0300-\u036f]/g,'');return d||ch;});}
 function _pgOwn(page,brand){
-  var p=String(page||'').toLowerCase().replace(/[^a-z0-9]+/g,''),b=String(brand||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+  var p=foldTxt(page).replace(/[^a-z0-9]+/g,''),b=foldTxt(brand).replace(/[^a-z0-9]+/g,'');
   if(!p||!b)return true;
   return p.indexOf(b)>=0||b.indexOf(p)>=0;
 }
 // → 'own' | 'partner' | 'white'
 function adPageKind(a,brand){
   if(!a)return 'own';
-  var clp=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'');};
+  var clp=function(s){return foldTxt(s).replace(/[^a-z0-9]+/g,'');};
   var b=clp(brand);
   var pg=String(a.page||'');
   var isOwn=_pgOwn(pg,brand);
@@ -1387,9 +1391,12 @@ function adsHTML(d){
   if(nc>0){
     return '<div class="adssum"><b>'+nc+' new ad'+(nc===1?'':'s')+' today</b>'+(d.active?' · '+d.active+' active':'')+'</div>'+sigHTML+filterNote+cards;
   }
+  // Every surface states WHICH capture it speaks from (founder, 23 Jul: surfaces must be
+  // congruent — the morning brief reads last night's capture, the app may hold a fresher one).
+  var capDay=(d.day&&d.day!==new Date().toISOString().slice(0,10))?' · capture from '+esc(fmtShortDay(d.day)):'';
   var note=d.baseline
-    ? '<div class="adssum"><b>'+(d.active||0)+' active ads</b> — establishing a baseline. From tomorrow, <b>new</b> ads (fresh creatives, angles, landing pages or Facebook pages) get flagged up top. Current creatives:</div>'
-    : '<div class="adssum"><b>No new ads today</b>'+(d.active?' · '+d.active+' active':'')+' — same creatives still running. Current ads:</div>';
+    ? '<div class="adssum"><b>'+(d.active||0)+' active ads</b>'+capDay+' — establishing a baseline. From tomorrow, <b>new</b> ads (fresh creatives, angles, landing pages or Facebook pages) get flagged up top. Current creatives:</div>'
+    : '<div class="adssum"><b>No new ads today</b>'+(d.active?' · '+d.active+' active':'')+capDay+' — same creatives still running. Current ads:</div>';
   return note+sigHTML+filterNote+cards;
 }
 function loadAds(box){
