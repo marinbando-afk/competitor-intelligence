@@ -495,6 +495,27 @@ export function isFunnelUrl(u) {
   return !JUNK_LANDING.test(dom);
 }
 
+// NEVER HYPERLINK A DEAD PAGE (founder rule, 23 Jul): before any surface links a landing
+// URL, verify it answers. Cached per URL per day; unknown (timeout/network) counts as DEAD —
+// a link we can't vouch for isn't a link we publish.
+const _urlAlive = new Map();   // url -> { day, ok }
+export async function urlAlive(u) {
+  u = String(u || '');
+  if (!/^https?:\/\//i.test(u)) return false;
+  const day = new Date().toISOString().slice(0, 10);
+  const c = _urlAlive.get(u);
+  if (c && c.day === day) return c.ok;
+  let ok = false;
+  try {
+    const UA_ = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
+    let r = await fetch(u, { method: 'HEAD', redirect: 'follow', headers: { 'User-Agent': UA_ }, signal: AbortSignal.timeout(8000) }).catch(() => null);
+    if (!r || (r.status >= 400 && r.status !== 405)) r = await fetch(u, { redirect: 'follow', headers: { 'User-Agent': UA_ }, signal: AbortSignal.timeout(10000) }).catch(() => null);
+    ok = !!(r && r.status < 400);
+  } catch (e) { ok = false; }
+  _urlAlive.set(u, { day, ok });
+  return ok;
+}
+
 // Does this Facebook page run ANY active ad right now? A minimal page-scoped scan (5 items)
 // — the definitive check behind the "page retired" signal. Cached per page per day so
 // repeated brief/panel builds never re-pay it. null = couldn't determine (treat as no proof).
@@ -557,9 +578,14 @@ export async function adsChanges(host, todayAds, asOfDay) {
   const uniq = (arr) => [...new Set(arr)];
   const signals = {
     landings: uniq(fresh.flatMap((a) => a.tags.filter((t) => t.k === 'landing').map((t) => t.v))).map((domain) => ({ domain, url: landingUrl[domain] })),
+  };
+  // Verify funnel links before they can be hyperlinked anywhere (founder: never link a dead
+  // or incomplete page). A dead URL keeps the domain fact but loses its link.
+  for (const l of signals.landings) { if (l.url && !(await urlAlive(l.url))) l.url = ''; }
+  Object.assign(signals, {
     pages: uniq(fresh.filter((a) => a.tags.some((t) => t.k === 'page')).map((a) => a.page)),
     formats: uniq(fresh.flatMap((a) => a.tags.filter((t) => t.k === 'format').map((t) => t.v))),
-  };
+  });
   // DROPPED Facebook-page detection (founder, 21 Jul — Tallowed Truth's 'Non-Woke Daily'
   // advertorial page vanished and nothing called it out): a non-own Facebook page that
   // advertised in the previous capture and has NO ads today. Two proofs, precision-first:
