@@ -1171,11 +1171,11 @@ function start() {
       }
     } catch (e) { console.warn('one-off bonafide cleanup:', e.message); }
   }, 45000);
-  // One-off (22 Jul, idempotent-ish — delete once logged): regenerate Zoup's read NOW under
-  // the fixed Page-Like labeling; the stored one still says ads "drive to Facebook login".
+  // One-off (23 Jul — delete once logged): regenerate Seranova's read under the
+  // mention-each-page-once rule (its prose enumerated pages the chips already list).
   setTimeout(async () => {
-    try { await generateInsights('Zoup', 'zoupbroth.com'); console.log('✓ one-off: Zoup insights regenerated (Page-Like wording fix)'); }
-    catch (e) { console.warn('one-off zoup regen:', e.message); }
+    try { await generateInsights('Seranova', 'seranova.com'); console.log('✓ one-off: Seranova insights regenerated (mention-once rule)'); }
+    catch (e) { console.warn('one-off seranova regen:', e.message); }
   }, 50000);
 }
 // Start the server no matter what — if the DB isn't wired yet, accounts are
