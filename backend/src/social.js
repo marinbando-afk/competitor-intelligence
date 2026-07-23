@@ -77,6 +77,11 @@ export async function resolveHandles(host) {
     const fb = html.match(/facebook\.com\/([A-Za-z0-9_.]{2,40})/i);
     if (ig && !bad.test(ig[1])) h.ig = ig[1];
     if (tt) h.tt = tt[1];
+    // Plain-TEXT self-declarations (precision-safe — it's the brand's own site copy): many
+    // sites write "Instagram @TheTallowedTruth" with no <a> link, so the href scan above
+    // finds nothing and the brand never gets scraped (found 23 Jul).
+    if (!h.ig) { const m = html.match(/instagram[^A-Za-z0-9@]{0,12}@([A-Za-z0-9_.]{2,40})/i); if (m && !bad.test(m[1])) h.ig = m[1]; }
+    if (!h.tt) { const m = html.match(/tik\s?tok[^A-Za-z0-9@]{0,12}@([A-Za-z0-9_.]{2,40})/i); if (m) h.tt = m[1]; }
     // Facebook page can be a vanity handle, a numeric profile (profile.php?id=N), or the modern /p/Name-N/ form.
     let fbm;
     if ((fbm = html.match(/facebook\.com\/profile\.php\?id=(\d+)/i))) h.fb = 'profile.php?id=' + fbm[1];

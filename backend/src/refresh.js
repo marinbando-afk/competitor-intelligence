@@ -10,7 +10,7 @@
 //   CRON_TZ    IANA timezone for those hours (default the founder's local zone below).
 
 import { fetchAds } from './ads.js';
-import { fetchSocial } from './social.js';
+import { fetchSocial, resolveHandles } from './social.js';
 import { getEmails } from './email.js';
 import { captureWebsiteFull } from './website.js';
 import { generateInsights, enrichCreativeHooks, creditStatus } from './insights.js';
@@ -91,6 +91,21 @@ export function warmStatus() { return { warmedAt: lastWarm, last: lastResult, ru
 // One brand's full capture: ads + social + email + website + insights.
 export async function warmBrand(b, force) {
   let ok = 0, fail = 0;
+  // SELF-HEAL empty handles (found 23 Jul — Tallowed Truth had handles:{} since being added,
+  // so no platform was EVER scraped): re-resolve from their site once per warm and persist to
+  // every account's row for this host, so social scraping starts without anyone noticing.
+  if (!b.handles || !Object.keys(b.handles).length) {
+    try {
+      const h = await resolveHandles(b.host);
+      if (h && Object.keys(h).length) {
+        b.handles = h;
+        if (process.env.DATABASE_URL) await pool.query(`UPDATE competitors SET handles = $2 WHERE host = $1 AND (handles IS NULL OR handles::text = '{}')`, [b.host, JSON.stringify(h)]);
+        // …and the warm list itself, so tomorrow's warm starts with the healed handles.
+        try { const items = await getTracked(); const it = items.find((t) => t.host === b.host); if (it && (!it.handles || !Object.keys(it.handles).length)) { it.handles = h; await saveSnapshot(TKEY, 'list', { items }); } } catch (e) { /* rows are healed regardless */ }
+        console.log('✓ self-healed handles for ' + b.host + ': ' + JSON.stringify(h));
+      }
+    } catch (e) { /* next warm retries */ }
+  }
   // Creative-hook budgets (separate so neither starves the other): ADS get full coverage;
   // SOCIAL gets its top-N recent posts per platform (organic captions already carry most of a
   // post's hook, and posts are numerous — this keeps the vision cost within ~$2/mo/competitor).
