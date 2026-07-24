@@ -1171,27 +1171,25 @@ function start() {
       }
     } catch (e) { console.warn('one-off bonafide cleanup:', e.message); }
   }, 45000);
-  // One-off (24 Jul — delete once logged): the shared "Dr. Amy" persona page dragged three
-  // OTHER brands' ads (norseorganics.co / arcticgoddess.com / primalviking.com) into Frøya's
-  // captures via the page-first scan. Scrub those ads from stored days, then regenerate the
-  // read so no surface cites the fabricated funnels.
+  // One-off (24 Jul — delete once logged): Bonafide HEALTH's ads (hellobonafide.com,
+  // Thermella menopause) leaked into Bonafide PROVISIONS' captures — the judge ran blind
+  // (site isn't Shopify → no descriptor) and passed an exact-name match. Scrub + regen.
   setTimeout(async () => {
     try {
-      const FOREIGN = /(^|\.)(norseorganics\.co|arcticgoddess\.com|primalviking\.com)$/i;
-      const r = await pool.query(`SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots WHERE host='froyaorganics.com' AND channel='ads'`);
+      const r = await pool.query(`SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots WHERE host='bonafideprovisions.com' AND channel='ads'`);
       for (const row of r.rows) {
         const d = row.data || {};
         if (!Array.isArray(d.ads)) continue;
-        const keep = d.ads.filter((a) => { try { return !FOREIGN.test(new URL(a.landing).hostname.replace(/^www\./, '')); } catch (e) { return true; } });
+        const keep = d.ads.filter((a) => { try { return !/(^|\.)hellobonafide\.com$/i.test(new URL(a.landing).hostname.replace(/^www\./, '')); } catch (e) { return true; } });
         if (keep.length !== d.ads.length) {
           d.ads = keep; d.active = keep.length;
-          await pool.query(`UPDATE snapshots SET data=$1 WHERE host='froyaorganics.com' AND channel='ads' AND to_char(day,'YYYY-MM-DD')=$2`, [JSON.stringify(d), row.day]);
-          console.log('✓ one-off: stripped foreign-network ads from froyaorganics.com ' + row.day + ' (' + keep.length + ' kept)');
+          await pool.query(`UPDATE snapshots SET data=$1 WHERE host='bonafideprovisions.com' AND channel='ads' AND to_char(day,'YYYY-MM-DD')=$2`, [JSON.stringify(d), row.day]);
+          console.log('✓ one-off: stripped Bonafide-Health ads from bonafideprovisions.com ' + row.day + ' (' + keep.length + ' kept)');
         }
       }
-      await generateInsights('Froya Organics', 'froyaorganics.com');
-      console.log('✓ one-off: Froya insights regenerated post-scrub');
-    } catch (e) { console.warn('one-off froya cleanup:', e.message); }
+      await generateInsights('Bonafide', 'bonafideprovisions.com');
+      console.log('✓ one-off: Bonafide insights regenerated post-scrub');
+    } catch (e) { console.warn('one-off bonafide-health cleanup:', e.message); }
   }, 50000);
 }
 // Start the server no matter what — if the DB isn't wired yet, accounts are

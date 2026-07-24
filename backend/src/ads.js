@@ -23,7 +23,7 @@ const _verdict = new Map();   // 'brand|advertiser|domain' -> { at, val } — ca
 // "current body" — while the brand's own ads never rank). Page-scoped scanning via Meta's
 // own page identity has zero ambiguity. Extend without a deploy via env AD_PAGE_IDS
 // ("host:id,host:id"). CurrentBody's id read from the Ad Library typeahead, 22 Jul 2026.
-const KNOWN_FB_PAGES = { 'currentbody.com': '183065794653' };
+const KNOWN_FB_PAGES = { 'currentbody.com': '183065794653', 'bonafideprovisions.com': '307482405997850' };   // Bonafide Provisions @bonafideprovisions (typeahead, 24 Jul) — three unrelated 'Bonafide's exist
 for (const kv of String(process.env.AD_PAGE_IDS || '').split(',')) {
   const [h, id] = kv.split(':').map((x) => String(x || '').trim());
   if (h && /^\d+$/.test(id || '')) KNOWN_FB_PAGES[h.toLowerCase()] = id;
@@ -271,7 +271,7 @@ async function sameBrandVerdicts(brand, hint, distinct, desc) {
     const system =
       `Decide for each row whether the ADVERTISER is the SAME brand as the target, or a DIFFERENT company. ` +
       `Target brand: "${brand}"${hint ? `. Its OFFICIAL SITE is ${hint} — that domain AND its subdomains are the brand's ground-truth identity` : ''}. ` +
-      `${desc ? `The target's WEBSITE ${desc}. An advertiser whose ad-copy clearly promotes a DIFFERENT kind of business/product than that is NOT the target — answer DIFFERENT. ` : ''}` +
+      `${desc ? `The target's WEBSITE ${desc}. An advertiser whose ad-copy clearly promotes a DIFFERENT kind of business/product than that is NOT the target — answer DIFFERENT. ` : `You have NO description of the target's business, so evidence is LIMITED — be maximally conservative: an advertiser on a DIFFERENT registrable domain than the official site is DIFFERENT even when the name matches EXACTLY (unrelated companies routinely share a name — 'Bonafide' is simultaneously a US broth brand, a US menopause-supplement brand and an Argentine café chain). `}` +
       `SAME = the brand itself: its own site/subdomains, its GENUINE regional stores (the same brand on a country version of ITS site), and its OWN advertorial/native-ad funnels (the advertiser is the brand even when the landing is a news/partner domain). ` +
       `DIFFERENT = a separate company: a competitor, reseller, affiliate, fan account, or an unrelated business that merely SHARES A NAME, WORD or SURNAME with the target — INCLUDING one on a DIFFERENT REGISTRABLE DOMAIN (e.g. a foreign ccTLD). Many businesses worldwide share a generic word (e.g. "brodo" means "broth" in Italian). ` +
       `A same-name ad on a DIFFERENT registrable domain than the official site is DIFFERENT unless there is clear evidence it is the target's OWN regional site — e.g. "brodo.ma" (a Morocco domain) is NOT "brodo.com" (a NYC bone-broth brand); "Campbells of Deal" (campbellsofdeal.co.uk, a UK car garage) is NOT "campbells.com". ` +
