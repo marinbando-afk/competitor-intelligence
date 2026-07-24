@@ -175,7 +175,7 @@ async function competitorAllowance(uid) {
 app.get('/api/health', async (req, res) => {
   let userTracked = null;
   try { userTracked = (await getTracked()).length; } catch (e) { /* db optional */ }
-  res.json({ ok: true, ...warmStatus(), userTracked });
+  res.json({ ok: true, v: String(process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7) || 'dev', ...warmStatus(), userTracked });   // v = deployed commit, so 'which build am I talking to' is never a guess
 });
 
 // Real capture counts for the landing page's proof band (never invented — see stats.js).
