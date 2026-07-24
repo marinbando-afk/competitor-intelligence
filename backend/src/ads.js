@@ -407,12 +407,14 @@ async function filterToBrand(brand, ads, hostDom, desc) {
     // whose landing is a different registrable domain is DIFFERENT in CODE — the AI judge
     // kept the Argentine café twice despite prompt hardening; it no longer gets a vote here.
     const bn = foldTxt(brand).replace(/[^a-z0-9]/g, '');
-    // "Weak" descriptor = no PRODUCT evidence (a banner-only descriptor — "on-site promo:
-    // free shipping" — says nothing about the business, and that's what let the café through
-    // a third time). Only a 'sells:' descriptor earns the judge a vote on name twins.
-    const weakDesc = !desc || desc.indexOf('sells:') < 0;
+    // UNCONDITIONAL (founder: "make no mistakes"): an advertiser named EXACTLY like the
+    // brand whose ad lands on a DIFFERENT registrable domain is a different company — the
+    // AI judge kept the Argentine café through four rounds of prompt hardening, descriptor
+    // or not, so it gets no vote here. Structural evidence still wins: the brand's own
+    // pages (own-landing majority) are exempt, and own-domain/alias/branded-content ads
+    // were already kept above.
     const nameTwin = (a) => {
-      if (!weakDesc) return false;
+      if (onBrandPage(a)) return false;
       const pn = foldTxt(a.advertiser || a.page || '').replace(/[^a-z0-9]/g, '');
       const dm = adDomain(a.landing);
       return !!pn && !!bn && pn === bn && !!dm && !!hostDom && dm !== hostDom && !dm.endsWith('.' + hostDom);
