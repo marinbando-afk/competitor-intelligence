@@ -1423,11 +1423,14 @@ function loadAds(box){
       if(ADS_BRAND!==brand){ADS_PGF='';ADS_ALL=false;}
       ADS_DATA=d;ADS_BOX=box;ADS_BRAND=brand;d._brand=brand;
       box.innerHTML=adsHTML(d);
-      // "Open full Meta Ad Library" goes to the brand's PAGE inventory when we know its
-      // page id (founder, 22 Jul) — the keyword URL is only the fallback.
+      // The library link only ever points at the brand's PAGE inventory; it stays hidden
+      // until the page id is known (no keyword fallback — Meta ignores advertiser-search
+      // URLs and serves keyword soup).
       if(d.ownPageIds&&d.ownPageIds.length){
         var al=box.parentNode&&box.parentNode.querySelector('.adlink');
-        if(al)al.href='https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&view_all_page_id='+encodeURIComponent(d.ownPageIds[0])+'&search_type=page&media_type=all';
+        var wait=box.parentNode&&box.parentNode.querySelector('.adlink-wait');
+        if(al){al.href='https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&view_all_page_id='+encodeURIComponent(d.ownPageIds[0])+'&search_type=page&media_type=all';al.style.display='';}
+        if(wait)wait.style.display='none';
       }
     })
     .catch(function(){box.innerHTML='<div class="adsempty">Couldn’t reach the ad service just now — try again in a moment.</div>';});
@@ -1690,11 +1693,11 @@ function chanDetail(k,ch,c){
     var ctry=c.country||'ALL';
     var box='<div class="adsbox" id="ads-'+esc(c.id)+'" data-brand="'+esc(c.name)+'" data-country="'+esc(ctry)+'" data-host="'+esc(c.host||'')+'"><div class="adsload"><span class="spin"></span>Checking today’s ads for anything new…</div></div>';
     var note=ch.angle?'<div class="note">'+ch.angle+'</div>':'';
-    // Default link = Meta's ADVERTISER (page) search, never keyword-ad soup (founder, 22 Jul —
-    // keyword results mix same-name companies). Upgraded to the exact page inventory
-    // (view_all_page_id) in loadAds once the brand's page id is known from captures.
-    var lib='https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country='+encodeURIComponent(ctry)+'&q='+encodeURIComponent(c.name)+'&search_type=page&media_type=all';
-    return box+note+'<a class="adlink" href="'+lib+'" target="_blank" rel="noopener">Open full Meta Ad Library <svg width="11" height="11" fill="none" viewBox="0 0 11 11"><path d="M1 5.5h8M5.5 2l3.5 3.5L5.5 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>';
+    // The library link exists ONLY as the brand's true PAGE-inventory link. Meta ignores
+    // every "advertiser search" URL form and renders keyword-ad soup (verified 24 Jul —
+    // "Mars Man" gave ~4,100 junk results), so there is no honest fallback: until the page
+    // id is known (derived minutes after the first scan), we show a note instead of a link.
+    return box+note+'<a class="adlink" href="#" style="display:none" target="_blank" rel="noopener">Open their page in the Meta Ad Library <svg width="11" height="11" fill="none" viewBox="0 0 11 11"><path d="M1 5.5h8M5.5 2l3.5 3.5L5.5 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a><span class="adlink-wait" style="font-family:var(--mono);font-size:10.5px;color:var(--dim,#8b98a5)">Meta page link appears after the first ad scan finds their page…</span>';
   }
   if(k==='social'){
     var hs=c.handles||{};

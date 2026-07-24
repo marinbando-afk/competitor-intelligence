@@ -39,7 +39,10 @@ export async function ownPageIdsFor(host) {
   if (!h) return [];
   const day = new Date().toISOString().slice(0, 10);
   const c = _ownPages.get(h);
-  if (c && c.day === day) return c.ids;
+  // Only a NON-EMPTY derivation is cached for the day: a just-added brand viewed before its
+  // baseline capture landed used to cache [] until midnight, so the app's page link never
+  // appeared (founder, 24 Jul — Mars Man). Empty → recompute on every call (one cheap query).
+  if (c && c.day === day && c.ids.length) return c.ids;
   let ids = KNOWN_FB_PAGES[h] ? [KNOWN_FB_PAGES[h]] : [];
   try {
     const snap = await latestSnapshot(h, 'ads');
