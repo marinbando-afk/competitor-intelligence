@@ -800,6 +800,21 @@ app.post('/api/admin/clients/:id/send-weekly', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Preview ONE client's current daily brief text (for the editable send box in the Clients
+// panel). commit=false: a preview must never consume the announce-once signal state.
+app.get('/api/admin/clients/:id/brief', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const id = Number(req.params.id);
+    const u = await pool.query('SELECT share_token FROM users WHERE id = $1 AND admin = FALSE', [id]);
+    if (!u.rows[0]) return res.status(404).json({ error: 'No such client.' });
+    const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [id]);
+    if (!cs.rows.length) return res.json({ text: '' });
+    const viewUrl = u.rows[0].share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.rows[0].share_token)) : 'https://watchback.ai/app.html';
+    res.json({ text: await buildDailyBrief(cs.rows, viewUrl, false) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Post an OFFICIAL UPDATE message to ONE client's own Slack (founder-composed text, e.g.
 // product announcements). Admin-only, synchronous so the button shows a real ✓/✕; the
 // webhook stays server-side as always.
