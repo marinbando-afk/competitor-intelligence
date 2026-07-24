@@ -33,6 +33,22 @@ for (const kv of String(process.env.AD_PAGE_IDS || '').split(',')) {
 // land on the brand's domain (same rule attribution uses), seeded by KNOWN_FB_PAGES. Powers
 // PAGE-FIRST coverage (founder doctrine, 22 Jul): "always check first what's coming from the
 // page, and then if there is any whitelisting ads."
+// The competitor's CONFIRMED social handles (submitted/fixed by the client at add-time) —
+// brand identity ground truth for ads too (founder rule, 24 Jul).
+const _handles = new Map();   // host -> { day, h }
+async function brandHandlesFor(host) {
+  const day = new Date().toISOString().slice(0, 10);
+  const c = _handles.get(host);
+  if (c && c.day === day) return c.h;
+  let h = {};
+  try {
+    const t = await latestSnapshot('__tracked__', 'list');
+    const it = ((t && t.items) || []).find((x) => x && x.host === host);
+    if (it && it.handles) h = it.handles;
+  } catch (e) { /* none */ }
+  _handles.set(host, { day, h });
+  return h;
+}
 const _ownPages = new Map();   // host -> { day, ids }
 export async function ownPageIdsFor(host) {
   const h = cleanAdsHost(host);
@@ -44,6 +60,17 @@ export async function ownPageIdsFor(host) {
   // appeared (founder, 24 Jul — Mars Man). Empty → recompute on every call (one cheap query).
   if (c && c.day === day && c.ids.length) return c.ids;
   let ids = KNOWN_FB_PAGES[h] ? [KNOWN_FB_PAGES[h]] : [];
+  // CROSS-REFERENCE THE SUBMITTED PAGE (founder rule, 24 Jul — Mars Man's FB page is
+  // "mengotomars", nothing like the brand name): the numeric page id embedded in the brand's
+  // captured Facebook POST links (facebook.com/<id>/posts/…) is the confirmed page the client
+  // submitted at signup — scan THAT page for ads.
+  try {
+    const fb = await latestSnapshot(h, 'facebook');
+    for (const p of ((fb && fb.posts) || [])) {
+      const m = /facebook\.com\/(\d{8,})\//.exec(String(p.link || p.url || ''));
+      if (m && !ids.includes(m[1])) { ids.push(m[1]); break; }
+    }
+  } catch (e) { /* social capture optional */ }
   try {
     const snap = await latestSnapshot(h, 'ads');
     const pg = {};
@@ -56,14 +83,17 @@ export async function ownPageIdsFor(host) {
       const dm = adDomain(a.landing);
       if (dm && (dm === h || dm.endsWith('.' + h))) e.own++;
     }
-    // PAGE-FIRST scans only pages NAMED as the brand (folded, so "Frøya Organics" matches
-    // "froyaorganics"): a shared persona page (Dr. Amy) can be MOSTLY-brand by landings and
-    // still rent to other companies — scanning it drags their ads into the capture (24 Jul).
+    // PAGE-FIRST scans only pages NAMED as the brand (folded) OR named as a CONFIRMED
+    // submitted handle — a shared persona page (Dr. Amy) still never qualifies.
+    const hand = await brandHandlesFor(h);
+    const handleKeys = Object.values(hand).map((x) => foldTxt(x).replace(/[^a-z0-9]/g, '')).filter((x) => x.length >= 4);
     Object.entries(pg)
       .filter(([, v]) => {
         if (!(v.own > 0 && v.own * 2 >= v.total)) return false;
         const pn = foldTxt(v.name).replace(/[^a-z0-9]/g, '');
-        return !!hostLbl && !!pn && (pn.indexOf(hostLbl) >= 0 || hostLbl.indexOf(pn) >= 0);
+        if (!pn) return false;
+        if (hostLbl && (pn.indexOf(hostLbl) >= 0 || hostLbl.indexOf(pn) >= 0)) return true;
+        return handleKeys.some((k) => pn === k || pn.indexOf(k) >= 0 || k.indexOf(pn) >= 0);
       })
       .sort((x, y) => y[1].own - x[1].own)
       .forEach(([id]) => { if (!ids.includes(id)) ids.push(id); });
@@ -372,12 +402,23 @@ async function filterToBrand(brand, ads, hostDom, desc) {
     hint = (Object.entries(own).sort((a, b) => b[1] - a[1])[0] || [''])[0];
   }
   try {
+    // DETERMINISTIC name-twin rejection (founder, 24 Jul: "your crosschecking must make no
+    // mistakes"): with NO website descriptor, an advertiser whose name equals the brand's but
+    // whose landing is a different registrable domain is DIFFERENT in CODE — the AI judge
+    // kept the Argentine café twice despite prompt hardening; it no longer gets a vote here.
+    const bn = foldTxt(brand).replace(/[^a-z0-9]/g, '');
+    const nameTwin = (a) => {
+      if (desc) return false;
+      const pn = foldTxt(a.advertiser || a.page || '').replace(/[^a-z0-9]/g, '');
+      const dm = adDomain(a.landing);
+      return !!pn && !!bn && pn === bn && !!dm && !!hostDom && dm !== hostDom && !dm.endsWith('.' + hostDom);
+    };
     const verdict = await sameBrandVerdicts(brand, hint, distinct, desc);
     // Own-domain ads and ads from the brand's OWN pages are ALWAYS kept (the latter catches
     // the brand's advertorials that send traffic to a 3rd-party domain); other off-domain ads
     // follow the AI verdict — so a same-name ad on a DIFFERENT registrable domain (brodo.ma vs
     // brodo.com) is dropped, while the brand's own funnels (drink.brodo.com) always survive.
-    return ads.filter((a) => { if (onOwnDomain(a) || brandPageSafe(a) || onBrandedContent(a) || onAliasDomain(a)) return true; const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
+    return ads.filter((a) => { if (onOwnDomain(a) || brandPageSafe(a) || onBrandedContent(a) || onAliasDomain(a)) return true; if (nameTwin(a)) return false; const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
   } catch (e) {
     // AI error → be CONSERVATIVE when we know the brand's domain: keep only its own-domain
     // ads + ads from its own pages (whole-word name matching is unreliable for a generic name

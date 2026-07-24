@@ -1171,16 +1171,16 @@ function start() {
       }
     } catch (e) { console.warn('one-off bonafide cleanup:', e.message); }
   }, 45000);
-  // One-off (24 Jul — delete once logged): Bonafide HEALTH's ads (hellobonafide.com,
-  // Thermella menopause) leaked into Bonafide PROVISIONS' captures — the judge ran blind
-  // (site isn't Shopify → no descriptor) and passed an exact-name match. Scrub + regen.
+  // One-off (24 Jul v2 — delete once logged): keep ONLY own-domain/no-landing ads for
+  // Bonafide Provisions — both foreign twins (Health/Thermella AND Café AR) leaked; the
+  // truth is this brand runs no ads right now, and the capture must say exactly that.
   setTimeout(async () => {
     try {
       const r = await pool.query(`SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots WHERE host='bonafideprovisions.com' AND channel='ads'`);
       for (const row of r.rows) {
         const d = row.data || {};
         if (!Array.isArray(d.ads)) continue;
-        const keep = d.ads.filter((a) => { try { return !/(^|\.)hellobonafide\.com$/i.test(new URL(a.landing).hostname.replace(/^www\./, '')); } catch (e) { return true; } });
+        const keep = d.ads.filter((a) => { try { const dm = new URL(a.landing).hostname.replace(/^www\./, ''); return dm === 'bonafideprovisions.com' || dm.endsWith('.bonafideprovisions.com'); } catch (e) { return true; } });
         if (keep.length !== d.ads.length) {
           d.ads = keep; d.active = keep.length;
           await pool.query(`UPDATE snapshots SET data=$1 WHERE host='bonafideprovisions.com' AND channel='ads' AND to_char(day,'YYYY-MM-DD')=$2`, [JSON.stringify(d), row.day]);
