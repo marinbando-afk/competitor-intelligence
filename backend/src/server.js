@@ -41,14 +41,20 @@ app.use(cors({ origin: allowed.includes('*') ? true : allowed }));
 // ── Per-IP rate limiting (in-memory, no external deps) ─────────────────────────
 // Guards the cost-bearing AI/scrape endpoints from runaway use or abuse. Each
 // limiter keeps its own sliding window and returns 429 + Retry-After when tripped.
-function rateLimit(max, windowMs) {
+function rateLimit(max, windowMs, authMax) {
   const hits = new Map();
   return (req, res, next) => {
-    const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'x').split(',')[0].trim();
+    // A SIGNED-IN account gets its own, much higher bucket (keyed by uid, not IP): the tight
+    // caps exist to stop anonymous abuse, but the admin dashboard legitimately fires 20+
+    // insight loads at open (one per mirrored competitor) — the owner was rate-limiting
+    // themselves out of their own brief preview (founder, 24 Jul).
+    const uid = optionalUid(req);
+    const key = uid ? ('u' + uid) : String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'x').split(',')[0].trim();
+    const cap = uid ? (authMax || max * 4) : max;
     const now = Date.now();
-    let e = hits.get(ip);
-    if (!e || now - e.start >= windowMs) { e = { start: now, n: 0 }; hits.set(ip, e); }
-    if (++e.n > max) {
+    let e = hits.get(key);
+    if (!e || now - e.start >= windowMs) { e = { start: now, n: 0 }; hits.set(key, e); }
+    if (++e.n > cap) {
       res.set('Retry-After', String(Math.ceil((e.start + windowMs - now) / 1000)));
       return res.status(429).json({ error: 'Too many requests — please slow down a moment.' });
     }
@@ -58,8 +64,8 @@ function rateLimit(max, windowMs) {
 }
 // Generous global ceiling — normal use is far under this; the Claude-backed
 // endpoints (chat/angle/shot) get a tighter shared cap applied at their routes.
-app.use('/api/', rateLimit(200, 60000));
-const aiLimit = rateLimit(30, 60000);
+app.use('/api/', rateLimit(200, 60000, 800));
+const aiLimit = rateLimit(30, 60000, 150);
 
 // Admin = the legacy ADMIN_KEY (query/body) OR a signed-in account with the admin
 // flag (the founder). DB-checked per call so it works with older tokens and revokes
