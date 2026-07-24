@@ -352,7 +352,19 @@ async function filterToBrand(brand, ads, hostDom, desc) {
   // Meta's OWN attribution: the ad is branded content "<persona> with <BRAND>". A whole-word brand
   // match in that partner name is definitive (and precise — a "with Qure Skincare" ad never matches
   // "seranova"), so it keeps a brand's persona/advertorial ads that run onto neutral funnels.
-  const onBrandedContent = (a) => { const w = new Set(wordsOf((a.partner || '') + ' ' + (a.byline || ''))); return [...keys].some((k) => k.length >= 5 && w.has(k)); };
+  const onBrandedContent = (a) => {
+    // A byline that is just the advertiser's OWN name is NOT a pairing — the Argentine café's
+    // ads carry byline "Bonafide" (its own page name), which matched the brand key and kept
+    // the ad ahead of every other guard (the final door of the name-twin saga, 24 Jul). A
+    // real Meta pairing reads "X with BRAND": the byline must differ from the page name.
+    const raw = (a.partner || '') + ' ' + (a.byline || '');
+    if (!raw.trim()) return false;
+    const bylineFold = foldTxt(raw).replace(/[^a-z0-9]/g, '');
+    const pageFold = foldTxt(a.page || a.advertiser || '').replace(/[^a-z0-9]/g, '');
+    if (bylineFold && pageFold && bylineFold === pageFold) return false;
+    const w = new Set(wordsOf(raw));
+    return [...keys].some((k) => k.length >= 5 && w.has(k));
+  };
   // The brand's OWN alt domains a strict host match misses: a DISTINCTIVE (>=7-char) brand name as a
   // whole domain label (regional site seranova.co.za) or a label = brand + a common descriptor
   // (seranovabeauty.com = "seranova"+"beauty", where Seranova runs its advertorial funnels). The
