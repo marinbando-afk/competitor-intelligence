@@ -492,7 +492,8 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .admin-tabs{display:flex;gap:8px;margin:4px 0 16px}
 .atab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:7px 13px;border-radius:7px;border:1px solid var(--line2);background:none;color:var(--muted);cursor:pointer}
 .atab.on{border-color:var(--sage-d);color:var(--sage);background:var(--sage-soft)}
-#adminBody{max-height:380px;overflow-y:auto}
+#adminBody{max-height:68vh;overflow-y:auto}
+.admin-modal{width:min(780px,94vw)}
 /* Admin → Clients tab */
 .cl-new{background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:12px 14px;margin-bottom:14px}
 .cl-new-h{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
@@ -501,7 +502,18 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .cl-in:focus{outline:none;border-color:var(--sage-d)}
 .cl-nm{flex:0 0 auto;max-width:150px}
 .cl-err{color:var(--clay);font-size:11.5px;margin-top:6px}
-.cl-card{border:1px solid var(--line2);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.cl-card{border:1px solid var(--line2);border-radius:10px;padding:0;margin-bottom:10px;overflow:hidden}
+.cl-head{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;background:none;border:none;padding:12px 14px;cursor:pointer;text-align:left;color:inherit;font:inherit}
+.cl-head:hover{background:var(--raised)}
+.cl-head-l{min-width:0;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+.cl-head-r{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.cl-chip{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;padding:3px 8px;border:1px solid var(--line2);border-radius:5px;color:var(--muted);white-space:nowrap}
+.cl-chip.ok{color:var(--sage);border-color:var(--sage-d)}
+.cl-chip.warn{color:var(--gold);border-color:rgba(227,169,44,.45)}
+.cl-caret{color:var(--faint);transition:transform .15s ease}
+.cl-card.open .cl-caret{transform:rotate(180deg)}
+.cl-body{display:none;padding:2px 14px 14px;border-top:1px solid var(--line2)}
+.cl-card.open .cl-body{display:block}
 .cl-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
 .cl-del{background:none;border:1px solid var(--line2);color:var(--muted);border-radius:6px;font-size:11px;padding:4px 10px;flex:none;cursor:pointer}
 .cl-del:hover{border-color:var(--clay);color:var(--clay)}
@@ -2813,19 +2825,40 @@ function clientCard(c){
   var comps=(c.competitors||[]).map(function(x){
     return '<div class="cl-comp"><span class="cl-comp-h">'+esc(x.name||x.host)+'</span><span class="cl-comp-d">'+esc(x.host)+'</span><button class="cl-x" title="Remove from this client" onclick="clientRemoveComp('+c.id+','+x.id+',this)">×</button></div>';
   }).join('')||'<div class="cl-none">No competitors yet.</div>';
-  return '<div class="cl-card" id="cl-'+c.id+'">'
-    +'<div class="cl-top"><div style="min-width:0"><div class="au-em">'+esc(c.email)+'</div><div class="au-sub">joined '+esc(fmtDay(c.created_at))+'</div></div>'
-    +'<button class="cl-del" title="Delete this client and their data" onclick="deleteClient('+c.id+',\''+esc(c.email)+'\')">Delete</button></div>'
-    +(link?'<div class="cl-lbl">Read-only share link</div><div class="cl-share-row"><input class="cl-in cl-link" id="cllink-'+c.id+'" readonly value="'+esc(link)+'" onclick="this.select()"><button class="cl-mini" onclick="copyClientLink('+c.id+',this)">Copy</button><button class="cl-mini" title="New link — the old one stops working" onclick="rotateShare('+c.id+',this)">Rotate</button></div>':'')
-    +'<div class="cl-lbl">Weekly report → Slack</div><div class="cl-share-row"><button class="cl-mini add" onclick="sendClientWeekly('+c.id+',this)"'+(c.slack?'':' disabled')+'>⚡ Send to Slack</button><span class="cl-none" style="align-self:center">'+(c.slack?'posts this client’s report links to their Slack':'client hasn’t connected Slack yet')+'</span></div>'
-    +'<div class="cl-lbl">Official update → Slack</div><div class="cl-share-row" style="align-items:stretch;flex-direction:column;gap:6px"><textarea class="cl-in" id="clmsg-'+c.id+'" rows="3" placeholder="Write the announcement (Slack formatting: *bold*, • bullets)…"'+(c.slack?'':' disabled')+' style="resize:vertical;min-height:56px"></textarea><div style="display:flex;gap:8px"><button class="cl-mini add" onclick="sendClientMessage('+c.id+',this)"'+(c.slack?'':' disabled')+'>📨 Send update</button><span class="cl-none" style="align-self:center">'+(c.slack?'posts exactly this text to their Slack channel':'client hasn’t connected Slack yet')+'</span></div></div>'
-    +'<div class="cl-lbl">Daily Slack update (editable)</div><div class="cl-share-row" style="align-items:stretch;flex-direction:column;gap:6px"><textarea class="cl-in" id="clmsg-'+c.id+'" rows="5" placeholder="Load today\u2019s brief, edit it (or write any announcement), then send…" style="resize:vertical;min-height:72px;font-family:var(--mono);font-size:11.5px"></textarea><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="cl-mini" onclick="loadClientBrief('+c.id+',this)">Load today\u2019s brief</button><button class="cl-mini add" onclick="sendClientMessage('+c.id+',this)"'+(c.slack?'':' disabled')+'>📨 Send to their Slack</button><span class="cl-none" style="align-self:center">'+(c.slack?'sends exactly the text above':'client hasn\u2019t connected Slack yet')+'</span></div></div>'
+  var open=!!ADM_OPEN[c.id];
+  // Collapsible card (founder, 24 Jul: panel was a wall of controls): compact header row
+  // with status chips; every control lives unchanged in the expandable body.
+  return '<div class="cl-card'+(open?' open':'')+'" id="cl-'+c.id+'">'
+    +'<button type="button" class="cl-head" onclick="toggleClient('+c.id+')">'
+      +'<span class="cl-head-l"><span class="au-em">'+esc(c.email)+'</span><span class="au-sub">joined '+esc(fmtDay(c.created_at))+'</span></span>'
+      +'<span class="cl-head-r">'
+        +'<span class="cl-chip">'+used+' / '+lim+' competitors</span>'
+        +(atCap?'<span class="cl-chip warn">at limit</span>':'')
+        +'<span class="cl-chip'+(c.slack?' ok':'')+'">'+(c.slack?'⚡ Slack ✓':'no Slack')+'</span>'
+        +'<span class="cl-caret">▾</span>'
+      +'</span>'
+    +'</button>'
+    +'<div class="cl-body">'
+    // 1 · competitors — the thing you touch most
     +'<div class="cl-lbl">Competitors — '+used+' of '+lim+(c.max_competitors==null?' (default)':'')+(atCap?' · <span style="color:var(--gold)">at limit</span>':'')+'</div><div class="cl-comps">'+comps+'</div>'
     +'<div class="cl-addrow"><input class="cl-in" id="clch-'+c.id+'" placeholder="competitor domain — e.g. allbirds.com"><input class="cl-in cl-nm" id="clcn-'+c.id+'" placeholder="name (optional)"><button class="cl-mini add" onclick="clientAddComp('+c.id+',this)">Add</button></div>'
     +'<div class="cl-err" id="clerr-'+c.id+'"></div>'
-    +'<div class="cl-lbl">Competitor limit</div>'
-    +'<div class="cl-share-row"><input class="cl-in cl-nm" id="cllim-'+c.id+'" type="number" min="0" max="500" value="'+(c.max_competitors==null?'':c.max_competitors)+'" placeholder="default ('+CLIENT_DFLT+')"><button class="cl-mini" onclick="setClientLimit('+c.id+',this)">Save limit</button><span class="cl-none" style="align-self:center">blank = default ('+CLIENT_DFLT+')</span></div>'
-    +'<button class="cl-reset" onclick="resetClientPass('+c.id+',\''+esc(c.email)+'\')">Reset password…</button></div>';
+    // 2 · one Slack message box: load the daily brief into it, or write any announcement
+    +'<div class="cl-lbl">Slack message — daily brief (editable) or announcement</div><div class="cl-share-row" style="align-items:stretch;flex-direction:column;gap:6px"><textarea class="cl-in" id="clmsg-'+c.id+'" rows="5" placeholder="Load today\u2019s brief and edit it, or write any announcement, then send…" style="resize:vertical;min-height:72px;font-family:var(--mono);font-size:11.5px"></textarea><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="cl-mini" onclick="loadClientBrief('+c.id+',this)">Load today\u2019s brief</button><button class="cl-mini add" onclick="sendClientMessage('+c.id+',this)"'+(c.slack?'':' disabled')+'>📨 Send to their Slack</button><span class="cl-none" style="align-self:center">'+(c.slack?'sends exactly the text above':'client hasn\u2019t connected Slack yet')+'</span></div></div>'
+    // 3 · weekly report links
+    +'<div class="cl-lbl">Weekly report → Slack</div><div class="cl-share-row"><button class="cl-mini add" onclick="sendClientWeekly('+c.id+',this)"'+(c.slack?'':' disabled')+'>⚡ Send to Slack</button><span class="cl-none" style="align-self:center">'+(c.slack?'posts this client\u2019s report links to their Slack':'client hasn\u2019t connected Slack yet')+'</span></div>'
+    // 4 · share link
+    +(link?'<div class="cl-lbl">Read-only share link</div><div class="cl-share-row"><input class="cl-in cl-link" id="cllink-'+c.id+'" readonly value="'+esc(link)+'" onclick="this.select()"><button class="cl-mini" onclick="copyClientLink('+c.id+',this)">Copy</button><button class="cl-mini" title="New link — the old one stops working" onclick="rotateShare('+c.id+',this)">Rotate</button></div>':'')
+    // 5 · account: limit · password · delete, one row
+    +'<div class="cl-lbl">Account</div>'
+    +'<div class="cl-share-row" style="flex-wrap:wrap"><input class="cl-in cl-nm" id="cllim-'+c.id+'" type="number" min="0" max="500" value="'+(c.max_competitors==null?'':c.max_competitors)+'" placeholder="limit — default ('+CLIENT_DFLT+')"><button class="cl-mini" onclick="setClientLimit('+c.id+',this)">Save limit</button><button class="cl-mini" onclick="resetClientPass('+c.id+',\''+esc(c.email)+'\')">Reset password…</button><button class="cl-del" style="margin-left:auto" title="Delete this client and their data" onclick="deleteClient('+c.id+',\''+esc(c.email)+'\')">Delete</button></div>'
+    +'</div></div>';
+}
+var ADM_OPEN={};   // client-id -> card expanded (survives panel re-renders)
+function toggleClient(id){
+  var el=document.getElementById('cl-'+id);if(!el)return;
+  el.classList.toggle('open');
+  ADM_OPEN[id]=el.classList.contains('open');
 }
 function sendClientMessage(id,btn){
   if(btn&&btn.disabled)return;
