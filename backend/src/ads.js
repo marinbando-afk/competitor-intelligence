@@ -44,13 +44,24 @@ export async function ownPageIdsFor(host) {
   try {
     const snap = await latestSnapshot(h, 'ads');
     const pg = {};
+    const hostLbl = h.split('.')[0].replace(/[^a-z0-9]/g, '');
     for (const a of ((snap && snap.ads) || [])) {
       if (!a.pageId) continue;
-      (pg[a.pageId] = pg[a.pageId] || { total: 0, own: 0 }).total++;
+      const e = (pg[a.pageId] = pg[a.pageId] || { total: 0, own: 0, name: '' });
+      e.total++;
+      if (!e.name && a.page) e.name = a.page;
       const dm = adDomain(a.landing);
-      if (dm && (dm === h || dm.endsWith('.' + h))) pg[a.pageId].own++;
+      if (dm && (dm === h || dm.endsWith('.' + h))) e.own++;
     }
-    Object.entries(pg).filter(([, v]) => v.own > 0 && v.own * 2 >= v.total)
+    // PAGE-FIRST scans only pages NAMED as the brand (folded, so "Frøya Organics" matches
+    // "froyaorganics"): a shared persona page (Dr. Amy) can be MOSTLY-brand by landings and
+    // still rent to other companies — scanning it drags their ads into the capture (24 Jul).
+    Object.entries(pg)
+      .filter(([, v]) => {
+        if (!(v.own > 0 && v.own * 2 >= v.total)) return false;
+        const pn = foldTxt(v.name).replace(/[^a-z0-9]/g, '');
+        return !!hostLbl && !!pn && (pn.indexOf(hostLbl) >= 0 || hostLbl.indexOf(pn) >= 0);
+      })
       .sort((x, y) => y[1].own - x[1].own)
       .forEach(([id]) => { if (!ids.includes(id)) ids.push(id); });
   } catch (e) { /* keyword ladder still covers us */ }
@@ -335,7 +346,13 @@ async function filterToBrand(brand, ads, hostDom, desc) {
   // ads, its own-page ads, branded-content-to-the-brand ads, and AI-confirmed ones — bare brand-NAME
   // matching is disabled (it's what let "brodo.ma"/"BRODO Footwear" through). Name matching only fills
   // in when we have NO domain to anchor on (fail-open so a domain-less brand isn't blanked).
-  const stringKeep = (a) => onOwnDomain(a) || onBrandPage(a) || onBrandedContent(a) || onAliasDomain(a) || (hostDom ? false : (!keys.size ? true : adMatchesBrand(a, keys)));
+  // A "brand page" can be a SHARED persona page renting to a whole network (found 24 Jul:
+  // "Dr. Amy" runs Frøya ads AND Norse Organics acne, Arctic Goddess supplements, PrimalViking
+  // TRT — three other companies' ads were auto-kept and reported as Frøya's new funnels). An
+  // ad from a brand page is auto-kept only when its landing is the brand's own/alias domain or
+  // it has no landing (Page-Like); a FOREIGN landing from a shared page faces the AI judge.
+  const brandPageSafe = (a) => onBrandPage(a) && (!adDomain(a.landing) || onOwnDomain(a) || onAliasDomain(a));
+  const stringKeep = (a) => onOwnDomain(a) || brandPageSafe(a) || onBrandedContent(a) || onAliasDomain(a) || (hostDom ? false : (!keys.size ? true : adMatchesBrand(a, keys)));
   if (!process.env.ANTHROPIC_API_KEY) return ads.filter(stringKeep);
   const idOf = (a) => (a.advertiser || '') + '|' + (adDomain(a.landing) || '');
   // Attach a sample of each distinct advertiser's ad copy so the AI can sanity-check the
@@ -357,12 +374,12 @@ async function filterToBrand(brand, ads, hostDom, desc) {
     // the brand's advertorials that send traffic to a 3rd-party domain); other off-domain ads
     // follow the AI verdict — so a same-name ad on a DIFFERENT registrable domain (brodo.ma vs
     // brodo.com) is dropped, while the brand's own funnels (drink.brodo.com) always survive.
-    return ads.filter((a) => { if (onOwnDomain(a) || onBrandPage(a) || onBrandedContent(a) || onAliasDomain(a)) return true; const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
+    return ads.filter((a) => { if (onOwnDomain(a) || brandPageSafe(a) || onBrandedContent(a) || onAliasDomain(a)) return true; const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
   } catch (e) {
     // AI error → be CONSERVATIVE when we know the brand's domain: keep only its own-domain
     // ads + ads from its own pages (whole-word name matching is unreliable for a generic name
     // like "Brodo", which matches BRODO Footwear, brodo.ma, etc.). No known domain → names.
-    return ads.filter((a) => hostDom ? (onOwnDomain(a) || onBrandPage(a) || onBrandedContent(a) || onAliasDomain(a)) : stringKeep(a));
+    return ads.filter((a) => hostDom ? (onOwnDomain(a) || brandPageSafe(a) || onBrandedContent(a) || onAliasDomain(a)) : stringKeep(a));
   }
 }
 

@@ -1171,11 +1171,27 @@ function start() {
       }
     } catch (e) { console.warn('one-off bonafide cleanup:', e.message); }
   }, 45000);
-  // One-off (23 Jul — delete once logged): regenerate Seranova's read under the
-  // mention-each-page-once rule (its prose enumerated pages the chips already list).
+  // One-off (24 Jul — delete once logged): the shared "Dr. Amy" persona page dragged three
+  // OTHER brands' ads (norseorganics.co / arcticgoddess.com / primalviking.com) into Frøya's
+  // captures via the page-first scan. Scrub those ads from stored days, then regenerate the
+  // read so no surface cites the fabricated funnels.
   setTimeout(async () => {
-    try { await generateInsights('Seranova', 'seranova.com'); console.log('✓ one-off: Seranova insights regenerated (mention-once rule)'); }
-    catch (e) { console.warn('one-off seranova regen:', e.message); }
+    try {
+      const FOREIGN = /(^|\.)(norseorganics\.co|arcticgoddess\.com|primalviking\.com)$/i;
+      const r = await pool.query(`SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots WHERE host='froyaorganics.com' AND channel='ads'`);
+      for (const row of r.rows) {
+        const d = row.data || {};
+        if (!Array.isArray(d.ads)) continue;
+        const keep = d.ads.filter((a) => { try { return !FOREIGN.test(new URL(a.landing).hostname.replace(/^www\./, '')); } catch (e) { return true; } });
+        if (keep.length !== d.ads.length) {
+          d.ads = keep; d.active = keep.length;
+          await pool.query(`UPDATE snapshots SET data=$1 WHERE host='froyaorganics.com' AND channel='ads' AND to_char(day,'YYYY-MM-DD')=$2`, [JSON.stringify(d), row.day]);
+          console.log('✓ one-off: stripped foreign-network ads from froyaorganics.com ' + row.day + ' (' + keep.length + ' kept)');
+        }
+      }
+      await generateInsights('Froya Organics', 'froyaorganics.com');
+      console.log('✓ one-off: Froya insights regenerated post-scrub');
+    } catch (e) { console.warn('one-off froya cleanup:', e.message); }
   }, 50000);
 }
 // Start the server no matter what — if the DB isn't wired yet, accounts are
