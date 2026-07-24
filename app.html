@@ -2818,12 +2818,28 @@ function clientCard(c){
     +'<button class="cl-del" title="Delete this client and their data" onclick="deleteClient('+c.id+',\''+esc(c.email)+'\')">Delete</button></div>'
     +(link?'<div class="cl-lbl">Read-only share link</div><div class="cl-share-row"><input class="cl-in cl-link" id="cllink-'+c.id+'" readonly value="'+esc(link)+'" onclick="this.select()"><button class="cl-mini" onclick="copyClientLink('+c.id+',this)">Copy</button><button class="cl-mini" title="New link — the old one stops working" onclick="rotateShare('+c.id+',this)">Rotate</button></div>':'')
     +'<div class="cl-lbl">Weekly report → Slack</div><div class="cl-share-row"><button class="cl-mini add" onclick="sendClientWeekly('+c.id+',this)"'+(c.slack?'':' disabled')+'>⚡ Send to Slack</button><span class="cl-none" style="align-self:center">'+(c.slack?'posts this client’s report links to their Slack':'client hasn’t connected Slack yet')+'</span></div>'
+    +'<div class="cl-lbl">Official update → Slack</div><div class="cl-share-row" style="align-items:stretch;flex-direction:column;gap:6px"><textarea class="cl-in" id="clmsg-'+c.id+'" rows="3" placeholder="Write the announcement (Slack formatting: *bold*, • bullets)…"'+(c.slack?'':' disabled')+' style="resize:vertical;min-height:56px"></textarea><div style="display:flex;gap:8px"><button class="cl-mini add" onclick="sendClientMessage('+c.id+',this)"'+(c.slack?'':' disabled')+'>📨 Send update</button><span class="cl-none" style="align-self:center">'+(c.slack?'posts exactly this text to their Slack channel':'client hasn’t connected Slack yet')+'</span></div></div>'
     +'<div class="cl-lbl">Competitors — '+used+' of '+lim+(c.max_competitors==null?' (default)':'')+(atCap?' · <span style="color:var(--gold)">at limit</span>':'')+'</div><div class="cl-comps">'+comps+'</div>'
     +'<div class="cl-addrow"><input class="cl-in" id="clch-'+c.id+'" placeholder="competitor domain — e.g. allbirds.com"><input class="cl-in cl-nm" id="clcn-'+c.id+'" placeholder="name (optional)"><button class="cl-mini add" onclick="clientAddComp('+c.id+',this)">Add</button></div>'
     +'<div class="cl-err" id="clerr-'+c.id+'"></div>'
     +'<div class="cl-lbl">Competitor limit</div>'
     +'<div class="cl-share-row"><input class="cl-in cl-nm" id="cllim-'+c.id+'" type="number" min="0" max="500" value="'+(c.max_competitors==null?'':c.max_competitors)+'" placeholder="default ('+CLIENT_DFLT+')"><button class="cl-mini" onclick="setClientLimit('+c.id+',this)">Save limit</button><span class="cl-none" style="align-self:center">blank = default ('+CLIENT_DFLT+')</span></div>'
     +'<button class="cl-reset" onclick="resetClientPass('+c.id+',\''+esc(c.email)+'\')">Reset password…</button></div>';
+}
+function sendClientMessage(id,btn){
+  if(btn&&btn.disabled)return;
+  var ta=document.getElementById('clmsg-'+id);
+  var msg=(ta&&ta.value||'').trim();
+  if(!msg){alert('Write the update first.');return;}
+  if(!confirm('Send this update to the client\u2019s Slack channel now?'))return;
+  var old=btn.textContent;btn.disabled=true;btn.textContent='Sending…';
+  fetch(adminUrl('/api/admin/clients/'+id+'/send-message'),{method:'POST',headers:adminHeaders(true),body:JSON.stringify({message:msg})})
+    .then(function(r){return r.json();}).then(function(d){
+      btn.textContent=(d&&d.sent)?'Sent ✓':('✕ '+((d&&d.error)||'failed'));
+      if(d&&d.sent&&ta)ta.value='';
+      setTimeout(function(){btn.textContent=old;btn.disabled=false;},3000);
+    })
+    .catch(function(){btn.textContent='✕ error';setTimeout(function(){btn.textContent=old;btn.disabled=false;},3000);});
 }
 function sendClientWeekly(id,btn){
   if(btn&&btn.disabled)return;

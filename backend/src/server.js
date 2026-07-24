@@ -800,6 +800,22 @@ app.post('/api/admin/clients/:id/send-weekly', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Post an OFFICIAL UPDATE message to ONE client's own Slack (founder-composed text, e.g.
+// product announcements). Admin-only, synchronous so the button shows a real ✓/✕; the
+// webhook stays server-side as always.
+app.post('/api/admin/clients/:id/send-message', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const u = await pool.query('SELECT slack_webhook FROM users WHERE id = $1 AND admin = FALSE', [Number(req.params.id)]);
+    if (!u.rows[0]) return res.status(404).json({ error: 'No such client.' });
+    if (!isSlackWebhook(u.rows[0].slack_webhook)) return res.json({ ok: false, sent: false, error: 'This client has no Slack connected.' });
+    const message = String((req.body || {}).message || '').trim().slice(0, 6000);
+    if (!message) return res.status(400).json({ error: 'Message required.' });
+    const out = await postTo(u.rows[0].slack_webhook, message);
+    res.json({ ok: !!(out && out.sent), sent: !!(out && out.sent), error: out && out.error });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Create a client login (pre-approved) and mint its share token.
 app.post('/api/admin/clients', async (req, res) => {
   if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
