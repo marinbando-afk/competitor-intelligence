@@ -446,6 +446,7 @@ function toBullets(v, max) {
 export const NEWS_RULE =
   `REPORT NEWS LIKE A NEWSROOM — EVENT FIRST, MEANING SECOND. When something CHANGED, the sentence starts with the change itself, in TIME ORDER and plain words: what it was → what it is now ("4th of July Sale replaced by Summer Sale — still 58% off"), and only THEN the interpretation ("third pretext rotation — this is their real price"). NEVER lead with the conclusion and tuck the event inside it, and never use backwards constructions that force the reader to unscramble which state is older ("Y is a renamed X", "Y, which replaced X"). The reader must learn WHAT HAPPENED before being told WHAT IT MEANS. This ordering applies to every headline, summary, verdict and bullet.\n` +
   `PLAIN LANGUAGE (founder rule): say the literal mechanism in words a marketer would use to a colleague — "all their ads are now optimised for Facebook page likes" — NOT abstracted strategy-speak ("paused DTC traffic; building audience only — no conversion push"). One concrete mechanism beats two abstract nouns; if a sentence needs a semicolon AND a dash to hold its ideas together, split it or cut it. Plain and direct wins over clever and compressed.\n` +
+  `TIME-ANCHOR EVERY STATE (founder rule): a bare "is live" cannot be told apart from news. Every claim about an ongoing state carries its age — "40%-off sale, running since 12 Jul (12 days)" or "started today" — using ONLY dates from a computed TIMELINE/FACTS block; if no dated fact is available, say "already running when monitoring began" rather than implying it is new.\n` +
   `THE USEFULNESS TEST (founder rule): before emitting ANY line, ask — would this be useful to the client's MARKETING TEAM and DIRECTOR OF GROWTH? Does it make sense on its own? If not, DROP IT. Never emit raw data artifacts (a price "0 → 38", an unnamed "4 products removed", a count without the things counted); name the actual products/pages/offers or leave the line out. When a term or platform is niche (a retail-tech funnel, an industry acronym), add a 3-6 word explanation so a non-specialist reader knows what it is.\n`;
 
 async function ask(channel, brand, todayBlock, prevBlock, me, today) {
@@ -520,14 +521,32 @@ export async function generateInsights(brand, host) {
   } catch (e) { /* skip */ }
 
   try {
-    const r = await recentSnapshots(host, 'website', 8);   // deeper history to find the last SALE slide
+    const r = await recentSnapshots(host, 'website', 45);   // deep history: sale-streak dating + the last SALE slide
     if (r[0] && r[0].data) {
       const changes = (r[1] && r[1].data) ? diffWebsite(r[1].data.summary, r[0].data.summary) : null;
       const day = capDate(r[0].day);
       // Most recent announcement-bar slide that was an actual sale (today's or an earlier day's),
       // so the read can name a live sale even when today's captured slide is a shipping one.
       const recentSaleBanner = (r.find((x) => x.data && isSaleBanner(x.data.banner)) || {}).data?.banner || '';
-      const todayBlock = fmtWeb(r[0].data, day, recentSaleBanner) + '\nCHANGES vs previous capture: ' + (changes ? (changes.join('; ') || 'none detected') : 'n/a (first capture)');
+      // SALE TIMELINE, computed in code (founder, 24 Jul: "is live" can't be told apart from
+      // news) — walk the daily captures back while the banner stays the same and state the
+      // streak as a hard fact the model must quote. Dates are never the model's own math.
+      let saleTimeline = '';
+      const bnorm2 = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
+      const curBanner = bnorm2(r[0].data.banner || recentSaleBanner);
+      if (curBanner) {
+        let firstDay = r[0].day, gap = 0;
+        for (let i = 1; i < r.length; i++) {
+          const b = bnorm2(r[i].data && r[i].data.banner);
+          if (b === curBanner) { firstDay = r[i].day; gap = 0; continue; }
+          if (!b && gap < 2) { gap++; continue; }   // tolerate short read-gaps (failed captures)
+          break;
+        }
+        const days = Math.max(0, Math.round((Date.parse(r[0].day) - Date.parse(firstDay)) / 864e5));
+        saleTimeline = '\nPROMO TIMELINE (computed from daily captures — quote these, never your own date math): the current promo/banner first appeared ' +
+          (days === 0 ? 'TODAY (' + firstDay + ') — this IS news; report it as new.' : 'on ' + firstDay + ' and has run ' + days + '+ day' + (days === 1 ? '' : 's') + ' unchanged — standing context, NOT news; say how long it has been running.');
+      }
+      const todayBlock = fmtWeb(r[0].data, day, recentSaleBanner) + saleTimeline + '\nCHANGES vs previous capture: ' + (changes ? (changes.join('; ') || 'none detected') : 'n/a (first capture)');
       out.website = await ask('website', brand, todayBlock, r[1] && r[1].data ? fmtWeb(r[1].data) : '', me, day);
     }
   } catch (e) { /* skip */ }
