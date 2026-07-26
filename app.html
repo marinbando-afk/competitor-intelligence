@@ -2119,7 +2119,10 @@ function openAd(i){
   if(tail)bits+='<div class="adtail">'+tail+'</div>';
   var copy=bits?'<div class="adcopy">'+bits+'</div>':'';
   var rows=(a.text||a.title)?angleRowHTML():'';
+  // A missing landing URL is a FACT about the ad (awareness/video campaigns carry no click
+  // destination), not a gap in our capture — say so instead of silently dropping the row.
   if(a.landing)rows+='<div class="adrow"><span class="adrow-k">Landing page</span><a class="adrow-v" href="'+esc(a.landing)+'" target="_blank" rel="noopener">'+esc(a.landing)+' ↗</a></div>';
+  else rows+='<div class="adrow"><span class="adrow-k">Landing page</span><span class="adrow-v" style="color:var(--muted)">none — this ad has no click destination'+(a.cta?'':' or CTA')+' (awareness/reach campaign, not a traffic ad)</span></div>';
   if(a.page){
     var pk=adPageKind(a,ADS_BRAND);
     var kb='';
