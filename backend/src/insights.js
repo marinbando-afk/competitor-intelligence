@@ -459,6 +459,7 @@ export const NEWS_RULE =
   `PLAIN LANGUAGE (founder rule): say the literal mechanism in words a marketer would use to a colleague — "all their ads are now optimised for Facebook page likes" — NOT abstracted strategy-speak ("paused DTC traffic; building audience only — no conversion push"). One concrete mechanism beats two abstract nouns; if a sentence needs a semicolon AND a dash to hold its ideas together, split it or cut it. Plain and direct wins over clever and compressed.\n` +
   `TIME-ANCHOR EVERY STATE (founder rule): a bare "is live" cannot be told apart from news. Say whether it is NEW or UNCHANGED and give the START DATE from a computed TIMELINE/FACTS block — "40%-off sale, unchanged since 12 Jul" or "sale started today". NEVER state a running duration ("running 12 days", "live for 123 days", "for 5 weeks") — the date already says it and the tally is noise. If no dated fact exists, say "already running when monitoring began" rather than implying it is new.\n` +
   `STAY INSIDE YOUR EVIDENCE (founder rule): you see CAPTURED ACTIVITY, never spend, revenue, traffic or conversions. NEVER call any channel their "primary growth engine", "main driver", "biggest channel" or rank channels against each other — a brand spending six figures a month on ads can look quiet organically, and a viral post says nothing about where the money is. A per-channel read describes THAT channel only. Engagement numbers describe reach on that post, not business performance. But comparing LIKE WITH LIKE inside your own evidence is exactly right and wanted — "influencer Reels (132K, 120K views) are outpacing their branded posts (<30K) since 6 Jul" is a perfect insight: same channel, same metric, real numbers, dated. Make those comparisons often; just never extend them into claims about the whole business.\n` +
+  `NEVER COUNT CAPTURES (founder rule): "2+ consecutive captures", "since the last capture", "in the previous capture" is our internal plumbing, meaningless to a marketer. Use DATES instead — "no Meta ads since 22 Jul", or when it spans the whole monitored history, "no Meta ads since monitoring began on 18 Jul" (use the MONITORING WINDOW fact). For day-over-day comparisons say "since yesterday" or name the date.\n` +
   `CALIBRATE CERTAINTY (founder rule): state OBSERVED FACTS flatly — what the ad says, the date it started, the price on the page, which pages run it. But an INFERENCE about their strategy or intent is a READ, not a fact: hedge it honestly — "seems to be their evergreen offer", "looks like anchor pricing", "suggests they are testing". Never assert an inference as certainty ("50% IS their real price") and never hedge a fact ("there may be a sale" when the banner plainly shows one). Test: if the competitor's own marketer could reasonably dispute it, it is an inference — hedge it.\n` +
   `NEVER GUESS AN IDENTITY (founder rule): when a finding names a specific ad, page, product or link, identify it ONLY from the FACTS or the sample provided — quote the page name, copy and link given there. If those details are genuinely absent, say plainly that the specific ad is not in the captured sample, and stop. NEVER write "most likely X" or list pages it might have come from — a guess dressed as analysis is worse than an admitted gap.\n` +
   `THE USEFULNESS TEST (founder rule): before emitting ANY line, ask — would this be useful to the client's MARKETING TEAM and DIRECTOR OF GROWTH? Does it make sense on its own? If not, DROP IT. Never emit raw data artifacts (a price "0 → 38", an unnamed "4 products removed", a count without the things counted); name the actual products/pages/offers or leave the line out. When a term or platform is niche (a retail-tech funnel, an industry acronym), add a 3-6 word explanation so a non-specialist reader knows what it is.\n`;
@@ -518,8 +519,16 @@ export async function generateInsights(brand, host) {
     const r = await recentSnapshots(host, 'ads', 2);
     if (r[0] && r[0].data) {
       const lf = await landingFormats(r[0].data.ads || []);   // FETCH + read each landing page, classify its format
+      // MONITORING WINDOW as a hard fact, so "we've never seen ads" is expressed as a DATE
+      // ("since monitoring began on 18 Jul") instead of counting captures (founder, 25 Jul).
+      let monLine = '';
+      try {
+        const all = await allSnapshots(host, 'ads');
+        const first = all && all[0] && all[0].day;
+        if (first) monLine = '\nMONITORING WINDOW (fact): this brand has been monitored since ' + first + '. Express absence/duration with these DATES, never as a number of captures.';
+      } catch (e) { /* optional */ }
       const day = capDate(r[0].day);
-      out.ads = await ask('ads', brand, (await fmtAds(r[0].data, day)) + lf, r[1] && r[1].data ? await fmtAds(r[1].data) : '', me, day);
+      out.ads = await ask('ads', brand, (await fmtAds(r[0].data, day)) + lf + monLine, r[1] && r[1].data ? await fmtAds(r[1].data) : '', me, day);
     }
   } catch (e) { /* skip */ }
 
