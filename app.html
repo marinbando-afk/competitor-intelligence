@@ -939,6 +939,69 @@ function emlPendingState(d,host){var em=(d&&d.emails)||[];var st=!em.length?'non
 /* ── Accounts: demos are open to everyone; signing in loads & saves YOUR competitors ── */
 var TOKEN=localStorage.getItem('ci_token')||'';
 var USER=null; try{USER=JSON.parse(localStorage.getItem('ci_user')||'null');}catch(e){}
+/* ── billing (Stripe) — the app asks the server, the server owns the truth ── */
+var BILLING=null;
+function loadBilling(){
+  if(!TOKEN||RO)return;
+  fetch(API+'/api/billing/status',{headers:authH()}).then(function(r){return r.ok?r.json():null;}).then(function(d){
+    if(!d)return;BILLING=d;paintBilling();paintAuth();
+    if(d.status==='locked')openPaywall();
+  }).catch(function(){});
+}
+function paintBilling(){
+  var el=document.getElementById('trialbar');
+  if(!BILLING||BILLING.status==='disabled'||BILLING.status==='comp'){if(el)el.remove();return;}
+  if(BILLING.status==='trialing'){
+    if(!el){el=document.createElement('div');el.id='trialbar';document.body.insertBefore(el,document.body.firstChild);}
+    el.innerHTML='<b>Trial — '+BILLING.trialDaysLeft+' day'+(BILLING.trialDaysLeft===1?'':'s')+' left.</b> Keep your competitor intel coming after it ends. <button onclick="startCheckout(this)">Subscribe · $197/mo</button>';
+  } else if(BILLING.status==='past_due'){
+    if(!el){el=document.createElement('div');el.id='trialbar';document.body.insertBefore(el,document.body.firstChild);}
+    el.innerHTML='<b>Payment issue</b> — your last charge failed. Please update your card. <button onclick="openPortal(this)">Fix payment</button>';
+  } else if(el){el.remove();}
+}
+function startCheckout(btn){
+  if(btn){btn.disabled=true;btn.textContent='Opening secure checkout…';}
+  fetch(API+'/api/billing/checkout',{method:'POST',headers:authH()}).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.url)location.href=d.url;
+    else{if(btn){btn.disabled=false;btn.textContent='Subscribe · $197/mo';}alert((d&&d.error)||'Could not open checkout — please try again.');}
+  }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Subscribe · $197/mo';}});
+}
+function openPortal(btn){
+  if(btn)btn.disabled=true;
+  fetch(API+'/api/billing/portal',{method:'POST',headers:authH()}).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.url)location.href=d.url;else{if(btn)btn.disabled=false;alert((d&&d.error)||'Could not open billing — please try again.');}
+  }).catch(function(){if(btn)btn.disabled=false;});
+}
+function openPaywall(){
+  var ov=document.getElementById('payOv');
+  if(!ov){
+    ov=document.createElement('div');ov.id='payOv';ov.className='pay-ov';
+    ov.innerHTML='<div class="pay-box">'
+      +'<span class="pay-k">TRIAL ENDED</span>'
+      +'<h2>Your competitors didn\u2019t stop moving</h2>'
+      +'<p>Daily captures for your competitors continue — subscribe to keep your dossiers, morning briefs and chat.</p>'
+      +'<div class="pay-price">$197<span>/mo</span></div>'
+      +'<div class="pay-sub">2 competitors included · +$47/mo each additional · cancel anytime</div>'
+      +'<button class="pay-cta" onclick="startCheckout(this)">Subscribe · $197/mo</button>'
+      +'<div class="pay-foot">Questions? Use the feedback button — we answer personally.</div>'
+      +'</div>';
+    document.body.appendChild(ov);
+  }
+  ov.style.display='flex';
+}
+(function(){var st=document.createElement('style');st.textContent=
+  '#trialbar{position:sticky;top:0;z-index:900;background:linear-gradient(90deg,rgba(87,210,207,.16),rgba(87,210,207,.06));border-bottom:1px solid rgba(120,170,180,.26);padding:9px 16px;text-align:center;font-size:13px}'
+  +'#trialbar button{margin-left:12px;background:#57d2cf;color:#06282a;border:0;border-radius:7px;padding:6px 14px;font-weight:700;cursor:pointer;font-size:12px}'
+  +'.pay-ov{display:none;position:fixed;inset:0;z-index:1200;background:rgba(4,8,10,.88);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px}'
+  +'.pay-box{max-width:430px;background:#0d1318;border:1.5px solid #3f9d9b;border-radius:18px;padding:36px 34px;text-align:center}'
+  +'.pay-k{font-family:monospace;font-size:10.5px;letter-spacing:.22em;color:#e2554f}'
+  +'.pay-box h2{margin:10px 0 8px;font-size:22px}'
+  +'.pay-box p{color:#8a99a2;font-size:14px}'
+  +'.pay-price{font-size:46px;font-weight:700;margin-top:16px}.pay-price span{font-size:17px;color:#8a99a2;font-weight:400}'
+  +'.pay-sub{font-family:monospace;font-size:11.5px;color:#8a99a2;margin-top:4px}'
+  +'.pay-cta{margin-top:20px;width:100%;background:#57d2cf;color:#06282a;border:0;border-radius:10px;padding:14px;font-weight:700;font-size:14px;cursor:pointer}'
+  +'.pay-foot{margin-top:14px;font-size:11.5px;color:#5e6e76}';
+  document.head.appendChild(st);})();
 // ── Public read-only share ──────────────────────────────────────────────────
 // app.html?share=<token> opens a client's dashboard for their team: all data + AI
 // chat, but every editing control hidden. SHARE carries the client's identity to the
@@ -982,7 +1045,7 @@ function loadSharedComps(cb){
 function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');localStorage.removeItem('adminKey');}catch(e){}clearMyBrandLocal();insightsCache={};angleCache={};paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
 function paintAuth(){refreshAdmin();syncPlan();var s=document.getElementById('authSlot');if(!s)return;
   if(RO){s.innerHTML='<span class="ro-badge"><span class="dot"></span>Shared view · read-only</span>';return;}
-  if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML=(ADMIN?'<button class="authbtn" onclick="openAdmin()" title="Admin panel">⚙ Admin</button>':'')+'<button class="authbtn" onclick="openShare()" title="Share a read-only view with your team">⇗ Share</button><button class="authbtn" onclick="openSlack()" title="Get your daily brief in Slack">⚡ Slack'+((USER&&USER.slack)?' ✓':'')+'</button><span class="authuser" onclick="openPw()" style="cursor:pointer" title="'+esc(em)+' — click to change your password">'+esc(em.split('@')[0])+(ADMIN?' · admin':'')+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
+  if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML=(ADMIN?'<button class="authbtn" onclick="openAdmin()" title="Admin panel">⚙ Admin</button>':'')+'<button class="authbtn" onclick="openShare()" title="Share a read-only view with your team">⇗ Share</button><button class="authbtn" onclick="openSlack()" title="Get your daily brief in Slack">⚡ Slack'+((USER&&USER.slack)?' ✓':'')+'</button>'+((BILLING&&(BILLING.status==='active'||BILLING.status==='past_due'))?'<button class="authbtn" onclick="openPortal(this)" title="Invoices, card, cancel — Stripe billing portal">💳 Billing</button>':'')+'<span class="authuser" onclick="openPw()" style="cursor:pointer" title="'+esc(em)+' — click to change your password">'+esc(em.split('@')[0])+(ADMIN?' · admin':'')+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
   else{s.innerHTML='<button class="authbtn primary" onclick="openAuth(\'signin\')">Sign in</button>';}
   var ab=document.querySelector('.add-btn');if(ab)ab.title=loggedIn()?'Add a competitor to your watchlist':'Add your own competitor — sign in required';
   paintBrandChip();
@@ -2416,7 +2479,7 @@ function confirmAdd(){
 }
 function patchComp(dbId,body){
   fetch(API+'/api/competitors/'+dbId,{method:'PATCH',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify(body)})
-    .then(function(r){if(r.status===401){doSignout(true);throw 0;}return r.json();})
+    .then(function(r){if(r.status===401){doSignout(true);throw 0;}if(r.status===402){closeModal();openPaywall();throw 0;}return r.json();})
     .then(function(d){
       if(d&&d.competitor){var c=mapServerComp(d.competitor);USERCOMPS=USERCOMPS.map(function(x){return x.dbId===c.dbId?c:x;});trackComp(c);editingComp=null;closeModal();state.sel=c.id;document.getElementById('app').dataset.view='detail';delete insightsCache[c.host];render();}
       else{var eU=document.getElementById('eU');eU.textContent=(d&&d.error)||'Could not save — please try again.';eU.style.display='block';}
@@ -2471,7 +2534,7 @@ function openConfirmPages(id){
 }
 function saveComp(body,after){
   fetch(API+'/api/competitors',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify(body)})
-    .then(function(r){if(r.status===401){doSignout(true);throw 0;}return r.json();})
+    .then(function(r){if(r.status===401){doSignout(true);throw 0;}if(r.status===402){closeModal();openPaywall();throw 0;}return r.json();})
     .then(function(d){
       if(d&&d.competitor){var c=mapServerComp(d.competitor);USERCOMPS=USERCOMPS.filter(function(x){return x.dbId!==c.dbId;});USERCOMPS.unshift(c);trackComp(c);editingComp=null;state.sel=c.id;closeModal();document.getElementById('app').dataset.view='detail';delete insightsCache[c.host];render();if(after)after();}
       else{var eU=document.getElementById('eU');eU.textContent=(d&&d.error)||'Could not save — please try again.';eU.style.display='block';}
@@ -2854,8 +2917,9 @@ function clientCard(c){
     +'<div class="cl-lbl">Weekly report → Slack</div><div class="cl-share-row"><button class="cl-mini add" onclick="sendClientWeekly('+c.id+',this)"'+(c.slack?'':' disabled')+'>⚡ Send to Slack</button><span class="cl-none" style="align-self:center">'+(c.slack?'posts this client\u2019s report links to their Slack':'client hasn\u2019t connected Slack yet')+'</span></div>'
     // 4 · share link
     +(link?'<div class="cl-lbl">Read-only share link</div><div class="cl-share-row"><input class="cl-in cl-link" id="cllink-'+c.id+'" readonly value="'+esc(link)+'" onclick="this.select()"><button class="cl-mini" onclick="copyClientLink('+c.id+',this)">Copy</button><button class="cl-mini" title="New link — the old one stops working" onclick="rotateShare('+c.id+',this)">Rotate</button></div>':'')
-    // 5 · account: limit · password · delete, one row
+    // 5 · account: plan · limit · password · delete
     +'<div class="cl-lbl">Account</div>'
+    +'<div class="cl-share-row" style="flex-wrap:wrap;margin-bottom:4px"><span class="cl-none" style="align-self:center">Plan: '+(c.comp?'free access':(c.plan_status==='active'?'paying ✓':(c.plan_status?c.plan_status:((c.trial_ends_at&&new Date(c.trial_ends_at)>new Date())?'trial':'no plan'))))+'</span><button class="cl-mini" onclick="toggleComp('+c.id+','+(c.comp?'false':'true')+',this)">'+(c.comp?'Revoke free access':'Grant free access')+'</button></div>'
     +'<div class="cl-share-row" style="flex-wrap:wrap"><input class="cl-in cl-nm" id="cllim-'+c.id+'" type="number" min="0" max="500" value="'+(c.max_competitors==null?'':c.max_competitors)+'" placeholder="limit — default ('+CLIENT_DFLT+')"><button class="cl-mini" onclick="setClientLimit('+c.id+',this)">Save limit</button><button class="cl-mini" onclick="resetClientPass('+c.id+',\''+esc(c.email)+'\')">Reset password…</button><button class="cl-del" style="margin-left:auto" title="Delete this client and their data" onclick="deleteClient('+c.id+',\''+esc(c.email)+'\')">Delete</button></div>'
     +'</div></div>';
 }
@@ -2916,6 +2980,12 @@ function sendClientWeekly(id,btn){
       setTimeout(function(){btn.textContent=old;btn.disabled=false;},3000);
     })
     .catch(function(){btn.textContent='✕ error';setTimeout(function(){btn.textContent=old;btn.disabled=false;},3000);});
+}
+function toggleComp(id,val,btn){
+  btn.disabled=true;
+  fetch(adminUrl('/api/admin/clients/'+id+'/comp'),{method:'POST',headers:adminHeaders(true),body:JSON.stringify({comp:val})}).then(function(r){return r.json();}).then(function(d){
+    btn.disabled=false;if(d&&d.ok)loadClients();else alert((d&&d.error)||'Could not update.');
+  }).catch(function(){btn.disabled=false;});
 }
 function setClientLimit(id,btn){
   var v=(document.getElementById('cllim-'+id).value||'').trim();
@@ -3039,7 +3109,8 @@ paintAuth();
   window.addEventListener('focus',check);                            // and when the tab is refocused
 })();
 if(RO){loadSharedComps();}
-else if(TOKEN){loadUserComps();
+else if(TOKEN){loadUserComps();loadBilling();
+  if(/[?&]billing=success/.test(location.search)){setTimeout(function(){alert('\u2713 Subscription active — welcome aboard! Your dossiers, briefs and chat continue uninterrupted.');history.replaceState(null,'',location.pathname);},400);}
   // Refresh the stored profile (picks up the admin flag for sessions from before it existed).
   fetch(API+'/api/me',{headers:authH()}).then(function(r){return r.ok?r.json():null;}).then(function(d){if(d&&d.user){USER=d.user;try{localStorage.setItem('ci_user',JSON.stringify(USER));}catch(e){}paintAuth();}}).catch(function(){});
 }

@@ -69,7 +69,7 @@ export async function createUser(email, password, { approved = false, admin = fa
   const hash = await bcrypt.hash(password, 10);
   try {
     const r = await pool.query(
-      'INSERT INTO users(email, password_hash, approved, admin) VALUES($1, $2, $3, $4) RETURNING id, email',
+      'INSERT INTO users(email, password_hash, approved, admin, trial_ends_at) VALUES($1, $2, $3, $4, now() + interval \'14 days\') RETURNING id, email',
       [email, hash, !!approved, !!admin],
     );
     return r.rows[0];

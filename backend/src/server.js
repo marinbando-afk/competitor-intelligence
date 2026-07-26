@@ -26,9 +26,17 @@ import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { systemStats } from './stats.js';
 import { getWeekly, generateWeekly, mondayOf } from './weekly.js';
+import { billingEnabled, billingStatus, checkoutSession, portalSession, syncQuantity, handleWebhook } from './billing.js';
 import { snapshotDays, snapshotForDay, recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost } from './snapshots.js';
 
 const app = express();
+// Stripe webhook FIRST, on the RAW body — signature verification fails on parsed JSON.
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    if (!billingEnabled()) return res.status(503).json({ error: 'Billing not configured.' });
+    res.json(await handleWebhook(req.body, req.headers['stripe-signature']));
+  } catch (e) { res.status(400).json({ error: 'Webhook verification failed.' }); }
+});
 // Emails can be large; also accept form-encoded posts from inbound-email services.
 app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true, limit: '3mb' }));
@@ -523,6 +531,24 @@ app.post('/api/track', async (req, res) => {
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
 
+// ── Billing (Stripe) — dormant until STRIPE_SECRET_KEY is set ────────────────
+app.get('/api/billing/status', requireAuth, async (req, res) => {
+  try { res.json(await billingStatus(req.user.uid)); }
+  catch (e) { res.json({ status: 'disabled', ok: true }); }   // billing errors never lock the app
+});
+app.post('/api/billing/checkout', requireAuth, async (req, res) => {
+  try {
+    if (!billingEnabled()) return res.status(503).json({ error: 'Billing is not live yet.' });
+    res.json(await checkoutSession(req.user.uid));
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+app.post('/api/billing/portal', requireAuth, async (req, res) => {
+  try {
+    if (!billingEnabled()) return res.status(503).json({ error: 'Billing is not live yet.' });
+    res.json(await portalSession(req.user.uid));
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+
 // Feature requests / feedback. Anyone can POST; only the owner (admin key) can list.
 app.post('/api/feedback', async (req, res) => {
   try {
@@ -778,11 +804,11 @@ app.get('/api/admin/clients', async (req, res) => {
   if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   try {
     await healStaleSetup();   // tidy every client's stale 'setup' row while we're here
-    const us = await pool.query('SELECT id, email, approved, share_token, max_competitors, created_at, slack_webhook FROM users WHERE admin = FALSE ORDER BY created_at DESC');
+    const us = await pool.query('SELECT id, email, approved, share_token, max_competitors, created_at, slack_webhook, comp, plan_status, trial_ends_at FROM users WHERE admin = FALSE ORDER BY created_at DESC');
     const cs = await pool.query('SELECT id, user_id, name, host, url, country, status, handles FROM competitors ORDER BY created_at ASC');
     const byUser = {};
     for (const c of cs.rows) (byUser[c.user_id] = byUser[c.user_id] || []).push(c);
-    res.json({ dflt: DEFAULT_MAX_COMPETITORS, warm: await warmUsage(), clients: us.rows.map((u) => ({ id: u.id, email: u.email, approved: u.approved, share_token: u.share_token, max_competitors: u.max_competitors, created_at: u.created_at, slack: isSlackWebhook(u.slack_webhook), competitors: byUser[u.id] || [] })) });
+    res.json({ dflt: DEFAULT_MAX_COMPETITORS, warm: await warmUsage(), clients: us.rows.map((u) => ({ id: u.id, email: u.email, approved: u.approved, share_token: u.share_token, max_competitors: u.max_competitors, created_at: u.created_at, slack: isSlackWebhook(u.slack_webhook), comp: u.comp, plan_status: u.plan_status, trial_ends_at: u.trial_ends_at, competitors: byUser[u.id] || [] })) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -862,6 +888,15 @@ app.post('/api/admin/clients/:id/limit', async (req, res) => {
 });
 
 // Reset a client's password.
+// Free access forever (beta clients, partners). The toggle the founder controls.
+app.post('/api/admin/clients/:id/comp', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const r = await pool.query('UPDATE users SET comp = $1 WHERE id = $2 AND admin = FALSE RETURNING id, comp', [!!(req.body || {}).comp, Number(req.params.id)]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'No such client.' });
+    res.json({ ok: true, comp: r.rows[0].comp });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 app.post('/api/admin/clients/:id/password', async (req, res) => {
   if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   try { await setPassword(Number(req.params.id), (req.body || {}).password); res.json({ ok: true }); }
@@ -929,6 +964,7 @@ app.delete('/api/admin/clients/:id/competitors/:cid', async (req, res) => {
   if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   try {
     const r = await pool.query('DELETE FROM competitors WHERE id = $1 AND user_id = $2 RETURNING host', [Number(req.params.cid), Number(req.params.id)]);
+    syncQuantity(Number(req.params.id));
     res.json({ ok: true });
     const host = r.rows[0] && r.rows[0].host;
     if (host) { const s = await pool.query('SELECT 1 FROM competitors WHERE host = $1 LIMIT 1', [host]); if (!s.rowCount) await removeTracked(host); }
@@ -1098,6 +1134,9 @@ app.post('/api/competitors', requireAuth, async (req, res) => {
     // A brand we already capture needs no baseline — start it 'watching' so it doesn't sit
     // on "capturing a live baseline…" until the next nightly warm. Only a genuinely new
     // brand starts 'setup'; warmBrand flips that once its first capture lands.
+    // Trial over + no subscription -> 402 so the app opens the subscribe screen.
+    const bs = await billingStatus(req.user.uid).catch(() => ({ ok: true }));
+    if (!bs.ok) return res.status(402).json({ error: 'Your trial has ended — subscribe to keep monitoring competitors.', code: 'payment_required' });
     let st = String(status || 'setup').slice(0, 24);
     if (st === 'setup' && await hasHistory(h)) st = 'watching';
     const r = await pool.query(
@@ -1111,6 +1150,7 @@ app.post('/api/competitors', requireAuth, async (req, res) => {
     // must never be able to fail the client's actual add.
     await mirrorToAdmins(req.user.uid, r.rows[0]);
     res.json({ competitor: r.rows[0] });
+    syncQuantity(req.user.uid);   // $47 addon follows the competitor count (prorated)
   } catch (e) {
     res.status(500).json({ error: 'Could not save competitor.' });
   }
@@ -1152,6 +1192,7 @@ app.delete('/api/competitors/:id', requireAuth, async (req, res) => {
   try {
     const r = await pool.query('DELETE FROM competitors WHERE id = $1 AND user_id = $2 RETURNING host', [req.params.id, req.user.uid]);
     res.json({ ok: true });
+    syncQuantity(req.user.uid);   // removing a competitor lowers next month's bill (prorated)
     // Stop the daily warm for this host once NO customer tracks it anymore ("one
     // competitor = one dataset" — keep scraping while any other account still has it).
     const host = r.rows[0] && r.rows[0].host;

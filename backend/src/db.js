@@ -95,6 +95,16 @@ export async function initSchema() {
     -- (their competitors + demos) with every editing control hidden — for sharing with
     -- a team. Null = no link yet; the admin mints one per client.
     ALTER TABLE users ADD COLUMN IF NOT EXISTS share_token TEXT;
+    -- Stripe billing (billing.js). comp = free access forever (admin toggle; every account
+    -- existing before billing shipped on 2026-07-26 is comped by the backfill below so no
+    -- beta client ever hits a paywall unannounced).
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_status TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS period_end TIMESTAMPTZ;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS comp BOOLEAN NOT NULL DEFAULT FALSE;
+    UPDATE users SET comp = TRUE WHERE comp = FALSE AND created_at < TIMESTAMPTZ '2026-07-27';
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_share_token ON users(share_token) WHERE share_token IS NOT NULL;
     -- One-time data migrations. A marker row means "already run", so a backfill can't
     -- repeat on every boot and undo something the founder has since done by hand.
