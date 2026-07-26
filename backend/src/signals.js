@@ -284,7 +284,7 @@ export async function dailySignals(host, commit) {
     if (cur.length && prevSnap) {
       const prevIds = new Set(prevSnap.data.emails.map((e) => e.id).filter((x) => x != null));
       const fresh = cur.filter((e) => e.id != null && !prevIds.has(e.id));
-      out.activity.emails = fresh.slice(0, 3).map((e) => ({ subject: clip(e.subject || '(no subject)', 70), offer: e.offer || '' }));
+      out.activity.emails = fresh.slice(0, 4).map((e) => ({ subject: clip(e.subject || '(no subject)', 70), offer: e.offer || '', day: String(e.date || '').slice(0, 10) }));
     }
   } catch (e) { /* no email activity */ }
 
@@ -408,7 +408,20 @@ export function activityLines(s) {
   const a = s.activity, lines = [];
   const link = (u, label) => (u ? ' — <' + u + '|' + label + ' ↗>' : '');
   for (const ad of (a.ads || [])) lines.push('New ad — “' + ad.about + '”' + link(ad.link, 'view'));
-  for (const em of (a.emails || [])) lines.push('New email — “' + em.subject + '”' + (em.offer ? ' [' + em.offer + ']' : ''));
+  // EMAIL COUNTS ARE SAFE TO STATE (founder, 25 Jul): a brand sends 1-3 emails a day, so the
+  // number is verifiable — unlike ad counts, where a partial capture would make a stated
+  // total wrong. Same-day sends collapse into one counted line.
+  const ems = (a.emails || []);
+  if (ems.length) {
+    const byDay = new Map();
+    for (const em of ems) { const k = em.day || ''; if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(em); }
+    const todayISO = new Date().toISOString().slice(0, 10);
+    for (const [day, list] of byDay) {
+      const label = list.map((em) => '“' + em.subject + '”' + (em.offer ? ' [' + em.offer + ']' : '')).join(', ');
+      if (list.length === 1) lines.push('New email — ' + label);
+      else lines.push(list.length + ' emails sent ' + (day === todayISO || !day ? 'today' : 'on ' + day) + ' — ' + label);
+    }
+  }
   for (const p of (a.posts || [])) {
     lines.push((p.count > 1 ? p.count + ' new ' + p.platform + ' posts, latest: ' : 'New ' + p.platform + ' post — ') + '“' + p.about + '”' + link(p.url, 'view'));
   }
