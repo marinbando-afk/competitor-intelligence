@@ -1208,25 +1208,28 @@ function start() {
       }
     } catch (e) { console.warn('one-off bonafide cleanup:', e.message); }
   }, 45000);
-  // One-off (24 Jul v2 — delete once logged): keep ONLY own-domain/no-landing ads for
-  // Bonafide Provisions — both foreign twins (Health/Thermella AND Café AR) leaked; the
-  // truth is this brand runs no ads right now, and the capture must say exactly that.
+  // One-off (24 Jul v3 — delete once logged): page-scoped scans stored INACTIVE ads, which
+  // showed as current AND fed "Black Friday still live" findings off long-dead creatives.
+  // Strip inactive ads from every stored ads capture, then regenerate the affected reads.
   setTimeout(async () => {
     try {
-      const r = await pool.query(`SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots WHERE host='bonafideprovisions.com' AND channel='ads'`);
+      const r = await pool.query(`SELECT host, to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots WHERE channel='ads' AND day >= CURRENT_DATE - 10`);
+      const touched = new Set();
       for (const row of r.rows) {
         const d = row.data || {};
         if (!Array.isArray(d.ads)) continue;
-        const keep = d.ads.filter((a) => { try { const dm = new URL(a.landing).hostname.replace(/^www\./, ''); return dm === 'bonafideprovisions.com' || dm.endsWith('.bonafideprovisions.com'); } catch (e) { return true; } });
+        const keep = d.ads.filter((a) => a.active !== false);
         if (keep.length !== d.ads.length) {
           d.ads = keep; d.active = keep.length;
-          await pool.query(`UPDATE snapshots SET data=$1 WHERE host='bonafideprovisions.com' AND channel='ads' AND to_char(day,'YYYY-MM-DD')=$2`, [JSON.stringify(d), row.day]);
-          console.log('✓ one-off: stripped Bonafide-Health ads from bonafideprovisions.com ' + row.day + ' (' + keep.length + ' kept)');
+          await pool.query(`UPDATE snapshots SET data=$1 WHERE host=$2 AND channel='ads' AND to_char(day,'YYYY-MM-DD')=$3`, [JSON.stringify(d), row.host, row.day]);
+          touched.add(row.host);
         }
       }
-      await generateInsights('Bonafide', 'bonafideprovisions.com');
-      console.log('✓ one-off: Bonafide insights regenerated post-scrub');
-    } catch (e) { console.warn('one-off bonafide-health cleanup:', e.message); }
+      if (touched.size) console.log('✓ one-off: stripped inactive ads from ' + touched.size + ' brand(s): ' + [...touched].join(', '));
+      for (const h of touched) {
+        try { const t = (await allBrands()).find((b) => b.host === h); await generateInsights(t ? t.name : h, h); } catch (e) { /* per-brand best effort */ }
+      }
+    } catch (e) { console.warn('one-off inactive-scrub:', e.message); }
   }, 50000);
 }
 // Start the server no matter what — if the DB isn't wired yet, accounts are

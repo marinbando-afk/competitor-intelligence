@@ -127,7 +127,7 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
   // and a genuinely NEW ad is always captured.
   const sortQ = '&search_type=keyword_unordered&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped';
   const searchUrl = pageId
-    ? ('https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=' + encodeURIComponent(country) + '&view_all_page_id=' + pageId + '&search_type=page&media_type=all')
+    ? ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&view_all_page_id=' + pageId + '&search_type=page&media_type=all')
     : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + sortQ + '&media_type=all');
 
   const ADS_N = Number(process.env.ADS_COUNT) || 50;   // founder-set (20 Jul): newest-first sorting means 50 always contains the new launches; deeper pulls were pure Apify cost
@@ -180,7 +180,7 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
 
   let items = [], usedQuery = brand;
   if (pageId) {
-    items = await runOne(searchUrl, '', 'all', pageId);
+    items = await runOne(searchUrl, '', 'active', pageId);   // ACTIVE only — a page scan used to pull the page's whole history, so long-dead ads showed as current (founder, 24 Jul)
   } else {
     // 1) PAGE-FIRST (founder doctrine, 22 Jul): the brand's own page(s) scanned directly —
     //    Meta lists a page's ads exhaustively, so the core inventory never depends on the
@@ -535,7 +535,14 @@ async function normalize(items, brand, country, host, debug) {
     // land on the brand's OWN domain when we know it; with no known domain, keep all.
     kept = hostDom ? ads.filter((a) => { const d = adDomain(a.landing); return d && (d === hostDom || d.endsWith('.' + hostDom)); }) : ads;
   }
-  const unique = dedupeAds(kept);   // never show the same creative twice
+  // DROP INACTIVE ADS (founder, 24 Jul: "why the fuck are you showing inactive ads"). A
+  // page-scoped scan used to ask Meta for the page's ENTIRE history, so long-dead creatives
+  // showed as current — and worse, fed the stale-sale findings ("Black Friday still live"
+  // computed off ads that stopped running months ago). An ad Meta marks inactive never
+  // enters a capture; ads that go inactive AFTER capture keep their honest INACTIVE badge
+  // in older stored days.
+  const live = kept.filter((a) => a.active !== false);
+  const unique = dedupeAds(live);   // never show the same creative twice
 
   const platforms = [...new Set(unique.flatMap((a) => a.platforms))];
   const newest = unique.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '';
