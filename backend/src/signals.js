@@ -165,7 +165,8 @@ async function saleBannerSeenRecently(host, banner, todayStr) {
 // Detect everything for one host. Returns a structured object; empty arrays / null
 // mean "no signal". Never throws — a subsystem with no data just yields nothing.
 export async function dailySignals(host, commit) {
-  const out = { staleOffer: [], sale: null, funnel: [], fbPage: [], products: [], angle: [], activity: { ads: [], posts: [], emails: [], website: [] } };
+  const out = { brand: '', staleOffer: [], sale: null, funnel: [], fbPage: [], products: [], angle: [], activity: { ads: [], posts: [], emails: [], website: [] } };
+  try { const t = (await latestSnapshot('__tracked__', 'list')); const it = ((t && t.items) || []).find((x) => x && x.host === host); out.brand = (it && it.name) || host.split('.')[0]; } catch (e) { out.brand = host.split('.')[0]; }
   if (!host) return out;
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -216,7 +217,7 @@ export async function dailySignals(host, commit) {
       try { out.staleOffer = await newStaleOffers(host, todayAds, todayStr, !!commit); } catch (e) { /* no offer signal */ }
       const ch = await adsChanges(host, todayAds, adSnap.day);   // diff as of the CAPTURE's day, not the wall clock
       if (ch && !ch.baseline) {
-        out.funnel = (ch.signals.landings || []).filter((l) => l && l.domain);   // [{domain, url}]
+        out.funnel = await freshFunnels(host, (ch.signals.landings || []).filter((l) => l && l.domain), todayStr);
         out.fbPage = (ch.signals.pages || []).filter(Boolean);                    // [pageName]
         out.fbPageGone = (ch.signals.droppedPages || []).filter(Boolean);         // retired whitelisted/partner pages
         out.angle = await newAngles(host, ch.newAds || [], todayStr);
@@ -304,10 +305,46 @@ const FUNNEL_KNOWN = [
   [/(^|\.)target\.com$/, 'their Target listing'],
   [/(^|\.)tiktok\.com$/, 'their TikTok Shop'],
 ];
-function funnelExplain(domain) {
+function funnelExplain(domain, brand) {
   const d = String(domain || '').toLowerCase();
   for (const [re, what] of FUNNEL_KNOWN) if (re.test(d)) return ' — ' + what;
+  // A funnel domain carrying the brand's OWN name is their satellite funnel, not a third
+  // party (founder, 24 Jul — luxeresearchlab.com for Luxe). Label it honestly.
+  const toks = String(brand || '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+  if (toks.some((t) => d.replace(/[^a-z0-9]/g, '').indexOf(t) >= 0)) {
+    return ' — carries their own brand name, so it looks like their own satellite funnel rather than a third party';
+  }
   return ' — a third-party landing/funnel page (not their own site)';
+}
+
+// NEW = launched THIS WEEK (founder rule, 24 Jul: Smooche's jointrybe.com was re-announced
+// as "new" for three weeks because it drops in and out of the newest-N capture window).
+// A funnel counts as new only if its FIRST appearance in any stored capture falls on/after
+// this week's Monday; it then stays reportable until Sunday, labelled with that first-seen
+// day so the reader knows it isn't today's news.
+async function freshFunnels(host, landings, todayStr) {
+  if (!landings.length) return [];
+  const d = new Date(todayStr + 'T00:00:00Z');
+  const monday = new Date(d); monday.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  const mondayStr = monday.toISOString().slice(0, 10);
+  let snaps = [];
+  try { snaps = await allSnapshots(host, 'ads'); } catch (e) { return landings; }   // no history → trust the diff
+  const firstSeen = new Map();
+  for (const s of snaps) {
+    if (!s.day) continue;
+    for (const a of ((s.data && s.data.ads) || [])) {
+      const dm = adDomain(a.landing);
+      if (dm && !firstSeen.has(dm)) firstSeen.set(dm, s.day);
+      else if (dm && s.day < firstSeen.get(dm)) firstSeen.set(dm, s.day);
+    }
+  }
+  const out = [];
+  for (const l of landings) {
+    const fs = firstSeen.get(l.domain);
+    if (fs && fs < mondayStr) continue;               // seen before this week → not news
+    out.push({ ...l, firstSeen: fs && fs !== todayStr ? fs : '' });
+  }
+  return out;
 }
 
 export function hasSignal(s) {
@@ -345,7 +382,10 @@ export function signalLines(s) {
       (f.started ? ', live since ' + f.started : '') + link(f.link, 'view ad'));
   }
   if (s.sale) lines.push(s.sale);
-  for (const f of (s.funnel || [])) lines.push('New funnel: ' + f.domain + funnelExplain(f.domain) + link(f.url, 'open'));
+  for (const f of (s.funnel || [])) {
+    const when = f.firstSeen ? ' (first seen ' + f.firstSeen + ', still new this week)' : '';
+    lines.push('New funnel: ' + f.domain + when + funnelExplain(f.domain, s.brand) + link(f.url, 'open'));
+  }
   // Same-type signals MERGE into one line (founder, 22 Jul: the brief was getting messy —
   // two "New Facebook page advertising" rows for one brand is noise, one row is signal).
   const fp = (s.fbPage || []).filter(Boolean);
