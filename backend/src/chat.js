@@ -11,7 +11,7 @@ import { fetchSocial } from './social.js';
 import { getEmails } from './email.js';
 import { latestSnapshot, recentSnapshots } from './snapshots.js';
 import { funnelFacts, getInsights } from './insights.js';
-import { offerFacts } from './occasions.js';
+import { offerFacts, offerFlags } from './occasions.js';
 
 const MODEL = process.env.CHAT_MODEL || 'claude-sonnet-4-6';
 
@@ -57,7 +57,17 @@ async function assembleContext({ name, host, country, handles }) {
       if (of_) out.push('  ' + of_.trim().replace(/\n/g, '\n  '));
       // surface every third-party ad (the publisher advertorials), then a sample of own-page ads
       const third = a.ads.filter(ff.isThird), first = a.ads.filter((x) => !ff.isThird(x));
-      const sample = third.slice(0, 8).concat(first.slice(0, Math.max(10, 24 - Math.min(third.length, 8))));
+      let sample = third.slice(0, 8).concat(first.slice(0, Math.max(10, 24 - Math.min(third.length, 8))));
+      // PIN ads named in the OFFER TIMING FACTS so "which ad is that?" is answerable from the
+      // listed sample instead of guessed (founder, 24 Jul — Frøya's Valentine's ad).
+      try {
+        const flagged = new Set(offerFlags(a.ads, new Date()).map((f) => f.adId || f.link).filter(Boolean));
+        if (flagged.size) {
+          const inSample = new Set(sample.map((x) => x.id || x.link));
+          const missing = a.ads.filter((x) => flagged.has(x.id || x.link) && !inSample.has(x.id || x.link));
+          if (missing.length) sample = missing.concat(sample);
+        }
+      } catch (e) { /* sample stays as-is */ }
       sample.forEach((ad) => out.push(`  • ad ${ad.started} [${ad.hasVideo ? 'video' : 'image'}]${(ff.kindOf ? (ff.kindOf(ad) === 'partner' ? ' (PARTNERSHIP)' : ff.kindOf(ad) === 'white' ? ' (WHITELISTED)' : '') : (ff.isThird(ad) ? ' (3RD-PARTY PLACEMENT)' : ''))}${ad.page ? ` fb-page:${ad.page}` : ''}: ${oneLine(ad.text).slice(0, 150)}${ad.hook ? ` | HOOK: ${oneLine(ad.hook)}` : ''}${ad.angle ? ` · ANGLE: ${oneLine(ad.angle)}` : ''}${ad.creative ? ` · CREATIVE: ${oneLine(ad.creative)}` : ''}${ad.cta ? ` [CTA ${ad.cta}]` : ''}${ad.landing ? (/^https?:\/\/(www\.)?(facebook|fb|instagram)\.com/i.test(ad.landing) ? ` -> lands on their own ${/instagram/i.test(ad.landing) ? 'Instagram' : 'Facebook'} page (PAGE-LIKE/follow campaign; logged-out scrapers see a login URL)` : ` -> lands ${ad.landing}`) : ''}${ad.link ? ` | ${ad.link}` : ''}`));
     }
   } catch (e) { /* skip channel on error */ }
@@ -147,6 +157,8 @@ export async function chat(body, uid) {
     `- Ground every claim in the data/analysis; cite specific dates, numbers, platforms, pages, domains and offers when relevant.\n` +
     `- TODAY IS ${today}. A live sale is always worth naming. If an OFFER TIMING FACTS block is present it is computed ground truth: the brand is running an offer that is out of season (an occasion months past) or asserting a deadline it has already outlived. Say so plainly whenever sales, offers, discounts, urgency or pricing come up — quote its numbers verbatim and never do your own date arithmetic.\n` +
     `- Only say something "isn't captured" if it is genuinely absent from BOTH the analysis and the data — and never claim the analysis itself doesn't exist. Never speculate or invent figures.\n` +
+    `- NEVER GUESS AN IDENTITY: asked WHICH ad/page/product a finding refers to, answer only from the OFFER TIMING FACTS (they name the Facebook page, quote the ad copy and give its link) or the sample list. If the identifying details are genuinely absent, say so plainly and stop — never write "most likely X" or list pages it might have come from.\n` +
+    `- NEVER state how long a sale or ad has been running in days ("live 5 days", "running 123 days"). Give the START DATE instead, and say whether it is new or unchanged.\n` +
     `- The DATA spans the recent capture window (often ~30 days), not just today — for ranges ("last 30 days") or superlatives ("highest engagement"), scan the FULL list and compare the numbers given.\n` +
     `- When you reference a specific post, ad, or email, include its link/URL from the data, in full and on its own. If an item has no link in the data, say so.\n` +
     `- Lead with the answer. Be concise and direct. Don't narrate reasoning or restate the question.\n` +

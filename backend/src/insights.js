@@ -16,7 +16,7 @@ import { getEmails } from './email.js';
 import { diffWebsite, siteShot, siteBannerFromShot } from './website.js';
 import { getMyBrand } from './brand.js';
 import { transcribeVideo } from './transcribe.js';
-import { offerFacts, bannerFacts, todayLine, isSaleBanner } from './occasions.js';
+import { offerFlags, offerFacts, bannerFacts, todayLine, isSaleBanner } from './occasions.js';
 
 // True when an Anthropic error means the account is out of credit (vs auth/rate/etc).
 function isCreditError(e) { return /credit balance is too low/i.test(String((e && e.message) || e)); }
@@ -155,7 +155,18 @@ async function fmtAds(d, today) {
   const ff = funnelFacts(ads, d.brand);
   // Sample ads — include every third-party ad, then fill with first-party, so both are visible.
   const third = ads.filter(ff.isThird), first = ads.filter((a) => !ff.isThird(a));
-  const sample = third.slice(0, 6).concat(first.slice(0, Math.max(6, 16 - Math.min(third.length, 6))));
+  let sample = third.slice(0, 6).concat(first.slice(0, Math.max(6, 16 - Math.min(third.length, 6))));
+  // PIN any ad the OFFER TIMING FACTS calls out: a finding the model is told to lead with
+  // must have its ad visible in the sample, or it can date the ad but not identify it and
+  // starts speculating (founder, 24 Jul — Frøya's Valentine's ad).
+  try {
+    const flagged = new Set(offerFlags(ads, today ? new Date(today) : new Date()).map((f) => f.adId || f.link).filter(Boolean));
+    if (flagged.size) {
+      const inSample = new Set(sample.map((a) => a.id || a.link));
+      const missing = ads.filter((a) => flagged.has(a.id || a.link) && !inSample.has(a.id || a.link));
+      if (missing.length) sample = missing.concat(sample).slice(0, sample.length + missing.length);
+    }
+  } catch (e) { /* sample stays as-is */ }
   const kindTag = (a) => { const k = ff.kindOf ? ff.kindOf(a) : 'own'; return k === 'partner' ? ' (PARTNERSHIP)' : k === 'white' ? ' (WHITELISTED)' : ''; };
   // A facebook/instagram landing URL is a LOGGED-OUT-SCRAPER ARTIFACT on Page-Like/follow
   // campaigns (the scraper hits the login wall; real users land on the brand's page).
@@ -446,7 +457,8 @@ function toBullets(v, max) {
 export const NEWS_RULE =
   `REPORT NEWS LIKE A NEWSROOM — EVENT FIRST, MEANING SECOND. When something CHANGED, the sentence starts with the change itself, in TIME ORDER and plain words: what it was → what it is now ("4th of July Sale replaced by Summer Sale — still 58% off"), and only THEN the interpretation ("third pretext rotation — this is their real price"). NEVER lead with the conclusion and tuck the event inside it, and never use backwards constructions that force the reader to unscramble which state is older ("Y is a renamed X", "Y, which replaced X"). The reader must learn WHAT HAPPENED before being told WHAT IT MEANS. This ordering applies to every headline, summary, verdict and bullet.\n` +
   `PLAIN LANGUAGE (founder rule): say the literal mechanism in words a marketer would use to a colleague — "all their ads are now optimised for Facebook page likes" — NOT abstracted strategy-speak ("paused DTC traffic; building audience only — no conversion push"). One concrete mechanism beats two abstract nouns; if a sentence needs a semicolon AND a dash to hold its ideas together, split it or cut it. Plain and direct wins over clever and compressed.\n` +
-  `TIME-ANCHOR EVERY STATE (founder rule): a bare "is live" cannot be told apart from news. Every claim about an ongoing state carries its age — "40%-off sale, running since 12 Jul (12 days)" or "started today" — using ONLY dates from a computed TIMELINE/FACTS block; if no dated fact is available, say "already running when monitoring began" rather than implying it is new.\n` +
+  `TIME-ANCHOR EVERY STATE (founder rule): a bare "is live" cannot be told apart from news. Say whether it is NEW or UNCHANGED and give the START DATE from a computed TIMELINE/FACTS block — "40%-off sale, unchanged since 12 Jul" or "sale started today". NEVER state a running duration ("running 12 days", "live for 123 days", "for 5 weeks") — the date already says it and the tally is noise. If no dated fact exists, say "already running when monitoring began" rather than implying it is new.\n` +
+  `NEVER GUESS AN IDENTITY (founder rule): when a finding names a specific ad, page, product or link, identify it ONLY from the FACTS or the sample provided — quote the page name, copy and link given there. If those details are genuinely absent, say plainly that the specific ad is not in the captured sample, and stop. NEVER write "most likely X" or list pages it might have come from — a guess dressed as analysis is worse than an admitted gap.\n` +
   `THE USEFULNESS TEST (founder rule): before emitting ANY line, ask — would this be useful to the client's MARKETING TEAM and DIRECTOR OF GROWTH? Does it make sense on its own? If not, DROP IT. Never emit raw data artifacts (a price "0 → 38", an unnamed "4 products removed", a count without the things counted); name the actual products/pages/offers or leave the line out. When a term or platform is niche (a retail-tech funnel, an industry acronym), add a 3-6 word explanation so a non-specialist reader knows what it is.\n`;
 
 async function ask(channel, brand, todayBlock, prevBlock, me, today) {
@@ -542,9 +554,10 @@ export async function generateInsights(brand, host) {
           if (!b && gap < 2) { gap++; continue; }   // tolerate short read-gaps (failed captures)
           break;
         }
-        const days = Math.max(0, Math.round((Date.parse(r[0].day) - Date.parse(firstDay)) / 864e5));
-        saleTimeline = '\nPROMO TIMELINE (computed from daily captures — quote these, never your own date math): the current promo/banner first appeared ' +
-          (days === 0 ? 'TODAY (' + firstDay + ') — this IS news; report it as new.' : 'on ' + firstDay + ' and has run ' + days + '+ day' + (days === 1 ? '' : 's') + ' unchanged — standing context, NOT news; say how long it has been running.');
+        const isToday = firstDay === r[0].day;
+        saleTimeline = '\nPROMO TIMELINE (computed from daily captures — quote these, never your own date math): the current promo/banner ' +
+          (isToday ? 'FIRST APPEARED TODAY (' + firstDay + ') — this IS news; report it as new/changed.'
+                   : 'has been UNCHANGED since ' + firstDay + ' — standing context, NOT news. State it is unchanged and give that date; do NOT state how many days it has run.');
       }
       const todayBlock = fmtWeb(r[0].data, day, recentSaleBanner) + saleTimeline + '\nCHANGES vs previous capture: ' + (changes ? (changes.join('; ') || 'none detected') : 'n/a (first capture)');
       out.website = await ask('website', brand, todayBlock, r[1] && r[1].data ? fmtWeb(r[1].data) : '', me, day);

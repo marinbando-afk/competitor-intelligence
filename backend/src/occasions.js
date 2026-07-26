@@ -167,6 +167,11 @@ export function offerFlags(ads, today) {
       // accident, but one deliberately created months away from the occasion it names.
       const createdAfter = started ? Math.round((started - p.last) / DAY) : null;
       out.push({
+        // IDENTITY travels with the finding (founder, 24 Jul: "how can you report there is a
+        // V-day ad but not tell me which one"): page + a copy quote + the link, so every
+        // surface can NAME the ad instead of guessing which page it came from.
+        page: (a && a.page) || '', quote: String((a && (a.text || a.title)) || '').replace(/\s+/g, ' ').trim().slice(0, 120),
+        adId: (a && a.id) || '',
         kind: 'occasion', label: p.label, started: started ? sd : null, running, link,
         last: iso(p.last), next: iso(p.next), daysSince: p.daysSince,
         monthsSince: months(p.daysSince), monthsUntil: months(p.daysUntil),
@@ -186,12 +191,21 @@ export function offerFlags(ads, today) {
 // to say, so a clean advertiser adds no noise to the prompt.
 export function offerFacts(ads, today) {
   const lines = offerFlags(ads, today).map((f) => {
-    const runLine = f.running == null ? '' : ' It has been running for ' + f.running + ' days (live since ' + f.started + ').';
+    // NO RUNNING-DAY COUNTERS (founder, 24 Jul: "never call out how many days the sale or ad
+    // is running"). The START DATE answers new-vs-old; a "live for 123 days" tally is noise.
+    const runLine = f.started ? ' It has been live since ' + f.started + '.' : '';
     if (f.kind === 'occasion') {
       let l = '- OUT-OF-SEASON OFFER — a LIVE ad invokes "' + f.label + '". ' + f.label + ' last fell on ' + f.last +
         ' — ' + f.monthsSince + ' months (' + f.daysSince + ' days) BEFORE today — and does not come round again until ' +
         f.next + ', ' + f.monthsUntil + ' months away. This occasion is FAR OUT OF SEASON.' + runLine;
       if (f.createdAfter) l += ' The ad was CREATED on ' + f.started + ', ' + months(f.createdAfter) + ' months AFTER that ' + f.label + ' — it was never a real seasonal promo.';
+      // Name the ad: which Facebook page runs it, what it says, where to open it. Without
+      // this the model can date the finding but not identify it, and starts guessing.
+      const idBits = [];
+      if (f.page) idBits.push('Facebook page "' + f.page + '"');
+      if (f.quote) idBits.push('ad copy starts: "' + f.quote + '"');
+      if (f.link) idBits.push('open it: ' + f.link);
+      if (idBits.length) l += ' THIS EXACT AD — ' + idBits.join(' · ') + '. Identify it by these details when asked which ad; never guess a different page.';
       return l;
     }
     return '';

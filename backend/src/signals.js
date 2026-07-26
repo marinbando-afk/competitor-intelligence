@@ -329,8 +329,9 @@ export function signalLines(s) {
   // Announced once, so it leads — and it says the thing outright rather than making the
   // reader infer it from a date. Numbers come from occasions.js, never from a model.
   for (const f of (s.staleOffer || [])) {
-    lines.push('Fake sale: “' + f.label + '” still live — ' + f.monthsSince + ' months out of season, running ' +
-      f.running + ' days' + link(f.link, 'view ad'));
+    // No running-day counter (founder, 24 Jul) — the out-of-season gap is the finding.
+    lines.push('Fake sale: “' + f.label + '” still live — ' + f.monthsSince + ' months out of season' +
+      (f.started ? ', live since ' + f.started : '') + link(f.link, 'view ad'));
   }
   if (s.sale) lines.push(s.sale);
   for (const f of (s.funnel || [])) lines.push('New funnel: ' + f.domain + funnelExplain(f.domain) + link(f.url, 'open'));
