@@ -328,8 +328,19 @@ export function signalLines(s) {
   const link = (u, label) => (u ? ' — <' + u + '|' + label + ' ↗>' : '');
   // Announced once, so it leads — and it says the thing outright rather than making the
   // reader infer it from a date. Numbers come from occasions.js, never from a model.
+  // ONE LINE PER OCCASION (founder, 24 Jul: CurrentBody printed the same Black-Friday
+  // finding three times, once per ad). The finding is "they're running an out-of-season
+  // Black Friday sale" — how many creatives carry it is not brief-layer news. Merge by
+  // label, keep the EARLIEST start date (when the claim really began) and one live link.
+  const byLabel = new Map();
   for (const f of (s.staleOffer || [])) {
-    // No running-day counter (founder, 24 Jul) — the out-of-season gap is the finding.
+    const k = String(f.label || '').toLowerCase();
+    const cur = byLabel.get(k);
+    if (!cur) { byLabel.set(k, { ...f }); continue; }
+    if (f.started && (!cur.started || f.started < cur.started)) cur.started = f.started;
+    if (!cur.link && f.link) cur.link = f.link;
+  }
+  for (const f of byLabel.values()) {
     lines.push('Fake sale: “' + f.label + '” still live — ' + f.monthsSince + ' months out of season' +
       (f.started ? ', live since ' + f.started : '') + link(f.link, 'view ad'));
   }
