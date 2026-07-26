@@ -154,6 +154,18 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
     if (/\s/.test(brand)) pushV(brand.replace(/\s+/g, ''), 'keyword_exact_phrase');
     const label = String(host || '').split('.')[0];
     if (label && label.length >= 4) pushV(label, 'keyword_exact_phrase');
+    // CONFIRMED SOCIAL HANDLES as query variants (founder, 24 Jul — Mars Man advertises from
+    // a page called "mengotomars", which shares nothing with the brand name, so every
+    // name-based query returned nothing).
+    if (host) {
+      try {
+        const hand = await brandHandlesFor(cleanAdsHost(host));
+        for (const v of Object.values(hand || {})) {
+          const q = String(v || '').replace(/^@/, '').trim();
+          if (q.length >= 5 && !/^profile\.php/i.test(q)) pushV(q, 'keyword_exact_phrase');
+        }
+      } catch (e) { /* handles optional */ }
+    }
     pushV(brand, 'keyword_unordered');
   }
 
