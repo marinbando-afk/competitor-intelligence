@@ -60,20 +60,24 @@ button{font-family:inherit;cursor:pointer}
 /* Collapsible rail (desktop): logos only, expands to the full list on hover. */
 @media(min-width:881px){
   .rail{position:absolute;left:0;top:0;bottom:0;width:76px;z-index:20;overflow-x:hidden;transition:width .24s cubic-bezier(.4,0,.2,1)}
-  .rail:hover{width:332px;box-shadow:24px 0 70px rgba(0,0,0,.5)}
+  /* .open mirrors :hover, set by JS on the RAIL element itself. render() replaces the rows
+     inside #railList, and a browser drops :hover when the element under the pointer is
+     destroyed — so a background refresh landing mid-hover snapped the watchlist shut and ate
+     the click (founder, 27 Jul). The class lives on the rail, which is never re-rendered. */
+  .rail:hover,.rail.open{width:332px;box-shadow:24px 0 70px rgba(0,0,0,.5)}
   /* The rail overlays (position:absolute) rather than sitting in flow, so expanding it on
      hover must also push .detail's margin — otherwise the wider rail silently covers the
      left edge of the report underneath instead of revealing more of the watchlist. */
   .detail{margin-left:76px;transition:margin-left .24s cubic-bezier(.4,0,.2,1)}
-  .rail:hover+.detail{margin-left:332px}
+  .rail:hover+.detail,.rail.open+.detail{margin-left:332px}
   .rail .row-main{opacity:0;transition:opacity .1s}
-  .rail:hover .row-main{opacity:1;transition:opacity .2s .1s}
-  .rail:not(:hover) .rail-h{justify-content:center}
-  .rail:not(:hover) .rail-h .lbl{display:none}
-  .rail:not(:hover) .add-btn{padding:8px}
-  .rail:not(:hover) .add-btn .abl{display:none}
-  .rail:not(:hover) .row{padding-left:20px}
-  .rail:not(:hover) .rail-group{color:transparent}
+  .rail:hover .row-main,.rail.open .row-main{opacity:1;transition:opacity .2s .1s}
+  .rail:not(:hover):not(.open) .rail-h{justify-content:center}
+  .rail:not(:hover):not(.open) .rail-h .lbl{display:none}
+  .rail:not(:hover):not(.open) .add-btn{padding:8px}
+  .rail:not(:hover):not(.open) .add-btn .abl{display:none}
+  .rail:not(:hover):not(.open) .row{padding-left:20px}
+  .rail:not(:hover):not(.open) .rail-group{color:transparent}
 }
 
 /* ── rail ── */
@@ -2851,6 +2855,16 @@ function loadAdminClients(){
     b.innerHTML=html;
   }).catch(function(){b.innerHTML='<div class="fb-empty">Couldn’t load.</div>';});
 }
+// Keep the watchlist open across background re-renders (see .rail.open in the CSS above).
+(function(){
+  function wire(){
+    var r=document.querySelector('.rail');
+    if(!r){setTimeout(wire,200);return;}
+    r.addEventListener('mouseenter',function(){r.classList.add('open');});
+    r.addEventListener('mouseleave',function(){r.classList.remove('open');});
+  }
+  wire();
+})();
 var ADMIN_CLIENTS=[];
 var ANN_DEFAULT='📢 *Platform update:* each brief now covers a full previous day and surfaces only what matters most — sometimes a single email, sometimes a big sale change.';
 function annIds(){return Array.prototype.slice.call(document.querySelectorAll('.ann-ck:checked')).map(function(x){return +x.value;});}
