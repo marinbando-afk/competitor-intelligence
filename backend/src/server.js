@@ -177,12 +177,24 @@ async function mirrorToAdmins(byUid, c) {
   } catch (e) { console.warn('mirrorToAdmins ' + (c && c.host) + ':', e.message); }
 }
 
+// A PAYING account can add as many competitors as it likes — each one beyond the two
+// included simply bills $47/mo more (syncQuantity keeps the subscription in step). The cap
+// exists to stop a free trial from running up scraping costs, so it lifts the moment the
+// card clears (founder, 27 Jul). PAID_CEILING is a runaway guard, not a plan limit — a
+// customer who genuinely needs more than 100 can be raised by hand in the admin panel.
+const PAID_CEILING = Number(process.env.PAID_MAX_COMPETITORS) || 100;
 async function competitorAllowance(uid) {
   try {
     const r = await pool.query('SELECT admin, max_competitors FROM users WHERE id = $1', [uid]);
     if (!r.rows[0]) return DEFAULT_MAX_COMPETITORS;
     if (r.rows[0].admin) return Infinity;
-    return r.rows[0].max_competitors == null ? DEFAULT_MAX_COMPETITORS : r.rows[0].max_competitors;
+    // An explicit per-client limit set by the founder always wins.
+    if (r.rows[0].max_competitors != null) return r.rows[0].max_competitors;
+    try {
+      const bs = await billingStatus(uid);
+      if (bs.status === 'active' || bs.status === 'past_due') return PAID_CEILING;
+    } catch (e) { /* fall through to the default */ }
+    return DEFAULT_MAX_COMPETITORS;
   } catch (e) { return DEFAULT_MAX_COMPETITORS; }
 }
 
@@ -1135,7 +1147,16 @@ app.post('/api/competitors', requireAuth, async (req, res) => {
     const max = await competitorAllowance(req.user.uid);
     if (max !== Infinity) {
       const cnt = await pool.query('SELECT COUNT(*)::int AS n FROM competitors WHERE user_id = $1 AND host <> $2', [req.user.uid, h]);
-      if (cnt.rows[0].n >= max) return res.status(403).json({ error: 'You’re at your plan limit of ' + max + ' competitor' + (max === 1 ? '' : 's') + '. Ask us to raise it.', limited: true, max });
+      if (cnt.rows[0].n >= max) {
+        const bs = await billingStatus(req.user.uid).catch(() => ({ status: 'disabled' }));
+        const canBuy = bs.status === 'trialing' || bs.status === 'locked';
+        return res.status(403).json({
+          error: canBuy
+            ? 'Your plan covers ' + max + ' competitor' + (max === 1 ? '' : 's') + '. Subscribe to add more — every extra competitor is $47/mo.'
+            : 'You’re at your plan limit of ' + max + ' competitor' + (max === 1 ? '' : 's') + '. Ask us to raise it.',
+          limited: true, max, canBuy,
+        });
+      }
     }
     // A brand we already capture needs no baseline — start it 'watching' so it doesn't sit
     // on "capturing a live baseline…" until the next nightly warm. Only a genuinely new

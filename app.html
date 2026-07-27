@@ -777,14 +777,15 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 
 <div class="ov" id="upOv" onclick="if(event.target===this)closeUpgrade()">
   <div class="modal">
-    <h2>Upgrade your plan</h2>
-    <p>You're on the <b>Starter</b> plan. Upgrade to monitor more competitors and capture their full ad volume.</p>
+    <h2>Add more competitors</h2>
+    <p>Your plan includes <b>2 competitors</b>. Add as many more as you want — each additional competitor is <b>$47/mo</b>, billed automatically and prorated from the day you add it.</p>
     <div class="up-rows">
-      <div class="up-row"><span>Competitors monitored</span><b>2 → 10+</b></div>
-      <div class="up-row"><span>Ads captured per brand</span><b>20 → up to 300</b></div>
-      <div class="up-row"><span>Add your own competitors</span><b>🔒 → ✓</b></div>
+      <div class="up-row"><span>Included</span><b>2 competitors · $197/mo</b></div>
+      <div class="up-row"><span>Each additional</span><b>+$47/mo</b></div>
+      <div class="up-row"><span>How many you can add</span><b>as many as you need</b></div>
+      <div class="up-row"><span>Remove one later</span><b>bill drops automatically</b></div>
     </div>
-    <div class="m-act"><button class="btn btn-g" onclick="closeUpgrade()">Maybe later</button><button class="btn btn-p" onclick="closeUpgrade()">Upgrade — coming soon</button></div>
+    <div class="m-act"><button class="btn btn-g" onclick="closeUpgrade()">Maybe later</button><button class="btn btn-p" id="upGo" onclick="upgradeGo(this)">Subscribe · $197/mo</button></div>
   </div>
 </div>
 
@@ -2677,7 +2678,11 @@ function registerCompetitors(){getList().forEach(function(c){if(c&&!c.demo)track
 var PLAN={ads:20,competitors:2};
 // Your competitor allowance is per-account (the founder can raise it per client from the
 // admin panel) — /api/login and /api/me both return it, so keep PLAN in step with it.
-function planLimit(){var n=USER&&USER.maxCompetitors;if(typeof n==='number')return n;return (typeof PLAN==='object'&&PLAN)?PLAN.competitors:2;}
+function planLimit(){
+  var n=USER&&USER.maxCompetitors;if(typeof n==='number')return n;          // founder-set limit wins
+  if(BILLING&&(BILLING.status==='active'||BILLING.status==='past_due'))return 100;  // paying: add as many as you like, $47/mo each
+  return (typeof PLAN==='object'&&PLAN)?PLAN.competitors:2;
+}
 function syncPlan(){var n=USER&&USER.maxCompetitors;if(typeof n==='number'&&typeof PLAN==='object'&&PLAN)PLAN.competitors=n;}
 (function(){var m=location.search.match(/[?&]admin=([^&]+)/);if(m){try{localStorage.setItem('adminKey',decodeURIComponent(m[1]));}catch(e){}try{history.replaceState(null,'',location.pathname);}catch(e){}}})();
 function adminKey(){try{return localStorage.getItem('adminKey')||'';}catch(e){return '';}}
@@ -2700,7 +2705,23 @@ function addOrUpgrade(){
   if(!ADMIN&&USERCOMPS.length>=planLimit()){showUpgrade();return;}             // per-account limit on your own competitors
   openModal();
 }
-function showUpgrade(){var o=document.getElementById('upOv');if(o)o.classList.add('open');}
+function showUpgrade(){
+  var o=document.getElementById('upOv');if(!o)return;
+  var b=document.getElementById('upGo');
+  if(b){
+    var st=BILLING&&BILLING.status;
+    if(st==='active'||st==='past_due')b.textContent='Manage subscription';      // already paying — the ceiling is a support question
+    else if(!BILLING||st==='disabled'||st==='comp')b.textContent='Talk to us';  // billing off, or a comped account
+    else b.textContent='Subscribe · $197/mo';
+  }
+  o.classList.add('open');
+}
+function upgradeGo(btn){
+  var st=BILLING&&BILLING.status;
+  if(st==='active'||st==='past_due'){openPortal(btn);return;}
+  if(!BILLING||st==='disabled'||st==='comp'){closeUpgrade();openFeedback('feature');return;}
+  startCheckout(btn);
+}
 function closeUpgrade(){var o=document.getElementById('upOv');if(o)o.classList.remove('open');}
 /* ── feature-request / feedback ── */
 var fbKind='feature';
