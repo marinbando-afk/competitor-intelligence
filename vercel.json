@@ -1,0 +1,16 @@
+{
+  "headers": [
+    {
+      "source": "/app.html",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }]
+    },
+    {
+      "source": "/report.html",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }]
+    },
+    {
+      "source": "/dashboard.html",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }]
+    }
+  ]
+}
