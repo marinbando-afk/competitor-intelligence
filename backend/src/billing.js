@@ -84,8 +84,17 @@ export async function billingStatus(uid) {
 
 // ── checkout / portal ─────────────────────────────────────────────────────────
 async function ensureCustomer(u) {
-  if (u.stripe_customer_id) return u.stripe_customer_id;
   const s = await stripe();
+  // A stored id can be stale: created under a LIVE key and now used with a TEST key (or
+  // deleted in the dashboard). Stripe then fails every checkout with "No such customer",
+  // permanently, so verify before reusing and fall through to creating a fresh one.
+  if (u.stripe_customer_id) {
+    try {
+      const ex = await s.customers.retrieve(u.stripe_customer_id);
+      if (ex && !ex.deleted) return u.stripe_customer_id;
+    } catch (e) { /* missing in this mode → recreate below */ }
+    await pool.query('UPDATE users SET stripe_customer_id = NULL, stripe_subscription_id = NULL, plan_status = NULL WHERE id = $1', [u.id]);
+  }
   const c = await s.customers.create({ email: u.email, metadata: { wb_uid: String(u.id) } });
   await pool.query('UPDATE users SET stripe_customer_id = $1 WHERE id = $2', [c.id, u.id]);
   return c.id;
