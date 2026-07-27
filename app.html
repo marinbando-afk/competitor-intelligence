@@ -948,17 +948,28 @@ function loadBilling(){
     if(d.status==='locked')openPaywall();
   }).catch(function(){});
 }
+// .app is sized height:calc(100vh - 60px) for the header, and body has overflow:hidden —
+// so a banner added on top pushes the bottom of the app off-screen. Publish the banner's
+// real height as --bnr and let the .app rule subtract it (fix, 27 Jul).
+function fitBanner(el){
+  if(el){document.body.classList.add('wb-banner');document.documentElement.style.setProperty('--bnr',el.offsetHeight+'px');}
+  else{document.body.classList.remove('wb-banner');document.documentElement.style.removeProperty('--bnr');}
+}
+function dropBanner(el){if(el)el.remove();fitBanner(null);}
 function paintBilling(){
   var el=document.getElementById('trialbar');
-  if(!BILLING||BILLING.status==='disabled'||BILLING.status==='comp'){if(el)el.remove();return;}
+  if(!BILLING||BILLING.status==='disabled'||BILLING.status==='comp'){dropBanner(el);return;}
   if(BILLING.status==='trialing'){
     if(!el){el=document.createElement('div');el.id='trialbar';document.body.insertBefore(el,document.body.firstChild);}
     el.innerHTML='<b>Trial — '+BILLING.trialDaysLeft+' day'+(BILLING.trialDaysLeft===1?'':'s')+' left.</b> Keep your competitor intel coming after it ends. <button onclick="startCheckout(this)">Subscribe · $197/mo</button>';
+    fitBanner(el);
   } else if(BILLING.status==='past_due'){
     if(!el){el=document.createElement('div');el.id='trialbar';document.body.insertBefore(el,document.body.firstChild);}
     el.innerHTML='<b>Payment issue</b> — your last charge failed. Please update your card. <button onclick="openPortal(this)">Fix payment</button>';
-  } else if(el){el.remove();}
+    fitBanner(el);
+  } else dropBanner(el);
 }
+window.addEventListener('resize',function(){var b=document.getElementById('trialbar');if(b)fitBanner(b);});
 function startCheckout(btn){
   if(btn){btn.disabled=true;btn.textContent='Opening secure checkout…';}
   fetch(API+'/api/billing/checkout',{method:'POST',headers:authH()}).then(function(r){return r.json();}).then(function(d){
@@ -990,7 +1001,8 @@ function openPaywall(){
   ov.style.display='flex';
 }
 (function(){var st=document.createElement('style');st.textContent=
-  '#trialbar{position:sticky;top:0;z-index:900;background:linear-gradient(90deg,rgba(87,210,207,.16),rgba(87,210,207,.06));border-bottom:1px solid rgba(120,170,180,.26);padding:9px 16px;text-align:center;font-size:13px}'
+  'body.wb-banner .app{height:calc(100vh - 60px - var(--bnr,40px))}'
+  +'#trialbar{position:sticky;top:0;z-index:900;background:linear-gradient(90deg,rgba(87,210,207,.16),rgba(87,210,207,.06));border-bottom:1px solid rgba(120,170,180,.26);padding:9px 16px;text-align:center;font-size:13px}'
   +'#trialbar button{margin-left:12px;background:#57d2cf;color:#06282a;border:0;border-radius:7px;padding:6px 14px;font-weight:700;cursor:pointer;font-size:12px}'
   +'.pay-ov{display:none;position:fixed;inset:0;z-index:1200;background:rgba(4,8,10,.88);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px}'
   +'.pay-box{max-width:430px;background:#0d1318;border:1.5px solid #3f9d9b;border-radius:18px;padding:36px 34px;text-align:center}'
