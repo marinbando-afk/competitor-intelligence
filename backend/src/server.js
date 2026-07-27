@@ -373,7 +373,7 @@ app.get('/api/emails', async (req, res) => {
 
 app.get('/api/emails-recent', async (req, res) => {
   try {
-    res.json(await recentEmails());
+    res.json(await recentEmails(req.query.limit));
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }

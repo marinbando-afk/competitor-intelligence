@@ -253,11 +253,12 @@ export async function getEmailHtml(idArg, host, name) {
 }
 
 // Monitoring: the most recent captured emails across every sender (any brand).
-export async function recentEmails() {
+export async function recentEmails(limit) {
   if (!process.env.DATABASE_URL) return { storage: false, emails: [] };
+  const n = Math.min(300, Math.max(1, Number(limit) || 15));
   const r = await pool.query(
     `SELECT sender_domain, from_name, subject, offer, received_at
-     FROM emails ORDER BY received_at DESC LIMIT 15`);
+     FROM emails ORDER BY received_at DESC LIMIT ` + n);
   return {
     storage: true,
     count: r.rowCount,
