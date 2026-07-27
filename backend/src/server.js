@@ -981,6 +981,7 @@ app.post('/api/admin/announce', async (req, res) => {
     const note = String((req.body && req.body.note) || '').trim().slice(0, 600);
     const ids = Array.isArray(req.body && req.body.clientIds) ? [...new Set(req.body.clientIds.map(Number).filter(Boolean))] : null;
     const preview = !!(req.body && req.body.preview);
+    const noteOnly = !!(req.body && req.body.noteOnly);   // just the message, no per-client brief attached
     if (!note && preview === false) return res.status(400).json({ error: 'Nothing to send — add a note.' });
     const us = await pool.query(
       `SELECT id, email, slack_webhook, share_token FROM users WHERE admin = FALSE` + (ids ? ` AND id = ANY($1)` : '') + ` ORDER BY created_at DESC`,
@@ -989,9 +990,14 @@ app.post('/api/admin/announce', async (req, res) => {
     const results = [];
     for (const u of us.rows) {
       if (!isSlackWebhook(u.slack_webhook)) { results.push({ id: u.id, email: u.email, skipped: 'no Slack connected' }); continue; }
-      const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [u.id]);
-      const viewUrl = u.share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.share_token)) : 'https://watchback.ai/app.html';
-      const text = withNote(await buildDailyBrief(cs.rows, viewUrl, !preview));   // real send commits announce-once state; preview doesn't
+      let text;
+      if (noteOnly) {
+        text = note;   // pure announcement — exactly what the founder typed, nothing appended
+      } else {
+        const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [u.id]);
+        const viewUrl = u.share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.share_token)) : 'https://watchback.ai/app.html';
+        text = withNote(await buildDailyBrief(cs.rows, viewUrl, !preview));   // real send commits announce-once state; preview doesn't
+      }
       if (preview) results.push({ id: u.id, email: u.email, text });
       else { const r = await postTo(u.slack_webhook, text); results.push({ id: u.id, email: u.email, sent: !!(r && r.sent), error: r && r.error }); }
     }
