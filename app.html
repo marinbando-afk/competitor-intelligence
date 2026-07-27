@@ -727,7 +727,7 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
     <div class="m-act"><button class="btn btn-g" onclick="closePw()">Cancel</button><button class="btn btn-p" id="pwGo" onclick="savePw()">Change password</button></div>
   </div>
 </div>
-<div class="ov" id="annOv" onclick="if(event.target===this)closeAnn()">
+<div class="ov" id="annOv" style="z-index:90" onclick="if(event.target===this)closeAnn()">
   <div class="modal" style="max-width:560px">
     <h2>📢 Send an announcement</h2>
     <p>Posts a note plus each selected client's current brief to their own Slack. Preview first — nothing sends until you hit <b>Send</b>.</p>
