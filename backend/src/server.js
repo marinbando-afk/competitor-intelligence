@@ -1258,28 +1258,16 @@ function start() {
       }
     } catch (e) { console.warn('one-off bonafide cleanup:', e.message); }
   }, 45000);
-  // One-off (24 Jul v3 — delete once logged): page-scoped scans stored INACTIVE ads, which
-  // showed as current AND fed "Black Friday still live" findings off long-dead creatives.
-  // Strip inactive ads from every stored ads capture, then regenerate the affected reads.
+  // One-off (27 Jul — delete once logged): regenerate the brands whose website read said
+  // "no website data available" while their storefront was in fact captured (fmtWeb pointer-row bug).
   setTimeout(async () => {
     try {
-      const r = await pool.query(`SELECT host, to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots WHERE channel='ads' AND day >= CURRENT_DATE - 10`);
-      const touched = new Set();
-      for (const row of r.rows) {
-        const d = row.data || {};
-        if (!Array.isArray(d.ads)) continue;
-        const keep = d.ads.filter((a) => a.active !== false);
-        if (keep.length !== d.ads.length) {
-          d.ads = keep; d.active = keep.length;
-          await pool.query(`UPDATE snapshots SET data=$1 WHERE host=$2 AND channel='ads' AND to_char(day,'YYYY-MM-DD')=$3`, [JSON.stringify(d), row.host, row.day]);
-          touched.add(row.host);
-        }
+      const hosts = ['zoupbroth.com'];
+      for (const h of hosts) {
+        try { const t = (await allBrands()).find((b) => b.host === h); await generateInsights(t ? t.name : h, h); console.log('✓ one-off: regenerated website read for ' + h); }
+        catch (e) { console.warn('one-off regen ' + h + ':', e.message); }
       }
-      if (touched.size) console.log('✓ one-off: stripped inactive ads from ' + touched.size + ' brand(s): ' + [...touched].join(', '));
-      for (const h of touched) {
-        try { const t = (await allBrands()).find((b) => b.host === h); await generateInsights(t ? t.name : h, h); } catch (e) { /* per-brand best effort */ }
-      }
-    } catch (e) { console.warn('one-off inactive-scrub:', e.message); }
+    } catch (e) { console.warn('one-off website-read regen:', e.message); }
   }, 50000);
 }
 // Start the server no matter what — if the DB isn't wired yet, accounts are

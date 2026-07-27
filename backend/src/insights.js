@@ -239,8 +239,13 @@ function priceView(s) {
   };
 }
 function fmtWeb(d, today, recentSaleBanner) {
-  // Genuinely nothing captured — no product feed, no screenshot, no banner.
-  if (!d || (!d.summary && !d.banner && !d.shot)) return 'No storefront data.';
+  // Genuinely nothing captured — no product feed, no screenshot, no banner, and no dated
+  // pointer to an earlier frame. NOTE shotFrom: on an UNCHANGED day we deliberately store a
+  // pointer row instead of re-shooting, so shot is null while the site WAS checked. Without
+  // it, a quiet non-Shopify store (Zoup: no product feed, no promo bar, nothing changing)
+  // looked like a capture failure and the read said "No website data available" — the
+  // opposite of the truth, which is "we checked; there is no sale running" (founder, 27 Jul).
+  if (!d || (!d.summary && !d.banner && !d.shot && !d.shotFrom)) return 'No storefront data.';
   const s = d.summary;
   // A sale slide the announcement bar showed in a RECENT capture — so we can still name the
   // live sale ("Summer Sale") on a day the bar has rotated to a shipping slide instead.
@@ -258,9 +263,10 @@ function fmtWeb(d, today, recentSaleBanner) {
   // captured fine — some brands 404/redirect it (Brodo → www 404). Don't declare "nothing to
   // analyze" when we still have the live promo banner + a screenshot: read what we DO have.
   if (!s) {
-    return 'Product catalogue not machine-readable for this store (their products feed is unavailable), so per-SKU counts/prices aren\'t captured — but the storefront WAS captured.' +
-      (bannerLine || ' No promo banner is currently shown.') + bf +
-      ' Analyze the on-site promo/positioning from the banner above; do NOT say there is no data or nothing to analyze.';
+    return 'Product catalogue not machine-readable for this store (their products feed is unavailable), so per-SKU counts/prices aren\'t captured — but the storefront WAS captured' +
+      (d.shotFrom ? ' (unchanged since ' + d.shotFrom + ', so no new frame was needed).' : '.') +
+      (bannerLine || ' The storefront was checked and shows NO sale, promo or discount banner — that is a FINDING, not missing data: say plainly that they are running no promotion, and never say website data is unavailable.') + bf +
+      ' Analyze the on-site promo/positioning from what is above; do NOT say there is no data or nothing to analyze.';
   }
   const pv = priceView(s);
   // Sale status leads every time, independent of whether anything changed. But describe the
