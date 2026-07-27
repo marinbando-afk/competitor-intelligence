@@ -18,7 +18,7 @@ import { fetchAds, adsChanges, ownPageIdsFor } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
 import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, TRACKED } from './refresh.js';
 import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, sendUserWeeklyLinks, sendUserDailyBriefs } from './slack.js';
-import { storeInbound, getEmails, recentEmails, getEmailHtml } from './email.js';
+import { storeInbound, getEmails, recentEmails, getEmailHtml, reviveSilent } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare, mshotsShot, scrubWebsiteHistory, shotDiag } from './website.js';
 import { getInsights, generateInsights, quickAngle, creditStatus, enrichCreativeHooks, backfillWebsiteReads } from './insights.js';
@@ -1215,6 +1215,9 @@ function start() {
   // verified one by one; real frames get stamped and never re-checked, so this is ~free after
   // the first pass).
   setTimeout(() => scrubWebsiteHistory(10).catch(() => {}), 30000);
+  // Re-open the newest stored email of every quiet brand — claws back lightly-sunset
+  // ESP segments (engagement simulator, email.js).
+  setTimeout(() => reviveSilent().catch(() => {}), 65000);
   // One-off data repair (22 Jul 2026, idempotent — delete this block once it has logged in
   // production): the 18 Jul attribution leak (fail-open verdict rows, fixed in ads.js) stored
   // six Alibaba.com ads in rubberb.com's ads capture; strip them from that stored day so the

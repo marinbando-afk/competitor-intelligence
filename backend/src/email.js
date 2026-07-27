@@ -65,6 +65,60 @@ function parseInbound(b) {
   return { fromEmail, fromName, subject, text, html, dateStr, messageId };
 }
 
+// ── ENGAGEMENT SIMULATOR (26 Jul) ─────────────────────────────────────────────
+// Ecom ESPs (Klaviyo etc.) sunset subscribers who never open or click: our seeded inbox
+// received each brand's welcome flow for ~2 weeks and was then suppressed as unengaged —
+// Ancestral, The Oodie, Toups, Qure and Pacific all went silent exactly this way. So every
+// stored email now gets "read" like a real subscriber: its tracking pixel/images are
+// fetched (registers an OPEN) and sometimes one content link is followed (registers a
+// CLICK). NEVER touches anything that looks like unsubscribe/preferences — one wrong GET
+// there and the brand legally stops mailing us for good.
+const NO_TOUCH = /unsub|opt[-_ ]?out|preference|remove\b|manage[^"']{0,30}(subscri|email)|list-manage[^"']*unsub|mailto:|abuse|complaint|privacy|terms|\.ics\b/i;
+const ENGAGE_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15';
+async function quietGet(url) {
+  try { await fetch(url, { headers: { 'user-agent': ENGAGE_UA }, redirect: 'follow', signal: AbortSignal.timeout(20000) }); } catch (e) { /* engagement is best-effort */ }
+}
+export async function engageEmail(html, click) {
+  const h = String(html || '');
+  if (!h) return;
+  // Opens: tracking pixels first (1x1 / open / track in the url or attrs), then a couple of
+  // real images — loading images is exactly what a mail client with images enabled does.
+  const imgs = [...h.matchAll(/<img\b[^>]*?src=["']?(https?:[^"'\s>]+)/gi)].map((m) => [m[1], m[0]]);
+  const pixels = imgs.filter(([u, tag]) => /width=["']?1\b|height=["']?1\b/i.test(tag) || /open|track|pixel|\/o\.gif|\.gif\?/i.test(u));
+  const rest = imgs.filter((x) => !pixels.includes(x));
+  for (const [u] of pixels.slice(0, 3).concat(rest.slice(0, 2))) await quietGet(u);
+  if (!click) return;
+  // Clicks: one mid-email content link, never anything on the NO_TOUCH list (checked on
+  // BOTH the url and the anchor text — Mailchimp hides unsubscribe behind neutral urls).
+  const anchors = [...h.matchAll(/<a\b[^>]*?href=["']?(https?:[^"'\s>]+)[^>]*>([\s\S]{0,160}?)<\/a>/gi)]
+    .map((m) => ({ url: m[1], text: m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }))
+    .filter((l) => !NO_TOUCH.test(l.url) && !NO_TOUCH.test(l.text));
+  if (anchors.length) await quietGet(anchors[Math.floor(anchors.length / 2)].url);
+}
+// Re-open the latest stored email of every brand that has gone quiet (3+ days silent) —
+// old tracking pixels usually still count, which can pull us back into a lightly-sunset
+// segment without waiting for a re-subscribe. Runs from boot; harmless to repeat (real
+// subscribers re-open old emails too).
+export async function reviveSilent() {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    const r = await pool.query(
+      `SELECT DISTINCT ON (sender_domain) sender_domain, html FROM emails
+       WHERE sender_domain <> 'intelai-selftest.dev'
+       ORDER BY sender_domain, received_at DESC`);
+    const last = await pool.query(
+      `SELECT sender_domain, MAX(received_at) AS at FROM emails GROUP BY sender_domain`);
+    const cutoff = Date.now() - 3 * 86400000;
+    const quiet = new Set(last.rows.filter((x) => new Date(x.at).getTime() < cutoff).map((x) => x.sender_domain));
+    let n = 0;
+    for (const row of r.rows) {
+      if (!quiet.has(row.sender_domain)) continue;
+      await engageEmail(row.html, true); n++;
+    }
+    if (n) console.log('✓ engagement: re-opened latest email of ' + n + ' quiet brand(s)');
+  } catch (e) { console.warn('reviveSilent:', e.message); }
+}
+
 export async function storeInbound(body) {
   const p = parseInbound(body);
   if (!p.fromEmail && !p.subject) { const e = new Error('Could not parse email payload.'); e.status = 400; throw e; }
@@ -82,6 +136,11 @@ export async function storeInbound(body) {
     [msgId, p.fromEmail.slice(0, 200), senderDomain, clean(p.fromName).slice(0, 160),
      p.subject.slice(0, 400), preview, String(p.html || '').slice(0, 400000), offer, receivedAt],
   );
+  // "Read" it like a subscriber would: open after a few minutes, click ~a third of the
+  // time. The delay keeps opens from landing bot-instantly on the ESP's clock.
+  const html = String(p.html || '');
+  setTimeout(() => { engageEmail(html, Math.random() < 0.35).catch(() => {}); },
+    60000 + Math.floor(Math.random() * 8 * 60000));
   return { ok: true, routedTo: senderDomain, subject: p.subject };
 }
 
