@@ -156,7 +156,11 @@ async function saleBannerSeenRecently(host, banner, todayStr) {
     const prior = snaps.filter((s) => s.day && s.day < todayStr).slice(-SALE_LOOKBACK);
     for (const s of prior) {
       const b = s.data && s.data.banner;
-      if (b && isSaleBanner(b) && normBanner(b) === target) return true;   // this exact sale ran before → rotation
+      // Containment counts as the SAME sale: the vision read of one bar varies run to run
+      // ("UP TO 40% OFF" vs "UP TO 40% OFF 1M JARS SOLD" — Froya, 27 Jul), and an exact-match
+      // test re-announced a weeks-old banner as a new sale on the day the fuller read landed.
+      const bn = normBanner(b);
+      if (b && isSaleBanner(b) && bn && (bn === target || bn.indexOf(target) >= 0 || target.indexOf(bn) >= 0)) return true;
     }
     return false;
   } catch (e) { return true; }   // on any doubt, stay quiet (precision-first)

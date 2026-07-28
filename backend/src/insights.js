@@ -563,19 +563,31 @@ export async function generateInsights(brand, host) {
       // streak as a hard fact the model must quote. Dates are never the model's own math.
       let saleTimeline = '';
       const bnorm2 = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
+      // SAME banner when one read CONTAINS the other: the vision read of one bar varies run
+      // to run ("UP TO 40% OFF" vs "UP TO 40% OFF 1M JARS SOLD" — Froya, 27 Jul), and
+      // treating the fuller read as a new promo invented a launch story for a line the site
+      // had shown for weeks. Containment = partial vs full read of the same bar, never news.
+      const sameBanner = (a, b) => !!a && !!b && (a === b || a.indexOf(b) >= 0 || b.indexOf(a) >= 0);
       const curBanner = bnorm2(r[0].data.banner || recentSaleBanner);
       if (curBanner) {
         let firstDay = r[0].day, gap = 0;
         for (let i = 1; i < r.length; i++) {
           const b = bnorm2(r[i].data && r[i].data.banner);
-          if (b === curBanner) { firstDay = r[i].day; gap = 0; continue; }
+          if (sameBanner(b, curBanner)) { firstDay = r[i].day; gap = 0; continue; }
           if (!b && gap < 2) { gap++; continue; }   // tolerate short read-gaps (failed captures)
           break;
         }
-        const isToday = firstDay === r[0].day;
+        // Rotating bars: an EARLIER sighting anywhere in the window also disqualifies "new" —
+        // we may simply have caught a different slide on the days between.
+        let earliest = firstDay;
+        for (let i = r.length - 1; i >= 0; i--) {
+          const b = bnorm2(r[i].data && r[i].data.banner);
+          if (sameBanner(b, curBanner)) { if (r[i].day < earliest) earliest = r[i].day; break; }
+        }
+        const isToday = earliest === r[0].day;
         saleTimeline = '\nPROMO TIMELINE (computed from daily captures — quote these, never your own date math): the current promo/banner ' +
-          (isToday ? 'FIRST APPEARED TODAY (' + firstDay + ') — this IS news; report it as new/changed.'
-                   : 'has been UNCHANGED since ' + firstDay + ' — standing context, NOT news. State it is unchanged and give that date; do NOT state how many days it has run.');
+          (isToday ? 'FIRST APPEARED TODAY (' + earliest + ') — this IS news; report it as new/changed.'
+                   : 'has been RUNNING SINCE at least ' + earliest + ' — standing context, NOT news. State it is unchanged and give that date; do NOT state how many days it has run. If today\'s captured wording is longer or slightly different than earlier days, that is normal read/rotation variance of the SAME banner — NEVER report it as a new sale, a replacement, or a change of framing.');
       }
       const todayBlock = fmtWeb(r[0].data, day, recentSaleBanner) + saleTimeline + '\nCHANGES vs previous capture: ' + (changes ? (changes.join('; ') || 'none detected') : 'n/a (first capture)');
       out.website = await ask('website', brand, todayBlock, r[1] && r[1].data ? fmtWeb(r[1].data) : '', me, day);

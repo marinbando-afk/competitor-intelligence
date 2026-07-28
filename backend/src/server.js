@@ -1283,7 +1283,7 @@ function start() {
   // "no website data available" while their storefront was in fact captured (fmtWeb pointer-row bug).
   setTimeout(async () => {
     try {
-      const hosts = ['zoupbroth.com'];
+      const hosts = ['froyaorganics.com'];   // 27 Jul v2: false "1M Jars Sold went live today" (read-variance banner)
       for (const h of hosts) {
         try { const t = (await allBrands()).find((b) => b.host === h); await generateInsights(t ? t.name : h, h); console.log('✓ one-off: regenerated website read for ' + h); }
         catch (e) { console.warn('one-off regen ' + h + ':', e.message); }
