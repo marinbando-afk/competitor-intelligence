@@ -3177,7 +3177,8 @@ else if(TOKEN){loadUserComps();loadBilling();
   if(/[?&]billing=success/.test(location.search)){
     // Purchase fires ONCE — the URL param is stripped straight after, so a refresh can't
     // double-count. Value is the true monthly total once billing status loads, else $197.
-    var _fireBuy=function(){var v=(BILLING&&BILLING.monthly)?BILLING.monthly:197.00;fbTrack('Purchase',{value:v,currency:'USD',content_name:'WatchBack subscription'});fbTrack('Subscribe',{value:v,currency:'USD',predicted_ltv:v*12});};
+    var _sid=(location.search.match(/[?&]sid=([^&]+)/)||[])[1]||'';
+    var _fireBuy=function(){var v=(BILLING&&BILLING.monthly)?BILLING.monthly:197.00;try{if(window.fbq){fbq('track','Purchase',{value:v,currency:'USD',content_name:'WatchBack subscription'},_sid?{eventID:_sid}:undefined);fbq('track','Subscribe',{value:v,currency:'USD',predicted_ltv:v*12},_sid?{eventID:_sid+'-sub'}:undefined);}}catch(e){}};
     setTimeout(_fireBuy,1500);   // give loadBilling() a moment so the value is exact
     setTimeout(function(){alert('\u2713 Subscription active — welcome aboard! Your dossiers, briefs and chat continue uninterrupted.');history.replaceState(null,'',location.pathname);},400);
   }

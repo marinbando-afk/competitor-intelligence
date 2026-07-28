@@ -16,6 +16,7 @@
 //   wb_addon_47  → $47.00/mo,  quantity = max(0, competitors - 2)
 
 import { pool } from './db.js';
+import { capiEvent } from './metacapi.js';
 
 const BASE_CENTS = 19700, ADDON_CENTS = 4700, INCLUDED = 2, TRIAL_DAYS = 14;
 const APP_URL = (process.env.APP_URL || 'https://watchback.ai').replace(/\/+$/, '');
@@ -114,7 +115,7 @@ export async function checkoutSession(uid) {
     line_items: items,
     allow_promotion_codes: true,
     subscription_data: { metadata: { wb_uid: String(u.id) } },
-    success_url: APP_URL + '/app.html?billing=success',
+    success_url: APP_URL + '/app.html?billing=success&sid={CHECKOUT_SESSION_ID}',
     cancel_url: APP_URL + '/app.html?billing=cancelled',
   });
   return { url: sess.url };
@@ -166,6 +167,15 @@ export async function handleWebhook(rawBody, signature) {
       if (sess.mode === 'subscription' && sess.subscription) {
         const sub = await s.subscriptions.retrieve(String(sess.subscription));
         await applySubscription(sub);
+        // Server-side Meta events on the ground truth (money moved) — event_id is the
+        // checkout-session id, shared with the browser pixel for deduplication. Fire and
+        // forget: an ads-tracking hiccup must never fail the webhook.
+        try {
+          const monthly = (sub.items.data || []).reduce((t, i) => t + (i.price && i.price.unit_amount || 0) * (i.quantity || 1), 0) / 100;
+          const email = (sess.customer_details && sess.customer_details.email) || '';
+          capiEvent({ name: 'Purchase', value: monthly, currency: 'usd', email, eventId: sess.id }).catch(() => {});
+          capiEvent({ name: 'Subscribe', value: monthly, currency: 'usd', email, eventId: sess.id + '-sub' }).catch(() => {});
+        } catch (e) { /* tracking only */ }
       }
       break;
     }

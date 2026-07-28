@@ -27,6 +27,7 @@ import { storeFeedback, listFeedback } from './feedback.js';
 import { systemStats } from './stats.js';
 import { getWeekly, generateWeekly, mondayOf } from './weekly.js';
 import { billingEnabled, billingStatus, checkoutSession, portalSession, syncQuantity, handleWebhook } from './billing.js';
+import { capiEnabled, capiTokenValid } from './metacapi.js';
 import { snapshotDays, snapshotForDay, recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost } from './snapshots.js';
 
 const app = express();
@@ -541,6 +542,11 @@ app.post('/api/track', async (req, res) => {
     res.json({ ok: true, added: !!(r && r.added), limited: !!(r && r.limited) });
     if (r && r.added) warmBrand(r.comp, false).catch(() => {});   // immediate baseline (async)
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+
+// Diagnostic: is the Meta Conversions API token present and accepted by Meta?
+app.get('/api/capi-status', async (req, res) => {
+  res.json({ configured: capiEnabled(), tokenValid: await capiTokenValid() });
 });
 
 // ── Billing (Stripe) — dormant until STRIPE_SECRET_KEY is set ────────────────
