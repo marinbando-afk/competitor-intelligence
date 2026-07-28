@@ -78,9 +78,21 @@ const ENGAGE_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/6
 async function quietGet(url) {
   try { await fetch(url, { headers: { 'user-agent': ENGAGE_UA }, redirect: 'follow', signal: AbortSignal.timeout(20000) }); } catch (e) { /* engagement is best-effort */ }
 }
-export async function engageEmail(html, click) {
+const CONFIRM_RE = /confirm(ing)?\b|verify\b|activate\b|opt[- ]?in|subscri(be|ption)|complete[^<]{0,20}sign[- ]?up|yes,? (subscribe|sign me)/i;
+export async function engageEmail(html, click, subject) {
   const h = String(html || '');
   if (!h) return;
+  // DOUBLE OPT-IN: brands like The Oodie/CurrentBody may require clicking "Confirm your
+  // subscription" before ANY marketing email is sent — miss it and the list stays empty
+  // forever. If the email looks like a confirmation, click its confirm button (never an
+  // unsubscribe), independent of the normal engagement roll.
+  if (CONFIRM_RE.test(String(subject || '')) || CONFIRM_RE.test(h.slice(0, 4000))) {
+    const links = [...h.matchAll(/<a\b[^>]*?href=["']?(https?:[^"'\s>]+)[^>]*>([\s\S]{0,160}?)<\/a>/gi)]
+      .map((m) => ({ url: m[1], text: m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }))
+      .filter((l) => !NO_TOUCH.test(l.url) && !NO_TOUCH.test(l.text));
+    const confirm = links.find((l) => CONFIRM_RE.test(l.text)) || links.find((l) => CONFIRM_RE.test(l.url));
+    if (confirm) { await quietGet(confirm.url); }
+  }
   // Opens: tracking pixels first (1x1 / open / track in the url or attrs), then a couple of
   // real images — loading images is exactly what a mail client with images enabled does.
   const imgs = [...h.matchAll(/<img\b[^>]*?src=["']?(https?:[^"'\s>]+)/gi)].map((m) => [m[1], m[0]]);
@@ -103,7 +115,7 @@ export async function reviveSilent() {
   if (!process.env.DATABASE_URL) return;
   try {
     const r = await pool.query(
-      `SELECT DISTINCT ON (sender_domain) sender_domain, html FROM emails
+      `SELECT DISTINCT ON (sender_domain) sender_domain, html, subject FROM emails
        WHERE sender_domain <> 'intelai-selftest.dev'
        ORDER BY sender_domain, received_at DESC`);
     const last = await pool.query(
@@ -113,7 +125,7 @@ export async function reviveSilent() {
     let n = 0;
     for (const row of r.rows) {
       if (!quiet.has(row.sender_domain)) continue;
-      await engageEmail(row.html, true); n++;
+      await engageEmail(row.html, true, row.subject); n++;
     }
     if (n) console.log('✓ engagement: re-opened latest email of ' + n + ' quiet brand(s)');
   } catch (e) { console.warn('reviveSilent:', e.message); }
@@ -139,7 +151,8 @@ export async function storeInbound(body) {
   // "Read" it like a subscriber would: open after a few minutes, click ~a third of the
   // time. The delay keeps opens from landing bot-instantly on the ESP's clock.
   const html = String(p.html || '');
-  setTimeout(() => { engageEmail(html, Math.random() < 0.35).catch(() => {}); },
+  const subj = p.subject || '';
+  setTimeout(() => { engageEmail(html, Math.random() < 0.35, subj).catch(() => {}); },
     60000 + Math.floor(Math.random() * 8 * 60000));
   return { ok: true, routedTo: senderDomain, subject: p.subject };
 }
