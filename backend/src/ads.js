@@ -596,7 +596,12 @@ async function normalize(items, brand, country, host, debug) {
   // enters a capture; ads that go inactive AFTER capture keep their honest INACTIVE badge
   // in older stored days.
   const live = kept.filter((a) => a.active !== false);
-  const unique = dedupeAds(live);   // never show the same creative twice
+  // NEWEST FIRST (founder, 29 Jul — "are you searching by recency?"). Meta/the actor SELECT
+  // by recency (a Glov capture holds only the last ~2 weeks), but the returned array is not
+  // ordered, so every downstream "first N" — the AI's ad sample, the app's default view —
+  // was a arbitrary slice rather than the newest launches. Sort once, here, at the source.
+  const unique = dedupeAds(live).sort((a, b) =>
+    String(b.started || '').localeCompare(String(a.started || '')));
 
   const platforms = [...new Set(unique.flatMap((a) => a.platforms))];
   const newest = unique.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '';
