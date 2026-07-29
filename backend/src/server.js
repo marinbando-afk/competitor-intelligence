@@ -1289,16 +1289,19 @@ function start() {
       }
     } catch (e) { console.warn('one-off bonafide cleanup:', e.message); }
   }, 45000);
-  // One-off (27 Jul — delete once logged): regenerate the brands whose website read said
-  // "no website data available" while their storefront was in fact captured (fmtWeb pointer-row bug).
+  // One-off (29 Jul — delete once logged): backfill the admin mirror for competitors that
+  // were added FOR clients via the admin route before it mirrored (rosegoldbeauty's two).
   setTimeout(async () => {
     try {
-      const hosts = ['froyaorganics.com'];   // 27 Jul v2: false "1M Jars Sold went live today" (read-variance banner)
-      for (const h of hosts) {
-        try { const t = (await allBrands()).find((b) => b.host === h); await generateInsights(t ? t.name : h, h); console.log('✓ one-off: regenerated website read for ' + h); }
-        catch (e) { console.warn('one-off regen ' + h + ':', e.message); }
-      }
-    } catch (e) { console.warn('one-off website-read regen:', e.message); }
+      const r = await pool.query(`
+        INSERT INTO competitors(user_id, name, host, url, country, handles, status)
+        SELECT a.id, c.name, c.host, c.url, c.country, c.handles, c.status
+          FROM competitors c
+          JOIN users u ON u.id = c.user_id AND u.admin = FALSE
+          CROSS JOIN (SELECT id FROM users WHERE admin = TRUE) a
+        ON CONFLICT (user_id, host) DO NOTHING`);
+      if (r.rowCount) console.log('✓ one-off: mirrored ' + r.rowCount + ' client competitor(s) into admin rails');
+    } catch (e) { console.warn('one-off admin-mirror backfill:', e.message); }
   }, 50000);
 }
 // Start the server no matter what — if the DB isn't wired yet, accounts are
