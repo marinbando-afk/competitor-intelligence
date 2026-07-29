@@ -231,8 +231,16 @@ export async function dailySignals(host, commit) {
         // that blips out of one capture and returns was falsely flagged "new" (19 Jul). The
         // start date can't be fooled by that. `ch.newAds` still gates it to first-appearance so
         // a real new ad is reported once; the date filter kills the reappearance false positives.
+        // DEDUPE VARIANTS (founder, 29 Jul): brands run several creatives with the SAME
+        // hook/copy (Ancestral: two "Three things the aesthetic industry..." ads). Listing
+        // each verbatim reads as a broken duplicate. Collapse by the displayed line — same
+        // text ⇒ one entry — the Slack twin of the app's variant grouping. No count is added
+        // (ad totals are capture-unreliable; email counts stay the only counted thing).
+        const _seenAbout = new Set();
         out.activity.ads = (ch.newAds || []).filter((a) => startedWithinDays(a.started, todayStr, 3))
-          .slice(0, 3).map((a) => ({ about: adAbout(a), link: a.link || '' }));
+          .map((a) => ({ about: adAbout(a), link: a.link || '' }))
+          .filter((a) => { const k = a.about.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); if (!k || _seenAbout.has(k)) return false; _seenAbout.add(k); return true; })
+          .slice(0, 3);
       } else if (ch && ch.baseline) {
         // BASELINE day (capture-depth jump): the ad-count diff is unreliable, but "have we EVER
         // seen this page / landing domain before?" is depth-proof — a page identity doesn't
