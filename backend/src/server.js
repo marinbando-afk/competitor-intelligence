@@ -971,6 +971,10 @@ app.post('/api/admin/clients/:id/competitors', async (req, res) => {
        RETURNING id, name, host, url, country, status, handles`,
       [id, name, host, url, country, JSON.stringify(handles || {}), st]);
     res.json({ competitor: r.rows[0] });
+    // Mirror into the admins' own watchlists too — the client route does this, but an
+    // ADMIN-route add didn't, so a competitor the founder added FOR a client was invisible
+    // in the founder's own rail (rosegoldbeauty, 29 Jul).
+    try { await mirrorToAdmins(id, r.rows[0]); } catch (e) { /* best-effort */ }
     // Enrol in the daily warm and capture a first baseline now (both async, best-effort).
     try { const t = await addTracked({ name, host, url, country, handles }, true); if (t && t.added) warmBrand(t.comp, false).catch(() => {}); }
     catch (e) { /* warm enrol best-effort */ }
