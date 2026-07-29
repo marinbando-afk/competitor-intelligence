@@ -553,7 +553,12 @@ export async function generateInsights(brand, host) {
   try {
     const r = await recentSnapshots(host, 'website', 45);   // deep history: sale-streak dating + the last SALE slide
     if (r[0] && r[0].data) {
-      const changes = (r[1] && r[1].data) ? diffWebsite(r[1].data.summary, r[0].data.summary) : null;
+      // Guard the diff: a same-DAY pair is the same capture (CurrentBody, 29 Jul: "raised in
+      // price today (29 Jul to 29 Jul)"), and a missing product feed on either side makes any
+      // price comparison meaningless — say nothing rather than invent movement.
+      const _prevOk = r[1] && r[1].data && r[1].day && r[1].day !== r[0].day;
+      const _bothFeeds = _prevOk && r[1].data.summary && r[0].data.summary;
+      const changes = _bothFeeds ? diffWebsite(r[1].data.summary, r[0].data.summary) : null;
       const day = capDate(r[0].day);
       // Most recent announcement-bar slide that was an actual sale (today's or an earlier day's),
       // so the read can name a live sale even when today's captured slide is a shipping one.
@@ -589,7 +594,10 @@ export async function generateInsights(brand, host) {
           (isToday ? 'FIRST APPEARED TODAY (' + earliest + ') — this IS news; report it as new/changed.'
                    : 'has been RUNNING SINCE at least ' + earliest + ' — standing context, NOT news. State it is unchanged and give that date; do NOT state how many days it has run. If today\'s captured wording is longer or slightly different than earlier days, that is normal read/rotation variance of the SAME banner — NEVER report it as a new sale, a replacement, or a change of framing.');
       }
-      const todayBlock = fmtWeb(r[0].data, day, recentSaleBanner) + saleTimeline + '\nCHANGES vs previous capture: ' + (changes ? (changes.join('; ') || 'none detected') : 'n/a (first capture)');
+      const _cmpLine = changes
+        ? '\nCHANGES ' + capDate(r[1].day) + ' → ' + day + ': ' + (changes.join('; ') || 'none detected') + ' (compare ONLY these two dates; never write a range that starts and ends on the same day)'
+        : '\nCHANGES: not comparable today — ' + (!_prevOk ? 'no earlier capture to compare against' : 'the product feed is missing on one of the two days') + '. Do NOT report any price move, product add/removal or sale change from a comparison; say only what today shows.';
+      const todayBlock = fmtWeb(r[0].data, day, recentSaleBanner) + saleTimeline + _cmpLine;
       out.website = await ask('website', brand, todayBlock, r[1] && r[1].data ? fmtWeb(r[1].data) : '', me, day);
     }
   } catch (e) { /* skip */ }

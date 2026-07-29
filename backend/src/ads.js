@@ -748,6 +748,17 @@ export async function adsChanges(host, todayAds, asOfDay) {
   //     "does this page run ANY active ad?" definitively. No proof → stay silent.
   signals.droppedPages = [];
   {
+    // NEVER claim a page retired off a capture that didn't fully load (founder, 29 Jul —
+    // Glov's "Peggy Wilbeck / Dr Sheryl / Dr Jennifer retired"). Absence is only evidence
+    // when we actually saw everything:
+    //  • an EMPTY capture proves nothing at all;
+    //  • a capture at the ADS_N cap is TRUNCATED — a heavy advertiser's whitelisted pages
+    //    fall out of the newest-first window at random (Glov: same pages present 25-27 Jul,
+    //    absent 24 and 28), so "missing today" is capture noise, not a retirement.
+    const capped = today.length >= Math.floor(ADS_N * 0.95);
+    const thin = !today.length || (prev.length && today.length < prev.length * 0.6);
+    const canJudgeAbsence = !(capped || thin);
+    if (!canJudgeAbsence) signals.droppedPagesSuppressed = true;   // diagnostics only; no claim made
     const hostLabel = hostToDomain(host).split('.')[0].replace(/[^a-z0-9]/g, '');
     const ownPg = (p) => { const c = foldTxt(p).replace(/[^a-z0-9]/g, ''); return !hostLabel || !c || c.indexOf(hostLabel) >= 0 || hostLabel.indexOf(c) >= 0; };
     const todayPg = new Set(today.map((a) => String(a.page || '').toLowerCase()).filter(Boolean));
@@ -760,7 +771,7 @@ export async function adsChanges(host, todayAds, asOfDay) {
       if (!cand[k] || s > cand[k].s) cand[k] = { p, s, pageId: String(a.pageId || '') };
     }
     let probes = 0;
-    for (const k of Object.keys(cand)) {
+    for (const k of (canJudgeAbsence ? Object.keys(cand) : [])) {
       const e = cand[k];
       if (e.s && oldestToday && e.s >= oldestToday) { signals.droppedPages.push(e.p); continue; }   // proof 1
       if (e.pageId && probes < 2) {                                                                 // proof 2
