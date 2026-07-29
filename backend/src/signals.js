@@ -15,6 +15,7 @@ import { recentSnapshots, allSnapshots, latestSnapshot, saveSnapshot } from './s
 import { diffWebsite } from './website.js';
 import { adsChanges, adDomain, isFunnelUrl } from './ads.js';
 import { offerFlags, isSaleBanner } from './occasions.js';
+import { resolveCapture } from './capture.js';
 
 const DAY = 86400000;
 const ANGLE_WINDOW_DAYS = 14;   // "at least the last 2 weeks"
@@ -180,10 +181,13 @@ export async function dailySignals(host, commit) {
     // product feed — skipping days where the scrape came back empty/rate-limited (Seranova's
     // storefront returned no summary on 18 Jul). Diffing against a broken capture is what makes
     // a report falsely quiet OR falsely "changed"; fall back to the last good one instead.
-    const web = await recentSnapshots(host, 'website', 6);
-    const cur = web[0] && web[0].data;
-    const prev = (web.slice(1).find((s) => s.data && s.data.summary) || {}).data;
-    if (cur && cur.summary && prev && prev.summary) {
+    // Shared resolver (capture.js) — the SAME capture pair the app's read uses, so the two
+    // surfaces can no longer describe different days or different comparisons.
+    const wc = await resolveCapture(host, 'website', { today: todayStr });
+    out.captureDay = wc.day; out.captureProvenance = wc.comparable ? (wc.prevDay + ' → ' + wc.day) : wc.day;
+    const cur = wc.data;
+    const prev = wc.prev;
+    if (wc.comparable && cur && cur.summary && prev && prev.summary) {
       const diffs = diffWebsite(prev.summary, cur.summary) || [];
       // The RELIABLE sale event: the count of discounted PRODUCTS changed (from products.json,
       // not the rotating banner). This is the primary trigger.
@@ -213,8 +217,11 @@ export async function dailySignals(host, commit) {
 
   // 2 + 3 + 5) Ads: new funnel, new Facebook page, new angle.
   try {
-    const adSnap = (await recentSnapshots(host, 'ads', 1))[0];
-    const todayAds = (adSnap && adSnap.data && Array.isArray(adSnap.data.ads)) ? adSnap.data.ads : [];
+    // Shared resolver: the newest USABLE ads capture — never an empty row treated as "today"
+    // (Glov captured 0 ads on 29 Jul and the brief still announced retired pages).
+    const ac = await resolveCapture(host, 'ads', { today: todayStr, cap: Number(process.env.ADS_COUNT) || 50 });
+    const adSnap = ac.ok ? { day: ac.day, data: ac.data } : null;
+    const todayAds = ac.ok ? (ac.data.ads || []) : [];
     if (todayAds.length) {
       // 0) Stale/fake offers — independent of adsChanges: a fake sale is worth announcing
       // even on the baseline capture, when there is no previous day to diff against.

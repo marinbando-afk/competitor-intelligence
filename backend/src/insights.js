@@ -17,6 +17,7 @@ import { diffWebsite, siteShot, siteBannerFromShot } from './website.js';
 import { getMyBrand } from './brand.js';
 import { transcribeVideo } from './transcribe.js';
 import { offerFlags, offerFacts, bannerFacts, todayLine, isSaleBanner } from './occasions.js';
+import { resolveCapture } from './capture.js';
 
 // True when an Anthropic error means the account is out of credit (vs auth/rate/etc).
 function isCreditError(e) { return /credit balance is too low/i.test(String((e && e.message) || e)); }
