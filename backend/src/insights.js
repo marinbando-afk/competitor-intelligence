@@ -590,10 +590,17 @@ export async function generateInsights(brand, host) {
           const b = bnorm2(r[i].data && r[i].data.banner);
           if (sameBanner(b, curBanner)) { if (r[i].day < earliest) earliest = r[i].day; break; }
         }
-        const isToday = earliest === r[0].day;
-        saleTimeline = '\nPROMO TIMELINE (computed from daily captures — quote these, never your own date math): the current promo/banner ' +
-          (isToday ? 'FIRST APPEARED TODAY (' + earliest + ') — this IS news; report it as new/changed.'
-                   : 'has been RUNNING SINCE at least ' + earliest + ' — standing context, NOT news. State it is unchanged and give that date; do NOT state how many days it has run. If today\'s captured wording is longer or slightly different than earlier days, that is normal read/rotation variance of the SAME banner — NEVER report it as a new sale, a replacement, or a change of framing.');
+        // "First appeared today" is only NEWS if we were ALREADY WATCHING yesterday and the
+        // banner wasn't there. On a BASELINE day (first-ever capture) everything trivially
+        // "first appears today" — Casa and Beyond's clearance was reported as "launched
+        // today (30 Jul)" when all that launched was our monitoring (founder, 30 Jul).
+        const hasEarlier = r.length > 1 && r.slice(1).some((x) => x.data);
+        const isToday = hasEarlier && earliest === r[0].day;
+        saleTimeline = '\nPROMO TIMELINE (computed from daily captures — quote these, never your own date math): ' +
+          (!hasEarlier
+            ? 'MONITORING BEGAN TODAY (' + r[0].day + ') — this is the FIRST capture, so the promo/banner above was ALREADY RUNNING when monitoring began and its true start date is UNKNOWN. Say "already running when monitoring began (' + r[0].day + ')" — NEVER "launched today", "started today" or any start date.'
+            : (isToday ? 'the current promo/banner FIRST APPEARED TODAY (' + earliest + ') — it was not there in earlier captures; this IS news, report it as new/changed.'
+                       : 'the current promo/banner has been RUNNING SINCE at least ' + earliest + ' — standing context, NOT news. State it is unchanged and give that date; do NOT state how many days it has run. If today\'s captured wording is longer or slightly different than earlier days, that is normal read/rotation variance of the SAME banner — NEVER report it as a new sale, a replacement, or a change of framing.'));
       }
       const _cmpLine = changes
         ? '\nCHANGES ' + capDate(r[1].day) + ' → ' + day + ': ' + (changes.join('; ') || 'none detected') + ' (compare ONLY these two dates; never write a range that starts and ends on the same day)'
