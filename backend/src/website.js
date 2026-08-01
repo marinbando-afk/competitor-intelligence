@@ -410,7 +410,24 @@ export function diffWebsite(a, b) {
     const genuine = added.filter((h) => !isVariantOfExisting(h));
     const variants = added.filter(isVariantOfExisting);
     if (genuine.length) { const n = productCount(genuine, bm); out.push('Storefront: ' + n + ' new product' + (n > 1 ? 's' : '') + ' listed — ' + nameList(genuine, bm)); }
-    if (variants.length) out.push('Storefront: ' + variants.length + ' new listing' + (variants.length > 1 ? 's' : '') + ' of a product already on their site (variant or re-listing, NOT a launch) — ' + nameList(variants, bm));
+    if (variants.length) {
+      // PRICE-TEST CLONING (founder, 1 Aug — Tallowed Truth): duplicate listings of ONE
+      // product whose customer-facing names are identical except invisible punctuation
+      // (Shopify forbids duplicate names, so cloners append dots) and whose prices ladder
+      // upward. That IS the news — a competitor installing price testing / ad-specific
+      // landing prices on their hero product — and it must never read as a launch.
+      const strip = (t) => String(t).toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const clones = variants.filter((h) => strip(titleOf(h, bm)) === strip(titleOf(h.replace(/-\d+$/, ''), am) || titleOf(h, bm)));
+      const priced = variants.map((h) => (bm[h] && bm[h].price)).filter((x) => x != null).sort((x, y) => x - y);
+      if (clones.length >= 2 && priced.length >= 2 && priced[0] !== priced[priced.length - 1]) {
+        const base = baseName(titleOf(variants[0], bm));
+        out.push('Storefront: “' + base + '” is now listed ' + (variants.length + 1) + ' times at different prices (' +
+          [...new Set([(am[variants[0].replace(/-\d+$/, '')] || {}).price, ...priced].filter((x) => x != null))].map(money).join(' / ') +
+          ') — same product, same photos, names differing only by invisible punctuation. This is PRICE TESTING or ad-specific landing prices, NOT a new product.');
+      } else {
+        out.push('Storefront: ' + variants.length + ' new listing' + (variants.length > 1 ? 's' : '') + ' of a product already on their site (variant or re-listing, NOT a launch) — ' + nameList(variants, bm));
+      }
+    }
   }
   if (removed.length) { const n = productCount(removed, am); out.push('Storefront: ' + n + ' product' + (n > 1 ? 's' : '') + ' removed — ' + nameList(removed, am)); }
   if (a.min != null && b.min != null && Math.abs(a.min - b.min) >= 0.01) out.push('Lowest price ' + money(a.min) + ' → ' + money(b.min));
