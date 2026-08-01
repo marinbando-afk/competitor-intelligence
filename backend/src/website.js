@@ -395,7 +395,23 @@ export function diffWebsite(a, b) {
     return parts.join(', ') + (extra > 0 ? ' + ' + extra + ' more' : '');
   };
   const productCount = (hs, m) => new Set(hs.map((h) => baseName(titleOf(h, m)).toLowerCase())).size;
-  if (added.length) { const n = productCount(added, bm); out.push('Storefront: ' + n + ' new product' + (n > 1 ? 's' : '') + ' listed — ' + nameList(added, bm)); }
+  // A NEW LISTING IS NOT A NEW PRODUCT (founder, 1 Aug). Tallowed Truth had
+  // "freedom-field-balm" listed every day since 15 Jul; on 31 Jul they added
+  // "freedom-field-balm-1/-2/-3" and we announced a product LAUNCH. Shopify handles ending
+  // in -N, or sharing a base name with something already on the site, are re-listings or
+  // variants — real news, but a different and much smaller claim than a launch.
+  if (added.length) {
+    const existing = new Set(Object.keys(am).map((h) => baseName(titleOf(h, am)).toLowerCase()));
+    const isVariantOfExisting = (h) => {
+      const bare = String(h).replace(/-\d+$/, '');
+      if (bare !== String(h) && am[bare]) return true;                       // handle-1 of an existing handle
+      return existing.has(baseName(titleOf(h, bm)).toLowerCase());           // same base name as something already listed
+    };
+    const genuine = added.filter((h) => !isVariantOfExisting(h));
+    const variants = added.filter(isVariantOfExisting);
+    if (genuine.length) { const n = productCount(genuine, bm); out.push('Storefront: ' + n + ' new product' + (n > 1 ? 's' : '') + ' listed — ' + nameList(genuine, bm)); }
+    if (variants.length) out.push('Storefront: ' + variants.length + ' new listing' + (variants.length > 1 ? 's' : '') + ' of a product already on their site (variant or re-listing, NOT a launch) — ' + nameList(variants, bm));
+  }
   if (removed.length) { const n = productCount(removed, am); out.push('Storefront: ' + n + ' product' + (n > 1 ? 's' : '') + ' removed — ' + nameList(removed, am)); }
   if (a.min != null && b.min != null && Math.abs(a.min - b.min) >= 0.01) out.push('Lowest price ' + money(a.min) + ' → ' + money(b.min));
 
