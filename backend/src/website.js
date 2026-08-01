@@ -382,9 +382,21 @@ export function diffWebsite(a, b) {
   const removed = Object.keys(am).filter((h) => !bm[h]);
   // ALWAYS name the products (founder rule, 22 Jul: "never report just a number of products
   // removed or added" — a count without names is useless to a marketing team).
-  const nameList = (hs, m) => hs.slice(0, 3).map((h) => '“' + ((m[h] && m[h].title) || h) + '”').join(', ') + (hs.length > 3 ? ' + ' + (hs.length - 3) + ' more' : '');
-  if (added.length) out.push(added.length + ' new product' + (added.length > 1 ? 's' : '') + ': ' + nameList(added, bm));
-  if (removed.length) out.push(removed.length + ' product' + (removed.length > 1 ? 's' : '') + ' removed: ' + nameList(removed, am));
+  // Variants of ONE product are not N products (founder, 1 Aug — Tallowed Truth's "Freedom
+  // Field Balm" listed four times with truncated names). Collapse titles sharing a long
+  // common prefix into "Name — N variants" and label the line accordingly.
+  const titleOf = (h, m) => String((m[h] && m[h].title) || h).replace(/\s+/g, ' ').trim();
+  const baseName = (t) => t.split(/\s+[–—-]\s+|\s*[,(\/|]\s*/)[0].replace(/\s+\d+\s*(ml|oz|g|kg|pack|ct)\b.*$/i, '').trim();
+  const nameList = (hs, m) => {
+    const groups = new Map();
+    for (const h of hs) { const k = baseName(titleOf(h, m)).toLowerCase(); if (!groups.has(k)) groups.set(k, { name: baseName(titleOf(h, m)), n: 0 }); groups.get(k).n++; }
+    const parts = [...groups.values()].slice(0, 3).map((g) => '“' + g.name + '”' + (g.n > 1 ? ' (' + g.n + ' variants)' : ''));
+    const extra = groups.size - Math.min(groups.size, 3);
+    return parts.join(', ') + (extra > 0 ? ' + ' + extra + ' more' : '');
+  };
+  const productCount = (hs, m) => new Set(hs.map((h) => baseName(titleOf(h, m)).toLowerCase())).size;
+  if (added.length) { const n = productCount(added, bm); out.push('Storefront: ' + n + ' new product' + (n > 1 ? 's' : '') + ' listed — ' + nameList(added, bm)); }
+  if (removed.length) { const n = productCount(removed, am); out.push('Storefront: ' + n + ' product' + (n > 1 ? 's' : '') + ' removed — ' + nameList(removed, am)); }
   if (a.min != null && b.min != null && Math.abs(a.min - b.min) >= 0.01) out.push('Lowest price ' + money(a.min) + ' → ' + money(b.min));
 
   return out.slice(0, 7);

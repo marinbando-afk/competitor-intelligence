@@ -93,11 +93,27 @@ export async function buildDailyBrief(brands, viewUrl, commit) {
     if (read && s && s.sale) read = '';
     // BULLETED layout (founder, 22 Jul): the italic read is the brand's summary line;
     // every change line below it is a bullet — scannable instead of a wall of text.
+    // Don't say the same thing twice (founder, 1 Aug): the italic read already summarised
+    // the day, so a bullet whose distinctive words are all present in it adds nothing but
+    // noise — and usually a worse, truncated version of the same fact.
+    const distinctive = (t) => (String(t).toLowerCase().match(/[a-z0-9][a-z0-9'’-]{4,}/g) || [])
+      .filter((w) => !['their','there','these','those','still','since','after','before','which','while','running','launched','products','product','website','storefront'].includes(w));
+    const readWords = new Set(distinctive(read || ''));
+    const notInRead = (l) => {
+      if (!readWords.size) return true;
+      const w = distinctive(l);
+      if (w.length < 2) return true;
+      const hit = w.filter((x) => readWords.has(x)).length;
+      return hit / w.length < 0.6;   // most of this line is already in the read → drop it
+    };
     const bullets = (ls) => ls.map((l) => '   • ' + l).join('\n');
-    if (sig.length) {
-      blocks.push('*' + b.name + '* 💡\n' + (read ? read + '\n' : '') + bullets(sig));
+    const sigK = sig.filter(notInRead);
+    if (sigK.length) {
+      blocks.push('*' + b.name + '* 💡\n' + (read ? read + '\n' : '') + bullets(sigK));
+    } else if (sig.length && read) {
+      blocks.push('*' + b.name + '* 💡\n' + read);   // the read already says it all
     } else {
-      const act = activityLines(s);
+      const act = activityLines(s).filter(notInRead);
       if (act.length) blocks.push('*' + b.name + '* 🔹 routine activity\n' + (read ? read + '\n' : '') + bullets(act));
       else blocks.push('*' + b.name + '* ✅ no new moves' + (read ? '\n' + read : ''));
     }
