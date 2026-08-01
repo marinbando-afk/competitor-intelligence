@@ -255,6 +255,63 @@ function msUntil(hour, tz) {
   return diff * 1000;
 }
 
+// ── DAILY COVERAGE AUDIT ──────────────────────────────────────────────────────
+// "It's not acceptable if the website scan or screenshot fails and then you do nothing
+// about it" (founder, 1 Aug). Reliability is the product: a silent capture gap becomes a
+// silent wrong insight tomorrow. So every day we VERIFY what actually landed, repair what
+// didn't, and if it still can't be captured we SAY SO instead of pretending.
+export async function coverageAudit({ repair = true, day } = {}) {
+  const today = day || new Date().toISOString().slice(0, 10);
+  const brands = await allBrands();
+  const rows = [];
+  for (const b of brands) {
+    let web = false, shot = false, ads = false;
+    try {
+      const r = await pool.query(
+        `SELECT channel, data FROM snapshots WHERE host = $1 AND day = $2 AND channel IN ('website','ads')`,
+        [b.host, today]);
+      for (const x of r.rows) {
+        if (x.channel === 'website') { web = true; shot = !!(x.data && (x.data.shot || x.data.shotFrom)); }
+        if (x.channel === 'ads') ads = true;
+      }
+    } catch (e) { /* treat as missing */ }
+    rows.push({ host: b.host, name: b.name, web, shot, ads });
+  }
+  let repaired = 0;
+  if (repair) {
+    for (const r of rows.filter((x) => !x.web || !x.shot)) {
+      const b = brands.find((x) => x.host === r.host);
+      if (!b) continue;
+      try {
+        await warmBrand(b, true);   // force — the point is to fill a real gap
+        const q = await pool.query(`SELECT data FROM snapshots WHERE host = $1 AND day = $2 AND channel = 'website'`, [r.host, today]);
+        const d = q.rows[0] && q.rows[0].data;
+        if (d) { r.web = true; r.shot = !!(d.shot || d.shotFrom); repaired++; }
+      } catch (e) { r.error = e.message; }
+    }
+  }
+  const missing = rows.filter((r) => !r.web || !r.shot);
+  return { day: today, total: rows.length, ok: rows.length - missing.length, repaired, missing, rows };
+}
+
+// Report the audit to the founder's Slack — silence is only acceptable when everything landed.
+export async function coverageAuditAndAlert() {
+  try {
+    const a = await coverageAudit({ repair: true });
+    if (!a.missing.length) {
+      console.log('✓ coverage audit: all ' + a.total + ' brands captured' + (a.repaired ? ' (' + a.repaired + ' repaired)' : ''));
+      return a;
+    }
+    const lines = a.missing.map((m) => '   • ' + (m.name || m.host) + ' — ' + (!m.web ? 'no website capture' : 'no screenshot') + (m.error ? ' (' + String(m.error).slice(0, 80) + ')' : ''));
+    const msg = '⚠️ *WatchBack capture gap — ' + a.day + '*\n' + a.missing.length + ' of ' + a.total +
+      ' brand(s) could not be captured even after a retry' + (a.repaired ? ' (' + a.repaired + ' others were repaired)' : '') +
+      '. Their reads will say the data is missing rather than guess:\n' + lines.join('\n');
+    console.warn(msg.replace(/\*/g, ''));
+    try { const { postText } = await import('./slack.js'); await postText(msg); } catch (e) { /* alert best-effort */ }
+    return a;
+  } catch (e) { console.warn('coverage audit failed:', e.message); return null; }
+}
+
 export function startScheduler() {
   const tz = process.env.CRON_TZ || DEFAULT_TZ;
   const clampHour = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.min(23, Math.max(0, n)) : d; };
@@ -273,8 +330,14 @@ export function startScheduler() {
     console.log('next morning brief in ' + fmtH(ms) + ' (' + briefHour + ':00 ' + tz + ')');
     setTimeout(() => { sendDailyDigest().catch(() => {}); armBrief(); }, ms);
   }
+  // Audit 90 minutes after the nightly capture: verify, repair, and alert on what's left.
+  function armAudit() {
+    const ms = msUntil((warmHour + 1) % 24, tz) + 30 * 60000;
+    setTimeout(() => { coverageAuditAndAlert().catch(() => {}); armAudit(); }, ms);
+  }
   armWarm();
   armBrief();
+  armAudit();
 
   // Warm shortly after boot so a fresh deploy is never cold (capture only — never sends a brief).
   setTimeout(() => refreshAll(false).catch(() => {}), 15000);

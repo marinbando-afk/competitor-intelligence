@@ -16,7 +16,7 @@ import { signup, login, createUser, setPassword, changePassword, requireAuth, op
 import { randomBytes } from 'crypto';
 import { fetchAds, adsChanges, ownPageIdsFor } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
-import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, TRACKED } from './refresh.js';
+import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, coverageAudit, coverageAuditAndAlert, TRACKED } from './refresh.js';
 import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, sendUserWeeklyLinks, sendUserDailyBriefs } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml, reviveSilent } from './email.js';
 import { chat } from './chat.js';
@@ -542,6 +542,15 @@ app.post('/api/track', async (req, res) => {
     res.json({ ok: true, added: !!(r && r.added), limited: !!(r && r.limited) });
     if (r && r.added) warmBrand(r.comp, false).catch(() => {});   // immediate baseline (async)
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+
+// Capture coverage for a day — what landed, what's missing. ?repair=1 refills the gaps,
+// ?alert=1 also posts the gap report to the founder's Slack.
+app.get('/api/coverage', async (req, res) => {
+  try {
+    if (String(req.query.alert || '') === '1') return res.json(await coverageAuditAndAlert());
+    res.json(await coverageAudit({ repair: String(req.query.repair || '') === '1', day: req.query.day }));
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Diagnostic: is the Meta Conversions API token present and accepted by Meta?
