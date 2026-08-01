@@ -548,10 +548,23 @@ app.post('/api/track', async (req, res) => {
 // ?alert=1 also posts the gap report to the founder's Slack.
 app.get('/api/coverage', async (req, res) => {
   try {
-    if (String(req.query.alert || '') === '1') return res.json(await coverageAuditAndAlert());
-    res.json(await coverageAudit({ repair: String(req.query.repair || '') === '1', day: req.query.day }));
+    // Repair re-warms every brand with a gap — far longer than any HTTP timeout allows, so
+    // it runs in the BACKGROUND and the caller polls the read-only view for progress.
+    const wantRepair = String(req.query.repair || '') === '1' || String(req.query.alert || '') === '1';
+    if (wantRepair) {
+      if (_auditRunning) return res.json({ started: false, alreadyRunning: true });
+      _auditRunning = true;
+      (String(req.query.alert || '') === '1' ? coverageAuditAndAlert() : coverageAudit({ repair: true, day: req.query.day }))
+        .then((r) => { _auditLast = r; })
+        .catch((e) => { _auditLast = { error: e.message }; })
+        .finally(() => { _auditRunning = false; });
+      return res.json({ started: true, note: 'repair running in background — poll /api/coverage for progress' });
+    }
+    const out = await coverageAudit({ repair: false, day: req.query.day });
+    res.json({ ...out, repairRunning: _auditRunning });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+let _auditRunning = false, _auditLast = null;
 
 // Diagnostic: is the Meta Conversions API token present and accepted by Meta?
 app.get('/api/capi-status', async (req, res) => {
