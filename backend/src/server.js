@@ -1289,15 +1289,15 @@ function start() {
       }
     } catch (e) { console.warn('one-off bonafide cleanup:', e.message); }
   }, 45000);
-  // One-off (30 Jul — delete once logged): regenerate Casa and Beyond's read — its baseline
-  // day falsely reported the clearance sale as "launched today".
+  // One-off (1 Aug — delete once logged): rebuild Tallowed Truth's read under the new rules
+  // (false "Freedom Field Balm launched" → price-test cloning called out).
   setTimeout(async () => {
     try {
-      const h = 'casaandbeyond.com.au';
+      const h = 'thetallowedtruth.com';
       const t = (await allBrands()).find((b) => b.host === h);
       await generateInsights(t ? t.name : h, h);
       console.log('✓ one-off: regenerated ' + h);
-    } catch (e) { console.warn('one-off casa regen:', e.message); }
+    } catch (e) { console.warn('one-off ttt regen:', e.message); }
   }, 50000);
 }
 // Start the server no matter what — if the DB isn't wired yet, accounts are
