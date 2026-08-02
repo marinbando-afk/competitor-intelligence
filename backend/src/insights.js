@@ -539,7 +539,30 @@ export async function generateInsights(brand, host) {
         if (first) monLine = '\nMONITORING WINDOW (fact): this brand has been monitored since ' + first + '. Express absence/duration with these DATES, never as a number of captures.';
       } catch (e) { /* optional */ }
       const day = capDate(r[0].day);
-      out.ads = await ask('ads', brand, (await fmtAds(r[0].data, day)) + lf + monLine, r[1] && r[1].data ? await fmtAds(r[1].data) : '', me, day);
+      // CAPTURE-HEALTH FACTS FOR THE MODEL (founder, 2 Aug — Glov: "all nine creator/persona
+      // pages dropped"; Seranova: "Dr. Annie Gonzalez has gone quiet" while she is in TODAY's
+      // capture). The deterministic drop-signal was already guarded, but the MODEL could still
+      // infer the same thing from a thin sample. Absence must be disarmed in the prompt too.
+      let absenceGuard = '';
+      try {
+        const capN = Number(process.env.ADS_COUNT) || 50;
+        const nowN = (r[0].data.ads || []).length;
+        const prevN = (r[1] && r[1].data && (r[1].data.ads || []).length) || 0;
+        const capped = nowN >= Math.floor(capN * 0.95);
+        const thin = prevN && nowN < prevN * 0.6;
+        const pagesNow = new Set((r[0].data.ads || []).map((a) => a.page).filter(Boolean));
+        const pagesPrev = new Set(((r[1] && r[1].data && r[1].data.ads) || []).map((a) => a.page).filter(Boolean));
+        const vanished = [...pagesPrev].filter((p) => !pagesNow.has(p));
+        absenceGuard = '\nCAPTURE HEALTH (hard facts — obey them): today\'s capture holds ' + nowN + ' ads' +
+          (prevN ? ' vs ' + prevN + ' in the previous capture' : '') + '. ' +
+          (capped ? 'It is AT THE COLLECTION CAP, so it is a rolling window of their NEWEST ads, NOT their full library — older ads and the pages running them fall outside it at random. '
+                  : thin ? 'It is much SMALLER than the previous capture, so coverage today is incomplete. ' : '') +
+          (vanished.length ? 'Pages present before but absent today: ' + vanished.slice(0, 10).join(', ') + '. ' : '') +
+          'ABSENCE RULE: you may NEVER say a page/creator/persona "dropped", "went quiet", "went silent", "stopped", "was retired" or that a tactic was "abandoned" because it is missing from today\'s capture' +
+          (capped || thin ? ' — with a capped or reduced capture that conclusion is unsupported and has been wrong before' : '') +
+          '. Report only what IS present. If the absence looks meaningful, say at most that it was "not seen in today\'s capture", never that it ended.';
+      } catch (e) { /* guard is best-effort */ }
+      out.ads = await ask('ads', brand, (await fmtAds(r[0].data, day)) + lf + monLine + absenceGuard, r[1] && r[1].data ? await fmtAds(r[1].data) : '', me, day);
     }
   } catch (e) { /* skip */ }
 
