@@ -18,6 +18,7 @@ import { getMyBrand } from './brand.js';
 import { transcribeVideo } from './transcribe.js';
 import { offerFlags, offerFacts, bannerFacts, todayLine, isSaleBanner } from './occasions.js';
 import { resolveCapture } from './capture.js';
+import { enforceClaims } from './claims.js';
 
 // True when an Anthropic error means the account is out of credit (vs auth/rate/etc).
 function isCreditError(e) { return /credit balance is too low/i.test(String((e && e.message) || e)); }
@@ -563,6 +564,24 @@ export async function generateInsights(brand, host) {
           '. Report only what IS present. If the absence looks meaningful, say at most that it was "not seen in today\'s capture", never that it ended.';
       } catch (e) { /* guard is best-effort */ }
       out.ads = await ask('ads', brand, (await fmtAds(r[0].data, day)) + lf + monLine + absenceGuard, r[1] && r[1].data ? await fmtAds(r[1].data) : '', me, day);
+      // LAST GATE (claims.js): the prompt asked nicely; this enforces. Unsupported sentences
+      // are removed before the read is stored, on every code path, every time.
+      try {
+        const capN = Number(process.env.ADS_COUNT) || 50;
+        const nowN = (r[0].data.ads || []).length;
+        const prevN = (r[1] && r[1].data && (r[1].data.ads || []).length) || 0;
+        const f = {
+          canJudgeAbsence: !!(nowN && nowN < Math.floor(capN * 0.95) && !(prevN && nowN < prevN * 0.6)),
+          hasEarlier: !!(r[1] && r[1].data),
+          comparable: !!(r[1] && r[1].data && r[1].day !== r[0].day),
+          priceComparable: false,
+        };
+        if (out.ads && out.ads.summary) {
+          const g = enforceClaims(out.ads.summary, f, brand + '/ads');
+          out.ads.summary = g.text || out.ads.summary;
+          if (g.violations.length) out.ads.blocked = g.violations.map((v) => v.rule);
+        }
+      } catch (e) { /* gate is best-effort — never lose the read */ }
     }
   } catch (e) { /* skip */ }
 
@@ -633,6 +652,23 @@ export async function generateInsights(brand, host) {
         : '\nCHANGES: not comparable today — ' + (!_prevOk ? 'no earlier capture to compare against' : 'the product feed is missing on one of the two days') + '. Do NOT report any price move, product add/removal or sale change from a comparison; say only what today shows.';
       const todayBlock = fmtWeb(r[0].data, day, recentSaleBanner) + saleTimeline + _cmpLine;
       out.website = await ask('website', brand, todayBlock, r[1] && r[1].data ? fmtWeb(r[1].data) : '', me, day);
+      try {
+        const hasEarlier = r.length > 1 && r.slice(1).some((x) => x.data);
+        const variantOnly = /variant or re-listing|price testing|already on their site/i.test(String(changes && changes.join('; ')));
+        const f = {
+          hasEarlier,
+          comparable: !!_bothFeeds,
+          priceComparable: !!_bothFeeds,
+          canJudgeAbsence: !!_bothFeeds,
+          canAssertNew: hasEarlier,
+          genuineNewProduct: variantOnly ? false : undefined,
+        };
+        if (out.website && out.website.summary) {
+          const g = enforceClaims(out.website.summary, f, brand + '/website');
+          out.website.summary = g.text || out.website.summary;
+          if (g.violations.length) out.website.blocked = g.violations.map((v) => v.rule);
+        }
+      } catch (e) { /* best-effort */ }
     }
   } catch (e) { /* skip */ }
 

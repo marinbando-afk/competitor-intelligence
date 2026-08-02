@@ -1,0 +1,82 @@
+// REGRESSION FIXTURES — one case per trust failure the founder caught.
+//
+// A fix without a test is a fix that survives until the next code path (the 29 Jul guard on
+// "pages dropped" held in the signal layer, then the same claim came back through the AI
+// read). Each case below is a real sentence that reached a real brief, paired with the real
+// capture facts. They must stay blocked. Run: node test/claims.test.js
+import { checkClaims } from '../src/claims.js';
+
+let pass = 0, fail = 0;
+function t(name, text, facts, shouldBlock, expectRule) {
+  const v = checkClaims(text, facts);
+  const blocked = v.length > 0;
+  const ok = blocked === shouldBlock && (!expectRule || (v[0] && v[0].rule === expectRule));
+  if (ok) { pass++; console.log('  ✓ ' + name); }
+  else { fail++; console.log('  ✗ ' + name + '\n      got: ' + (blocked ? v.map((x) => x.rule).join(',') : 'ALLOWED') + ' | wanted: ' + (shouldBlock ? 'blocked' + (expectRule ? ' (' + expectRule + ')' : '') : 'allowed')); }
+}
+
+console.log('\nMUST BLOCK — real sentences that reached real briefs:');
+
+// Glov, 1 Aug — capture was at the collection cap; the pages were never retired.
+t('Glov: nine persona pages "dropped"',
+  'Whitelisting tactic gone: all nine creator/persona pages dropped, every ad now branded.',
+  { canJudgeAbsence: false, hasEarlier: true, comparable: true }, true, 'ended');
+
+// Seranova, 2 Aug — Dr. Annie Gonzalez appears in that very day's capture.
+t('Seranova: page "has gone quiet"',
+  "'Dr. Annie Gonzalez, MD' whitelisting Facebook page has gone quiet — all five persona pages now run identical copy.",
+  { canJudgeAbsence: false, hasEarlier: true, comparable: true }, true, 'ended');
+
+// Tallowed Truth, 31 Jul — the balm was listed every day since 15 Jul; only variants were added.
+t('Tallowed Truth: variant listings called a launch',
+  'Freedom Field Balm launched today (31 Jul) in at least 4 variants — their first new product since monitoring began 15 Jul.',
+  { hasEarlier: true, canAssertNew: true, genuineNewProduct: false, comparable: true }, true);
+
+// Casa and Beyond, 30 Jul — first ever capture; only our monitoring started that day.
+t('Casa and Beyond: baseline day reported as a launch',
+  '50% Off Clearance Sale launched today (30 Jul) — items originally $49.99-$139.99, now half price site-wide.',
+  { hasEarlier: false, canJudgeAbsence: false, comparable: false }, true, 'launched');
+
+// CurrentBody, 29 Jul — same-day pair with no product feed.
+t('CurrentBody: price move with no comparable feed',
+  'Three LED products raised in price today: Face Mask +$100, Tighten & Brighten Kit +$90.',
+  { priceComparable: false, comparable: false, hasEarlier: true }, true);
+
+// Froya, 27 Jul — partial vision read of a banner that had run for weeks.
+t('Froya: read variance reported as a replacement',
+  "'1M Jars Sold' sale went live today (27 Jul) replacing a generic 40%-off bar.",
+  { hasEarlier: true, canAssertNew: false, comparable: true }, true);
+
+// Founder rules that predate the validator.
+t('day counter', 'Fake sale: "Black Friday" still live — running 241 days.', { canJudgeAbsence: true }, true, 'durationDays');
+t('capture counting', 'Meta ads completely off — no spend for 2+ consecutive captures.', { canJudgeAbsence: true }, true, 'captureCount');
+t('guessed identity', "The Valentine's ad is most likely from Nordic Wellness Secrets.", { hasEarlier: true }, true, 'guessIdentity');
+
+console.log('\nMUST ALLOW — correct reporting must not be over-blocked:');
+
+t('honest absence wording',
+  "Dr. Annie Gonzalez was not seen in today's capture; their other four persona pages are still running.",
+  { canJudgeAbsence: false, hasEarlier: true }, false);
+
+t('baseline stated honestly',
+  'Clearance Sale at 50% off is live on their website; already running when monitoring began (30 Jul), true start date unknown.',
+  { hasEarlier: false, comparable: false }, false);
+
+t('unchanged sale with a date',
+  "'Up to 40% off - 1M Jars Sold' sale active and unchanged since 15 Jul.",
+  { hasEarlier: true, comparable: true }, false);
+
+t('genuine launch with evidence',
+  'Sauna Blanket launched today — it was absent from every earlier capture.',
+  { hasEarlier: true, canAssertNew: true, genuineNewProduct: true, comparable: true }, false);
+
+t('price test called out correctly',
+  'Freedom Field Balm is now listed 5 times at four prices ($29.99-$44.99) — active price testing on their site.',
+  { priceComparable: true, comparable: true, hasEarlier: true, genuineNewProduct: false }, false);
+
+t('legitimate end-of-tactic on a healthy capture',
+  'Their advertorial page dropped out entirely — no ads from it in a full capture that also grew day over day.',
+  { canJudgeAbsence: true, hasEarlier: true, comparable: true }, false);
+
+console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
+process.exit(fail ? 1 : 0);
