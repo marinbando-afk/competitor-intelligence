@@ -1277,50 +1277,8 @@ function start() {
   // Re-open the newest stored email of every quiet brand — claws back lightly-sunset
   // ESP segments (engagement simulator, email.js).
   setTimeout(() => reviveSilent().catch(() => {}), 65000);
-  // One-off data repair (22 Jul 2026, idempotent — delete this block once it has logged in
-  // production): the 18 Jul attribution leak (fail-open verdict rows, fixed in ads.js) stored
-  // six Alibaba.com ads in rubberb.com's ads capture; strip them from that stored day so the
-  // history view stops showing a different company's ads as Rubber B's.
-  setTimeout(async () => {
-    try {
-      const r = await pool.query(`SELECT data FROM snapshots WHERE host='rubberb.com' AND channel='ads' AND to_char(day,'YYYY-MM-DD')='2026-07-18'`);
-      const d = r.rows[0] && r.rows[0].data;
-      if (d && Array.isArray(d.ads) && d.ads.some((a) => /alibaba/i.test(a.page || ''))) {
-        d.ads = d.ads.filter((a) => !/alibaba/i.test(a.page || ''));
-        d.active = d.ads.length;
-        await pool.query(`UPDATE snapshots SET data=$1 WHERE host='rubberb.com' AND channel='ads' AND to_char(day,'YYYY-MM-DD')='2026-07-18'`, [JSON.stringify(d)]);
-        console.log('✓ one-off: stripped Alibaba ads from rubberb.com 2026-07-18 capture (' + d.ads.length + ' real ads kept)');
-      }
-    } catch (e) { console.warn('one-off rubberb cleanup:', e.message); }
-  }, 40000);
-  // One-off data repair (22 Jul, idempotent — delete once logged): the alias-domain rule
-  // attributed Café Bonafide's (Argentina, bonafide.com.ar) ads to Bonafide Provisions (US
-  // broth). Strip every bonafide.com.ar-landing ad from that host's stored ads captures.
-  setTimeout(async () => {
-    try {
-      const r = await pool.query(`SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots WHERE host='bonafideprovisions.com' AND channel='ads'`);
-      for (const row of r.rows) {
-        const d = row.data || {};
-        if (!Array.isArray(d.ads)) continue;
-        const keep = d.ads.filter((a) => !/(^|\.)bonafide\.com\.ar$/i.test((() => { try { return new URL(a.landing).hostname.replace(/^www\./, ''); } catch (e) { return ''; } })()));
-        if (keep.length !== d.ads.length) {
-          d.ads = keep; d.active = keep.length;
-          await pool.query(`UPDATE snapshots SET data=$1 WHERE host='bonafideprovisions.com' AND channel='ads' AND to_char(day,'YYYY-MM-DD')=$2`, [JSON.stringify(d), row.day]);
-          console.log('✓ one-off: stripped Café-Bonafide(AR) ads from bonafideprovisions.com ' + row.day + ' (' + keep.length + ' kept)');
-        }
-      }
-    } catch (e) { console.warn('one-off bonafide cleanup:', e.message); }
-  }, 45000);
-  // One-off (1 Aug — delete once logged): rebuild Tallowed Truth's read under the new rules
-  // (false "Freedom Field Balm launched" → price-test cloning called out).
-  setTimeout(async () => {
-    try {
-      const h = 'thetallowedtruth.com';
-      const t = (await allBrands()).find((b) => b.host === h);
-      await generateInsights(t ? t.name : h, h);
-      console.log('✓ one-off: regenerated ' + h);
-    } catch (e) { console.warn('one-off ttt regen:', e.message); }
-  }, 50000);
+
+
 }
 // Start the server no matter what — if the DB isn't wired yet, accounts are
 // disabled but the ads endpoint still works. The JWT secret is resolved BEFORE
