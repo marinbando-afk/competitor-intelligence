@@ -226,3 +226,32 @@ export function bannerFacts(banner, today) {
   if (!out.length) return '';
   return '\nPROMO TIMING FACTS (computed from today\'s date — ground truth, do NOT contradict):\n' + out.join('\n');
 }
+
+// ── ONE definition of "is this the same banner?" ──────────────────────────────
+// Announcement bars rotate slides and our vision read transcribes them differently every
+// run. UKLASH (2 Aug) ran ONE unchanged subscription offer that we read four different ways
+// in four days — "25% Off Today + 15% Off Forever on subscription discounts", then
+// "...! Limited Time Only", then lowercase, then fully re-ordered — and the re-ordering
+// defeated the containment test added for Froya, so it was announced as a launch.
+//
+// Sameness is judged on MEANING, not string shape: the discount numbers are the promo's
+// identity, and the significant words carry the rest.
+const BSTOP = new Set(['the','and','off','on','with','for','your','you','our','only','today','now','get','plus','all','a','an','of','to','in','is','it','at','by','+','&']);
+export function bannerParts(s) {
+  const t = String(s || '').toLowerCase();
+  const nums = new Set((t.match(/\d+(?:\.\d+)?\s*%?/g) || []).map((x) => x.replace(/\s+/g, '')));
+  const words = new Set(t.replace(/[^a-z0-9% ]+/g, ' ').split(/\s+/).filter((w) => w.length >= 3 && !BSTOP.has(w)));
+  return { nums, words };
+}
+export function sameBannerText(a, b) {
+  const x = String(a || '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
+  const y = String(b || '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
+  if (!x || !y) return false;
+  if (x === y || x.indexOf(y) >= 0 || y.indexOf(x) >= 0) return true;   // partial read of the same bar
+  const A = bannerParts(a), B = bannerParts(b);
+  const inter = (p, q) => [...p].filter((v) => q.has(v)).length;
+  const jac = (p, q) => (p.size && q.size) ? inter(p, q) / (p.size + q.size - inter(p, q)) : 0;
+  // Same discount numbers + meaningful word overlap ⇒ the same promo, re-worded.
+  if (A.nums.size && A.nums.size === B.nums.size && inter(A.nums, B.nums) === A.nums.size && jac(A.words, B.words) >= 0.3) return true;
+  return jac(A.words, B.words) >= 0.65;   // heavy word overlap alone
+}

@@ -16,7 +16,7 @@ import { getEmails } from './email.js';
 import { diffWebsite, siteShot, siteBannerFromShot } from './website.js';
 import { getMyBrand } from './brand.js';
 import { transcribeVideo } from './transcribe.js';
-import { offerFlags, offerFacts, bannerFacts, todayLine, isSaleBanner } from './occasions.js';
+import { offerFlags, offerFacts, bannerFacts, todayLine, isSaleBanner, sameBannerText } from './occasions.js';
 import { resolveCapture } from './capture.js';
 import { enforceClaims } from './claims.js';
 
@@ -635,7 +635,7 @@ export async function generateInsights(brand, host) {
       // to run ("UP TO 40% OFF" vs "UP TO 40% OFF 1M JARS SOLD" — Froya, 27 Jul), and
       // treating the fuller read as a new promo invented a launch story for a line the site
       // had shown for weeks. Containment = partial vs full read of the same bar, never news.
-      const sameBanner = (a, b) => !!a && !!b && (a === b || a.indexOf(b) >= 0 || b.indexOf(a) >= 0);
+      const sameBanner = (a, b) => sameBannerText(a, b);   // shared definition (occasions.js)
       const curBanner = bnorm2(r[0].data.banner || recentSaleBanner);
       if (curBanner) {
         let firstDay = r[0].day, gap = 0;

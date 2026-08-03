@@ -59,6 +59,12 @@ t('Tallowed Truth: social window rotation called a replacement',
   "Three product-focused Reels added since last capture, replacing a political 'Sorry not sorry' Carousel.",
   { canJudgeAbsence: false, comparable: false, hasEarlier: true }, true, 'replaced');
 
+// UKLASH, 2 Aug — one unchanged subscription offer, transcribed four different ways in four
+// days; the re-ordered read defeated the containment test and was announced as a launch.
+t('UKLASH: re-worded banner reported as a launch',
+  "Subscription sale launched on-site today (2 Aug): 25% off entry offer plus 15% off every repeat order — first time this framing has appeared in the announcement bar.",
+  { hasEarlier: true, canAssertNew: false, comparable: true }, true);
+
 console.log('\nMUST ALLOW — correct reporting must not be over-blocked:');
 
 t('honest absence wording',
@@ -93,3 +99,15 @@ t('legitimate end-of-tactic on a healthy capture',
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);
+
+// ── banner sameness (occasions.sameBannerText) ────────────────────────────────
+import { sameBannerText } from '../src/occasions.js';
+console.log('\nBANNER SAMENESS — re-wording is not a new promo:');
+function b(name, x, y, want) {
+  const got = sameBannerText(x, y);
+  if (got === want) { console.log('  ✓ ' + name); } else { console.log('  ✗ ' + name + ' (got ' + got + ')'); process.exitCode = 1; }
+}
+b('UKLASH: re-ordered same offer', '25% off today, 15% off forever with subscription', '15% OFF FOREVER + LIMITED TIME ONLY + 25% OFF TODAY + EVEN BIGGER SUBS', true);
+b('Froya: partial vs full read', 'UP TO 40% OFF', 'UP TO 40% OFF 1M JARS SOLD', true);
+b('Seranova: genuine rename stays different', 'Summer Sale: 58% off', '4th of July Sale: 58% off', false);
+b('genuine depth change stays different', '25% Off Today + 15% Off Forever', '50% off everything sitewide', false);

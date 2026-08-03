@@ -14,7 +14,7 @@
 import { recentSnapshots, allSnapshots, latestSnapshot, saveSnapshot } from './snapshots.js';
 import { diffWebsite } from './website.js';
 import { adsChanges, adDomain, isFunnelUrl } from './ads.js';
-import { offerFlags, isSaleBanner } from './occasions.js';
+import { offerFlags, isSaleBanner, sameBannerText } from './occasions.js';
 import { resolveCapture } from './capture.js';
 
 const DAY = 86400000;
@@ -160,8 +160,9 @@ async function saleBannerSeenRecently(host, banner, todayStr) {
       // Containment counts as the SAME sale: the vision read of one bar varies run to run
       // ("UP TO 40% OFF" vs "UP TO 40% OFF 1M JARS SOLD" — Froya, 27 Jul), and an exact-match
       // test re-announced a weeks-old banner as a new sale on the day the fuller read landed.
-      const bn = normBanner(b);
-      if (b && isSaleBanner(b) && bn && (bn === target || bn.indexOf(target) >= 0 || target.indexOf(bn) >= 0)) return true;
+      // Shared sameness test (occasions.js): survives re-ordering and re-wording of the
+      // same bar — UKLASH's one subscription offer was read four different ways in four days.
+      if (b && isSaleBanner(b) && sameBannerText(b, banner)) return true;
     }
     return false;
   } catch (e) { return true; }   // on any doubt, stay quiet (precision-first)
