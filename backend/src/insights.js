@@ -593,7 +593,22 @@ export async function generateInsights(brand, host) {
       if (r[0] && r[0].data && r[0].data.posts && r[0].data.posts.length) { today.push(fmtPosts(r[0].data.posts, lab + ' @' + (r[0].data.handle || ''))); capDay = capDay || capDate(r[0].day); }
       if (r[1] && r[1].data && r[1].data.posts && r[1].data.posts.length) prev.push(fmtPosts(r[1].data.posts, lab, true));
     }
-    if (today.length) out.social = await ask('social', brand, today.join('\n\n'), prev.join('\n\n'), me, capDay);
+    if (today.length) {
+      // A social capture is a fixed NEWEST-N window, exactly like the ad cap: when new posts
+      // land, older ones fall out of view. Tallowed Truth (2 Aug): "three product Reels added,
+      // replacing a political Carousel" — the Carousel was never removed, it just left our
+      // 9-post window. New posts ARE verifiable (new ids); disappearance is NOT.
+      const windowNote = '\nCAPTURE WINDOW (fact): we store only their NEWEST posts, so a post that is no longer in view has almost certainly just been pushed out by newer ones — their profile still holds it. You may report posts that APPEARED. You may NEVER say a post was removed, deleted, replaced or swapped, and never say older content "stopped" — that is not observable from this capture.';
+      out.social = await ask('social', brand, today.join('\n\n') + windowNote, prev.join('\n\n'), me, capDay);
+      try {
+        const f = { canJudgeAbsence: false, comparable: false, hasEarlier: !!prev.length, canAssertNew: !!prev.length, priceComparable: false };
+        if (out.social && out.social.summary) {
+          const g = enforceClaims(out.social.summary, f, brand + '/social');
+          out.social.summary = g.text || out.social.summary;
+          if (g.violations.length) out.social.blocked = g.violations.map((v) => v.rule);
+        }
+      } catch (e) { /* best-effort */ }
+    }
   } catch (e) { /* skip */ }
 
   try {

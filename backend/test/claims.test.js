@@ -52,6 +52,13 @@ t('day counter', 'Fake sale: "Black Friday" still live — running 241 days.', {
 t('capture counting', 'Meta ads completely off — no spend for 2+ consecutive captures.', { canJudgeAbsence: true }, true, 'captureCount');
 t('guessed identity', "The Valentine's ad is most likely from Nordic Wellness Secrets.", { hasEarlier: true }, true, 'guessIdentity');
 
+// Tallowed Truth, 2 Aug — caught by the validator itself during a routine audit. Their
+// social capture holds the newest 9 posts; three new Reels pushed a Carousel out of view and
+// the read called it a replacement. The post was never removed.
+t('Tallowed Truth: social window rotation called a replacement',
+  "Three product-focused Reels added since last capture, replacing a political 'Sorry not sorry' Carousel.",
+  { canJudgeAbsence: false, comparable: false, hasEarlier: true }, true, 'replaced');
+
 console.log('\nMUST ALLOW — correct reporting must not be over-blocked:');
 
 t('honest absence wording',
@@ -73,6 +80,12 @@ t('genuine launch with evidence',
 t('price test called out correctly',
   'Freedom Field Balm is now listed 5 times at four prices ($29.99-$44.99) — active price testing on their site.',
   { priceComparable: true, comparable: true, hasEarlier: true, genuineNewProduct: false }, false);
+
+// NB: the validator rejected the first draft of this fixture for saying "since the last
+// capture" — banned plumbing language. It was right; the sentence now uses a date.
+t('social: appearance is reportable',
+  'Three product-focused Reels appeared on 1 Aug — their first product content since 23 Jul.',
+  { canJudgeAbsence: false, comparable: false, hasEarlier: true, canAssertNew: true, genuineNewProduct: true }, false);
 
 t('legitimate end-of-tactic on a healthy capture',
   'Their advertorial page dropped out entirely — no ads from it in a full capture that also grew day over day.',
