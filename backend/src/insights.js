@@ -376,6 +376,7 @@ async function classifyUrls(items) {   // items: [{ host, url }]
     out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val }); landCachePersist(f.host, val);
   }
   for (const f of thin.slice(3)) { const val = { format: 'unknown', note: 'not analyzed this run' }; out.set(f.host, val); _landCache.set(f.host, { at: Date.now(), val }); }
+  delete out.__facts;   // internal only — never stored or served
   return out;
 }
 
@@ -576,6 +577,7 @@ export async function generateInsights(brand, host) {
           comparable: !!(r[1] && r[1].data && r[1].day !== r[0].day),
           priceComparable: false,
         };
+        out.__facts = Object.assign(out.__facts || {}, { adsAbsenceOk: f.canJudgeAbsence, hasEarlier: f.hasEarlier });
         if (out.ads && out.ads.summary) {
           const g = enforceClaims(out.ads.summary, f, brand + '/ads');
           out.ads.summary = g.text || out.ads.summary;
@@ -678,6 +680,7 @@ export async function generateInsights(brand, host) {
           canAssertNew: hasEarlier,
           genuineNewProduct: variantOnly ? false : undefined,
         };
+        out.__facts = Object.assign(out.__facts || {}, { webComparable: f.comparable, genuineNewProduct: f.genuineNewProduct, hasEarlier: (out.__facts && out.__facts.hasEarlier) || f.hasEarlier });
         if (out.website && out.website.summary) {
           const g = enforceClaims(out.website.summary, f, brand + '/website');
           out.website.summary = g.text || out.website.summary;
@@ -696,6 +699,16 @@ export async function generateInsights(brand, host) {
       out.email = { summary: 'Only the sign-up confirmation captured so far — their first newsletter lands with their next campaign, usually within a day or two.', bullets: [] };
     } else if (real.length) {
       out.email = await ask('email', brand, fmtEmail({ emails: real, summary: em.summary, alias: em.alias, site: host }), '', me);
+      try {
+        // We hold a window of their recent sends: a flow we no longer see may simply have
+        // scrolled out, or our inbox was suppressed — never evidence that they stopped.
+        const f = { canJudgeAbsence: false, comparable: false, priceComparable: false, hasEarlier: true, canAssertNew: true };
+        if (out.email && out.email.summary) {
+          const g = enforceClaims(out.email.summary, f, brand + '/email');
+          out.email.summary = g.text || out.email.summary;
+          if (g.violations.length) out.email.blocked = g.violations.map((v) => v.rule);
+        }
+      } catch (e) { /* best-effort */ }
     }
   } catch (e) { /* skip */ }
 
@@ -704,7 +717,31 @@ export async function generateInsights(brand, host) {
   // the curated demos.
   try {
     const b = await makeBrief(brand, out, me, new Date());
-    if (b) out.brief = b;
+    if (b) {
+      // THE HEADLINE GETS THE STRICTEST GATE. The threat assessment is what the app shows
+      // first and what the Slack brief quotes, so it is judged on the most CONSERVATIVE
+      // combination of every channel's facts — a claim is only allowed if the weakest
+      // channel it could have come from supports it.
+      try {
+        const gf = out.__facts || {};
+        const strict = {
+          canJudgeAbsence: gf.adsAbsenceOk === true,
+          hasEarlier: gf.hasEarlier !== false,
+          comparable: gf.webComparable === true,
+          priceComparable: gf.webComparable === true,
+          canAssertNew: gf.hasEarlier !== false,
+          genuineNewProduct: gf.genuineNewProduct,
+        };
+        for (const key of ['verdict', 'move']) {
+          if (!Array.isArray(b[key])) continue;
+          b[key] = b[key].map((line) => {
+            const g = enforceClaims(line, strict, brand + '/brief.' + key);
+            return g.text || null;
+          }).filter(Boolean);
+        }
+      } catch (e) { /* best-effort */ }
+      out.brief = b;
+    }
     else console.warn('brief ' + host + ': makeBrief returned nothing — report saved without a THREAT ASSESSMENT');
   } catch (e) {
     // Was silent. A transient failure here leaves the whole day's report with channels but
