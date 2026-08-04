@@ -141,3 +141,23 @@ b('UKLASH: re-ordered same offer', '25% off today, 15% off forever with subscrip
 b('Froya: partial vs full read', 'UP TO 40% OFF', 'UP TO 40% OFF 1M JARS SOLD', true);
 b('Seranova: genuine rename stays different', 'Summer Sale: 58% off', '4th of July Sale: 58% off', false);
 b('genuine depth change stays different', '25% Off Today + 15% Off Forever', '50% off everything sitewide', false);
+
+// ── handle normalisation (social.normHandle) ──────────────────────────────────
+// Pannonian Padel, 5 Aug: handles WERE submitted, but the confirm modal stores what the
+// client pastes — usually a full profile URL — and the scraper only stripped a leading "@".
+// It queried for "instagram.com/pannonianpadel", found nothing, and the brand showed zero
+// posts for weeks while reports called them quiet.
+import { normHandle } from '../src/social.js';
+console.log('\nHANDLE NORMALISATION — a pasted URL must still scrape:');
+function h(inp, want) {
+  const got = normHandle(inp);
+  if (got === want) console.log('  ✓ ' + JSON.stringify(inp));
+  else { console.log('  ✗ ' + JSON.stringify(inp) + ' -> ' + JSON.stringify(got) + ' (want ' + JSON.stringify(want) + ')'); process.exitCode = 1; }
+}
+h('instagram.com/pannonianpadel', 'pannonianpadel');
+h('https://www.tiktok.com/@pannonianpadel', 'pannonianpadel');
+h('facebook.com/profile.php?id=100067470427617', 'profile.php?id=100067470427617');
+h('facebook.com/p/Mars-Men-184711951390377/', 'p/Mars-Men-184711951390377');
+h('@the_oodie', 'the_oodie');
+h('the_oodie', 'the_oodie');
+h('https://instagram.com/glovbeauty/', 'glovbeauty');

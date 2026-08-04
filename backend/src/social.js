@@ -164,11 +164,32 @@ function summarize(platform, posts) {
   };
 }
 
+// Accepts a bare handle, an @handle, or any profile URL, and returns the bare handle.
+// Facebook's numeric "profile.php?id=N" form is preserved — it IS the identifier.
+export function normHandle(v) {
+  let h = String(v || '').trim();
+  if (!h) return '';
+  h = h.replace(/^https?:\/\//i, '').replace(/^(?:www|m|web)\./i, '');
+  const prof = h.match(/profile\.php\?id=(\d+)/i);
+  if (prof) return 'profile.php?id=' + prof[1];
+  h = h.replace(/^(?:facebook|instagram|tiktok)\.com\//i, '');
+  h = h.replace(/^@/, '').replace(/[?#].*$/, '').replace(/\/+$/, '');
+  // "/p/Name-123456/" (modern Facebook page URLs) and "/pages/Name/123456"
+  const p = h.match(/^p\/([A-Za-z0-9._-]*\d{6,})/i) || h.match(/^pages\/[^/]+\/(\d{6,})/i);
+  if (p) return 'p/' + p[1];
+  return h.split('/')[0];
+}
+
 export async function fetchSocial(platform, handle, host, force, cacheOnly) {
   if (!TOKEN) { const e = new Error('Social provider not configured — set APIFY_TOKEN in Railway.'); e.status = 503; throw e; }
   platform = String(platform || '').toLowerCase();
   if (!ACTORS[platform]) { const e = new Error('Unknown platform.'); e.status = 400; throw e; }
-  handle = String(handle || '').trim().replace(/^@/, '');
+  // NORMALISE THE HANDLE (founder, 5 Aug — Pannonian Padel). The add/confirm modal stores
+  // whatever the client pastes, which is usually a full URL ("instagram.com/pannonianpadel",
+  // "https://www.tiktok.com/@pannonianpadel"). Only a leading "@" was stripped, so the actor
+  // was asked for a handle containing a domain, found nothing, and the brand silently showed
+  // zero posts for weeks — and the report then called them quiet.
+  handle = normHandle(handle);
   host = String(host || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
 
   if (!handle && host) { const h = await resolveHandles(host); handle = h[SHORT[platform]] || ''; }
