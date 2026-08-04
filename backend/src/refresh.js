@@ -255,6 +255,82 @@ function msUntil(hour, tz) {
   return diff * 1000;
 }
 
+// ── NIGHTLY QUALITY AUDIT ─────────────────────────────────────────────────────
+// "Why do I have to ask the same questions every day?" (founder, 4 Aug). Because until now
+// HE was the detection system: the validator strips bad claims at generation, but nothing
+// ever LOOKED at the finished reports afterwards, so anything the rules didn't yet know
+// about sailed through in silence and waited to be spotted in a brief.
+//
+// This is the missing half. Every night, after regeneration, every stored read for every
+// brand is re-checked against the real facts of its own captures, plus two cross-checks the
+// per-read gate cannot make on its own:
+//   • CONTRADICTION — a read claiming change on a day the computed diff found none.
+//   • DIVERGENCE   — the app read and the Slack brief telling different stories.
+// Anything found is posted to Slack. Silence means it genuinely passed.
+export async function qualityAudit({ day, alert = false } = {}) {
+  const { checkClaims } = await import('./claims.js');
+  const { diffWebsite } = await import('./website.js');
+  const today = day || new Date().toISOString().slice(0, 10);
+  const brands = await allBrands();
+  const capN = Number(process.env.ADS_COUNT) || 50;
+  const findings = [];
+
+  for (const b of brands) {
+    let rows;
+    try {
+      rows = await pool.query(
+        `SELECT channel, to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots
+          WHERE host = $1 AND day >= $2::date - 1 AND day <= $2::date`, [b.host, today]);
+    } catch (e) { continue; }
+    const at = (ch, d) => (rows.rows.find((r) => r.channel === ch && r.day === d) || {}).data || null;
+    const yday = new Date(Date.parse(today) - 86400000).toISOString().slice(0, 10);
+    const ins = at('insights', today) || at('insights', yday);
+    if (!ins) continue;
+
+    const a0 = (at('ads', today) || {}).ads || [], a1 = (at('ads', yday) || {}).ads || [];
+    const w0 = at('website', today), w1 = at('website', yday);
+    const wDiff = (w0 && w1 && w0.summary && w1.summary) ? (diffWebsite(w1.summary, w0.summary) || []) : null;
+    const facts = {
+      canJudgeAbsence: !!(a0.length && a0.length < Math.floor(capN * 0.95) && !(a1.length && a0.length < a1.length * 0.6)),
+      hasEarlier: !!(at('ads', yday) || at('website', yday)),
+      comparable: !!(w0 && w1),
+      priceComparable: !!(w0 && w1 && w0.summary && w1.summary),
+      canAssertNew: !!(at('ads', yday) || at('website', yday)),
+      noChanges: Array.isArray(wDiff) && wDiff.length === 0,
+    };
+
+    const texts = [];
+    for (const ch of ['ads', 'website', 'social', 'email']) {
+      const sec = ins[ch]; if (sec && sec.summary) texts.push([ch, sec.summary]);
+    }
+    for (const k of ['verdict', 'move']) {
+      const arr = ins.brief && ins.brief[k];
+      if (Array.isArray(arr)) arr.forEach((t, i) => texts.push(['brief.' + k + i, t]));
+    }
+    for (const [where, text] of texts) {
+      // The website read is the only one judged against the diff invariant.
+      const f = where === 'website' ? facts : { ...facts, noChanges: false };
+      for (const v of checkClaims(text, f)) {
+        findings.push({ brand: b.name || b.host, where, rule: v.rule, sentence: v.sentence.slice(0, 160) });
+      }
+    }
+  }
+
+  const out = { day: today, brands: brands.length, findings };
+  if (alert) {
+    if (!findings.length) console.log('✓ quality audit: ' + brands.length + ' brands, no unsupported claims');
+    else {
+      const lines = findings.slice(0, 12).map((f) => '   • *' + f.brand + '* [' + f.where + '] (' + f.rule + ')\n      "' + f.sentence + '"');
+      const msg = '🔎 *WatchBack quality audit — ' + today + '*\n' + findings.length +
+        ' unsupported claim(s) found in stored reads across ' + brands.length + ' brands:\n' + lines.join('\n') +
+        (findings.length > 12 ? '\n   …and ' + (findings.length - 12) + ' more' : '');
+      console.warn(msg.replace(/\*/g, ''));
+      try { const { postText } = await import('./slack.js'); await postText(msg); } catch (e) { /* best-effort */ }
+    }
+  }
+  return out;
+}
+
 // ── DAILY COVERAGE AUDIT ──────────────────────────────────────────────────────
 // "It's not acceptable if the website scan or screenshot fails and then you do nothing
 // about it" (founder, 1 Aug). Reliability is the product: a silent capture gap becomes a
@@ -333,7 +409,13 @@ export function startScheduler() {
   // Audit 90 minutes after the nightly capture: verify, repair, and alert on what's left.
   function armAudit() {
     const ms = msUntil((warmHour + 1) % 24, tz) + 30 * 60000;
-    setTimeout(() => { coverageAuditAndAlert().catch(() => {}); armAudit(); }, ms);
+    setTimeout(() => {
+      coverageAuditAndAlert()
+        .catch(() => {})
+        // Quality follows coverage: check WHAT was written, not just THAT it was captured.
+        .then(() => qualityAudit({ alert: true }).catch(() => {}));
+      armAudit();
+    }, ms);
   }
   armWarm();
   armBrief();

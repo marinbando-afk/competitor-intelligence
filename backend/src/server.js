@@ -16,7 +16,7 @@ import { signup, login, createUser, setPassword, changePassword, requireAuth, op
 import { randomBytes } from 'crypto';
 import { fetchAds, adsChanges, ownPageIdsFor } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
-import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, coverageAudit, coverageAuditAndAlert, TRACKED } from './refresh.js';
+import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, coverageAudit, coverageAuditAndAlert, qualityAudit, TRACKED } from './refresh.js';
 import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, sendUserWeeklyLinks, sendUserDailyBriefs } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml, reviveSilent } from './email.js';
 import { chat } from './chat.js';
@@ -565,6 +565,13 @@ app.get('/api/coverage', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 let _auditRunning = false, _auditLast = null;
+
+// What did every stored read actually claim, and does the data support it? ?alert=1 posts
+// the findings to Slack. Runs automatically each night after the coverage audit.
+app.get('/api/quality', async (req, res) => {
+  try { res.json(await qualityAudit({ day: req.query.day, alert: String(req.query.alert || '') === '1' })); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // Diagnostic: is the Meta Conversions API token present and accepted by Meta?
 app.get('/api/capi-status', async (req, res) => {
