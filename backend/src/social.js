@@ -192,7 +192,23 @@ export async function fetchSocial(platform, handle, host, force, cacheOnly) {
   handle = normHandle(handle);
   host = String(host || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
 
-  if (!handle && host) { const h = await resolveHandles(host); handle = h[SHORT[platform]] || ''; }
+  // HANDLE RESOLUTION ORDER (founder, 5 Aug — Pannonian Padel showed zero posts for weeks
+  // while its confirmed accounts sat in the database). The handle a client confirms at
+  // add-time is the ground truth. Only the nightly warm passed it explicitly, and it reads
+  // from the tracked list — an entry created before the handles were confirmed carries none,
+  // so the warm passed nothing. Every other path (live fetch, re-detect) went straight to a
+  // WEBSITE scan, which finds nothing for a brand that doesn't link its socials.
+  // Now: explicit handle → CONFIRMED stored handle → website scan.
+  if (!handle && host) {
+    try {
+      const { pool } = await import('./db.js');
+      const r = await pool.query(
+        'SELECT handles FROM competitors WHERE host = $1 AND handles IS NOT NULL ORDER BY updated_at DESC LIMIT 1', [host]);
+      const stored = r.rows[0] && r.rows[0].handles;
+      if (stored) handle = normHandle(stored[SHORT[platform]] || stored[platform] || '');
+    } catch (e) { /* fall through to the website scan */ }
+  }
+  if (!handle && host) { const h = await resolveHandles(host); handle = normHandle(h[SHORT[platform]] || ''); }
   if (!handle) return { platform, handle: null, posts: [], summary: null };
 
   const key = platform + '|' + handle.toLowerCase();
