@@ -573,6 +573,20 @@ app.get('/api/quality', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Diagnostic: what social handles are actually STORED for a host (public info, no secrets).
+// Added 5 Aug because the edit modal showed handles while the scraper found none, and only
+// the database could settle which was true.
+app.get('/api/handles', async (req, res) => {
+  try {
+    const h = String(req.query.host || '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+    const r = await pool.query(
+      `SELECT host, name, handles, to_char(updated_at,'YYYY-MM-DD HH24:MI') AS updated
+         FROM competitors WHERE host = $1 OR host = $2 OR host LIKE $3 ORDER BY updated_at DESC LIMIT 5`,
+      [h, 'www.' + h, '%' + h + '%']);
+    res.json({ query: h, rows: r.rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Diagnostic: is the Meta Conversions API token present and accepted by Meta?
 app.get('/api/capi-status', async (req, res) => {
   res.json({ configured: capiEnabled(), tokenValid: await capiTokenValid() });
