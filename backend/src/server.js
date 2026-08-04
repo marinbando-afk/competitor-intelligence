@@ -573,6 +573,27 @@ app.get('/api/quality', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Diagnostic: actually RUN the social scrape and report what came back. Restricted to hosts
+// we already track (so it can't be used to trigger arbitrary paid scrapes). Added 5 Aug
+// because every anonymous test hit the no-scrape guard and returned an empty result that
+// looked like a failure — three wrong diagnoses came from reading that as evidence.
+app.get('/api/social-debug', async (req, res) => {
+  try {
+    const host = String(req.query.host || '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+    const platform = String(req.query.platform || 'instagram').toLowerCase();
+    const known = (await allBrands()).some((b) => b.host === host);
+    if (!known) return res.status(404).json({ error: 'Not a tracked host.' });
+    const r = await pool.query('SELECT handles FROM competitors WHERE host = $1 AND handles IS NOT NULL ORDER BY updated_at DESC LIMIT 1', [host]);
+    const stored = (r.rows[0] && r.rows[0].handles) || {};
+    const out = { host, platform, stored };
+    try {
+      const live = await fetchSocial(platform, undefined, host, true);
+      out.result = { handle: live.handle || null, posts: (live.posts || []).length, sample: (live.posts || [])[0] ? String((live.posts[0].text || '')).slice(0, 80) : null };
+    } catch (e) { out.error = String(e.message || e).slice(0, 300); }
+    res.json(out);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Diagnostic: what social handles are actually STORED for a host (public info, no secrets).
 // Added 5 Aug because the edit modal showed handles while the scraper found none, and only
 // the database could settle which was true.
