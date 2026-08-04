@@ -29,6 +29,16 @@ const RULES = [
     why: 'claims something changed/launched while the computed diff for the same two days found NO changes — the read must not contradict the data panel beneath it',
   },
   {
+    id: 'quietWithoutData',
+    // Pannonian Padel, 5 Aug: the brief said "no new posts on social media" for a brand whose
+    // Instagram/TikTok/Facebook handles were never stored — we had never looked. Reporting
+    // quiet when a channel is UNMONITORED is the worst version of absence-as-evidence: it
+    // tells the customer their competitor is idle when we simply have no account connected.
+    re: /\b(no (new )?(posts|activity|content)|nothing new|no social activity|quiet on social|has(n't| not) posted)\b/i,
+    allow: (f) => f.channelConnected === true,
+    why: 'reports a channel as quiet when no account is connected for it — we never looked, so we cannot say they did not post',
+  },
+  {
     id: 'ended',
     // a page/tactic/campaign stopped
     // "dropped" is ambiguous in English: a page can drop OUT (stopped) and a collab can

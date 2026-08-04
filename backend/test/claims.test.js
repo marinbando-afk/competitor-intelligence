@@ -76,6 +76,12 @@ t('UKLASH: "first appearance in monitoring" on an unchanged day',
   'Sale started 3 Aug: 15% off forever, 25% off today, and deeper subscription discounts — first appearance in monitoring.',
   { hasEarlier: true, comparable: true, noChanges: true }, true);
 
+// Pannonian Padel, 5 Aug — no IG/TikTok/Facebook handles were ever stored, so we had never
+// looked; the brief still reported them as quiet.
+t('Pannonian Padel: quiet claimed on an unmonitored channel',
+  'No new posts across Instagram, TikTok, or Facebook — all content unchanged.',
+  { channelConnected: false, canJudgeAbsence: false, hasEarlier: true }, true, 'quietWithoutData');
+
 console.log('\nMUST ALLOW — correct reporting must not be over-blocked:');
 
 t('honest absence wording',
@@ -112,6 +118,10 @@ t('release sense of "dropped" is not an ending',
 t('counter-op advice may talk about price cuts',
   'Test a time-limited genuine offer to contrast against their always-on compare-at discount — make your price cut feel real.',
   { priceComparable: false, advice: true, hasEarlier: true }, false);
+
+t('quiet is reportable when the account IS connected',
+  'No new posts on Instagram since 28 Jul — their last post was the lash tutorial.',
+  { channelConnected: true, canJudgeAbsence: true, hasEarlier: true, comparable: true }, false);
 
 t('legitimate end-of-tactic on a healthy capture',
   'Their advertorial page dropped out entirely — no ads from it in a full capture that also grew day over day.',

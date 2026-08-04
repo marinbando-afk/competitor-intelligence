@@ -351,10 +351,30 @@ export async function coverageAudit({ repair = true, day } = {}) {
         if (x.channel === 'ads') ads = true;
       }
     } catch (e) { /* treat as missing */ }
-    rows.push({ host: b.host, name: b.name, web, shot, ads });
+    // A brand with NO social accounts connected is invisible on social forever, and until
+    // now nothing said so — the brief just reported "no new posts" (Pannonian Padel, 5 Aug).
+    let social = false;
+    try {
+      const r2 = await pool.query(
+        `SELECT channel, data FROM snapshots WHERE host = $1 AND channel IN ('instagram','tiktok','facebook') ORDER BY day DESC LIMIT 6`, [b.host]);
+      social = r2.rows.some((x) => x.data && Array.isArray(x.data.posts) && x.data.posts.length > 0);
+    } catch (e) { /* treat as missing */ }
+    rows.push({ host: b.host, name: b.name, web, shot, ads, social });
   }
   let repaired = 0;
   if (repair) {
+    // Try to RESOLVE missing social accounts, not just report them: re-read the brand's site
+    // for handles and persist them, so the gap can actually close (Pannonian Padel, 5 Aug).
+    for (const r of rows.filter((x) => !x.social)) {
+      try {
+        const { resolveHandles } = await import('./social.js');
+        const h = await resolveHandles(r.host);
+        if (h && Object.keys(h).length) {
+          await pool.query('UPDATE competitors SET handles = $2, updated_at = now() WHERE host = $1', [r.host, JSON.stringify(h)]);
+          r.handlesFound = Object.keys(h).join(',');
+        }
+      } catch (e) { /* best-effort */ }
+    }
     for (const r of rows.filter((x) => !x.web || !x.shot)) {
       const b = brands.find((x) => x.host === r.host);
       if (!b) continue;
@@ -367,21 +387,28 @@ export async function coverageAudit({ repair = true, day } = {}) {
     }
   }
   const missing = rows.filter((r) => !r.web || !r.shot);
-  return { day: today, total: rows.length, ok: rows.length - missing.length, repaired, missing, rows };
+  const noSocial = rows.filter((r) => !r.social);
+  return { day: today, total: rows.length, ok: rows.length - missing.length, repaired, missing, noSocial, rows };
 }
 
 // Report the audit to the founder's Slack — silence is only acceptable when everything landed.
 export async function coverageAuditAndAlert() {
   try {
     const a = await coverageAudit({ repair: true });
+    const socialGap = (a.noSocial || []).length
+      ? '\n\n📵 *No social accounts connected* — these brands can never show social activity, and their reports must say so rather than "no new posts":\n' +
+        a.noSocial.slice(0, 10).map((m) => '   • ' + (m.name || m.host)).join('\n') +
+        ((a.noSocial.length > 10) ? '\n   …and ' + (a.noSocial.length - 10) + ' more' : '')
+      : '';
     if (!a.missing.length) {
       console.log('✓ coverage audit: all ' + a.total + ' brands captured' + (a.repaired ? ' (' + a.repaired + ' repaired)' : ''));
+      if (socialGap) { try { const { postText } = await import('./slack.js'); await postText('🔎 *WatchBack coverage — ' + a.day + '*' + socialGap); } catch (e) { /* best-effort */ } }
       return a;
     }
     const lines = a.missing.map((m) => '   • ' + (m.name || m.host) + ' — ' + (!m.web ? 'no website capture' : 'no screenshot') + (m.error ? ' (' + String(m.error).slice(0, 80) + ')' : ''));
     const msg = '⚠️ *WatchBack capture gap — ' + a.day + '*\n' + a.missing.length + ' of ' + a.total +
       ' brand(s) could not be captured even after a retry' + (a.repaired ? ' (' + a.repaired + ' others were repaired)' : '') +
-      '. Their reads will say the data is missing rather than guess:\n' + lines.join('\n');
+      '. Their reads will say the data is missing rather than guess:\n' + lines.join('\n') + socialGap;
     console.warn(msg.replace(/\*/g, ''));
     try { const { postText } = await import('./slack.js'); await postText(msg); } catch (e) { /* alert best-effort */ }
     return a;
