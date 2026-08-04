@@ -516,6 +516,10 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .cl-chip{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;padding:3px 8px;border:1px solid var(--line2);border-radius:5px;color:var(--muted);white-space:nowrap}
 .cl-chip.ok{color:var(--sage);border-color:var(--sage-d)}
 .cl-chip.warn{color:var(--gold);border-color:rgba(227,169,44,.45)}
+.cl-toolbar{display:flex;gap:8px;margin-bottom:12px;align-items:center}
+.cl-toolbar .cl-in{flex:1;min-width:0}
+.cl-body .cl-lbl{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font-size:10px;letter-spacing:.18em;color:var(--sage-d)}
+.cl-body .cl-lbl:first-child{margin-top:0;padding-top:0;border-top:none}
 .cl-caret{color:var(--faint);transition:transform .15s ease}
 .cl-card.open .cl-caret{transform:rotate(180deg)}
 .cl-body{display:none;padding:2px 14px 14px;border-top:1px solid var(--line2)}
@@ -2886,13 +2890,23 @@ function loadAdminClients(){
     if(typeof d.dflt==='number')CLIENT_DFLT=d.dflt;
     var cs=d.clients||[];
     ADMIN_CLIENTS=cs;
-    var html=(cs.length?'<button class="cl-mini add" style="margin-bottom:12px" onclick="openAnn()">📢 Send announcement</button>':'')
-      +'<div class="cl-new"><div class="cl-new-h">Create a client login</div>'
+    // TOOLBAR + SEARCH + SORT (founder, 6 Aug: "very hard to navigate, use and unclear").
+    // Everything that existed is still here: create-client now lives behind "+ New client"
+    // (used once a week, was eating prime space), announcement moved into the toolbar,
+    // search filters as you type, test accounts sort last, one card open at a time.
+    var html='<div class="cl-toolbar">'
+      +'<input id="clSearch" class="cl-in" placeholder="Search clients or competitors…" oninput="renderClientList()" autocomplete="off">'
+      +'<button class="cl-mini" onclick="toggleNewClient()">+ New client</button>'
+      +(cs.length?'<button class="cl-mini" onclick="openAnn()">📢 Announcement</button>':'')
+      +'</div>'
+      +'<div class="cl-new" id="clNewBox" style="display:none"><div class="cl-new-h">Create a client login</div>'
       +'<div class="cl-new-row"><input id="clEmail" class="cl-in" type="email" placeholder="client@email.com" autocomplete="off"><input id="clPass" class="cl-in cl-nm" type="text" placeholder="password (8+ chars)" autocomplete="off"><button class="cl-mini add" onclick="createClient(this)">Create</button></div>'
       +'<div id="clNewErr" class="cl-err"></div></div>'
-      +'<div class="fb-list-h">'+cs.length+' client'+(cs.length===1?'':'s')+warmNote(d.warm)+'</div>'
-      +(cs.length?cs.map(clientCard).join(''):'<div class="fb-empty">No client accounts yet — create one above.</div>');
+      +'<div class="fb-list-h" id="clCount"></div>'
+      +'<div id="clList"></div>';
     b.innerHTML=html;
+    ADMIN_WARM_NOTE=warmNote(d.warm);
+    renderClientList();
   }).catch(function(){b.innerHTML='<div class="fb-empty">Couldn’t load.</div>';});
 }
 // Keep the watchlist open across background re-renders (see .rail.open in the CSS above).
@@ -2952,6 +2966,23 @@ function sendAnn(){
       setTimeout(function(){closeAnn();},2600);
     }).catch(function(){btn.disabled=false;btn.textContent='Send';err.textContent='Couldn’t send — check your connection.';});
 }
+var ADMIN_WARM_NOTE='';
+function renderClientList(){
+  var list=document.getElementById('clList'),count=document.getElementById('clCount');
+  if(!list)return;
+  var q=String((document.getElementById('clSearch')||{}).value||'').toLowerCase().trim();
+  var cs=(ADMIN_CLIENTS||[]).slice();
+  // Real clients first (A→Z); anything that looks like a test account sinks to the bottom.
+  var isTest=function(c){return /^test\b|^test\d|@watchback\.ai$/.test(String(c.email||'').toLowerCase());};
+  cs.sort(function(a,b){var ta=isTest(a)?1:0,tb=isTest(b)?1:0;return ta-tb||String(a.email).localeCompare(String(b.email));});
+  if(q){cs=cs.filter(function(c){
+    if(String(c.email||'').toLowerCase().indexOf(q)>=0)return true;
+    return (c.competitors||[]).some(function(x){return String((x.name||'')+' '+(x.host||'')).toLowerCase().indexOf(q)>=0;});
+  });}
+  count.innerHTML=cs.length+' of '+(ADMIN_CLIENTS||[]).length+' client'+(((ADMIN_CLIENTS||[]).length)===1?'':'s')+ADMIN_WARM_NOTE;
+  list.innerHTML=cs.length?cs.map(clientCard).join(''):'<div class="fb-empty">'+(q?'No clients match “'+esc(q)+'”.':'No client accounts yet — create one above.')+'</div>';
+}
+function toggleNewClient(){var el=document.getElementById('clNewBox');if(el){el.style.display=(el.style.display==='none')?'':'none';var em=document.getElementById('clEmail');if(el.style.display!=='none'&&em)em.focus();}}
 function clientCard(c){
   var link=c.share_token?clientShareLink(c.share_token):'';
   var lim=(c.max_competitors==null)?CLIENT_DFLT:c.max_competitors;
@@ -2967,6 +2998,7 @@ function clientCard(c){
     +'<button type="button" class="cl-head" onclick="toggleClient('+c.id+')">'
       +'<span class="cl-head-l"><span class="au-em">'+esc(c.email)+'</span><span class="au-sub">joined '+esc(fmtDay(c.created_at))+'</span></span>'
       +'<span class="cl-head-r">'
+        +(function(){var pl=c.comp?['free','ok']:(c.plan_status==='active'?['paying ✓','ok']:(c.plan_status==='past_due'?['card issue','warn']:((c.trial_ends_at&&new Date(c.trial_ends_at)>new Date())?['trial','']:( c.plan_status?[c.plan_status,'warn']:['no plan','warn']))));return '<span class="cl-chip '+pl[1]+'">'+pl[0]+'</span>';})()
         +'<span class="cl-chip">'+used+' / '+lim+' competitors</span>'
         +(atCap?'<span class="cl-chip warn">at limit</span>':'')
         +'<span class="cl-chip'+(c.slack?' ok':'')+'">'+(c.slack?'⚡ Slack ✓':'no Slack')+'</span>'
@@ -2993,8 +3025,12 @@ function clientCard(c){
 var ADM_OPEN={};   // client-id -> card expanded (survives panel re-renders)
 function toggleClient(id){
   var el=document.getElementById('cl-'+id);if(!el)return;
-  el.classList.toggle('open');
-  ADM_OPEN[id]=el.classList.contains('open');
+  var willOpen=!el.classList.contains('open');
+  // ACCORDION (founder, 6 Aug): several open cards made one endless scroll — opening a
+  // client now closes the others. All state still lives in ADM_OPEN so re-renders keep it.
+  document.querySelectorAll('.cl-card.open').forEach(function(x){x.classList.remove('open');});
+  ADM_OPEN={};
+  if(willOpen){el.classList.add('open');ADM_OPEN[id]=true;el.scrollIntoView({block:'nearest',behavior:'smooth'});}
 }
 function sendClientMessage(id,btn){
   if(btn&&btn.disabled)return;
@@ -3051,7 +3087,7 @@ function sendClientWeekly(id,btn){
 function toggleComp(id,val,btn){
   btn.disabled=true;
   fetch(adminUrl('/api/admin/clients/'+id+'/comp'),{method:'POST',headers:adminHeaders(true),body:JSON.stringify({comp:val})}).then(function(r){return r.json();}).then(function(d){
-    btn.disabled=false;if(d&&d.ok)loadClients();else alert((d&&d.error)||'Could not update.');
+    btn.disabled=false;if(d&&d.ok)loadAdminClients();else alert((d&&d.error)||'Could not update.');
   }).catch(function(){btn.disabled=false;});
 }
 function setClientLimit(id,btn){
