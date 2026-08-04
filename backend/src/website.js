@@ -514,7 +514,24 @@ export async function websiteCompare(host, url, day, force) {
 
   // Historical view — the capture on `day` vs the most recent earlier capture (no live re-capture).
   if (day) {
-    const recent = resolveShotRefs(await recentSnapshots(host, 'website', 40));   // sorted day DESC
+    // TARGETED LOOKUP, NOT A WINDOW (founder, 5 Aug — Smooche's 7 Jul view). This scanned only
+    // the 40 most recent rows, which reached back about three weeks: 1 Aug and 25 Jul resolved,
+    // 15 Jul lost its 'before', and anything older returned nothing at all — and the app then
+    // claimed website tracking hadn't started. The window can't simply be widened: every row
+    // carries a ~150KB screenshot, so 400 rows would be ~60MB per request. Fetch exactly the
+    // day asked for, plus the nearest EARLIER day, straight from the table instead.
+    let picked = [];
+    try {
+      const q = await pool.query(
+        `(SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots
+           WHERE host = $1 AND channel = 'website' AND day = $2::date LIMIT 1)
+         UNION ALL
+         (SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots
+           WHERE host = $1 AND channel = 'website' AND day < $2::date ORDER BY day DESC LIMIT 1)`,
+        [cleanHost(host), String(day).slice(0, 10)]);
+      picked = resolveShotRefs(q.rows);
+    } catch (e) { picked = []; }
+    const recent = picked.length ? picked : resolveShotRefs(await recentSnapshots(host, 'website', 40));
     // NORMALISE BOTH SIDES BEFORE COMPARING (founder, 5 Aug — Smooche's 7 Jul view). Snapshot
     // rows carry `day` as a DATE that serialises to a full timestamp ("2026-07-07T00:00:00.000Z")
     // while the caller passes "2026-07-07": the === match never fires, and "…T00:00:00.000Z" is
