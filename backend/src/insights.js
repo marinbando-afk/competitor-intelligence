@@ -45,6 +45,49 @@ const INSIGHTS_MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';  // da
 let _client;
 function client() { if (!_client) _client = new Anthropic(); return _client; }
 
+// ── SENSE CHECK: does this actually follow from the facts? ────────────────────
+// The regex validator (claims.js) only catches wordings I have already seen — which is why
+// each new phrasing had to be reported before it could be blocked ("dropped", then "went
+// quiet", then "live today", then "first appearance"...). This check REASONS instead: it is
+// handed the exact FACTS the read was written from and asked which sentences do not follow.
+// It generalises to wordings nobody has enumerated, which is the whole point.
+//
+// Cost: one cheap call per section, only at nightly generation — the app serves stored reads,
+// so no user ever waits on it.
+const VERIFY_MODEL = process.env.VERIFY_MODEL || 'claude-haiku-4-5';
+async function senseCheck(text, factsText, label) {
+  const body = String(text || '').trim();
+  if (!body || !String(factsText || '').trim()) return body;
+  try {
+    const r = await client().messages.create({
+      model: VERIFY_MODEL,
+      max_tokens: 500,
+      system:
+        'You verify a competitor-intelligence report against the FACTS it was written from. ' +
+        'Return ONLY minified JSON: {"unsupported":["<exact sentence copied verbatim>", ...]}.\n' +
+        'A sentence is UNSUPPORTED when the FACTS do not establish it. Judge hardest on:\n' +
+        '- anything STARTING, ENDING, being NEW, LAUNCHED, RETIRED, REPLACED or CHANGED;\n' +
+        '- absence used as evidence (something missing from a capture is NOT proof it stopped — captures are limited windows);\n' +
+        '- dates, prices, counts or names not present in the FACTS;\n' +
+        '- claims about spend, revenue, traffic or performance, which are never observable.\n' +
+        'A sentence that merely DESCRIBES what is present, or that states a limitation honestly, is supported. ' +
+        'Also flag any sentence that a careful reader would find illogical or self-contradictory given the FACTS. ' +
+        'If every sentence is supported, return {"unsupported":[]}.',
+      messages: [{ role: 'user', content: 'FACTS:\n' + String(factsText).slice(0, 12000) + '\n\nREPORT:\n' + body }],
+    });
+    const txt = (r.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+    const m = txt.match(/\{[\s\S]*\}/);
+    const bad = m ? (JSON.parse(m[0]).unsupported || []) : [];
+    if (!bad.length) return body;
+    let out = body;
+    for (const sentence of bad) {
+      const t = String(sentence || '').trim();
+      if (t && out.includes(t)) { out = out.replace(t, '').replace(/\s{2,}/g, ' ').trim(); console.warn('⚠ sense-check removed [' + label + ']: ' + t.slice(0, 150)); }
+    }
+    return out || body;   // never blank a read entirely
+  } catch (e) { return body; }   // verification must never cost us the report
+}
+
 const LAND_MODEL = process.env.LAND_MODEL || 'claude-haiku-4-5';   // landing-page format classifier (cheap)
 const FETCH_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 const _landCache = new Map();   // host -> { at, val:{format,note} } — analyzed landing-page formats, cached 24h
@@ -581,7 +624,7 @@ export async function generateInsights(brand, host) {
         out.__facts = Object.assign(out.__facts || {}, { adsAbsenceOk: f.canJudgeAbsence, hasEarlier: f.hasEarlier });
         if (out.ads && out.ads.summary) {
           const g = enforceClaims(out.ads.summary, f, brand + '/ads');
-          out.ads.summary = g.text || out.ads.summary;
+          out.ads.summary = await senseCheck(g.text || out.ads.summary, (await fmtAds(r[0].data, day)) + absenceGuard, brand + '/ads');
           if (g.violations.length) out.ads.blocked = g.violations.map((v) => v.rule);
         }
       } catch (e) { /* gate is best-effort — never lose the read */ }
@@ -692,7 +735,7 @@ export async function generateInsights(brand, host) {
         out.__facts = Object.assign(out.__facts || {}, { webComparable: f.comparable, genuineNewProduct: f.genuineNewProduct, hasEarlier: (out.__facts && out.__facts.hasEarlier) || f.hasEarlier });
         if (out.website && out.website.summary) {
           const g = enforceClaims(out.website.summary, f, brand + '/website');
-          out.website.summary = g.text || out.website.summary;
+          out.website.summary = await senseCheck(g.text || out.website.summary, todayBlock, brand + '/website');
           if (g.violations.length) out.website.blocked = g.violations.map((v) => v.rule);
         }
       } catch (e) { /* best-effort */ }
