@@ -309,7 +309,7 @@ export async function qualityAudit({ day, alert = false } = {}) {
     }
     for (const [where, text] of texts) {
       // The website read is the only one judged against the diff invariant.
-      const f = where === 'website' ? facts : { ...facts, noChanges: false };
+      const f = where === 'website' ? facts : { ...facts, noChanges: false, advice: where.startsWith('brief.move') };
       for (const v of checkClaims(text, f)) {
         findings.push({ brand: b.name || b.host, where, rule: v.rule, sentence: v.sentence.slice(0, 160) });
       }

@@ -31,7 +31,10 @@ const RULES = [
   {
     id: 'ended',
     // a page/tactic/campaign stopped
-    re: /\b(dropped|retired|went (quiet|silent|dark)|has gone (quiet|silent)|stopped running|no longer (running|active|used)|abandoned|discontinued|shut down|pulled back|wound down)\b/i,
+    // "dropped" is ambiguous in English: a page can drop OUT (stopped) and a collab can
+    // DROP today (released). The Oodie's "Harry Potter x The Oodie dropped today" was a
+    // release and must not be read as an ending, so the release sense is excluded.
+    re: /\b(dropped(?!\s+(?:today|yesterday|this|last|in\s|on\s+(?:tiktok|instagram|facebook|their|the)))|retired|went (quiet|silent|dark)|has gone (quiet|silent)|stopped running|no longer (running|active|used)|abandoned|discontinued|shut down|pulled back|wound down)\b/i,
     allow: (f) => f.canJudgeAbsence === true,
     why: 'claims something ENDED, but the capture is empty, at its collection cap, or much smaller than the previous one — absence is not evidence here',
   },
@@ -64,7 +67,7 @@ const RULES = [
   {
     id: 'priceMove',
     re: /(?:\brais(?:ed|ing)\b[^.]{0,14}\bprice\b|\bprice[sd]?\b[^.]{0,14}\b(?:rais(?:ed|ing)|increase[sd]?|rise|jump(?:ed)?|cut|drop(?:ped)?)\b|\bincreased to \$|\bnow costs? \$|\bdropped to \$|[+-]\$\d)/i,
-    allow: (f) => f.priceComparable === true,
+    allow: (f) => f.priceComparable === true || f.advice === true,
     why: 'claims a PRICE MOVE without two different-day captures that both carry the product feed',
   },
   {

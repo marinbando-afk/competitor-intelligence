@@ -104,6 +104,15 @@ t('social: appearance is reportable',
   'Three product-focused Reels appeared on 1 Aug — their first product content since 23 Jul.',
   { canJudgeAbsence: false, comparable: false, hasEarlier: true, canAssertNew: true, genuineNewProduct: true }, false);
 
+// Found by the nightly quality audit itself, 4 Aug — both were MY rules being wrong.
+t('release sense of "dropped" is not an ending',
+  'Harry Potter x The Oodie dropped today on TikTok and Facebook — their biggest IP collab signal yet.',
+  { canJudgeAbsence: false, hasEarlier: true, comparable: true }, false);
+
+t('counter-op advice may talk about price cuts',
+  'Test a time-limited genuine offer to contrast against their always-on compare-at discount — make your price cut feel real.',
+  { priceComparable: false, advice: true, hasEarlier: true }, false);
+
 t('legitimate end-of-tactic on a healthy capture',
   'Their advertorial page dropped out entirely — no ads from it in a full capture that also grew day over day.',
   { canJudgeAbsence: true, hasEarlier: true, comparable: true }, false);

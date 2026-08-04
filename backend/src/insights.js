@@ -743,8 +743,11 @@ export async function generateInsights(brand, host) {
         };
         for (const key of ['verdict', 'move']) {
           if (!Array.isArray(b[key])) continue;
+          // 'move' is the RECOMMENDED COUNTER-OP — advice to our own customer about THEIR
+          // pricing and offers, not an observation about the competitor.
+          const fk = key === 'move' ? { ...strict, advice: true } : strict;
           b[key] = b[key].map((line) => {
-            const g = enforceClaims(line, strict, brand + '/brief.' + key);
+            const g = enforceClaims(line, fk, brand + '/brief.' + key);
             return g.text || null;
           }).filter(Boolean);
         }
