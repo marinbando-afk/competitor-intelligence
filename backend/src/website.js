@@ -515,8 +515,16 @@ export async function websiteCompare(host, url, day, force) {
   // Historical view — the capture on `day` vs the most recent earlier capture (no live re-capture).
   if (day) {
     const recent = resolveShotRefs(await recentSnapshots(host, 'website', 40));   // sorted day DESC
-    const before = recent.find((s) => s.day < day) || null;
-    const out = mk(recent.find((s) => s.day === day) || null, before, { day });
+    // NORMALISE BOTH SIDES BEFORE COMPARING (founder, 5 Aug — Smooche's 7 Jul view). Snapshot
+    // rows carry `day` as a DATE that serialises to a full timestamp ("2026-07-07T00:00:00.000Z")
+    // while the caller passes "2026-07-07": the === match never fires, and "…T00:00:00.000Z" is
+    // also NOT < "2026-07-07" (same prefix, longer string), so `before` failed too. Both came
+    // back null and the app claimed website tracking hadn't started — while a full capture with
+    // a fresh screenshot sat in the table.
+    const dOf = (s) => String((s && s.day) instanceof Date ? s.day.toISOString() : (s && s.day) || '').slice(0, 10);
+    const want = String(day).slice(0, 10);
+    const before = recent.find((s) => dOf(s) < want) || null;
+    const out = mk(recent.find((s) => dOf(s) === want) || null, before, { day: want });
     if (out.after && out.before && out.after.shot && out.after.shot === out.before.shot) out.before.shot = null;
     // Same error-frame protections as the latest view: never slider on an implausible frame,
     // and when this day's shot failed/was scrubbed, offer the nearest good frame, dated.
