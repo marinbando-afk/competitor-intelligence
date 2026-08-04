@@ -1912,7 +1912,10 @@ function loadWeb(box){
         // Tracked brand, no usable screenshot on record at all — say so cleanly, never an error image.
         vis='<div class="wshot"><div class="wshot-na">Storefront screenshot unavailable right now (the screenshot service is refusing this site — retrying automatically) — <a href="'+esc(url)+'" target="_blank" rel="noopener">open the site ↗</a></div></div>';
       }else if(hist){
-        box.innerHTML='<div class="wbase">No website snapshot was captured on <b>'+esc(fmtShortDay(d.day))+'</b> — daily website tracking started after this date.</div>';return;
+        // NEVER invent a reason (founder, 5 Aug): Smooche HAS a full capture with a fresh
+        // screenshot on 7 Jul, yet this branch claimed tracking hadn't started — the compare
+        // endpoint simply returned nothing for that day. State what happened, not a guess.
+        box.innerHTML='<div class="wbase">Couldn\u2019t load the storefront capture for <b>'+esc(fmtShortDay(d.day))+'</b>. If this day is early in the brand\u2019s history it may predate website tracking; otherwise the capture exists and this view failed to fetch it \u2014 we\u2019re looking into it.</div>';return;
       }else{
         vis='<div class="wshot"><img class="zoomable" src="'+API+'/api/shot?url='+encodeURIComponent(url)+'" loading="lazy" alt="" data-cap="Current storefront" data-href="'+esc(url)+'" onerror="var w=this.closest(\'.wshot\');if(w){w.innerHTML=\'<div class=&quot;wshot-na&quot;>Storefront preview unavailable right now — <a href=&quot;'+esc(url)+'&quot; target=_blank rel=noopener>open the site ↗</a></div>\';}"><a class="wshot-go" href="'+esc(url)+'" target="_blank" rel="noopener">Open site ↗</a></div>';
       }
