@@ -573,24 +573,46 @@ app.get('/api/quality', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Diagnostic: actually RUN the social scrape and report what came back. Restricted to hosts
-// we already track (so it can't be used to trigger arbitrary paid scrapes). Added 5 Aug
-// because every anonymous test hit the no-scrape guard and returned an empty result that
-// looked like a failure — three wrong diagnoses came from reading that as evidence.
-app.get('/api/social-debug', async (req, res) => {
+// ── CAPTURE LEDGER (read-only, no scraping, no cost) ─────────────────────────
+// Today I misdiagnosed the same problem four times because I kept inferring from empty
+// responses instead of reading state: an anonymous request that never scrapes looks exactly
+// like a failed scrape. This answers "what do we actually have for this brand?" from the
+// database alone — every channel, when it last produced data, and what is configured — so
+// the next question is settled by looking rather than guessing.
+app.get('/api/state', async (req, res) => {
   try {
     const host = String(req.query.host || '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
-    const platform = String(req.query.platform || 'instagram').toLowerCase();
-    const known = (await allBrands()).some((b) => b.host === host);
-    if (!known) return res.status(404).json({ error: 'Not a tracked host.' });
-    const r = await pool.query('SELECT handles FROM competitors WHERE host = $1 AND handles IS NOT NULL ORDER BY updated_at DESC LIMIT 1', [host]);
-    const stored = (r.rows[0] && r.rows[0].handles) || {};
-    const out = { host, platform, stored };
-    try {
-      const live = await fetchSocial(platform, undefined, host, true);
-      out.result = { handle: live.handle || null, posts: (live.posts || []).length, sample: (live.posts || [])[0] ? String((live.posts[0].text || '')).slice(0, 80) : null };
-    } catch (e) { out.error = String(e.message || e).slice(0, 300); }
-    res.json(out);
+    if (!host) return res.status(400).json({ error: 'host required' });
+    const conf = await pool.query(
+      `SELECT name, handles, country, status, to_char(created_at,'YYYY-MM-DD') AS added
+         FROM competitors WHERE host = $1 ORDER BY updated_at DESC LIMIT 1`, [host]);
+    const chans = await pool.query(
+      `SELECT channel,
+              COUNT(*)::int AS days,
+              to_char(MIN(day),'YYYY-MM-DD') AS first,
+              to_char(MAX(day),'YYYY-MM-DD') AS last
+         FROM snapshots WHERE host = $1 GROUP BY channel ORDER BY channel`, [host]);
+    // For each channel, when did it last hold ACTUAL content (not just an empty row)?
+    const lastReal = {};
+    for (const ch of ['ads', 'website', 'instagram', 'tiktok', 'facebook', 'email']) {
+      const q = await pool.query(
+        `SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots
+          WHERE host = $1 AND channel = $2 ORDER BY day DESC LIMIT 20`, [host, ch]);
+      const hit = q.rows.find((r) => {
+        const d = r.data || {};
+        if (ch === 'website') return !!(d.shot || d.shotFrom || d.summary || d.banner);
+        if (ch === 'email') return Array.isArray(d.emails) && d.emails.length > 0;
+        return Array.isArray(d.posts || d.ads) && (d.posts || d.ads).length > 0;
+      });
+      lastReal[ch] = hit ? { day: hit.day, items: ((hit.data.posts || hit.data.ads || hit.data.emails || []).length) || null } : null;
+    }
+    res.json({
+      host,
+      competitor: conf.rows[0] || null,
+      channels: chans.rows,
+      lastWithContent: lastReal,
+      note: 'Read-only. Empty lastWithContent means that channel has never produced data — not that a scrape failed.',
+    });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
