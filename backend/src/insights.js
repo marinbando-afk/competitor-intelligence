@@ -637,7 +637,11 @@ export async function generateInsights(brand, host) {
       // treating the fuller read as a new promo invented a launch story for a line the site
       // had shown for weeks. Containment = partial vs full read of the same bar, never news.
       const sameBanner = (a, b) => sameBannerText(a, b);   // shared definition (occasions.js)
-      const curBanner = bnorm2(r[0].data.banner || recentSaleBanner);
+      // If today's captured slide is NOT the sale (announcement bars rotate — UKLASH's 3 Aug
+      // capture caught "Fast Worldwide Shipping"), date the SALE slide from its own history,
+      // never from today. Otherwise the promo appears to start on the day we happened to miss it.
+      const todayIsSale = isSaleBanner(r[0].data.banner);
+      const curBanner = bnorm2(todayIsSale ? r[0].data.banner : (recentSaleBanner || r[0].data.banner));
       if (curBanner) {
         let firstDay = r[0].day, gap = 0;
         for (let i = 1; i < r.length; i++) {
@@ -673,13 +677,17 @@ export async function generateInsights(brand, host) {
       try {
         const hasEarlier = r.length > 1 && r.slice(1).some((x) => x.data);
         const variantOnly = /variant or re-listing|price testing|already on their site/i.test(String(changes && changes.join('; ')));
+        // The computed diff is the ground truth the app displays beneath the read. If it
+        // found nothing, nothing changed — and no sentence may say otherwise (UKLASH, 3 Aug).
+        const noChanges = Array.isArray(changes) && changes.length === 0;
         const f = {
           hasEarlier,
           comparable: !!_bothFeeds,
           priceComparable: !!_bothFeeds,
           canJudgeAbsence: !!_bothFeeds,
-          canAssertNew: hasEarlier,
+          canAssertNew: hasEarlier && !noChanges,
           genuineNewProduct: variantOnly ? false : undefined,
+          noChanges,
         };
         out.__facts = Object.assign(out.__facts || {}, { webComparable: f.comparable, genuineNewProduct: f.genuineNewProduct, hasEarlier: (out.__facts && out.__facts.hasEarlier) || f.hasEarlier });
         if (out.website && out.website.summary) {

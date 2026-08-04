@@ -19,6 +19,16 @@ const SENT = /[^.!?]+[.!?]*/g;
 // Claim patterns. Each: what it asserts, and which fact must be true for it to be allowed.
 const RULES = [
   {
+    id: 'contradictsDiff',
+    // UKLASH, 3 Aug: headline "New subscription-discount sale live today" sitting directly
+    // above our own panel saying "No changes since the last capture. Compared 2 Aug -> 3 Aug:
+    // prices, products and sale scope are unchanged." The diff is computed from the data; a
+    // read may not contradict it.
+    re: /\b(new|launch(ed|es|ing)?|now live|live (today|now)|started (today|on |\d)|just (added|dropped|introduced)|first (appearance|time))\b/i,
+    allow: (f) => f.noChanges !== true,
+    why: 'claims something changed/launched while the computed diff for the same two days found NO changes — the read must not contradict the data panel beneath it',
+  },
+  {
     id: 'ended',
     // a page/tactic/campaign stopped
     re: /\b(dropped|retired|went (quiet|silent|dark)|has gone (quiet|silent)|stopped running|no longer (running|active|used)|abandoned|discontinued|shut down|pulled back|wound down)\b/i,
@@ -27,7 +37,7 @@ const RULES = [
   },
   {
     id: 'launched',
-    re: /\b(launch(ed|es|ing)?|debut(ed)?|introduc(ed|ing)|rolled out|went live|just added|newly added)\b/i,
+    re: /\b(launch(ed|es|ing)?|debut(ed)?|introduc(ed|ing)|rolled out|went live|now live|live (today|now)|just added|newly added|started (today|on |\d))\b/i,
     // genuineNewProduct === false means the "new" items are variants/re-listings of something
     // already on the site (Tallowed Truth) — that can never be a launch.
     allow: (f) => f.hasEarlier === true && f.canAssertNew !== false && f.genuineNewProduct !== false,
@@ -35,7 +45,7 @@ const RULES = [
   },
   {
     id: 'firstNew',
-    re: /\b(first new|their first|brand[- ]new)\b/i,
+    re: /\b(first new|their first|brand[- ]new|first (appearance|time) (in|this)|first seen (today|in monitoring))\b/i,
     allow: (f) => f.hasEarlier === true && f.canAssertNew !== false && f.genuineNewProduct !== false,
     why: 'claims a FIRST/NEW milestone the captures cannot establish',
   },

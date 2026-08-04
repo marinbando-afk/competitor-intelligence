@@ -65,6 +65,17 @@ t('UKLASH: re-worded banner reported as a launch',
   "Subscription sale launched on-site today (2 Aug): 25% off entry offer plus 15% off every repeat order — first time this framing has appeared in the announcement bar.",
   { hasEarlier: true, canAssertNew: false, comparable: true }, true);
 
+// UKLASH, 3 Aug — the app showed this headline directly above its own panel reading "No
+// changes since the last capture". The 3 Aug capture caught a rotating shipping slide, so no
+// sale was even seen that day.
+t('UKLASH: read contradicts the computed diff',
+  'New subscription-discount sale live today: 15% off forever, 25% off today, bigger subscription discounts.',
+  { hasEarlier: true, comparable: true, noChanges: true }, true, 'contradictsDiff');
+
+t('UKLASH: "first appearance in monitoring" on an unchanged day',
+  'Sale started 3 Aug: 15% off forever, 25% off today, and deeper subscription discounts — first appearance in monitoring.',
+  { hasEarlier: true, comparable: true, noChanges: true }, true);
+
 console.log('\nMUST ALLOW — correct reporting must not be over-blocked:');
 
 t('honest absence wording',
