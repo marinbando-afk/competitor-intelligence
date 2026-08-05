@@ -600,7 +600,10 @@ export async function generateInsights(brand, host) {
         const pagesNow = new Set((r[0].data.ads || []).map((a) => a.page).filter(Boolean));
         const pagesPrev = new Set(((r[1] && r[1].data && r[1].data.ads) || []).map((a) => a.page).filter(Boolean));
         const vanished = [...pagesPrev].filter((p) => !pagesNow.has(p));
-        absenceGuard = '\nCAPTURE HEALTH (hard facts — obey them): today\'s capture holds ' + nowN + ' ads' +
+        absenceGuard = (typical && nowN < typical * 0.5
+          ? '\nSAMPLE WARNING: today\'s capture holds only ' + nowN + ' ads against a typical ' + typical + ' for this brand — this is a THIN SLICE of their library, not their whole activity. Which pages, landing domains or countries appear today is largely which ads happened to be sampled. NEVER report a switch, shift, pivot or change of destination/targeting from it.'
+          : '') +
+          '\nCAPTURE HEALTH (hard facts — obey them): today\'s capture holds ' + nowN + ' ads' +
           (prevN ? ' vs ' + prevN + ' in the previous capture' : '') + '. ' +
           (capped ? 'It is AT THE COLLECTION CAP, so it is a rolling window of their NEWEST ads, NOT their full library — older ads and the pages running them fall outside it at random. '
                   : thin ? 'It is much SMALLER than the previous capture, so coverage today is incomplete. ' : '') +
@@ -616,8 +619,16 @@ export async function generateInsights(brand, host) {
         const capN = Number(process.env.ADS_COUNT) || 50;
         const nowN = (r[0].data.ads || []).length;
         const prevN = (r[1] && r[1].data && (r[1].data.ads || []).length) || 0;
+        // TYPICAL volume = median of the recent captures. Casa and Beyond (4 Aug) ran ~30 ads
+        // a day, then two scrapes returned 3 and 2; comparing only to yesterday made the 2-ad
+        // day look healthy because yesterday was already broken, and the brief announced an
+        // "ad destination switch" that was really which handful of ads happened to be sampled.
+        const counts = r.map((x) => (x.data && (x.data.ads || []).length) || 0).filter((n) => n > 0).sort((a, b) => a - b);
+        const typical = counts.length ? counts[Math.floor(counts.length / 2)] : 0;
+        const sampleReliable = !!(nowN && (!typical || nowN >= typical * 0.5) && !(prevN && nowN < prevN * 0.6));
         const f = {
-          canJudgeAbsence: !!(nowN && nowN < Math.floor(capN * 0.95) && !(prevN && nowN < prevN * 0.6)),
+          sampleReliable,
+          canJudgeAbsence: !!(nowN && nowN < Math.floor(capN * 0.95) && sampleReliable),
           hasEarlier: !!(r[1] && r[1].data),
           comparable: !!(r[1] && r[1].data && r[1].day !== r[0].day),
           priceComparable: false,

@@ -82,6 +82,12 @@ t('Pannonian Padel: quiet claimed on an unmonitored channel',
   'No new posts across Instagram, TikTok, or Facebook — all content unchanged.',
   { channelConnected: false, canJudgeAbsence: false, hasEarlier: true }, true, 'quietWithoutData');
 
+// Casa and Beyond, 4 Aug — .com.au had been the destination since 31 Jul; the 3rd and 4th
+// captured 3 and 2 ads out of a typical ~30, so the "switch" was sampling noise.
+t('Casa and Beyond: destination switch from a thin sample',
+  'Ad destination switched from casaandbeyond.com to casaandbeyond.com.au today — they are now actively targeting Australian shoppers.',
+  { comparable: true, hasEarlier: true, sampleReliable: false }, true, 'replaced');
+
 console.log('\nMUST ALLOW — correct reporting must not be over-blocked:');
 
 t('honest absence wording',
@@ -122,6 +128,10 @@ t('counter-op advice may talk about price cuts',
 t('quiet is reportable when the account IS connected',
   'No new posts on Instagram since 28 Jul — their last post was the lash tutorial.',
   { channelConnected: true, canJudgeAbsence: true, hasEarlier: true, comparable: true }, false);
+
+t('destination switch IS reportable from a full capture',
+  'Ad destination switched to casaandbeyond.com.au — every ad in a full capture now lands there.',
+  { comparable: true, hasEarlier: true, sampleReliable: true, canJudgeAbsence: true }, false);
 
 t('legitimate end-of-tactic on a healthy capture',
   'Their advertorial page dropped out entirely — no ads from it in a full capture that also grew day over day.',

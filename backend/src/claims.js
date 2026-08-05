@@ -70,8 +70,12 @@ const RULES = [
   },
   {
     id: 'replaced',
-    re: /\b(replac(ed|es|ing)|switched (from|to)|swapped (for|to)|changed from)\b/i,
-    allow: (f) => f.comparable === true,
+    // Casa and Beyond, 4 Aug: "Ad destination switched from .com to .com.au today". They had
+    // used .com.au since 31 Jul; the 3rd and 4th captured only 3 and 2 ads out of ~30, so the
+    // "switch" was which handful got sampled. A switch asserts the OLD thing is gone, which
+    // a thin slice can never establish.
+    re: /\b(replac(ed|es|ing)|switch(ed|es|ing)? (from|to)|swapped (for|to)|changed from|shifted (from|to)|pivot(ed)? (from|to)|moved (from|to))\b/i,
+    allow: (f) => f.comparable === true && f.sampleReliable !== false,
     why: 'claims a REPLACEMENT, which needs two comparable captures from different days',
   },
   {
