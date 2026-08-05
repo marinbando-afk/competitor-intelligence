@@ -12,6 +12,8 @@ import { diffWebsite } from './website.js';
 import { getMyBrand } from './brand.js';
 import { rootDomain, aliasDomains } from './email.js';
 import { NEWS_RULE } from './insights.js';
+import { computeFindings, findingsBlock } from './findings.js';
+import { enforceClaims } from './claims.js';
 
 const MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';
 let _client;
@@ -156,11 +158,37 @@ export async function generateWeekly(host, name, weekStart) {
     `Return ONLY minified JSON, no markdown: {"headline":"<the week in <=14 words>","summary":["<one takeaway, <=12 words, telegraphic — lead with the fact, drop filler words>", ...4 to 6 bullets, the week's most important developments in priority order],"timeline":[{"day":"Mon 29 Jun","channel":"ads|social|website|email","event":"<one dated, real event, <=22 words>"}, ...only real dated events from the data, max 8, chronological],"channels":{"ads":{"summary":"<=20 words","bullets":["<=22 words each", ...max 3]},"social":{...same},"website":{...same},"email":{...same}},"move":"<${me && me.profile ? 'ONE concrete counter-move for ' + me.name + ' grounded in their profile below, realistic about cost/effort' : 'ONE concrete, realistic counter-move for a brand competing with them'}, 2 sentences max>"}` +
     (me && me.profile ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}` : '');
 
-  const resp = await client().messages.create({ model: MODEL, max_tokens: 1600, system, messages: [{ role: 'user', content: digest.text }] });
+  // WEEKLY IS FINDINGS-FIRST TOO (founder, 6 Aug) — it was the last surface still writing
+  // from raw data, and it reaches customers as a formal report.
+  let weekFind = null;
+  try { weekFind = await computeFindings(host); } catch (e) { /* fall back to the digest alone */ }
+  const findBlock = weekFind
+    ? findingsBlock([].concat(weekFind.ads || [], weekFind.website || [], weekFind.social || [], weekFind.email || []))
+    : '';
+  const userContent = (findBlock ? findBlock + '\n\nSUPPORTING DATA (detail and quotes only — never grounds for a new claim):\n' : '') + digest.text;
+  const resp = await client().messages.create({ model: MODEL, max_tokens: 1600, system, messages: [{ role: 'user', content: userContent }] });
   const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
   let report;
   try { report = JSON.parse(txt.replace(/^```json?\s*/i, '').replace(/\s*```$/, '')); } catch (e) { return null; }
   if (!report || !report.headline) return null;
+  // Same gate as the daily reads: strip anything asserting a change the findings don't support.
+  try {
+    const changeFindings = weekFind
+      ? [].concat(weekFind.ads || [], weekFind.website || [], weekFind.social || [], weekFind.email || [])
+          .filter((x) => x.type === 'new' || x.type === 'change' || x.type === 'absence').map((x) => x.text)
+      : null;
+    if (changeFindings) {
+      const f = { changeFindings, hasEarlier: true, comparable: true };
+      report.headline = enforceClaims(report.headline, f, name + '/weekly.headline').text || report.headline;
+      if (Array.isArray(report.summary)) report.summary = report.summary.map((x) => enforceClaims(x, f, name + '/weekly.summary').text).filter(Boolean);
+      for (const ch of ['ads', 'social', 'website', 'email']) {
+        const c = report.channels && report.channels[ch];
+        if (!c) continue;
+        if (c.summary) c.summary = enforceClaims(c.summary, f, name + '/weekly.' + ch).text || c.summary;
+        if (Array.isArray(c.bullets)) c.bullets = c.bullets.map((x) => enforceClaims(x, f, name + '/weekly.' + ch).text).filter(Boolean);
+      }
+    }
+  } catch (e) { /* never lose the report to the gate */ }
 
   const data = { brand: name, host, week: { start: weekStart, end, label: fmtDay(weekStart) + ' – ' + fmtDay(end) }, stats: digest.stats, report, generatedAt: new Date().toISOString() };
   await pool.query(
