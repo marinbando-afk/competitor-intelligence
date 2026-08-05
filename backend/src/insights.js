@@ -19,6 +19,7 @@ import { transcribeVideo } from './transcribe.js';
 import { offerFlags, offerFacts, bannerFacts, todayLine, isSaleBanner, sameBannerText } from './occasions.js';
 import { resolveCapture } from './capture.js';
 import { enforceClaims } from './claims.js';
+import { computeFindings, findingsBlock } from './findings.js';
 
 // True when an Anthropic error means the account is out of credit (vs auth/rate/etc).
 function isCreditError(e) { return /credit balance is too low/i.test(String((e && e.message) || e)); }
@@ -563,6 +564,11 @@ async function ask(channel, brand, todayBlock, prevBlock, me, today) {
 
 // Generate insights for all channels of one brand and cache them as a snapshot.
 export async function generateInsights(brand, host) {
+  // FINDINGS FIRST (founder, 6 Aug): code establishes what is true, the model only phrases it.
+  // Anything absent from this list cannot be written, which is what ends the invented-news
+  // failures rather than banning each new wording after the fact.
+  let FIND = null;
+  try { FIND = await computeFindings(host); } catch (e) { console.warn('findings ' + host + ':', e.message); }
   if (!process.env.ANTHROPIC_API_KEY || !host) return null;
   brand = brand || host;
   const out = {};
@@ -615,7 +621,7 @@ export async function generateInsights(brand, host) {
           (capped || thin ? ' — with a capped or reduced capture that conclusion is unsupported and has been wrong before' : '') +
           '. Report only what IS present. If the absence looks meaningful, say at most that it was "not seen in today\'s capture", never that it ended.';
       } catch (e) { /* guard is best-effort */ }
-      out.ads = await ask('ads', brand, (await fmtAds(r[0].data, day)) + lf + monLine + absenceGuard, r[1] && r[1].data ? await fmtAds(r[1].data) : '', me, day);
+      out.ads = await ask('ads', brand, ((FIND && FIND.ads) ? findingsBlock(FIND.ads) + '\n\nSUPPORTING DATA (for detail and quotes only — never for new claims):\n' : '') + (await fmtAds(r[0].data, day)) + lf + monLine + absenceGuard, r[1] && r[1].data ? await fmtAds(r[1].data) : '', me, day);
       // LAST GATE (claims.js): the prompt asked nicely; this enforces. Unsupported sentences
       // are removed before the read is stored, on every code path, every time.
       try {
@@ -678,7 +684,7 @@ export async function generateInsights(brand, host) {
       // replacing a political Carousel" — the Carousel was never removed, it just left our
       // 9-post window. New posts ARE verifiable (new ids); disappearance is NOT.
       const windowNote = '\nCAPTURE WINDOW (fact): we store only their NEWEST posts, so a post that is no longer in view has almost certainly just been pushed out by newer ones — their profile still holds it. You may report posts that APPEARED. You may NEVER say a post was removed, deleted, replaced or swapped, and never say older content "stopped" — that is not observable from this capture.';
-      out.social = await ask('social', brand, today.join('\n\n') + windowNote, prev.join('\n\n'), me, capDay);
+      out.social = await ask('social', brand, ((FIND && FIND.social) ? findingsBlock(FIND.social) + '\n\nSUPPORTING DATA (for detail and quotes only — never for new claims):\n' : '') + today.join('\n\n') + windowNote, prev.join('\n\n'), me, capDay);
       try {
         const f = { canJudgeAbsence: false, comparable: false, hasEarlier: !!prev.length, canAssertNew: !!prev.length, priceComparable: false };
         if (out.social && out.social.summary) {
@@ -749,7 +755,7 @@ export async function generateInsights(brand, host) {
         ? '\nCHANGES ' + capDate(r[1].day) + ' → ' + day + ': ' + (changes.join('; ') || 'none detected') + ' (compare ONLY these two dates; never write a range that starts and ends on the same day)'
         : '\nCHANGES: not comparable today — ' + (!_prevOk ? 'no earlier capture to compare against' : 'the product feed is missing on one of the two days') + '. Do NOT report any price move, product add/removal or sale change from a comparison; say only what today shows.';
       const todayBlock = fmtWeb(r[0].data, day, recentSaleBanner) + saleTimeline + _cmpLine;
-      out.website = await ask('website', brand, todayBlock, r[1] && r[1].data ? fmtWeb(r[1].data) : '', me, day);
+      out.website = await ask('website', brand, ((FIND && FIND.website) ? findingsBlock(FIND.website) + '\n\nSUPPORTING DATA (for detail and quotes only — never for new claims):\n' : '') + todayBlock, r[1] && r[1].data ? fmtWeb(r[1].data) : '', me, day);
       try {
         const hasEarlier = r.length > 1 && r.slice(1).some((x) => x.data);
         const variantOnly = /variant or re-listing|price testing|already on their site/i.test(String(changes && changes.join('; ')));

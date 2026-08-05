@@ -75,8 +75,13 @@ function parseInbound(b) {
 // there and the brand legally stops mailing us for good.
 const NO_TOUCH = /unsub|opt[-_ ]?out|preference|remove\b|manage[^"']{0,30}(subscri|email)|list-manage[^"']*unsub|mailto:|abuse|complaint|privacy|terms|\.ics\b/i;
 const ENGAGE_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15';
-async function quietGet(url) {
-  try { await fetch(url, { headers: { 'user-agent': ENGAGE_UA }, redirect: 'follow', signal: AbortSignal.timeout(20000) }); } catch (e) { /* engagement is best-effort */ }
+async function quietGet(url, referer) {
+  try {
+    const h = { 'user-agent': ENGAGE_UA, accept: 'text/html,application/xhtml+xml,*/*;q=0.8', 'accept-language': 'en-US,en;q=0.9' };
+    if (referer) h.referer = referer;
+    const r = await fetch(url, { headers: h, redirect: 'follow', signal: AbortSignal.timeout(25000) });
+    return r.url || url;   // final URL after the click-tracking redirect
+  } catch (e) { return ''; }   // engagement is best-effort
 }
 const CONFIRM_RE = /confirm(ing)?\b|verify\b|activate\b|opt[- ]?in|subscri(be|ption)|complete[^<]{0,20}sign[- ]?up|yes,? (subscribe|sign me)/i;
 export async function engageEmail(html, click, subject) {
@@ -105,7 +110,17 @@ export async function engageEmail(html, click, subject) {
   const anchors = [...h.matchAll(/<a\b[^>]*?href=["']?(https?:[^"'\s>]+)[^>]*>([\s\S]{0,160}?)<\/a>/gi)]
     .map((m) => ({ url: m[1], text: m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }))
     .filter((l) => !NO_TOUCH.test(l.url) && !NO_TOUCH.test(l.text));
-  if (anchors.length) await quietGet(anchors[Math.floor(anchors.length / 2)].url);
+  if (!anchors.length) return;
+  // A single fetch of a tracked link registers the click but looks nothing like a visit.
+  // Follow it, then request one more page from the SAME site a beat later, carrying the
+  // referrer — that is what a brand's own analytics reads as a session rather than a ping.
+  const first = anchors[Math.floor(anchors.length / 2)].url;
+  const landed = await quietGet(first, '');
+  const origin = (() => { try { return new URL(landed || first).origin; } catch (e) { return ''; } })();
+  if (!origin) return;
+  const second = anchors.map((l) => l.url).find((u) => { try { return new URL(u).origin === origin && u !== first; } catch (e) { return false; } });
+  await new Promise((r) => setTimeout(r, 8000 + Math.floor(Math.random() * 22000)));
+  await quietGet(second || origin + '/', landed || first);
 }
 // Re-open the latest stored email of every brand that has gone quiet (3+ days silent) —
 // old tracking pixels usually still count, which can pull us back into a lightly-sunset
@@ -152,8 +167,12 @@ export async function storeInbound(body) {
   // time. The delay keeps opens from landing bot-instantly on the ESP's clock.
   const html = String(p.html || '');
   const subj = p.subject || '';
-  setTimeout(() => { engageEmail(html, Math.random() < 0.35, subj).catch(() => {}); },
-    60000 + Math.floor(Math.random() * 8 * 60000));
+  // ENGAGEMENT, TUNED (founder, 6 Aug — CurrentBody suppressed us again). Apple's Mail Privacy
+  // Protection pre-loads pixels for everyone, so opens no longer prove engagement and serious
+  // senders segment on CLICKS. A profile that never clicks is sunset however often it "opens".
+  // Click most of the time, and spread it over hours rather than firing on a fixed timer.
+  const delayMs = 3 * 60000 + Math.floor(Math.random() * 90 * 60000);   // 3 min – 1.5 h
+  setTimeout(() => { engageEmail(html, Math.random() < 0.7, subj).catch(() => {}); }, delayMs);
   return { ok: true, routedTo: senderDomain, subject: p.subject };
 }
 
