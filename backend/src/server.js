@@ -573,6 +573,16 @@ app.get('/api/quality', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Findings for a brand — what the DATA establishes, before any model sees it. Read-only.
+app.get('/api/findings', async (req, res) => {
+  try {
+    const host = String(req.query.host || '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+    if (!host) return res.status(400).json({ error: 'host required' });
+    const { computeFindings } = await import('./findings.js');
+    res.json(await computeFindings(host));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── CAPTURE LEDGER (read-only, no scraping, no cost) ─────────────────────────
 // Today I misdiagnosed the same problem four times because I kept inferring from empty
 // responses instead of reading state: an anonymous request that never scrapes looks exactly
