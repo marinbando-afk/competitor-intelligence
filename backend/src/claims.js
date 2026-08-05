@@ -143,17 +143,41 @@ const RULES = [
 // inside the very sentence that broke the rule, and a blanket exemption let it through.
 const SAFE = /\b(not seen in|already running when monitoring began|no earlier capture|cannot confirm|we cannot|true start date unknown|rolling window|outside (the|our) capture)\b/i;
 
+// TRACEABILITY — the closing half of the findings design. Pattern rules ban known-bad
+// wordings; this asks the opposite, and stronger, question: does this sentence's CHANGE claim
+// correspond to something the engine actually established? A sentence asserting new/changed/
+// ended must name an entity that appears in a finding of that kind, or it is not reportable.
+// Present-tense description ("ads run to X") is untouched — only assertions of change.
+const CHANGE_VERB = /\b(new|newly|first|launch(ed|es|ing)?|start(ed|s|ing)?|switch(ed|es|ing)?|shift(ed|s|ing)?|replac(ed|es|ing)|drop(ped)?|retir(ed|es)|stopp?(ed)?|add(ed)?|remov(ed)|introduc(ed|ing)|chang(ed|es))\b/i;
+function tracesToFinding(sentence, facts) {
+  const changeFindings = Array.isArray(facts.changeFindings) ? facts.changeFindings : null;
+  if (!changeFindings) return true;             // caller didn't supply findings → rule inert
+  if (!CHANGE_VERB.test(sentence)) return true; // not a change claim → nothing to trace
+  if (!changeFindings.length) return false;     // nothing changed today, yet this claims it did
+  const t = sentence.toLowerCase();
+  // The sentence must share a distinctive token with at least one change finding.
+  return changeFindings.some((f) => {
+    const toks = String(f || '').toLowerCase().match(/[a-z0-9][a-z0-9.'’-]{4,}/g) || [];
+    return toks.some((k) => t.indexOf(k) >= 0);
+  });
+}
+
 export function checkClaims(text, facts = {}) {
   const out = [];
   const sentences = sentencesOf(text);
   for (const raw of sentences) {
     const s = raw.trim();
     if (!s || SAFE.test(s)) continue;
+    let flagged = false;
     for (const r of RULES) {
       if (!r.re.test(s)) continue;
       if (r.allow(facts, s)) continue;
       out.push({ rule: r.id, why: r.why, sentence: s });
+      flagged = true;
       break;   // one violation per sentence is enough
+    }
+    if (!flagged && !tracesToFinding(s, facts)) {
+      out.push({ rule: 'untraceable', why: 'asserts a change the findings engine did not establish — no computed finding supports it', sentence: s });
     }
   }
   return out;

@@ -653,6 +653,7 @@ export async function generateInsights(brand, host) {
         const earlierHadAds = r.slice(1).some((x) => ((x.data && x.data.ads) || []).length > 0);
         const f = {
           knownEntities,
+          changeFindings: ((FIND && FIND.ads) || []).filter((x) => x.type === 'new' || x.type === 'change' || x.type === 'absence').map((x) => x.text),
           canAssertNew: earlierHadAds,
           sampleReliable,
           canJudgeAbsence: !!(nowN && nowN < Math.floor(capN * 0.95) && sampleReliable),
@@ -686,7 +687,7 @@ export async function generateInsights(brand, host) {
       const windowNote = '\nCAPTURE WINDOW (fact): we store only their NEWEST posts, so a post that is no longer in view has almost certainly just been pushed out by newer ones — their profile still holds it. You may report posts that APPEARED. You may NEVER say a post was removed, deleted, replaced or swapped, and never say older content "stopped" — that is not observable from this capture.';
       out.social = await ask('social', brand, ((FIND && FIND.social) ? findingsBlock(FIND.social) + '\n\nSUPPORTING DATA (for detail and quotes only — never for new claims):\n' : '') + today.join('\n\n') + windowNote, prev.join('\n\n'), me, capDay);
       try {
-        const f = { canJudgeAbsence: false, comparable: false, hasEarlier: !!prev.length, canAssertNew: !!prev.length, priceComparable: false };
+        const f = { canJudgeAbsence: false, comparable: false, hasEarlier: !!prev.length, canAssertNew: !!prev.length, priceComparable: false, changeFindings: ((FIND && FIND.social) || []).filter((x) => x.type === 'new').map((x) => x.text) };
         if (out.social && out.social.summary) {
           const g = enforceClaims(out.social.summary, f, brand + '/social');
           out.social.summary = g.text || out.social.summary;
@@ -781,6 +782,7 @@ export async function generateInsights(brand, host) {
           canJudgeAbsence: !!_bothFeeds,
           canAssertNew: hasEarlier && !noChanges,
           genuineNewProduct: variantOnly ? false : undefined,
+          changeFindings: ((FIND && FIND.website) || []).filter((x) => x.type === 'new' || x.type === 'change').map((x) => x.text),
           knownEntities: [...knownProducts].slice(0, 150),
           noChanges,
         };
@@ -806,7 +808,7 @@ export async function generateInsights(brand, host) {
       try {
         // We hold a window of their recent sends: a flow we no longer see may simply have
         // scrolled out, or our inbox was suppressed — never evidence that they stopped.
-        const f = { canJudgeAbsence: false, comparable: false, priceComparable: false, hasEarlier: true, canAssertNew: true };
+        const f = { canJudgeAbsence: false, comparable: false, priceComparable: false, hasEarlier: true, canAssertNew: true, changeFindings: ((FIND && FIND.email) || []).filter((x) => x.type === 'new').map((x) => x.text) };
         if (out.email && out.email.summary) {
           const g = enforceClaims(out.email.summary, f, brand + '/email');
           out.email.summary = g.text || out.email.summary;
@@ -829,6 +831,10 @@ export async function generateInsights(brand, host) {
       try {
         const gf = out.__facts || {};
         const strict = {
+          changeFindings: [].concat(
+            ((FIND && FIND.ads) || []), ((FIND && FIND.website) || []),
+            ((FIND && FIND.social) || []), ((FIND && FIND.email) || [])
+          ).filter((x) => x.type === 'new' || x.type === 'change' || x.type === 'absence').map((x) => x.text),
           canJudgeAbsence: gf.adsAbsenceOk === true,
           hasEarlier: gf.hasEarlier !== false,
           comparable: gf.webComparable === true,

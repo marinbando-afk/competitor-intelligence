@@ -98,6 +98,15 @@ t('a page seen before cannot be new',
   'New Facebook page running their ads: Dr. Annie Gonzalez, MD.',
   { hasEarlier: true, comparable: true, canJudgeAbsence: true, knownEntities: ['Dr. Annie Gonzalez, MD', 'Seranova'] }, true, 'staleNew');
 
+// TRACEABILITY — a change claim must correspond to a computed finding.
+t('change claim with no matching finding is untraceable',
+  'They switched their ad destination to a new landing page today.',
+  { hasEarlier: true, comparable: true, sampleReliable: true, changeFindings: [] }, true, 'untraceable');
+
+t('change claim naming an unrelated entity is untraceable',
+  'A new funnel bonafide.us appeared in their ads.',
+  { hasEarlier: true, comparable: true, sampleReliable: true, changeFindings: ['Storefront: 1 product removed — Triangle Poncho'] }, true);
+
 console.log('\nMUST ALLOW — correct reporting must not be over-blocked:');
 
 t('honest absence wording',
@@ -146,6 +155,15 @@ t('destination switch IS reportable from a full capture',
 t('a genuinely unseen entity may be called new',
   'New funnel: shopcasa.io appeared in their ads today.',
   { hasEarlier: true, comparable: true, sampleReliable: true, canAssertNew: true, knownEntities: ['casaandbeyond.com.au', 'casaandbeyond.com'] }, false);
+
+t('change claim backed by a finding passes',
+  'A new funnel shopcasa.io appeared in their ads today.',
+  { hasEarlier: true, comparable: true, sampleReliable: true, canAssertNew: true,
+    changeFindings: ['Ad landing domain shopcasa.io appears for the first time; it was absent from every earlier capture that held ads.'] }, false);
+
+t('present-tense description needs no finding',
+  'Ads run to casaandbeyond.com.au from their own Casa & Beyond page.',
+  { hasEarlier: true, comparable: true, changeFindings: [] }, false);
 
 t('legitimate end-of-tactic on a healthy capture',
   'Their advertorial page dropped out entirely — no ads from it in a full capture that also grew day over day.',
