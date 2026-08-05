@@ -569,6 +569,14 @@ export async function generateInsights(brand, host) {
   // failures rather than banning each new wording after the fact.
   let FIND = null;
   try { FIND = await computeFindings(host); } catch (e) { console.warn('findings ' + host + ':', e.message); }
+  // When the gate strips a read, falling back to the ORIGINAL text restores exactly the claims
+  // it just rejected — that is how Casa's "landing domain shifted" survived validation. Fall
+  // back to the computed STATE findings (what the data does support), or to nothing at all.
+  const gated = (g, findList) => {
+    if (g && g.text) return g.text;
+    const states = (findList || []).filter((f) => f.type === 'state' || f.type === 'context').map((f) => f.text);
+    return states.length ? states.slice(0, 3).join(' ') : '';
+  };
   if (!process.env.ANTHROPIC_API_KEY || !host) return null;
   brand = brand || host;
   const out = {};
