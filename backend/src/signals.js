@@ -16,6 +16,7 @@ import { diffWebsite } from './website.js';
 import { adsChanges, adDomain, isFunnelUrl } from './ads.js';
 import { offerFlags, isSaleBanner, sameBannerText } from './occasions.js';
 import { resolveCapture } from './capture.js';
+import { computeFindings } from './findings.js';
 
 const DAY = 86400000;
 const ANGLE_WINDOW_DAYS = 14;   // "at least the last 2 weeks"
@@ -231,6 +232,21 @@ export async function dailySignals(host, commit) {
       if (ch && !ch.baseline) {
         out.funnel = await freshFunnels(host, (ch.signals.landings || []).filter((l) => l && l.domain), todayStr);
         out.fbPage = (ch.signals.pages || []).filter(Boolean);                    // [pageName]
+        // ONE DEFINITION OF NEW (founder, 6 Aug). The Slack brief used to decide newness with
+        // its own logic, which is how the app and Slack ended up telling different stories.
+        // The findings engine is now the authority: a funnel or page it does NOT list as new
+        // is dropped here, whatever this path concluded.
+        try {
+          const F = await computeFindings(host);
+          const okDomain = new Set((F.ads || []).filter((f) => f.type === 'new' && f.evidence && f.evidence.domain).map((f) => f.evidence.domain));
+          const okPage = new Set((F.ads || []).filter((f) => f.type === 'new' && f.evidence && f.evidence.page).map((f) => String(f.evidence.page)));
+          const blocked = (F.ads || []).some((f) => f.type === 'limit');
+          if (blocked) { out.funnel = []; out.fbPage = []; }
+          else {
+            out.funnel = (out.funnel || []).filter((l) => okDomain.has(String(l.domain).toLowerCase()));
+            out.fbPage = (out.fbPage || []).filter((p) => okPage.has(String(p)));
+          }
+        } catch (e) { /* engine unavailable → leave the existing, more cautious signals */ }
         out.fbPageGone = (ch.signals.droppedPages || []).filter(Boolean);         // retired whitelisted/partner pages
         out.angle = await newAngles(host, ch.newAds || [], todayStr);
         // Tier-2 "new ad": a genuinely NEWLY-LAUNCHED ad, judged by the ad's own START DATE —

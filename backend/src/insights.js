@@ -820,7 +820,7 @@ export async function generateInsights(brand, host) {
   // across all channels — user-added competitors get the same dossier treatment as
   // the curated demos.
   try {
-    const b = await makeBrief(brand, out, me, new Date());
+    const b = await makeBrief(brand, out, me, new Date(), FIND);
     if (b) {
       // THE HEADLINE GETS THE STRICTEST GATE. The threat assessment is what the app shows
       // first and what the Slack brief quotes, so it is judged on the most CONSERVATIVE
@@ -906,8 +906,15 @@ export async function backfillWebsiteReads(host, brand) {
 
 // Cross-channel synthesis for the report header. Same discipline as the channel
 // reads: grounded, sanity-checked, strategic — never naive or dismissive.
-async function makeBrief(brand, out, me, today) {
+async function makeBrief(brand, out, me, today, find) {
   const parts = [];
+  // THE HEADLINE IS FINDINGS-FIRST TOO (founder, 6 Aug). The threat assessment is what the
+  // app shows first and what the Slack brief quotes, so it must be bound by the same closed
+  // list as the channel reads — otherwise the most visible surface stays free to over-claim.
+  if (find) {
+    const all = [].concat(find.ads || [], find.website || [], find.social || [], find.email || []);
+    if (all.length) parts.push(findingsBlock(all));
+  }
   for (const [k, label] of [['ads', 'ADS'], ['social', 'SOCIAL'], ['website', 'WEBSITE'], ['email', 'EMAIL']]) {
     const c = out[k];
     if (!c || !(c.summary || (c.bullets && c.bullets.length))) continue;
@@ -917,6 +924,7 @@ async function makeBrief(brand, out, me, today) {
   const system =
     `You are WatchBack, a sharp eCommerce competitor-intelligence analyst. From the per-channel reads below, write the top-of-report brief on "${brand}", in ENGLISH (the only non-English text allowed is a verbatim quote of the competitor's own copy). ` +
     `${todayLine(today || new Date())} ` + NEWS_RULE +
+    `When COMPUTED FINDINGS are present above, they are the ONLY things established by the data: every claim in your brief must come from them, and a finding marked [limit] tells you what you may NOT say. ` +
     `Same discipline as always: use only what the reads support, sanity-check every number, and read deliberate moves as strategy with a rationale — never a naive or dismissive take. ` +
     `Ignore noise: tiny count fluctuations (an ad or two, a single post) are routine rotation — never present them as strategic moves.\n` +
     // A stale sale is the highest-signal thing in the whole dossier and it was arriving as a
