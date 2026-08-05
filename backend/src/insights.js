@@ -515,6 +515,7 @@ export const NEWS_RULE =
   `THE READER TEST — RUN IT ON EVERY LINE BEFORE YOU WRITE IT (founder's rule, 1 Aug): ask "does this actually make logical sense to someone who only reads this sentence?" If a smart reader would immediately ask "wait, why?" or "that can't be right", then YOU must answer that question from the facts and report the ANSWER — never ship the puzzle and leave them to dig. A line that repeats another line, contradicts it, states something trivially true, or makes a claim far bigger than its evidence has FAILED this test: rewrite it or drop it. When the facts show something odd (a product listed several times at different prices, a page appearing and vanishing, a sale with no start), the ODDITY and its likely explanation ARE the story — lead with it.\n` +
   `A LAUNCH IS A BIG CLAIM (founder rule): never say a product "launched", is "new" or is their "first new product" unless the FACTS show the product itself was absent from earlier captures. A new LISTING of something already on their site — an extra size, scent or colour, a re-listing, a handle ending in -1/-2/-3 — is NOT a launch; call it a new variant or listing of an existing product. If the facts label a line as a variant/re-listing, you must not upgrade it to a launch.\n` +
   `USE EACH PLATFORM'S OWN WORDS (founder rule, 5 Aug): a REEL is Instagram (and Facebook) only. TikTok has VIDEOS — never call a TikTok post a Reel. Instagram: Reel, post, Story, carousel. TikTok: video. Facebook: post, Reel, video. YouTube: video, Short. Getting this wrong tells a marketer immediately that we don't know their world.\n` +
+  `THE BRAND'S OWN PAGES INCLUDE ITS ABBREVIATIONS (founder rule, 6 Aug): a Facebook page named with the brand's INITIALS or a shortened form — "BF USA" and "BF 2027" for BonaFide, "CB Skin" for CurrentBody — plus a country, region, year or market suffix is the BRAND'S OWN page. It is NOT a persona, creator or whitelisting page, and running ads from it is ordinary brand advertising, not a third-party tactic. Only call a page a persona/whitelisting page when its name is a PERSON or an unrelated publication with no connection to the brand name.\n` +
   `NAME THE CREATOR (founder rule, 2 Aug): when a post or ad is INFLUENCER/creator content rather than the brand's own, say WHOSE it is — the handle or name exactly as the captured data gives it ("@jenna's Reel for them hit 136K views"), never a faceless "influencer Reel". The identity is the useful part: it tells the reader who to approach or counter. If the data does not carry a name or handle, say "a creator post" and stop — never guess whose it is.\n` +
   `NAME THE CHANNEL (founder rule): a reader cannot tell whether "Freedom Field Balm launched today" means it appeared on their WEBSITE, in their ADS, in an EMAIL or on SOCIAL. Every finding must make the source obvious in the sentence itself — "listed on their site", "in a new ad", "in today's email", "posted on Instagram". Say it naturally as part of the sentence, never as a bracketed tag.\n` +
   `NEVER COUNT CAPTURES (founder rule): "2+ consecutive captures", "since the last capture", "in the previous capture" is our internal plumbing, meaningless to a marketer. Use DATES instead — "no Meta ads since 22 Jul", or when it spans the whole monitored history, "no Meta ads since monitoring began on 18 Jul" (use the MONITORING WINDOW fact). For day-over-day comparisons say "since yesterday" or name the date.\n` +
@@ -603,6 +604,7 @@ export async function generateInsights(brand, host) {
         absenceGuard = (typical && nowN < typical * 0.5
           ? '\nSAMPLE WARNING: today\'s capture holds only ' + nowN + ' ads against a typical ' + typical + ' for this brand — this is a THIN SLICE of their library, not their whole activity. Which pages, landing domains or countries appear today is largely which ads happened to be sampled. NEVER report a switch, shift, pivot or change of destination/targeting from it.'
           : '') +
+          (!earlierHadAds ? '\nNO EARLIER ADS CAPTURED for this brand — every previous capture was empty, so nothing you see today can be called new, a first, or a change. Describe what is running; never imply it started recently.' : '') +
           (knownEntities.length ? '\nALREADY SEEN BEFORE TODAY (these are NOT new — never describe any of them as new, first, just added, or newly used): ' + knownEntities.slice(0, 40).join(', ') + '.' : '') +
           '\nCAPTURE HEALTH (hard facts — obey them): today\'s capture holds ' + nowN + ' ads' +
           (prevN ? ' vs ' + prevN + ' in the previous capture' : '') + '. ' +
@@ -639,8 +641,13 @@ export async function generateInsights(brand, host) {
         const counts = r.map((x) => (x.data && (x.data.ads || []).length) || 0).filter((n) => n > 0).sort((a, b) => a - b);
         const typical = counts.length ? counts[Math.floor(counts.length / 2)] : 0;
         const sampleReliable = !!(nowN && (!typical || nowN >= typical * 0.5) && !(prevN && nowN < prevN * 0.6));
+        // Earlier captures that were EMPTY prove nothing: Bonafide (4 Aug) had zero ads on
+        // every prior day, so its first real capture made bonafide.us look like a new funnel
+        // when it may have run for months. Newness needs a prior capture that actually held ads.
+        const earlierHadAds = r.slice(1).some((x) => ((x.data && x.data.ads) || []).length > 0);
         const f = {
           knownEntities,
+          canAssertNew: earlierHadAds,
           sampleReliable,
           canJudgeAbsence: !!(nowN && nowN < Math.floor(capN * 0.95) && sampleReliable),
           hasEarlier: !!(r[1] && r[1].data),
