@@ -603,6 +603,7 @@ export async function generateInsights(brand, host) {
         absenceGuard = (typical && nowN < typical * 0.5
           ? '\nSAMPLE WARNING: today\'s capture holds only ' + nowN + ' ads against a typical ' + typical + ' for this brand — this is a THIN SLICE of their library, not their whole activity. Which pages, landing domains or countries appear today is largely which ads happened to be sampled. NEVER report a switch, shift, pivot or change of destination/targeting from it.'
           : '') +
+          (knownEntities.length ? '\nALREADY SEEN BEFORE TODAY (these are NOT new — never describe any of them as new, first, just added, or newly used): ' + knownEntities.slice(0, 40).join(', ') + '.' : '') +
           '\nCAPTURE HEALTH (hard facts — obey them): today\'s capture holds ' + nowN + ' ads' +
           (prevN ? ' vs ' + prevN + ' in the previous capture' : '') + '. ' +
           (capped ? 'It is AT THE COLLECTION CAP, so it is a rolling window of their NEWEST ads, NOT their full library — older ads and the pages running them fall outside it at random. '
@@ -623,10 +624,23 @@ export async function generateInsights(brand, host) {
         // a day, then two scrapes returned 3 and 2; comparing only to yesterday made the 2-ad
         // day look healthy because yesterday was already broken, and the brief announced an
         // "ad destination switch" that was really which handful of ads happened to be sampled.
+        // EVERYTHING WE HAVE SEEN BEFORE TODAY — landing domains, advertiser pages, funnel
+        // hosts. Newness is now proven per item instead of per day: if it is on this list it
+        // cannot be called new, however healthy today's capture looks.
+        const known = new Set();
+        for (let i = 1; i < r.length; i++) {
+          for (const a2 of ((r[i].data && r[i].data.ads) || [])) {
+            const dm = String(a2.landing || '').replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '');
+            if (dm) known.add(dm);
+            if (a2.page) known.add(String(a2.page));
+          }
+        }
+        const knownEntities = [...known].slice(0, 120);
         const counts = r.map((x) => (x.data && (x.data.ads || []).length) || 0).filter((n) => n > 0).sort((a, b) => a - b);
         const typical = counts.length ? counts[Math.floor(counts.length / 2)] : 0;
         const sampleReliable = !!(nowN && (!typical || nowN >= typical * 0.5) && !(prevN && nowN < prevN * 0.6));
         const f = {
+          knownEntities,
           sampleReliable,
           canJudgeAbsence: !!(nowN && nowN < Math.floor(capN * 0.95) && sampleReliable),
           hasEarlier: !!(r[1] && r[1].data),
@@ -734,6 +748,18 @@ export async function generateInsights(brand, host) {
         const variantOnly = /variant or re-listing|price testing|already on their site/i.test(String(changes && changes.join('; ')));
         // The computed diff is the ground truth the app displays beneath the read. If it
         // found nothing, nothing changed — and no sentence may say otherwise (UKLASH, 3 Aug).
+        // Products already listed in ANY earlier capture can never be "new" (founder, 6 Aug:
+        // Ancestral's "1 new product: Freedom Field Balm" — reported four days earlier, and
+        // part of the price-test cloning we already called out).
+        const knownProducts = new Set();
+        for (let i = 1; i < r.length; i++) {
+          const items = (r[i].data && r[i].data.summary && r[i].data.summary.items) || {};
+          for (const h of Object.keys(items)) {
+            knownProducts.add(h);
+            const ti = items[h] && items[h].title;
+            if (ti) knownProducts.add(String(ti));
+          }
+        }
         const noChanges = Array.isArray(changes) && changes.length === 0;
         const f = {
           hasEarlier,
@@ -742,6 +768,7 @@ export async function generateInsights(brand, host) {
           canJudgeAbsence: !!_bothFeeds,
           canAssertNew: hasEarlier && !noChanges,
           genuineNewProduct: variantOnly ? false : undefined,
+          knownEntities: [...knownProducts].slice(0, 150),
           noChanges,
         };
         out.__facts = Object.assign(out.__facts || {}, { webComparable: f.comparable, genuineNewProduct: f.genuineNewProduct, hasEarlier: (out.__facts && out.__facts.hasEarlier) || f.hasEarlier });

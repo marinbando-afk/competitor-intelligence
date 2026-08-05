@@ -14,10 +14,42 @@
 // and checks each against the facts of the capture it came from. Unsupported sentences are
 // removed before storage — the model does not get to decide.
 
-const SENT = /[^.!?]+[.!?]*/g;
+// Splitting on every '.' shredded domains, prices and abbreviations — "casaandbeyond.com.au"
+// became three "sentences", so a rule looking for the whole domain never saw it and the
+// validator has been judging fragments. Split only at a real sentence boundary: terminator +
+// whitespace + something that starts a new sentence.
+function sentencesOf(t) {
+  const parts = String(t || '').split(/(?<=[.!?])\s+(?=[A-Z"'“(\u2022•\-])/).map((x) => x.trim()).filter(Boolean);
+  // "Dr. Annie Gonzalez" is one name, not two sentences — re-join fragments that end in a
+  // common abbreviation (persona pages are full of Dr./MD/Inc.).
+  const ABBR = /\b(Dr|Mr|Mrs|Ms|Prof|Sr|Jr|St|Inc|Ltd|Co|Corp|vs|etc|approx|No|Vol|Est)\.$/i;
+  const out = [];
+  for (const p of parts) {
+    if (out.length && ABBR.test(out[out.length - 1])) out[out.length - 1] += ' ' + p;
+    else out.push(p);
+  }
+  return out;
+}
 
 // Claim patterns. Each: what it asserts, and which fact must be true for it to be allowed.
 const RULES = [
+  {
+    id: 'staleNew',
+    // THE RULE THE FOUNDER HAD TO SHOUT FOR (6 Aug): "stop reporting insights as NEW if they
+    // are not NEW". Every other rule asks "could anything be new today?" — this one asks the
+    // only question that matters: is THIS THING new? Callers pass knownEntities, the domains,
+    // pages and products already seen in earlier captures. Calling any of them new is banned
+    // outright, regardless of how healthy today's capture is.
+    re: /\b(new|newly|first|launch(ed|es|ing)?|just (added|started|introduced)|now (running|live|using)|started (using|running))\b/i,
+    allow: (f, sentence) => {
+      const known = f.knownEntities;
+      if (!Array.isArray(known) || !known.length) return true;
+      const t = String(sentence || '').toLowerCase();
+      // If the sentence names something we have already seen, it is not news.
+      return !known.some((k) => k && k.length >= 4 && t.indexOf(String(k).toLowerCase()) >= 0);
+    },
+    why: 'calls something NEW that appears in earlier captures — it was seen before today, so it is not new',
+  },
   {
     id: 'contradictsDiff',
     // UKLASH, 3 Aug: headline "New subscription-discount sale live today" sitting directly
@@ -113,13 +145,13 @@ const SAFE = /\b(not seen in|already running when monitoring began|no earlier ca
 
 export function checkClaims(text, facts = {}) {
   const out = [];
-  const sentences = String(text || '').match(SENT) || [];
+  const sentences = sentencesOf(text);
   for (const raw of sentences) {
     const s = raw.trim();
     if (!s || SAFE.test(s)) continue;
     for (const r of RULES) {
       if (!r.re.test(s)) continue;
-      if (r.allow(facts)) continue;
+      if (r.allow(facts, s)) continue;
       out.push({ rule: r.id, why: r.why, sentence: s });
       break;   // one violation per sentence is enough
     }
@@ -133,7 +165,7 @@ export function enforceClaims(text, facts = {}, label = '') {
   const violations = checkClaims(text, facts);
   if (!violations.length) return { text: String(text || ''), violations };
   const bad = new Set(violations.map((v) => v.sentence));
-  const kept = (String(text).match(SENT) || []).map((x) => x.trim()).filter((x) => x && !bad.has(x));
+  const kept = sentencesOf(text).filter((x) => !bad.has(x));
   for (const v of violations) console.warn('⚠ claim blocked' + (label ? ' [' + label + ']' : '') + ' (' + v.rule + '): ' + v.sentence + ' — ' + v.why);
   return { text: kept.join(' ').trim(), violations };
 }

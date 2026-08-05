@@ -88,6 +88,16 @@ t('Casa and Beyond: destination switch from a thin sample',
   'Ad destination switched from casaandbeyond.com to casaandbeyond.com.au today — they are now actively targeting Australian shoppers.',
   { comparable: true, hasEarlier: true, sampleReliable: false }, true, 'replaced');
 
+// The founder, 6 Aug: "STOP REPORTING INSIGHTS AS NEW if they are not NEW". Newness is now
+// proven per ITEM against everything seen in earlier captures.
+t('a domain seen before cannot be new',
+  'New funnel: casaandbeyond.com.au is now their ad destination.',
+  { hasEarlier: true, comparable: true, sampleReliable: true, knownEntities: ['casaandbeyond.com.au', 'casaandbeyond.com'] }, true, 'staleNew');
+
+t('a page seen before cannot be new',
+  'New Facebook page running their ads: Dr. Annie Gonzalez, MD.',
+  { hasEarlier: true, comparable: true, canJudgeAbsence: true, knownEntities: ['Dr. Annie Gonzalez, MD', 'Seranova'] }, true, 'staleNew');
+
 console.log('\nMUST ALLOW — correct reporting must not be over-blocked:');
 
 t('honest absence wording',
@@ -132,6 +142,10 @@ t('quiet is reportable when the account IS connected',
 t('destination switch IS reportable from a full capture',
   'Ad destination switched to casaandbeyond.com.au — every ad in a full capture now lands there.',
   { comparable: true, hasEarlier: true, sampleReliable: true, canJudgeAbsence: true }, false);
+
+t('a genuinely unseen entity may be called new',
+  'New funnel: shopcasa.io appeared in their ads today.',
+  { hasEarlier: true, comparable: true, sampleReliable: true, canAssertNew: true, knownEntities: ['casaandbeyond.com.au', 'casaandbeyond.com'] }, false);
 
 t('legitimate end-of-tactic on a healthy capture',
   'Their advertorial page dropped out entirely — no ads from it in a full capture that also grew day over day.',
