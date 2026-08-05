@@ -802,7 +802,7 @@ export async function generateInsights(brand, host) {
       // Only a sign-up confirmation so far — nothing to analyse. Don't invent cadence/offers/suggestions.
       out.email = { summary: 'Only the sign-up confirmation captured so far — their first newsletter lands with their next campaign, usually within a day or two.', bullets: [] };
     } else if (real.length) {
-      out.email = await ask('email', brand, fmtEmail({ emails: real, summary: em.summary, alias: em.alias, site: host }), '', me);
+      out.email = await ask('email', brand, ((FIND && FIND.email) ? findingsBlock(FIND.email) + '\n\nSUPPORTING DATA (for detail and quotes only — never for new claims):\n' : '') + fmtEmail({ emails: real, summary: em.summary, alias: em.alias, site: host }), '', me);
       try {
         // We hold a window of their recent sends: a flow we no longer see may simply have
         // scrolled out, or our inbox was suppressed — never evidence that they stopped.
