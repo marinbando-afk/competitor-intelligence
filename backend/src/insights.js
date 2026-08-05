@@ -664,7 +664,7 @@ export async function generateInsights(brand, host) {
         out.__facts = Object.assign(out.__facts || {}, { adsAbsenceOk: f.canJudgeAbsence, hasEarlier: f.hasEarlier });
         if (out.ads && out.ads.summary) {
           const g = enforceClaims(out.ads.summary, f, brand + '/ads');
-          out.ads.summary = await senseCheck(g.text || out.ads.summary, (await fmtAds(r[0].data, day)) + absenceGuard, brand + '/ads');
+          out.ads.summary = await senseCheck(gated(g, FIND && FIND.ads), (await fmtAds(r[0].data, day)) + absenceGuard, brand + '/ads');
           if (g.violations.length) out.ads.blocked = g.violations.map((v) => v.rule);
         }
       } catch (e) { /* gate is best-effort — never lose the read */ }
@@ -690,7 +690,7 @@ export async function generateInsights(brand, host) {
         const f = { canJudgeAbsence: false, comparable: false, hasEarlier: !!prev.length, canAssertNew: !!prev.length, priceComparable: false, changeFindings: ((FIND && FIND.social) || []).filter((x) => x.type === 'new').map((x) => x.text) };
         if (out.social && out.social.summary) {
           const g = enforceClaims(out.social.summary, f, brand + '/social');
-          out.social.summary = g.text || out.social.summary;
+          out.social.summary = gated(g, FIND && FIND.social);
           if (g.violations.length) out.social.blocked = g.violations.map((v) => v.rule);
         }
       } catch (e) { /* best-effort */ }
@@ -789,7 +789,7 @@ export async function generateInsights(brand, host) {
         out.__facts = Object.assign(out.__facts || {}, { webComparable: f.comparable, genuineNewProduct: f.genuineNewProduct, hasEarlier: (out.__facts && out.__facts.hasEarlier) || f.hasEarlier });
         if (out.website && out.website.summary) {
           const g = enforceClaims(out.website.summary, f, brand + '/website');
-          out.website.summary = await senseCheck(g.text || out.website.summary, todayBlock, brand + '/website');
+          out.website.summary = await senseCheck(gated(g, FIND && FIND.website), todayBlock, brand + '/website');
           if (g.violations.length) out.website.blocked = g.violations.map((v) => v.rule);
         }
       } catch (e) { /* best-effort */ }
@@ -811,7 +811,7 @@ export async function generateInsights(brand, host) {
         const f = { canJudgeAbsence: false, comparable: false, priceComparable: false, hasEarlier: true, canAssertNew: true, changeFindings: ((FIND && FIND.email) || []).filter((x) => x.type === 'new').map((x) => x.text) };
         if (out.email && out.email.summary) {
           const g = enforceClaims(out.email.summary, f, brand + '/email');
-          out.email.summary = g.text || out.email.summary;
+          out.email.summary = gated(g, FIND && FIND.email);
           if (g.violations.length) out.email.blocked = g.violations.map((v) => v.rule);
         }
       } catch (e) { /* best-effort */ }
@@ -849,7 +849,7 @@ export async function generateInsights(brand, host) {
           const fk = key === 'move' ? { ...strict, advice: true } : strict;
           b[key] = b[key].map((line) => {
             const g = enforceClaims(line, fk, brand + '/brief.' + key);
-            return g.text || null;
+            return g.text || null;   // brief lines: an unsupported line is dropped, never restored
           }).filter(Boolean);
         }
       } catch (e) { /* best-effort */ }

@@ -189,7 +189,11 @@ export function enforceClaims(text, facts = {}, label = '') {
   const violations = checkClaims(text, facts);
   if (!violations.length) return { text: String(text || ''), violations };
   const bad = new Set(violations.map((v) => v.sentence));
-  const kept = sentencesOf(text).filter((x) => !bad.has(x));
+  // A strip must never leave a FRAGMENT ("…, all video, landing on bonafide.us.") — if what
+  // survives no longer starts like a sentence, it is unreadable and gets dropped too.
+  const kept = sentencesOf(text)
+    .filter((x) => !bad.has(x))
+    .filter((x) => /^[A-Z0-9"'“(]/.test(x.trim()));
   for (const v of violations) console.warn('⚠ claim blocked' + (label ? ' [' + label + ']' : '') + ' (' + v.rule + '): ' + v.sentence + ' — ' + v.why);
-  return { text: kept.join(' ').trim(), violations };
+  return { text: kept.join(' ').trim(), violations, allStripped: violations.length > 0 && !kept.length };
 }
