@@ -79,16 +79,20 @@ function adsFindings(rows, capN) {
   if (domNow.size) {
     out.push({
       type: 'state', key: 'ads.destinations',
-      text: 'All ' + ads.length + ' ads IN TODAY\'S CAPTURE run to ' + [...domNow.keys()].join(', ') + ' (this is what the Ad Library returned, not a proven-complete inventory — whitelisted ads from third-party pages may exist outside it).',
+      text: 'All ' + ads.length + ' ads in today\'s capture run to ' + [...domNow.keys()].join(', ') + '.',
       evidence: { domains: [...domNow.entries()] },
     });
   }
   if (pageNow.size) {
     out.push({
       type: 'state', key: 'ads.pages',
-      text: 'The ' + ads.length + ' ads captured today run from ' + [...pageNow.keys()].map((p) => '"' + String(p).trim() + '"').join(', ') + '. Say "in today\'s capture" — never "all their ads".',
+      text: 'The ' + ads.length + ' ads captured today run from ' + [...pageNow.keys()].map((p) => '"' + String(p).trim() + '"').join(', ') + '.',
       evidence: { pages: [...pageNow.entries()] },
     });
+  }
+
+  if (ads.length) {
+    out.push({ type: 'limit', key: 'ads.notcensus', text: 'This capture is what the Ad Library returned, not a proven-complete inventory: whitelisted ads from third-party pages may exist outside it. Scope every statement to what was captured.' });
   }
 
   // NEW only with proof of absence from a capture that actually held ads.
@@ -146,7 +150,7 @@ function websiteFindings(rows) {
     });
   }
 
-  if (bannerNow) {
+  if (bannerNow && bannerNow.trim().length > 2) {
     // Date the banner from its own history, tolerant of re-wording and rotation.
     let since = today.day;
     for (const r of rows.slice(1)) {

@@ -575,7 +575,9 @@ export async function generateInsights(brand, host) {
   // back to the computed STATE findings (what the data does support), or to nothing at all.
   const gated = (g, findList) => {
     if (g && g.text) return g.text;
-    const states = (findList || []).filter((f) => f.type === 'state' || f.type === 'context').map((f) => f.text);
+    // Only STATE facts may surface to a reader — 'limit' and 'context' entries are guidance
+    // for the model and must never be shown (DRM LAB's read leaked one verbatim).
+    const states = (findList || []).filter((f) => f.type === 'state').map((f) => f.text);
     return states.length ? states.slice(0, 3).join(' ') : '';
   };
   if (!process.env.ANTHROPIC_API_KEY || !host) return null;
