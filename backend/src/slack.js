@@ -64,7 +64,9 @@ export async function buildDailyBrief(brands, viewUrl, commit) {
   const link = viewUrl || await founderShareUrl();
   const todayISO = new Date().toISOString().slice(0, 10);
   const blocks = [];
+  let demoHeaderWritten = false;
   for (const b of brands) {
+    if (b.__demo && !demoHeaderWritten) { blocks.push('— — —\n_Example brands we watch daily — not your competitors, and they don\u2019t use your slots._'); demoHeaderWritten = true; }
     let s = null;
     try { s = await dailySignals(b.host, !!commit); } catch (e) { /* treat as quiet */ }
     // THE SYNC RULE (founder, 21 Jul): the Slack brief is a RECAP of the platform's own
@@ -150,15 +152,19 @@ export async function sendUserDailyBriefs(pool) {
   if (!pool) return { sent: 0, total: 0 };
   let sent = 0, total = 0;
   try {
-    const us = await pool.query(`SELECT id, slack_webhook, share_token FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
+    const us = await pool.query(`SELECT id, slack_webhook, share_token, demo_brands FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
     for (const u of us.rows) {
       try {
         const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [u.id]);
         if (!cs.rows.length) continue;
+        // Opt-in example brands (founder, 6 Aug): appended, never mixed into the client's own
+        // list, and labelled in the brief so nobody reads a demo as their own competitor.
+        let demoRows = [];
+        if (u.demo_brands) { try { const { TRACKED } = await import('./refresh.js'); demoRows = TRACKED.map((t) => ({ name: t.name, host: t.host, __demo: true })); } catch (e) { /* optional */ } }
         total++;
         // Teammate view link = this account's OWN read-only share link (opens without a login).
         const viewUrl = u.share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.share_token)) : 'https://watchback.ai/app.html';
-        const text = await buildDailyBrief(cs.rows, viewUrl, true);   // real delivery → commit announce-once state
+        const text = await buildDailyBrief(cs.rows.concat(demoRows), viewUrl, true);   // real delivery → commit announce-once state
         const r = await postTo(u.slack_webhook, text);
         if (r.sent) sent++;
       } catch (e) { /* skip this user */ }
@@ -177,6 +183,10 @@ export async function sendUserWeeklyLinks(pool, weekLabel) {
       try {
         const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [u.id]);
         if (!cs.rows.length) continue;
+        // Opt-in example brands (founder, 6 Aug): appended, never mixed into the client's own
+        // list, and labelled in the brief so nobody reads a demo as their own competitor.
+        let demoRows = [];
+        if (u.demo_brands) { try { const { TRACKED } = await import('./refresh.js'); demoRows = TRACKED.map((t) => ({ name: t.name, host: t.host, __demo: true })); } catch (e) { /* optional */ } }
         const text = '📊 *Weekly competitor reports are ready* (' + weekLabel + '):\n' +
           cs.rows.map((c) => '• ' + c.name + ' — https://watchback.ai/report.html?host=' + c.host).join('\n');
         await postTo(u.slack_webhook, text);

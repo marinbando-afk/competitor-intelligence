@@ -1213,13 +1213,14 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.get('/api/me', requireAuth, async (req, res) => {
-  let admin = false, slack = false, maxCompetitors = DEFAULT_MAX_COMPETITORS;
+  let admin = false, slack = false, demoBrands = false, maxCompetitors = DEFAULT_MAX_COMPETITORS;
   try {
-    const r = await pool.query('SELECT admin, slack_webhook, max_competitors FROM users WHERE id = $1', [req.user.uid]);
+    const r = await pool.query('SELECT admin, slack_webhook, max_competitors, demo_brands FROM users WHERE id = $1', [req.user.uid]);
     admin = !!(r.rows[0] && r.rows[0].admin); slack = !!(r.rows[0] && r.rows[0].slack_webhook);
+    demoBrands = !!(r.rows[0] && r.rows[0].demo_brands);
     if (r.rows[0] && r.rows[0].max_competitors != null) maxCompetitors = r.rows[0].max_competitors;
   } catch (e) { /* defaults */ }
-  res.json({ user: { id: req.user.uid, email: req.user.email, admin, slack, maxCompetitors } });
+  res.json({ user: { id: req.user.uid, email: req.user.email, admin, slack, demoBrands, maxCompetitors } });
 });
 
 // ── Per-account Slack connection ──────────────────────────────────────────────
@@ -1227,6 +1228,16 @@ app.get('/api/slack', requireAuth, async (req, res) => {
   try { const r = await pool.query('SELECT slack_webhook FROM users WHERE id=$1', [req.user.uid]); res.json({ connected: !!(r.rows[0] && r.rows[0].slack_webhook) }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
+// Include the three example brands in this account's daily Slack brief (opt-in, off by
+// default — they are demos, so they must never look like the client's own competitors).
+app.post('/api/slack/demo-brands', requireAuth, async (req, res) => {
+  try {
+    const on = !!(req.body && req.body.on);
+    await pool.query('UPDATE users SET demo_brands = $2 WHERE id = $1', [req.user.uid, on]);
+    res.json({ ok: true, demoBrands: on });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/slack', requireAuth, async (req, res) => {
   try {
     const url = String((req.body && req.body.webhook) || '').trim();

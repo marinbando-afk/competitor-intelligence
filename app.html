@@ -773,6 +773,7 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
     <p>Get your one-line-per-competitor brief every morning — plus weekly report links on Mondays — posted straight to a Slack channel.</p>
     <div id="slackConnected" style="display:none">
       <div class="subok" style="margin-bottom:16px">✓ Slack is connected. Your daily brief posts every morning.</div>
+      <label class="ann-row" style="margin:0 0 14px"><input type="checkbox" id="slkDemos" onchange="setDemoBrands(this)"> <span>Also include our three example brands (The Oodie, Liquid Death, Smooche) — clearly marked, and they don’t use your competitor slots.</span></label>
       <div class="m-act"><button class="btn btn-g" onclick="slackTest(this)">Send a test now</button><button class="btn btn-g" id="slkDisc" onclick="slackDisconnect(this)">Disconnect</button><button class="btn btn-p" onclick="closeSlack()">Done</button></div>
     </div>
     <div id="slackForm">
@@ -1089,7 +1090,13 @@ function paintAuth(){refreshAdmin();syncPlan();var s=document.getElementById('au
 function openAuth(mode,after){authMode=(mode==='signin')?'login':'signup';pendingAfterAuth=after||null;paintAuthMode();var er=document.getElementById('aErr');if(er)er.style.display='none';document.getElementById('authOv').classList.add('open');setTimeout(function(){document.getElementById('aE').focus();},40);}
 function closeAuth(){var o=document.getElementById('authOv');if(o)o.classList.remove('open');}
 /* ── Per-account Slack connection ── */
-function openSlack(){if(!loggedIn()){openAuth('signin',openSlack);return;}document.getElementById('slkErr').style.display='none';document.getElementById('slackOv').classList.add('open');renderSlack(!!(USER&&USER.slack));fetch(API+'/api/slack',{headers:authH()}).then(function(r){return r.json();}).then(function(d){renderSlack(!!(d&&d.connected));}).catch(function(){});var sp=document.getElementById('spDemos');if(sp)sp.checked=false;slackPreviewCache={};loadSlackPreview();}
+function setDemoBrands(el){
+  var on=!!(el&&el.checked);
+  fetch(API+'/api/slack/demo-brands',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({on:on})})
+    .then(function(r){return r.json();}).then(function(d){if(d&&d.ok){if(USER)USER.demoBrands=on;try{localStorage.setItem('ci_user',JSON.stringify(USER));}catch(e){}}else if(el){el.checked=!on;}})
+    .catch(function(){if(el)el.checked=!on;});
+}
+function openSlack(){if(!loggedIn()){openAuth('signin',openSlack);return;}document.getElementById('slkErr').style.display='none';document.getElementById('slackOv').classList.add('open');renderSlack(!!(USER&&USER.slack));fetch(API+'/api/slack',{headers:authH()}).then(function(r){return r.json();}).then(function(d){renderSlack(!!(d&&d.connected));}).catch(function(){});var sp=document.getElementById('spDemos');if(sp)sp.checked=false;var sd=document.getElementById('slkDemos');if(sd)sd.checked=!!(USER&&USER.demoBrands);slackPreviewCache={};loadSlackPreview();}
 function closeSlack(){document.getElementById('slackOv').classList.remove('open');}
 // ── Change your own password (current password required) ──
 function openPw(){

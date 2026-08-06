@@ -104,6 +104,9 @@ export async function initSchema() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS period_end TIMESTAMPTZ;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS comp BOOLEAN NOT NULL DEFAULT FALSE;
+    -- Include the three example brands (The Oodie, Liquid Death, Smooche) in this account's
+    -- daily Slack brief. Opt-in, off by default: they are demos, not the client's competitors.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS demo_brands BOOLEAN NOT NULL DEFAULT FALSE;
     UPDATE users SET comp = TRUE WHERE comp = FALSE AND created_at < TIMESTAMPTZ '2026-07-27';
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_share_token ON users(share_token) WHERE share_token IS NOT NULL;
     -- One-time data migrations. A marker row means "already run", so a backfill can't
