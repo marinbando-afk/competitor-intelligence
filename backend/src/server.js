@@ -584,6 +584,31 @@ setTimeout(async () => {
   } catch (e) { console.warn('findings-first regen:', e.message); }
 }, 55000);
 
+// Rebuild every brand's stored read with the CURRENT logic. Runs in the background and
+// reports progress, because a fix that only changes the generator is invisible until the
+// stored reads are rebuilt — the founder kept seeing yesterday's wrong text and reasonably
+// concluded nothing had been applied (6 Aug).
+let _regenRunning = false, _regenState = null;
+app.get('/api/regen-all', async (req, res) => {
+  if (_regenRunning) return res.json({ started: false, alreadyRunning: true, state: _regenState });
+  _regenRunning = true;
+  _regenState = { started: new Date().toISOString(), done: 0, total: 0, failed: [] };
+  res.json({ started: true, note: 'rebuilding every stored read — poll /api/regen-all for progress' });
+  (async () => {
+    try {
+      const brands = await allBrands();
+      _regenState.total = brands.length;
+      for (const b of brands) {
+        try { await generateInsights(b.name || b.host, b.host); }
+        catch (e) { _regenState.failed.push(b.host); }
+        _regenState.done++;
+      }
+      console.log('✓ regen-all: ' + _regenState.done + '/' + _regenState.total + ' reads rebuilt');
+    } catch (e) { console.warn('regen-all:', e.message); }
+    finally { _regenRunning = false; _regenState.finished = new Date().toISOString(); }
+  })();
+});
+
 // Findings for a brand — what the DATA establishes, before any model sees it. Read-only.
 app.get('/api/findings', async (req, res) => {
   try {
