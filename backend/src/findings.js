@@ -79,14 +79,14 @@ function adsFindings(rows, capN) {
   if (domNow.size) {
     out.push({
       type: 'state', key: 'ads.destinations',
-      text: 'Ads run to ' + [...domNow.keys()].join(', ') + '.',
+      text: 'All ' + ads.length + ' ads IN TODAY\'S CAPTURE run to ' + [...domNow.keys()].join(', ') + ' (this is what the Ad Library returned, not a proven-complete inventory — whitelisted ads from third-party pages may exist outside it).',
       evidence: { domains: [...domNow.entries()] },
     });
   }
   if (pageNow.size) {
     out.push({
       type: 'state', key: 'ads.pages',
-      text: 'Ads run from ' + [...pageNow.keys()].map((p) => '"' + String(p).trim() + '"').join(', ') + '.',
+      text: 'The ' + ads.length + ' ads captured today run from ' + [...pageNow.keys()].map((p) => '"' + String(p).trim() + '"').join(', ') + '. Say "in today\'s capture" — never "all their ads".',
       evidence: { pages: [...pageNow.entries()] },
     });
   }

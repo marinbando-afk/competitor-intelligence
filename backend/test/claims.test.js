@@ -107,6 +107,11 @@ t('change claim naming an unrelated entity is untraceable',
   'A new funnel bonafide.us appeared in their ads.',
   { hasEarlier: true, comparable: true, sampleReliable: true, changeFindings: ['Storefront: 1 product removed — Triangle Poncho'] }, true);
 
+// The DRM LAB, 6 Aug — 79 ads captured, all from their own page, reported as "all ads".
+t('universal claim from a sample',
+  'The DRM LAB runs all ads from their own branded page to advertorial landing pages.',
+  { hasEarlier: true, comparable: true, sampleReliable: true }, true, 'completeness');
+
 console.log('\nMUST ALLOW — correct reporting must not be over-blocked:');
 
 t('honest absence wording',
@@ -164,6 +169,10 @@ t('change claim backed by a finding passes',
 t('present-tense description needs no finding',
   'Ads run to casaandbeyond.com.au from their own Casa & Beyond page.',
   { hasEarlier: true, comparable: true, changeFindings: [] }, false);
+
+t('scoped completeness is fine',
+  'All 79 ads in today\'s capture run from their own branded page to advertorial landing pages.',
+  { hasEarlier: true, comparable: true, sampleReliable: true }, false);
 
 t('legitimate end-of-tactic on a healthy capture',
   'Their advertorial page dropped out entirely — no ads from it in a full capture that also grew day over day.',

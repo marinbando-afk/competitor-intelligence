@@ -117,6 +117,19 @@ const RULES = [
     why: 'claims a PRICE MOVE without two different-day captures that both carry the product feed',
   },
   {
+    id: 'completeness',
+    // The DRM LAB, 6 Aug: "runs ALL ads from their own branded page". We captured 79 ads —
+    // every one from their page — but a capture is what the Ad Library returned, never a
+    // proven-complete inventory, and whitelisted ads from third-party pages surface only via
+    // keyword search. A universal quantifier turns a sample into a census.
+    re: /\b(all|every|entire|exclusively|only|none of|no other)\b[^.]{0,40}\b(ads?|creatives?|pages?|funnels?|listings?|posts?)\b|\b(ads?|creatives?|pages?)\b[^.]{0,25}\b(all|exclusively|only)\b/i,
+    allow: (f, sentence) => {
+      // Scoped statements are fine — the sample must be named in the same sentence.
+      return /(captur|sample|we (see|hold|have)|in view|so far|of the \d+|\b\d+ ads?\b)/i.test(String(sentence || ''));
+    },
+    why: 'states a UNIVERSAL fact ("all ads", "every page", "only") from a capture that is a sample, not a proven-complete inventory — scope it to what was captured',
+  },
+  {
     id: 'durationDays',
     re: /\b(running|live|active|been on)\b[^.]{0,24}\b\d+\+? days?\b/i,
     allow: () => false,
