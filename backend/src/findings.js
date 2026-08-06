@@ -128,6 +128,24 @@ function websiteFindings(rows) {
   const prev = rows.slice(1).find((r) => r.data && r.data.summary);
   const bannerNow = cur.banner || '';
 
+  // ROTATION IS THE NORM (founder, 6 Aug — Glov). Announcement bars cycle sale + social
+  // proof + USP slides, so one capture is a SAMPLE of the bar, not the bar. Surface the other
+  // slides we have seen recently, and say plainly that today's slide proves nothing about the
+  // others still being there.
+  const slides = [];
+  for (const r of rows.slice(0, 14)) {
+    const b2 = r.data && r.data.banner;
+    if (b2 && !slides.some((x) => sameBannerText(x.text, b2))) slides.push({ text: b2, day: r.day, sale: isSaleBanner(b2) });
+  }
+  if (slides.length > 1) {
+    out.push({
+      type: 'context', key: 'web.rotation',
+      text: 'Their announcement bar ROTATES — slides seen recently: ' + slides.slice(0, 4).map((x) => '"' + x.text + '" (' + x.day + ')').join(', ') +
+        '. Today\'s captured slide is one of several; the others are almost certainly still running. Never treat a slide missing today as removed, or a slide seen today as newly added.',
+      evidence: { slides: slides.slice(0, 5) },
+    });
+  }
+
   if (bannerNow) {
     // Date the banner from its own history, tolerant of re-wording and rotation.
     let since = today.day;
