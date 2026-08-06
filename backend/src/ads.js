@@ -24,7 +24,14 @@ const _verdict = new Map();   // 'brand|advertiser|domain' -> { at, val } — ca
 // "current body" — while the brand's own ads never rank). Page-scoped scanning via Meta's
 // own page identity has zero ambiguity. Extend without a deploy via env AD_PAGE_IDS
 // ("host:id,host:id"). CurrentBody's id read from the Ad Library typeahead, 22 Jul 2026.
-const KNOWN_FB_PAGES = { 'currentbody.com': '183065794653', 'bonafideprovisions.com': '307482405997850', 'mengotomars.com': '184711951390377' };   // Mars Men — associated_page_id from facebook.com/mengotomars, Ad Library-verified 26 Jul (~4,200 active ads)   // Bonafide Provisions @bonafideprovisions (typeahead, 24 Jul) — three unrelated 'Bonafide's exist
+// WRONG PIN REMOVED (6 Aug): 'bonafideprovisions.com': '307482405997850' pointed at BONA FIDE,
+// a women's clothing brand at bonafide.us — not Bonafide Provisions, the bone broth company.
+// I pinned it from an Ad Library typeahead on 24 Jul while knowing several unrelated
+// Bonafides existed, and 29 apparel ads ("Refresh your wardrobe with Bona Fide") were filed
+// into the broth brand's dossier ever since. A pin bypasses every attribution check, so a
+// wrong one poisons the brand silently. Without it the normal path runs, which correctly
+// found no ads for this brand. Never pin an id unless the page's OWN ADS name the brand.
+const KNOWN_FB_PAGES = { 'currentbody.com': '183065794653', 'mengotomars.com': '184711951390377' };   // Mars Men — associated_page_id from facebook.com/mengotomars, Ad Library-verified 26 Jul (~4,200 active ads)   // Bonafide Provisions @bonafideprovisions (typeahead, 24 Jul) — three unrelated 'Bonafide's exist
 for (const kv of String(process.env.AD_PAGE_IDS || '').split(',')) {
   const [h, id] = kv.split(':').map((x) => String(x || '').trim());
   if (h && /^\d+$/.test(id || '')) KNOWN_FB_PAGES[h.toLowerCase()] = id;

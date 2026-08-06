@@ -584,6 +584,29 @@ setTimeout(async () => {
   } catch (e) { console.warn('findings-first regen:', e.message); }
 }, 55000);
 
+// One-off (6 Aug — delete once logged): strip Bona Fide (clothing, bonafide.us) ads from
+// Bonafide Provisions' (bone broth) stored captures — they arrived via a wrong pinned page id.
+setTimeout(async () => {
+  try {
+    const r = await pool.query(`SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots WHERE host='bonafideprovisions.com' AND channel='ads'`);
+    let cleaned = 0;
+    for (const row of r.rows) {
+      const d = row.data || {};
+      if (!Array.isArray(d.ads)) continue;
+      const keep = d.ads.filter((a) => !/bonafide\.us/i.test(String(a.landing || '')) && !/^BF\s/i.test(String(a.page || '')));
+      if (keep.length !== d.ads.length) {
+        d.ads = keep; d.active = keep.length;
+        await pool.query(`UPDATE snapshots SET data=$1 WHERE host='bonafideprovisions.com' AND channel='ads' AND to_char(day,'YYYY-MM-DD')=$2`, [JSON.stringify(d), row.day]);
+        cleaned++;
+      }
+    }
+    if (cleaned) {
+      console.log('✓ one-off: stripped Bona Fide (clothing) ads from ' + cleaned + ' Bonafide Provisions capture(s)');
+      try { const t = (await allBrands()).find((b) => b.host === 'bonafideprovisions.com'); await generateInsights(t ? t.name : 'Bonafide', 'bonafideprovisions.com'); } catch (e) { /* regen best effort */ }
+    }
+  } catch (e) { console.warn('one-off bonafide scrub:', e.message); }
+}, 45000);
+
 // Rebuild every brand's stored read with the CURRENT logic. Runs in the background and
 // reports progress, because a fix that only changes the generator is invisible until the
 // stored reads are rebuilt — the founder kept seeing yesterday's wrong text and reasonably
