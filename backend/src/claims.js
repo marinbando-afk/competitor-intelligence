@@ -45,8 +45,17 @@ const RULES = [
       const known = f.knownEntities;
       if (!Array.isArray(known) || !known.length) return true;
       const t = String(sentence || '').toLowerCase();
-      // If the sentence names something we have already seen, it is not news.
-      return !known.some((k) => k && k.length >= 4 && t.indexOf(String(k).toLowerCase()) >= 0);
+      // If the sentence names something we have already seen, it is not news…
+      const named = known.filter((k) => k && k.length >= 4 && t.indexOf(String(k).toLowerCase()) >= 0);
+      if (!named.length) return true;
+      // …UNLESS the engine itself established news INVOLVING that entity (7 Aug). Every
+      // new-ad sentence names the brand's own page or domain — "three new video ads from
+      // their Glov Beauty page" — and this rule was blanket-stripping all of it, which is
+      // how ads reports went quiet. If every named known entity appears in a computed
+      // change finding, the newness is the engine's claim, not the model's; the
+      // traceability check below still verifies the sentence against those findings.
+      const cf = Array.isArray(f.changeFindings) ? f.changeFindings : [];
+      return named.every((k) => cf.some((c) => String(c).toLowerCase().indexOf(String(k).toLowerCase()) >= 0));
     },
     why: 'calls something NEW that appears in earlier captures — it was seen before today, so it is not new',
   },

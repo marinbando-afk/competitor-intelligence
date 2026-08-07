@@ -23,14 +23,18 @@ check('empty findings produce no block', findingsBlock([]) === '' && findingsBlo
 
 console.log('\nADS — NEW needs proof of absence; ENDED needs a complete capture:');
 
-// Bonafide (4 Aug): every prior capture empty — the first real capture proves nothing new.
+// Bonafide (4 Aug): every prior capture empty — the first real capture proves nothing new,
+// not even ads whose Meta start date is fresh (we cannot tell a launch from our own baseline).
 const bonafide = adsFindings([
-  row('2026-08-04', { ads: [ad('https://bonafide.us/x', 'BonaFide'), ad('https://bonafide.us/y', 'BonaFide')] }),
+  row('2026-08-04', { ads: [
+    { id: 'b1', landing: 'https://bonafide.us/x', page: 'BonaFide', started: '2026-08-04' },
+    { id: 'b2', landing: 'https://bonafide.us/y', page: 'BonaFide', started: '2026-08-03' },
+  ] }),
   row('2026-08-03', { ads: [] }),
   row('2026-08-02', { ads: [] }),
 ], 50);
 check('empty history → explicit nohistory limit', bonafide.some((f) => f.key === 'ads.nohistory'));
-check('empty history → NOTHING may be typed new', !types(bonafide).includes('new'));
+check('empty history → NOTHING may be typed new (launches included)', !types(bonafide).includes('new'));
 
 // A genuinely new domain, with an earlier capture that actually held ads, IS a finding.
 const genuineNew = adsFindings([
@@ -54,6 +58,28 @@ const fullGone = adsFindings([
   row('2026-08-06', { ads: Array.from({ length: 20 }, (_, i) => ad('https://theoodie.com/p' + i, i < 3 ? 'Oodie Persona' : 'The Oodie')) }),
 ], 50);
 check('full capture may state pages gone', fullGone.some((f) => f.key === 'ads.pagesGone' && /not as retired/i.test(f.text)));
+
+console.log('\nAD LAUNCHES (7 Aug) — first-seen id + fresh Meta start date = reportable news:');
+// The founder’s "no ads updates" drought: domains/pages never change, so nothing was ever
+// typed new. Launches are per-item proof and sampling-safe: id never captured before AND
+// Meta start date on/after the last capture that held ads.
+const launch = adsFindings([
+  row('2026-08-07', { ads: [
+    { id: 'a9', landing: 'https://glovbeauty.com/x', page: 'Glov Beauty', started: '2026-08-06', hasVideo: true, format: 'VIDEO', text: 'Scalp detox in 90 seconds — watch what comes out', link: 'https://facebook.com/ads/library/?id=a9' },
+    { id: 'a1', landing: 'https://glovbeauty.com/a', page: 'Glov Beauty', started: '2026-07-01' },
+    { id: 'a0', landing: 'https://glovbeauty.com/b', page: 'Glov Beauty', started: '2026-06-15' },
+  ] }),
+  row('2026-08-06', { ads: [
+    { id: 'a1', landing: 'https://glovbeauty.com/a', page: 'Glov Beauty', started: '2026-07-01' },
+  ] }),
+], 50);
+const l9 = launch.find((f) => f.key === 'ads.launch:a9');
+check('a first-seen id with a fresh start date is a LAUNCH finding', !!l9 && l9.type === 'new');
+check('the launch carries date, format, page and the opening hook',
+  !!l9 && l9.text.includes('2026-08-06') && l9.text.includes('video') && l9.text.includes('Glov Beauty') && l9.text.includes('Scalp detox'), l9 && l9.text);
+check('an aggregate launches count is stated', launch.some((f) => f.key === 'ads.launches' && /1 new ad launched since 2026-08-06/.test(f.text)));
+check('an OLD ad first sampled today is NOT a launch (date test)', !launch.some((f) => f.key === 'ads.launch:a0'));
+check('an id captured before is NOT a launch (id test)', !launch.some((f) => f.key === 'ads.launch:a1'));
 
 console.log('\nWEBSITE — the diff is ground truth; banners rotate:');
 

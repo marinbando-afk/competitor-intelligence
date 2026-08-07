@@ -107,6 +107,40 @@ export function adsFindings(rows, capN) {
     }
   }
 
+  // NEW CREATIVES — the launches themselves (founder, 7 Aug: "anything new is very useful —
+  // the user needs to know what their competitors are launching"). Domains and pages almost
+  // never change, so without per-creative findings the ads read had nothing NEW to phrase and
+  // the gate rightly stripped whatever the model improvised — reports went quiet while the
+  // Oodie was launching daily. Proof is per item and SAMPLING-SAFE, two conditions together:
+  // the ad's id was never in an earlier capture AND Meta's own start_date is on/after the
+  // last day we captured ads. An old ad that merely rotated into a capped window fails the
+  // date test; a genuinely fresh ad passes both. First-capture days still prove nothing.
+  if (earlier.length) {
+    const seenIds = new Set();
+    for (const r of earlier) for (const a of ((r.data && r.data.ads) || [])) if (a.id) seenIds.add(String(a.id));
+    const prevAdsDay = earlier[0].day;
+    const fresh = ads
+      .filter((a) => a.id && !seenIds.has(String(a.id)) && /^\d{4}-\d{2}-\d{2}$/.test(String(a.started || '')) && a.started >= prevAdsDay)
+      .sort((a, b) => String(b.started).localeCompare(String(a.started)));
+    const fmtOf2 = (a) => (a.hasVideo ? 'video' : String(a.format || 'image').toLowerCase());
+    for (const a of fresh.slice(0, 6)) {
+      const hook = String(a.text || a.title || '').replace(/\s+/g, ' ').trim().slice(0, 110);
+      out.push({
+        type: 'new', key: 'ads.launch:' + a.id,
+        text: 'New ad launched ' + a.started + ' (Meta start date) — ' + fmtOf2(a) + ' from "' + String(a.page || '').trim() + '"' + (hook ? ', opening: "' + hook + '"' : '') + (domOf(a.landing) ? ' → ' + domOf(a.landing) : '') + '.',
+        evidence: { id: a.id, started: a.started, format: fmtOf2(a), page: a.page || '', landing: a.landing || '', link: a.link || '', cta: a.cta || '' },
+      });
+    }
+    if (fresh.length) {
+      const nVid = fresh.filter((a) => a.hasVideo).length;
+      out.push({
+        type: 'new', key: 'ads.launches',
+        text: fresh.length + ' new ad' + (fresh.length > 1 ? 's' : '') + ' launched since ' + prevAdsDay + ' (Meta start dates; ' + nVid + ' video, ' + (fresh.length - nVid) + ' image/carousel)' + (fresh.length > 6 ? ' — the 6 newest are itemised above' : '') + '.',
+        evidence: { count: fresh.length, video: nVid, since: prevAdsDay },
+      });
+    }
+  }
+
   // ABSENCE is only evidence from a complete capture.
   if (earlier.length && !thin && !capped && ads.length) {
     const prev = earlier[0];

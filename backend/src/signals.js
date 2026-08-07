@@ -239,13 +239,14 @@ export async function dailySignals(host, commit) {
         try {
           const F = await computeFindings(host);
           const okDomain = new Set((F.ads || []).filter((f) => f.type === 'new' && f.evidence && f.evidence.domain).map((f) => f.evidence.domain));
-          const okPage = new Set((F.ads || []).filter((f) => f.type === 'new' && f.evidence && f.evidence.page).map((f) => String(f.evidence.page)));
-          const blocked = (F.ads || []).some((f) => f.type === 'limit');
-          if (blocked) { out.funnel = []; out.fbPage = []; }
-          else {
-            out.funnel = (out.funnel || []).filter((l) => okDomain.has(String(l.domain).toLowerCase()));
-            out.fbPage = (out.fbPage || []).filter((p) => okPage.has(String(p)));
-          }
+          const okPage = new Set((F.ads || []).filter((f) => f.type === 'new' && f.evidence && f.evidence.page && !String(f.key).startsWith('ads.launch')).map((f) => String(f.evidence.page)));
+          // NB (7 Aug): this used to also blank funnel/fbPage whenever ANY 'limit' finding
+          // existed — but ads.notcensus is emitted for EVERY non-empty capture, so the block
+          // was permanently on and the Slack new-funnel/new-page signals had been silently
+          // dead since the 6 Aug rewrite. The intersection with the engine's own 'new'
+          // findings below IS the one-definition-of-new authority; no extra veto needed.
+          out.funnel = (out.funnel || []).filter((l) => okDomain.has(String(l.domain).toLowerCase()));
+          out.fbPage = (out.fbPage || []).filter((p) => okPage.has(String(p)));
         } catch (e) { /* engine unavailable → leave the existing, more cautious signals */ }
         out.fbPageGone = (ch.signals.droppedPages || []).filter(Boolean);         // retired whitelisted/partner pages
         out.angle = await newAngles(host, ch.newAds || [], todayStr);

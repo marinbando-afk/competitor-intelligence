@@ -98,6 +98,12 @@ t('a page seen before cannot be new',
   'New Facebook page running their ads: Dr. Annie Gonzalez, MD.',
   { hasEarlier: true, comparable: true, canJudgeAbsence: true, knownEntities: ['Dr. Annie Gonzalez, MD', 'Seranova'] }, true, 'staleNew');
 
+// 7 Aug: every new-AD sentence names the brand's own (known) page — without an engine
+// finding backing it, that is still blocked…
+t('new-ad claim naming a known page needs a launch finding',
+  'Three new video ads launched this week from their Glov Beauty page.',
+  { hasEarlier: true, canAssertNew: true, comparable: true, knownEntities: ['Glov Beauty', 'glovbeauty.com'] }, true, 'staleNew');
+
 // TRACEABILITY — a change claim must correspond to a computed finding.
 t('change claim with no matching finding is untraceable',
   'They switched their ad destination to a new landing page today.',
@@ -170,6 +176,14 @@ t('change claim backed by a finding passes',
   'A new funnel shopcasa.io appeared in their ads today.',
   { hasEarlier: true, comparable: true, sampleReliable: true, canAssertNew: true,
     changeFindings: ['Ad landing domain shopcasa.io appears for the first time; it was absent from every earlier capture that held ads.'] }, false);
+
+// …and WITH the engine's launch finding, the same shape of sentence must survive — this is
+// the founder's "what are they launching" report line (7 Aug).
+t('new-ad claim passes when the engine established the launch',
+  'Three new video ads launched 6 Aug from their Glov Beauty page, leading with a scalp-detox hook.',
+  { hasEarlier: true, canAssertNew: true, comparable: true, knownEntities: ['Glov Beauty', 'glovbeauty.com'],
+    changeFindings: ['New ad launched 2026-08-06 (Meta start date) — video from "Glov Beauty", opening: "Scalp detox in 90 seconds — watch what comes out" → glovbeauty.com.',
+      '3 new ads launched since 2026-08-06 (Meta start dates; 3 video, 0 image/carousel).'] }, false);
 
 t('present-tense description needs no finding',
   'Ads run to casaandbeyond.com.au from their own Casa & Beyond page.',
