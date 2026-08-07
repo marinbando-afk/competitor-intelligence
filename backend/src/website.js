@@ -378,7 +378,7 @@ export function diffWebsite(a, b) {
   }
   if (priceChanges > 4) out.push('+' + (priceChanges - 4) + ' more price change' + (priceChanges - 4 > 1 ? 's' : ''));
 
-  const added = Object.keys(bm).filter((h) => !am[h]);
+  let added = Object.keys(bm).filter((h) => !am[h]);
   const removed = Object.keys(am).filter((h) => !bm[h]);
   // ALWAYS name the products (founder rule, 22 Jul: "never report just a number of products
   // removed or added" — a count without names is useless to a marketing team).
@@ -407,6 +407,21 @@ export function diffWebsite(a, b) {
       if (bare !== String(h) && am[bare]) return true;                       // handle-1 of an existing handle
       return existing.has(baseName(titleOf(h, bm)).toLowerCase());           // same base name as something already listed
     };
+    // A ZERO-PRICE "FREE … Gift (worth $23)" entry is a gift-with-purchase mechanic, not a
+    // product launch (founder, 6 Aug — Froya's "FREE Tote Bag Gift"; they carry eleven such
+    // SKUs). Shopify stores them as products, so a naive diff announces a launch.
+    const isGiftSku = (h) => {
+      const it = bm[h] || {};
+      const t = String(it.title || h);
+      return (it.price === 0 || it.price === '0') || /\bfree\b|\bgift\b|worth \$\d/i.test(t);
+    };
+    const gifts = added.filter(isGiftSku);
+    if (gifts.length) {
+      out.push('Storefront: ' + gifts.length + ' gift-with-purchase offer' + (gifts.length > 1 ? 's' : '') +
+        ' listed — ' + nameList(gifts, bm) + ' (free add-on SKUs, a promo mechanic — NOT a product launch)');
+    }
+    added = added.filter((h) => !isGiftSku(h));
+    if (!added.length) return out.slice(0, 7);
     const genuine = added.filter((h) => !isVariantOfExisting(h));
     const variants = added.filter(isVariantOfExisting);
     if (genuine.length) { const n = productCount(genuine, bm); out.push('Storefront: ' + n + ' new product' + (n > 1 ? 's' : '') + ' listed — ' + nameList(genuine, bm)); }

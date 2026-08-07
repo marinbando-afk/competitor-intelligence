@@ -130,6 +130,16 @@ const RULES = [
     why: 'states a UNIVERSAL fact ("all ads", "every page", "only") from a capture that is a sample, not a proven-complete inventory — scope it to what was captured',
   },
   {
+    id: 'inventedMechanism',
+    // Bonafide, 6 Aug: "their paid social presence is either paused or below our capture
+    // threshold". There is no capture threshold — we either find ads in the Ad Library or we
+    // don't. Inventing a technical-sounding limit implies a system behaviour that does not
+    // exist and lets a non-answer masquerade as analysis.
+    re: /\b(below|under|above|beyond|outside)\s+(our|the)\s+\w*\s*(threshold|limit|cut[- ]?off|sensitivity|detection|radar)\b|\bcapture threshold\b|\bdetection threshold\b/i,
+    allow: () => false,
+    why: 'invents an internal mechanism ("below our capture threshold") that does not exist — say what we did and did not find, in plain terms',
+  },
+  {
     id: 'durationDays',
     re: /\b(running|live|active|been on)\b[^.]{0,24}\b\d+\+? days?\b/i,
     allow: () => false,

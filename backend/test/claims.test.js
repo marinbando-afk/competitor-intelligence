@@ -112,6 +112,11 @@ t('universal claim from a sample',
   'The DRM LAB runs all ads from their own branded page to advertorial landing pages.',
   { hasEarlier: true, comparable: true, sampleReliable: true }, true, 'completeness');
 
+// Bonafide, 6 Aug — there is no 'capture threshold'; the phrase invents a system behaviour.
+t('invented internal mechanism',
+  'No Meta ads captured since monitoring began 21 Jul — their paid social presence is either paused or below our capture threshold.',
+  { hasEarlier: true, canJudgeAbsence: true }, true, 'inventedMechanism');
+
 console.log('\nMUST ALLOW — correct reporting must not be over-blocked:');
 
 t('honest absence wording',
