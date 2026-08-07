@@ -13,8 +13,9 @@ import { pool } from './db.js';
 // The monitored inbox users subscribe to competitors' newsletters with.
 const INBOX = process.env.INBOX_ADDRESS || 'b76eccaaa8ce3a2923a9@cloudmailin.net';
 
-// Same cheap judge the ad pipeline uses for "same brand or different company?".
-const ALIAS_MODEL = process.env.BRAND_MODEL || 'claude-haiku-4-5';
+// Same judge the ad pipeline uses for "same brand or different company?" — Sonnet since
+// 7 Aug (a wrong verdict here binned 16 real Glov emails; Haiku abandoned).
+const ALIAS_MODEL = process.env.BRAND_MODEL || 'claude-sonnet-4-6';
 let _ai; function aiClient() { if (!_ai) _ai = new Anthropic(); return _ai; }
 
 function clean(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }

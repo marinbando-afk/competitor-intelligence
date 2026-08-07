@@ -15,7 +15,7 @@ import { siteSummary } from './website.js';
 import { saveSnapshot, latestSnapshot } from './snapshots.js';
 import Anthropic from '@anthropic-ai/sdk';
 
-const MODEL = process.env.BRAND_MODEL || 'claude-haiku-4-5';
+const MODEL = process.env.BRAND_MODEL || 'claude-sonnet-4-6';   // profile quality feeds every "apply to you" tip — Sonnet since 7 Aug (Haiku abandoned)
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 function brandKey(uid) { return 'mybrand:' + uid; }
 

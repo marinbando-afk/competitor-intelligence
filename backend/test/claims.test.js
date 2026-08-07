@@ -183,15 +183,15 @@ t('legitimate end-of-tactic on a healthy capture',
   'Their advertorial page dropped out entirely — no ads from it in a full capture that also grew day over day.',
   { canJudgeAbsence: true, hasEarlier: true, comparable: true }, false);
 
-console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
-process.exit(fail ? 1 : 0);
-
 // ── banner sameness (occasions.sameBannerText) ────────────────────────────────
+// NB: until 7 Aug the summary + process.exit() sat ABOVE this line, so every case from here
+// down was dead code that had never once run — the same silent-failure family this suite
+// exists to catch. The exit now happens once, at the very end of the file.
 import { sameBannerText } from '../src/occasions.js';
 console.log('\nBANNER SAMENESS — re-wording is not a new promo:');
 function b(name, x, y, want) {
   const got = sameBannerText(x, y);
-  if (got === want) { console.log('  ✓ ' + name); } else { console.log('  ✗ ' + name + ' (got ' + got + ')'); process.exitCode = 1; }
+  if (got === want) { pass++; console.log('  ✓ ' + name); } else { fail++; console.log('  ✗ ' + name + ' (got ' + got + ')'); }
 }
 b('UKLASH: re-ordered same offer', '25% off today, 15% off forever with subscription', '15% OFF FOREVER + LIMITED TIME ONLY + 25% OFF TODAY + EVEN BIGGER SUBS', true);
 b('Froya: partial vs full read', 'UP TO 40% OFF', 'UP TO 40% OFF 1M JARS SOLD', true);
@@ -207,8 +207,8 @@ import { normHandle } from '../src/social.js';
 console.log('\nHANDLE NORMALISATION — a pasted URL must still scrape:');
 function h(inp, want) {
   const got = normHandle(inp);
-  if (got === want) console.log('  ✓ ' + JSON.stringify(inp));
-  else { console.log('  ✗ ' + JSON.stringify(inp) + ' -> ' + JSON.stringify(got) + ' (want ' + JSON.stringify(want) + ')'); process.exitCode = 1; }
+  if (got === want) { pass++; console.log('  ✓ ' + JSON.stringify(inp)); }
+  else { fail++; console.log('  ✗ ' + JSON.stringify(inp) + ' -> ' + JSON.stringify(got) + ' (want ' + JSON.stringify(want) + ')'); }
 }
 h('instagram.com/pannonianpadel', 'pannonianpadel');
 h('https://www.tiktok.com/@pannonianpadel', 'pannonianpadel');
@@ -217,3 +217,6 @@ h('facebook.com/p/Mars-Men-184711951390377/', 'p/Mars-Men-184711951390377');
 h('@the_oodie', 'the_oodie');
 h('the_oodie', 'the_oodie');
 h('https://instagram.com/glovbeauty/', 'glovbeauty');
+
+console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
+process.exit(fail ? 1 : 0);

@@ -14,7 +14,7 @@ const ACTOR = process.env.APIFY_ADS_ACTOR || 'curious_coder~facebook-ads-library
 const TTL = 26 * 60 * 60 * 1000; // 26h — a daily 5am pre-warm keeps this hot so users never wait
 const cache = new Map();
 
-const BRAND_MATCH_MODEL = process.env.BRAND_MODEL || 'claude-haiku-4-5';
+const BRAND_MATCH_MODEL = process.env.BRAND_MODEL || 'claude-sonnet-4-6';   // founder, 7 Aug: wrong-brand ads cost more trust than the judge costs money — Sonnet on every row, Haiku abandoned
 let _ac;
 function aiClient() { if (!_ac) _ac = new Anthropic(); return _ac; }
 const _verdict = new Map();   // 'brand|advertiser|domain' -> { at, val } — cached AI brand-identity verdicts

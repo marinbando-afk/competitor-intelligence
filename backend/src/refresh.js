@@ -301,15 +301,24 @@ export async function qualityAudit({ day, alert = false } = {}) {
 
     const texts = [];
     for (const ch of ['ads', 'website', 'social', 'email']) {
-      const sec = ins[ch]; if (sec && sec.summary) texts.push([ch, sec.summary]);
+      const sec = ins[ch]; if (!sec) continue;
+      if (sec.summary) texts.push([ch, sec.summary]);
+      // The bullets carry the specific claims and skipped this audit entirely until 7 Aug —
+      // the audit read only the summaries, so a bad bullet could sit in a stored report for
+      // days with the nightly pass reporting "no unsupported claims".
+      (Array.isArray(sec.bullets) ? sec.bullets : []).forEach((t, i) => { if (t) texts.push([ch + '.bullet' + i, t]); });
+      if (sec.apply) texts.push([ch + '.apply', sec.apply]);
     }
     for (const k of ['verdict', 'move']) {
       const arr = ins.brief && ins.brief[k];
       if (Array.isArray(arr)) arr.forEach((t, i) => texts.push(['brief.' + k + i, t]));
     }
     for (const [where, text] of texts) {
-      // The website read is the only one judged against the diff invariant.
-      const f = where === 'website' ? facts : { ...facts, noChanges: false, advice: where.startsWith('brief.move') };
+      // Advice lines (counter-op "move" + per-channel "apply") may talk price moves; the
+      // website read and its bullets are the only ones judged against the diff invariant.
+      const isAdvice = where.startsWith('brief.move') || where.endsWith('.apply');
+      const f = isAdvice ? { ...facts, noChanges: false, advice: true }
+        : (where === 'website' || where.startsWith('website.') ? facts : { ...facts, noChanges: false });
       for (const v of checkClaims(text, f)) {
         findings.push({ brand: b.name || b.host, where, rule: v.rule, sentence: v.sentence.slice(0, 160) });
       }

@@ -35,7 +35,9 @@ async function history(host, channel, days = 45) {
 }
 
 // ── ADS ───────────────────────────────────────────────────────────────────────
-function adsFindings(rows, capN) {
+// Exported for test/findings.test.js — the engine decides what is true, so its rules are
+// pinned by fixtures replaying the real failures (Bonafide's empty history, capped captures).
+export function adsFindings(rows, capN) {
   const out = [], today = rows[0];
   if (!today) return out;
   const ads = (today.data && today.data.ads) || [];
@@ -125,7 +127,7 @@ function adsFindings(rows, capN) {
 }
 
 // ── WEBSITE ───────────────────────────────────────────────────────────────────
-function websiteFindings(rows) {
+export function websiteFindings(rows) {
   const out = [], today = rows[0];
   if (!today) return out;
   const cur = today.data || {};
@@ -195,7 +197,7 @@ function websiteFindings(rows) {
 }
 
 // ── SOCIAL / EMAIL — appearance only; a rolling window can never prove absence ─
-function windowFindings(rows, label, itemsOf) {
+export function windowFindings(rows, label, itemsOf) {
   const out = [], today = rows[0];
   if (!today) return out;
   const now = itemsOf(today.data) || [];

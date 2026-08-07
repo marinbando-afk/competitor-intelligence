@@ -11,7 +11,7 @@ import { pool } from './db.js';
 import Anthropic from '@anthropic-ai/sdk';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
-const BANNER_MODEL = process.env.BANNER_MODEL || 'claude-haiku-4-5';
+const BANNER_MODEL = process.env.BANNER_MODEL || 'claude-sonnet-4-6';   // banner read feeds sale detection + promo timeline — Sonnet since 7 Aug (Haiku abandoned)
 let _bc;
 function bannerClient() { if (!_bc) _bc = new Anthropic(); return _bc; }
 const oneLine = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();

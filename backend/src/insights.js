@@ -20,6 +20,7 @@ import { offerFlags, offerFacts, bannerFacts, todayLine, isSaleBanner, sameBanne
 import { resolveCapture } from './capture.js';
 import { enforceClaims } from './claims.js';
 import { computeFindings, findingsBlock } from './findings.js';
+import { adsCaptureFacts, adsAbsenceGuard, stripAdTotals } from './adsguard.js';
 
 // True when an Anthropic error means the account is out of credit (vs auth/rate/etc).
 function isCreditError(e) { return /credit balance is too low/i.test(String((e && e.message) || e)); }
@@ -53,12 +54,13 @@ function client() { if (!_client) _client = new Anthropic(); return _client; }
 // handed the exact FACTS the read was written from and asked which sentences do not follow.
 // It generalises to wordings nobody has enumerated, which is the whole point.
 //
-// Cost: one cheap call per section, only at nightly generation — the app serves stored reads,
-// so no user ever waits on it.
-const VERIFY_MODEL = process.env.VERIFY_MODEL || 'claude-haiku-4-5';
-async function senseCheck(text, factsText, label) {
-  const body = String(text || '').trim();
-  if (!body || !String(factsText || '').trim()) return body;
+// On Sonnet since 7 Aug (founder: "use Sonnet for everything, abandon Haiku") — the checker
+// must be at least as sharp as the writer it is checking. Runs only at nightly generation —
+// the app serves stored reads, so no user ever waits on it.
+const VERIFY_MODEL = process.env.VERIFY_MODEL || 'claude-sonnet-4-6';
+async function senseCheckUnsupported(body, factsText, label) {
+  body = String(body || '').trim();
+  if (!body || !String(factsText || '').trim()) return [];
   try {
     const r = await client().messages.create({
       model: VERIFY_MODEL,
@@ -78,18 +80,65 @@ async function senseCheck(text, factsText, label) {
     });
     const txt = (r.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
     const m = txt.match(/\{[\s\S]*\}/);
-    const bad = m ? (JSON.parse(m[0]).unsupported || []) : [];
-    if (!bad.length) return body;
-    let out = body;
-    for (const sentence of bad) {
-      const t = String(sentence || '').trim();
-      if (t && out.includes(t)) { out = out.replace(t, '').replace(/\s{2,}/g, ' ').trim(); console.warn('⚠ sense-check removed [' + label + ']: ' + t.slice(0, 150)); }
-    }
-    return out || body;   // never blank a read entirely
-  } catch (e) { return body; }   // verification must never cost us the report
+    return m ? (JSON.parse(m[0]).unsupported || []).map((s) => String(s || '').trim()).filter(Boolean) : [];
+  } catch (e) { return []; }   // verification must never cost us the report
 }
 
-const LAND_MODEL = process.env.LAND_MODEL || 'claude-haiku-4-5';   // landing-page format classifier (cheap)
+// When the gate strips a read, falling back to the ORIGINAL text restores exactly the claims
+// it just rejected — that is how Casa's "landing domain shifted" survived validation. Fall
+// back to the computed STATE findings (what the data does support), or to nothing at all.
+// Only STATE facts may surface to a reader — 'limit' and 'context' entries are guidance
+// for the model and must never be shown (DRM LAB's read leaked one verbatim).
+function gated(g, findList) {
+  if (g && g.text) return g.text;
+  const states = (findList || []).filter((f) => f.type === 'state').map((f) => f.text);
+  return states.length ? states.slice(0, 3).join(' ') : '';
+}
+
+// ── FULL-SECTION GATE (7 Aug) ─────────────────────────────────────────────────
+// Until now only the SUMMARY passed the claim gate and sense check; the BULLETS — where the
+// specific claims actually live — and the "apply" tip skipped every layer. Every field now
+// takes the same path: deterministic gate → sense check → deterministic re-gate (validation
+// runs LAST, so anything the sense check leaves standing is re-checked). One sense-check call
+// covers summary + bullets together, so the nightly cost barely moves.
+async function gateSection(section, f, findList, factsText, label) {
+  if (!section) return section;
+  const rules = [];
+  const det = (txt, lb, facts) => {
+    const g = enforceClaims(txt, facts, lb);
+    rules.push(...g.violations.map((v) => v.rule));
+    return g;
+  };
+  if (section.summary) section.summary = gated(det(section.summary, label, f), findList);
+  if (Array.isArray(section.bullets)) section.bullets = section.bullets.map((b, i) => det(b, label + '.bullet' + i, f).text).filter(Boolean);
+  // 'apply' is counter-op ADVICE about our own customer's next move — price talk is allowed
+  // there (advice: true), but any claim it makes about the competitor still has to hold.
+  if (section.apply) section.apply = det(section.apply, label + '.apply', { ...f, advice: true }).text;
+  if (factsText) {
+    const bad = await senseCheckUnsupported(
+      [section.summary || '', ...(Array.isArray(section.bullets) ? section.bullets : [])].filter(Boolean).join('\n'),
+      factsText, label);
+    for (const t of bad) {
+      if (section.summary && section.summary.includes(t)) {
+        section.summary = section.summary.replace(t, '').replace(/\s{2,}/g, ' ').trim();
+        console.warn('⚠ sense-check removed [' + label + ']: ' + t.slice(0, 150));
+      }
+      if (Array.isArray(section.bullets)) {
+        const n = section.bullets.length;
+        section.bullets = section.bullets.filter((b) => !b.includes(t));
+        if (section.bullets.length < n) console.warn('⚠ sense-check dropped bullet [' + label + ']: ' + t.slice(0, 150));
+      }
+    }
+    // Validation runs LAST — the sense check rewrites, so its survivors are re-gated.
+    if (section.summary) section.summary = gated(det(section.summary, label + '.final', f), findList);
+    if (Array.isArray(section.bullets)) section.bullets = section.bullets.map((b, i) => det(b, label + '.final.bullet' + i, f).text).filter(Boolean);
+  }
+  if (!section.summary) section.summary = gated({ text: '' }, findList);
+  if (rules.length) section.blocked = [...new Set(rules)];
+  return section;
+}
+
+const LAND_MODEL = process.env.LAND_MODEL || 'claude-sonnet-4-6';   // landing-page format classifier — Sonnet since 7 Aug (a mis-read format becomes a wrong insight)
 const FETCH_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 const _landCache = new Map();   // host -> { at, val:{format,note} } — analyzed landing-page formats, cached 24h
 function htmlToText(html) {
@@ -107,17 +156,8 @@ const dayOf = (s) => String(s || '').split('T')[0].split(' ')[0];
 function adHost(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
 const INS_STOP = new Set(['the', 'and', 'for', 'shop', 'store', 'official', 'ltd', 'inc', 'llc', 'brand', 'online', 'cosmetics', 'beauty', 'skin', 'care', 'fashion', 'clothing', 'apparel', 'group', 'collective', 'australia']);
 function brandToks(name) { return [...new Set(foldTxt(name).split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !INS_STOP.has(w)))]; }
-// DETERMINISTIC backstop: the model keeps parroting a TOTAL ad count from an incomplete sample
-// ("10 of 19 ads", "19 active ads") however firmly the prompt forbids it (founder flagged it 3×),
-// so strip/soften total-count-of-ads phrasing from any generated text. Deltas the founder allows
-// ("3 new ads", "2 ads launched this week") are left intact.
-function stripAdTotals(s) {
-  if (!s) return s;
-  return String(s)
-    .replace(/\b\d+\s+of\s+(?:their\s+|its\s+)?\d+\s+ads\b/gi, 'many of their ads')          // "10 of 19 ads"
-    .replace(/\b\d+\+?\s+(?:active|live|running|total|current)\s+ads\b/gi, 'their ads')       // "19 active ads"
-    .replace(/\b(?:across|spanning|of)\s+(?:their\s+|its\s+)?\d+\+?\s+ads\b/gi, 'across their ads');   // "across 19 ads"
-}
+// stripAdTotals — the total-ad-count backstop — now lives in adsguard.js so the regression
+// suite can cover it alongside the capture-health facts it belongs with.
 // Shared funnel analysis — pages + landing domains across ALL ads, flagging genuine
 // third-party placements (publisher advertorials, media/affiliate partners) vs the
 // brand's own pages/domains. EXPORTED so the chat uses the exact same view as this
@@ -570,16 +610,6 @@ export async function generateInsights(brand, host) {
   // failures rather than banning each new wording after the fact.
   let FIND = null;
   try { FIND = await computeFindings(host); } catch (e) { console.warn('findings ' + host + ':', e.message); }
-  // When the gate strips a read, falling back to the ORIGINAL text restores exactly the claims
-  // it just rejected — that is how Casa's "landing domain shifted" survived validation. Fall
-  // back to the computed STATE findings (what the data does support), or to nothing at all.
-  const gated = (g, findList) => {
-    if (g && g.text) return g.text;
-    // Only STATE facts may surface to a reader — 'limit' and 'context' entries are guidance
-    // for the model and must never be shown (DRM LAB's read leaked one verbatim).
-    const states = (findList || []).filter((f) => f.type === 'state').map((f) => f.text);
-    return states.length ? states.slice(0, 3).join(' ') : '';
-  };
   if (!process.env.ANTHROPIC_API_KEY || !host) return null;
   brand = brand || host;
   const out = {};
@@ -604,82 +634,30 @@ export async function generateInsights(brand, host) {
         if (first) monLine = '\nMONITORING WINDOW (fact): this brand has been monitored since ' + first + '. Express absence/duration with these DATES, never as a number of captures.';
       } catch (e) { /* optional */ }
       const day = capDate(r[0].day);
-      // CAPTURE-HEALTH FACTS FOR THE MODEL (founder, 2 Aug — Glov: "all nine creator/persona
-      // pages dropped"; Seranova: "Dr. Annie Gonzalez has gone quiet" while she is in TODAY's
-      // capture). The deterministic drop-signal was already guarded, but the MODEL could still
-      // infer the same thing from a thin sample. Absence must be disarmed in the prompt too.
-      let absenceGuard = '';
+      // CAPTURE-HEALTH FACTS, computed ONCE (adsguard.js) and shared by the prompt guard and
+      // the claim gate. They used to be computed twice; the prompt copy referenced variables
+      // scoped to the gate copy, threw on EVERY run, and its best-effort catch swallowed it —
+      // so the model never saw the SAMPLE WARNING, the ALREADY-SEEN list or the ABSENCE RULE
+      // (found 7 Aug). One object now feeds both, and test/adsguard.test.js keeps it alive.
+      const CF = adsCaptureFacts(r, Number(process.env.ADS_COUNT) || 50);
+      const absenceGuard = adsAbsenceGuard(CF);
+      const adsFacts = (await fmtAds(r[0].data, day)) + lf + monLine + absenceGuard;
+      out.ads = await ask('ads', brand, ((FIND && FIND.ads) ? findingsBlock(FIND.ads) + '\n\nSUPPORTING DATA (for detail and quotes only — never for new claims):\n' : '') + adsFacts, r[1] && r[1].data ? await fmtAds(r[1].data) : '', me, day);
+      // LAST GATE (claims.js) + sense check, on EVERY field — summary, bullets and apply
+      // alike: the prompt asked nicely; this enforces, before the read is stored.
       try {
-        const capN = Number(process.env.ADS_COUNT) || 50;
-        const nowN = (r[0].data.ads || []).length;
-        const prevN = (r[1] && r[1].data && (r[1].data.ads || []).length) || 0;
-        const capped = nowN >= Math.floor(capN * 0.95);
-        const thin = prevN && nowN < prevN * 0.6;
-        const pagesNow = new Set((r[0].data.ads || []).map((a) => a.page).filter(Boolean));
-        const pagesPrev = new Set(((r[1] && r[1].data && r[1].data.ads) || []).map((a) => a.page).filter(Boolean));
-        const vanished = [...pagesPrev].filter((p) => !pagesNow.has(p));
-        absenceGuard = (typical && nowN < typical * 0.5
-          ? '\nSAMPLE WARNING: today\'s capture holds only ' + nowN + ' ads against a typical ' + typical + ' for this brand — this is a THIN SLICE of their library, not their whole activity. Which pages, landing domains or countries appear today is largely which ads happened to be sampled. NEVER report a switch, shift, pivot or change of destination/targeting from it.'
-          : '') +
-          (!earlierHadAds ? '\nNO EARLIER ADS CAPTURED for this brand — every previous capture was empty, so nothing you see today can be called new, a first, or a change. Describe what is running; never imply it started recently.' : '') +
-          (knownEntities.length ? '\nALREADY SEEN BEFORE TODAY (these are NOT new — never describe any of them as new, first, just added, or newly used): ' + knownEntities.slice(0, 40).join(', ') + '.' : '') +
-          '\nCAPTURE HEALTH (hard facts — obey them): today\'s capture holds ' + nowN + ' ads' +
-          (prevN ? ' vs ' + prevN + ' in the previous capture' : '') + '. ' +
-          (capped ? 'It is AT THE COLLECTION CAP, so it is a rolling window of their NEWEST ads, NOT their full library — older ads and the pages running them fall outside it at random. '
-                  : thin ? 'It is much SMALLER than the previous capture, so coverage today is incomplete. ' : '') +
-          (vanished.length ? 'Pages present before but absent today: ' + vanished.slice(0, 10).join(', ') + '. ' : '') +
-          'ABSENCE RULE: you may NEVER say a page/creator/persona "dropped", "went quiet", "went silent", "stopped", "was retired" or that a tactic was "abandoned" because it is missing from today\'s capture' +
-          (capped || thin ? ' — with a capped or reduced capture that conclusion is unsupported and has been wrong before' : '') +
-          '. Report only what IS present. If the absence looks meaningful, say at most that it was "not seen in today\'s capture", never that it ended.';
-      } catch (e) { /* guard is best-effort */ }
-      out.ads = await ask('ads', brand, ((FIND && FIND.ads) ? findingsBlock(FIND.ads) + '\n\nSUPPORTING DATA (for detail and quotes only — never for new claims):\n' : '') + (await fmtAds(r[0].data, day)) + lf + monLine + absenceGuard, r[1] && r[1].data ? await fmtAds(r[1].data) : '', me, day);
-      // LAST GATE (claims.js): the prompt asked nicely; this enforces. Unsupported sentences
-      // are removed before the read is stored, on every code path, every time.
-      try {
-        const capN = Number(process.env.ADS_COUNT) || 50;
-        const nowN = (r[0].data.ads || []).length;
-        const prevN = (r[1] && r[1].data && (r[1].data.ads || []).length) || 0;
-        // TYPICAL volume = median of the recent captures. Casa and Beyond (4 Aug) ran ~30 ads
-        // a day, then two scrapes returned 3 and 2; comparing only to yesterday made the 2-ad
-        // day look healthy because yesterday was already broken, and the brief announced an
-        // "ad destination switch" that was really which handful of ads happened to be sampled.
-        // EVERYTHING WE HAVE SEEN BEFORE TODAY — landing domains, advertiser pages, funnel
-        // hosts. Newness is now proven per item instead of per day: if it is on this list it
-        // cannot be called new, however healthy today's capture looks.
-        const known = new Set();
-        for (let i = 1; i < r.length; i++) {
-          for (const a2 of ((r[i].data && r[i].data.ads) || [])) {
-            const dm = String(a2.landing || '').replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '');
-            if (dm) known.add(dm);
-            if (a2.page) known.add(String(a2.page));
-          }
-        }
-        const knownEntities = [...known].slice(0, 120);
-        const counts = r.map((x) => (x.data && (x.data.ads || []).length) || 0).filter((n) => n > 0).sort((a, b) => a - b);
-        const typical = counts.length ? counts[Math.floor(counts.length / 2)] : 0;
-        const sampleReliable = !!(nowN && (!typical || nowN >= typical * 0.5) && !(prevN && nowN < prevN * 0.6));
-        // Earlier captures that were EMPTY prove nothing: Bonafide (4 Aug) had zero ads on
-        // every prior day, so its first real capture made bonafide.us look like a new funnel
-        // when it may have run for months. Newness needs a prior capture that actually held ads.
-        const earlierHadAds = r.slice(1).some((x) => ((x.data && x.data.ads) || []).length > 0);
         const f = {
-          knownEntities,
+          knownEntities: CF.knownEntities,
           changeFindings: ((FIND && FIND.ads) || []).filter((x) => x.type === 'new' || x.type === 'change' || x.type === 'absence').map((x) => x.text),
-          canAssertNew: earlierHadAds,
-          sampleReliable,
-          canJudgeAbsence: !!(nowN && nowN < Math.floor(capN * 0.95) && sampleReliable),
-          hasEarlier: !!(r[1] && r[1].data),
-          comparable: !!(r[1] && r[1].data && r[1].day !== r[0].day),
+          canAssertNew: CF.earlierHadAds,
+          sampleReliable: CF.sampleReliable,
+          canJudgeAbsence: CF.canJudgeAbsence,
+          hasEarlier: CF.hasEarlier,
+          comparable: CF.comparable,
           priceComparable: false,
         };
         out.__facts = Object.assign(out.__facts || {}, { adsAbsenceOk: f.canJudgeAbsence, hasEarlier: f.hasEarlier });
-        if (out.ads && out.ads.summary) {
-          const g = enforceClaims(out.ads.summary, f, brand + '/ads');
-          // Validation runs LAST: senseCheck rewrites, so anything it produces is re-gated.
-          const _adsSense = await senseCheck(gated(g, FIND && FIND.ads), (await fmtAds(r[0].data, day)) + absenceGuard, brand + '/ads');
-          out.ads.summary = gated(enforceClaims(_adsSense, f, brand + '/ads.final'), FIND && FIND.ads);
-          if (g.violations.length) out.ads.blocked = g.violations.map((v) => v.rule);
-        }
+        out.ads = await gateSection(out.ads, f, FIND && FIND.ads, adsFacts, brand + '/ads');
       } catch (e) { /* gate is best-effort — never lose the read */ }
     }
   } catch (e) { /* skip */ }
@@ -698,14 +676,11 @@ export async function generateInsights(brand, host) {
       // replacing a political Carousel" — the Carousel was never removed, it just left our
       // 9-post window. New posts ARE verifiable (new ids); disappearance is NOT.
       const windowNote = '\nCAPTURE WINDOW (fact): we store only their NEWEST posts, so a post that is no longer in view has almost certainly just been pushed out by newer ones — their profile still holds it. You may report posts that APPEARED. You may NEVER say a post was removed, deleted, replaced or swapped, and never say older content "stopped" — that is not observable from this capture.';
-      out.social = await ask('social', brand, ((FIND && FIND.social) ? findingsBlock(FIND.social) + '\n\nSUPPORTING DATA (for detail and quotes only — never for new claims):\n' : '') + today.join('\n\n') + windowNote, prev.join('\n\n'), me, capDay);
+      const socialFacts = today.join('\n\n') + windowNote;
+      out.social = await ask('social', brand, ((FIND && FIND.social) ? findingsBlock(FIND.social) + '\n\nSUPPORTING DATA (for detail and quotes only — never for new claims):\n' : '') + socialFacts, prev.join('\n\n'), me, capDay);
       try {
         const f = { canJudgeAbsence: false, comparable: false, hasEarlier: !!prev.length, canAssertNew: !!prev.length, priceComparable: false, changeFindings: ((FIND && FIND.social) || []).filter((x) => x.type === 'new').map((x) => x.text) };
-        if (out.social && out.social.summary) {
-          const g = enforceClaims(out.social.summary, f, brand + '/social');
-          out.social.summary = gated(g, FIND && FIND.social);
-          if (g.violations.length) out.social.blocked = g.violations.map((v) => v.rule);
-        }
+        out.social = await gateSection(out.social, f, FIND && FIND.social, socialFacts, brand + '/social');
       } catch (e) { /* best-effort */ }
     }
   } catch (e) { /* skip */ }
@@ -800,12 +775,7 @@ export async function generateInsights(brand, host) {
           noChanges,
         };
         out.__facts = Object.assign(out.__facts || {}, { webComparable: f.comparable, genuineNewProduct: f.genuineNewProduct, hasEarlier: (out.__facts && out.__facts.hasEarlier) || f.hasEarlier });
-        if (out.website && out.website.summary) {
-          const g = enforceClaims(out.website.summary, f, brand + '/website');
-          const _webSense = await senseCheck(gated(g, FIND && FIND.website), todayBlock, brand + '/website');
-          out.website.summary = gated(enforceClaims(_webSense, f, brand + '/website.final'), FIND && FIND.website);
-          if (g.violations.length) out.website.blocked = g.violations.map((v) => v.rule);
-        }
+        out.website = await gateSection(out.website, f, FIND && FIND.website, todayBlock, brand + '/website');
       } catch (e) { /* best-effort */ }
     }
   } catch (e) { /* skip */ }
@@ -818,16 +788,13 @@ export async function generateInsights(brand, host) {
       // Only a sign-up confirmation so far — nothing to analyse. Don't invent cadence/offers/suggestions.
       out.email = { summary: 'Only the sign-up confirmation captured so far — their first newsletter lands with their next campaign, usually within a day or two.', bullets: [] };
     } else if (real.length) {
-      out.email = await ask('email', brand, ((FIND && FIND.email) ? findingsBlock(FIND.email) + '\n\nSUPPORTING DATA (for detail and quotes only — never for new claims):\n' : '') + fmtEmail({ emails: real, summary: em.summary, alias: em.alias, site: host }), '', me);
+      const emailFacts = fmtEmail({ emails: real, summary: em.summary, alias: em.alias, site: host });
+      out.email = await ask('email', brand, ((FIND && FIND.email) ? findingsBlock(FIND.email) + '\n\nSUPPORTING DATA (for detail and quotes only — never for new claims):\n' : '') + emailFacts, '', me);
       try {
         // We hold a window of their recent sends: a flow we no longer see may simply have
         // scrolled out, or our inbox was suppressed — never evidence that they stopped.
         const f = { canJudgeAbsence: false, comparable: false, priceComparable: false, hasEarlier: true, canAssertNew: true, changeFindings: ((FIND && FIND.email) || []).filter((x) => x.type === 'new').map((x) => x.text) };
-        if (out.email && out.email.summary) {
-          const g = enforceClaims(out.email.summary, f, brand + '/email');
-          out.email.summary = gated(g, FIND && FIND.email);
-          if (g.violations.length) out.email.blocked = g.violations.map((v) => v.rule);
-        }
+        out.email = await gateSection(out.email, f, FIND && FIND.email, emailFacts, brand + '/email');
       } catch (e) { /* best-effort */ }
     }
   } catch (e) { /* skip */ }
