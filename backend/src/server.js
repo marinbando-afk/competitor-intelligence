@@ -21,7 +21,7 @@ import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, send
 import { storeInbound, getEmails, recentEmails, getEmailHtml, reviveSilent } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare, mshotsShot, scrubWebsiteHistory, shotDiag } from './website.js';
-import { getInsights, generateInsights, quickAngle, creditStatus, enrichCreativeHooks, backfillWebsiteReads } from './insights.js';
+import { getInsights, generateInsights, quickAngle, creditStatus, enrichCreativeHooks, backfillWebsiteReads, readErrors } from './insights.js';
 import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { systemStats } from './stats.js';
@@ -561,7 +561,10 @@ app.get('/api/coverage', async (req, res) => {
       return res.json({ started: true, note: 'repair running in background — poll /api/coverage for progress' });
     }
     const out = await coverageAudit({ repair: false, day: req.query.day });
-    res.json({ ...out, repairRunning: _auditRunning });
+    // readErrors: why a channel is missing from a stored report (in-memory, since last boot)
+    // — added 8 Aug after Nolan's ads read died three runs straight with the only evidence
+    // being its absence. Railway logs aren't reachable from chat; this is.
+    res.json({ ...out, repairRunning: _auditRunning, readErrors: readErrors.slice(-20) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 let _auditRunning = false, _auditLast = null;

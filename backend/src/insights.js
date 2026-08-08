@@ -158,6 +158,16 @@ const INS_STOP = new Set(['the', 'and', 'for', 'shop', 'store', 'official', 'ltd
 function brandToks(name) { return [...new Set(foldTxt(name).split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !INS_STOP.has(w)))]; }
 // stripAdTotals — the total-ad-count backstop — now lives in adsguard.js so the regression
 // suite can cover it alongside the capture-health facts it belongs with.
+
+// CHANNEL-SKIP ERROR LEDGER (8 Aug — Nolan). A channel that fails generation is skipped
+// with a console.warn, but Railway logs aren't visible from here — Nolan's ads read died
+// three runs straight and the only evidence was its absence. Every skip now lands in this
+// ring buffer, exposed on /api/coverage, so the EXACT error is one curl away.
+export const readErrors = [];
+function noteReadError(host, channel, e) {
+  readErrors.push({ at: new Date().toISOString(), host, channel, error: String((e && e.message) || e).slice(0, 300) });
+  if (readErrors.length > 40) readErrors.shift();
+}
 // Shared funnel analysis — pages + landing domains across ALL ads, flagging genuine
 // third-party placements (publisher advertorials, media/affiliate partners) vs the
 // brand's own pages/domains. EXPORTED so the chat uses the exact same view as this
@@ -235,7 +245,8 @@ function capDate(s) {
 
 // `today` is passed ONLY for the current capture — the previous-capture block is context
 // for comparison, so re-stating its offer timing there would just be noise.
-async function fmtAds(d, today) {
+// Exported for test/harness use — this is the exact facts block the ads ask() receives.
+export async function fmtAds(d, today) {
   if (!d || !d.ads || !d.ads.length) return 'No active ads.';
   const ads = d.ads;
   const ff = funnelFacts(ads, d.brand);
@@ -672,7 +683,7 @@ export async function generateInsights(brand, host) {
         out.ads = await gateSection(out.ads, f, FIND && FIND.ads, adsFacts, brand + '/ads');
       } catch (e) { /* gate is best-effort — never lose the read */ }
     }
-  } catch (e) { console.warn('ads read SKIPPED for ' + host + ' (channel missing from today\'s report):', e.message); }
+  } catch (e) { noteReadError(host, 'ads', e); console.warn('ads read SKIPPED for ' + host + ' (channel missing from today\'s report):', e.message); }
 
   try {
     const today = [], prev = [];
@@ -695,7 +706,7 @@ export async function generateInsights(brand, host) {
         out.social = await gateSection(out.social, f, FIND && FIND.social, socialFacts, brand + '/social');
       } catch (e) { /* best-effort */ }
     }
-  } catch (e) { console.warn('social read SKIPPED for ' + host + ' (channel missing from today\'s report):', e.message); }
+  } catch (e) { noteReadError(host, 'social', e); console.warn('social read SKIPPED for ' + host + ' (channel missing from today\'s report):', e.message); }
 
   try {
     const r = await recentSnapshots(host, 'website', 45);   // deep history: sale-streak dating + the last SALE slide
@@ -790,7 +801,7 @@ export async function generateInsights(brand, host) {
         out.website = await gateSection(out.website, f, FIND && FIND.website, todayBlock, brand + '/website');
       } catch (e) { /* best-effort */ }
     }
-  } catch (e) { console.warn('website read SKIPPED for ' + host + ' (channel missing from today\'s report):', e.message); }
+  } catch (e) { noteReadError(host, 'website', e); console.warn('website read SKIPPED for ' + host + ' (channel missing from today\'s report):', e.message); }
 
   try {
     const em = await getEmails(host, brand);
@@ -809,7 +820,7 @@ export async function generateInsights(brand, host) {
         out.email = await gateSection(out.email, f, FIND && FIND.email, emailFacts, brand + '/email');
       } catch (e) { /* best-effort */ }
     }
-  } catch (e) { console.warn('email read SKIPPED for ' + host + ' (channel missing from today\'s report):', e.message); }
+  } catch (e) { noteReadError(host, 'email', e); console.warn('email read SKIPPED for ' + host + ' (channel missing from today\'s report):', e.message); }
 
   // Top-of-report brief: THREAT ASSESSMENT + RECOMMENDED COUNTER-OP, synthesized
   // across all channels — user-added competitors get the same dossier treatment as
@@ -1139,6 +1150,7 @@ async function applyOverlay(host, uid, neutral) {
 // (uid) has their own brand, layer their per-viewer apply-moves on top of the tenant-neutral
 // shared read — without ever mutating or re-saving the shared snapshot.
 const _briefHeal = new Map();          // host -> last repair attempt, so a hard failure can't hammer the API
+const _chanHeal = new Map();           // host -> last missing-CHANNEL repair attempt (same discipline)
 const BRIEF_HEAL_COOLDOWN = 15 * 60 * 1000;
 
 export async function getInsights(host, name, refresh, uid) {
@@ -1147,6 +1159,28 @@ export async function getInsights(host, name, refresh, uid) {
   // Cold-gen produces the shared, tenant-neutral snapshot (no viewer uid) — see generateInsights.
   if (channels.length === 0 && process.env.ANTHROPIC_API_KEY) ins = await generateInsights(name || host, host);
   if (!ins) return {};
+
+  // Self-heal a MISSING CHANNEL (8 Aug — Nolan Interior shipped two consecutive reports
+  // with no ads read: its own 100-ad/44-video processing burst rate-limits its ads ask()
+  // during the warm, the throw was swallowed, and the cold-gen above fires only at ZERO
+  // channels — so the wound survived the whole day and reached the client's Slack brief).
+  // If a core channel is missing while its CAPTURE row exists, regenerate the report once,
+  // cooldown-guarded like the brief heal. One transient failure now costs one page view.
+  if (process.env.ANTHROPIC_API_KEY && (!ins.ads || !ins.website)) {
+    try {
+      const needAds = !ins.ads && !!(await latestSnapshot(host, 'ads'));
+      const needWeb = !ins.website && !!(await latestSnapshot(host, 'website'));
+      if (needAds || needWeb) {
+        const last = _chanHeal.get(host) || 0;
+        if (Date.now() - last > BRIEF_HEAL_COOLDOWN) {
+          _chanHeal.set(host, Date.now());
+          console.warn('insights ' + host + ': ' + (needAds ? 'ads' : 'website') + ' read missing though its capture exists — regenerating the report');
+          const healed = await generateInsights(name || host, host);
+          if (healed && (needAds ? healed.ads : healed.website)) { ins = healed; console.log('insights ' + host + ': channel repaired'); }
+        }
+      }
+    } catch (e) { console.warn('channel heal ' + host + ':', e.message); }
+  }
 
   // Self-heal a MISSING brief. makeBrief is best-effort, so one transient API hiccup during
   // the nightly warm saves the report with channels but no THREAT ASSESSMENT — and because

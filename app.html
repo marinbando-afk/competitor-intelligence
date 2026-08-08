@@ -492,12 +492,56 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .sp-box strong{color:#eaf2f3;font-weight:600}
 .sp-empty{color:var(--muted);font-style:italic}
 .sp-note{font-size:11.5px;color:var(--faint);margin:9px 0 0}
-.admin-modal{max-width:600px}
-.admin-tabs{display:flex;gap:8px;margin:4px 0 16px}
-.atab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:7px 13px;border-radius:7px;border:1px solid var(--line2);background:none;color:var(--muted);cursor:pointer}
-.atab.on{border-color:var(--sage-d);color:var(--sage);background:var(--sage-soft)}
-#adminBody{max-height:68vh;overflow-y:auto}
-.admin-modal{width:min(780px,94vw)}
+/* ── Admin: full-page Mission Control (8 Aug — founder: the modal was cramped and hard to
+   navigate; everything that existed is still here, now with room to breathe) ── */
+.apage{position:fixed;inset:0;z-index:80;background:var(--bg);display:none;flex-direction:column}
+.apage.open{display:flex}
+.ap-top{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line2);background:var(--panel);flex:none}
+.ap-top h2{margin:0;font-size:16px;letter-spacing:.03em}
+.ap-back{background:none;border:1px solid var(--line2);border-radius:8px;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.06em;padding:7px 12px;cursor:pointer}
+.ap-back:hover{border-color:var(--sage-d);color:var(--sage)}
+.ap-wrap{flex:1;display:flex;min-height:0}
+.ap-rail{flex:0 0 190px;border-right:1px solid var(--line2);padding:14px 10px;display:flex;flex-direction:column;gap:4px;background:var(--panel)}
+.ap-nav{display:block;width:100%;text-align:left;background:none;border:1px solid transparent;border-radius:8px;padding:9px 12px;color:var(--muted);font-family:var(--mono);font-size:11.5px;letter-spacing:.05em;cursor:pointer}
+.ap-nav:hover{background:var(--raised);color:var(--text)}
+.ap-nav.on{border-color:var(--sage-d);color:var(--sage);background:var(--sage-soft)}
+.ap-main{flex:1;overflow-y:auto;padding:22px 26px 60px}
+.ap-sec{display:none;max-width:920px;margin:0 auto}
+.ap-sec.on{display:block}
+.ap-h{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.ap-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.ap-card{border:1px solid var(--line2);border-radius:12px;background:var(--panel);padding:15px 16px;display:flex;flex-direction:column}
+.ap-card h3{margin:0 0 4px;font-size:13.5px}
+.ap-card p{color:var(--muted);font-size:12px;line-height:1.55;margin:4px 0 10px}
+.ap-card .ap-grow{flex:1}
+.ap-opt{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);margin:3px 0;cursor:pointer;user-select:none}
+.ap-opt input{accent-color:var(--sage);cursor:pointer}
+.ap-btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.ap-confirm{margin-top:10px;border:1px solid rgba(227,169,44,.45);background:rgba(227,169,44,.07);border-radius:9px;padding:10px 12px;font-size:12.5px;line-height:1.5;display:none}
+.ap-confirm.on{display:block}
+.ap-st{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:9px;min-height:14px;line-height:1.5}
+.ap-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:18px}
+.ap-tile{border:1px solid var(--line2);border-radius:11px;padding:12px 14px;background:var(--panel)}
+.ap-tile .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.ap-tile .v{font-size:18px;margin-top:4px;font-weight:600}
+.ap-tile .s{font-size:11px;color:var(--faint);margin-top:4px;line-height:1.45}
+.ap-tile.ok .v{color:var(--quiet)}
+.ap-tile.warn .v{color:var(--gold)}
+.ap-tile.bad .v{color:var(--clay)}
+.ap-gaps{border:1px solid var(--line2);border-radius:11px;background:var(--panel);padding:4px 14px;margin-bottom:10px}
+.ap-gap{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid var(--line2);font-size:12.5px}
+.ap-gap:last-child{border-bottom:none}
+.ap-gap .gh{flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cl-body .cl-lbl{margin-top:16px;padding-top:12px;border-top:1px dashed var(--line2)}
+.cl-danger{border:1px solid rgba(226,85,79,.35);background:rgba(226,85,79,.06);border-radius:9px;padding:9px 11px;margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cl-danger .cl-none{flex:1;min-width:180px}
+@media(max-width:760px){
+  .ap-wrap{flex-direction:column}
+  .ap-rail{flex:none;flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--line2);padding:8px 10px;scrollbar-width:none}
+  .ap-rail::-webkit-scrollbar{display:none}
+  .ap-nav{width:auto;white-space:nowrap;flex:none}
+  .ap-main{padding:14px 14px 40px}
+}
 /* Admin → Clients tab */
 .cl-new{background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:12px 14px;margin-bottom:14px}
 .cl-new-h{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
@@ -823,23 +867,51 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
   </div>
 </div>
 
-<div class="ov" id="adminOv" onclick="if(event.target===this)closeAdmin()">
-  <div class="modal admin-modal">
-    <h2>⚙ Admin panel</h2>
-    <div class="admin-tabs">
-      <button class="atab on" id="atab-clients" onclick="adminTab('clients')">Clients</button>
-      <button class="atab" id="atab-users" onclick="adminTab('users')">Signups</button>
-      <button class="atab" id="atab-subs" onclick="adminTab('subs')">Submissions</button>
-    </div>
-    <div id="adminBody"><div class="adsload" style="padding:16px 0"><span class="spin"></span>Loading…</div></div>
-    <div class="m-act">
-      <span id="refreshRepSt" class="refresh-st"></span>
-      <label class="refresh-slk" title="Re-scrape every competitor's ads (newest-first) before rebuilding, so new-ad counts reflect reality — takes a few extra minutes and uses Apify budget"><input type="checkbox" id="refreshRepRescan"> re-scan ads first</label>
-      <label class="refresh-slk" title="After rebuilding, post the refreshed weekly report links to each client's own Slack channel"><input type="checkbox" id="refreshRepSlack"> also post to clients’ Slack</label>
-      <button class="btn btn-g" id="sendBriefBtn" onclick="sendDailyBriefs()" title="Post each client their CURRENT daily brief to their own Slack now — same as the 8am send, but on demand">⚡ Send daily briefs</button>
-      <button class="btn btn-g" id="refreshRepBtn" onclick="refreshReports()" title="Rebuild every competitor's daily insights + weekly reports from the data we already captured, using the current logic. No new scraping.">↻ Refresh reports</button>
-      <button class="btn btn-g" onclick="closeAdmin()">Close</button>
-    </div>
+<div class="apage" id="adminPage">
+  <header class="ap-top">
+    <button class="ap-back" onclick="closeAdmin()" title="Back to the app (Esc)">← App</button>
+    <h2>⚙ Mission Control</h2>
+  </header>
+  <div class="ap-wrap">
+    <nav class="ap-rail" id="apRail">
+      <button class="ap-nav" data-sec="ops" onclick="apSection('ops')">⚡ OPERATIONS</button>
+      <button class="ap-nav" data-sec="clients" onclick="apSection('clients')">👥 CLIENTS</button>
+      <button class="ap-nav" data-sec="leads" onclick="apSection('leads')">📇 LEADS</button>
+      <button class="ap-nav" data-sec="inbox" onclick="apSection('inbox')">📥 INBOX</button>
+      <button class="ap-nav" data-sec="health" onclick="apSection('health')">🩺 HEALTH</button>
+    </nav>
+    <main class="ap-main">
+      <section class="ap-sec" id="apsec-ops">
+        <div class="ap-h">Operations — reports &amp; briefs</div>
+        <div class="ap-cards">
+          <div class="ap-card">
+            <h3>↻ Refresh reports</h3>
+            <p class="ap-grow">Rebuilds every competitor’s daily read + weekly report from the data already captured, with the current logic. Runs in the background.</p>
+            <label class="ap-opt" title="Re-scrape every competitor’s ads first (newest-first). A few extra minutes; uses Apify budget."><input type="checkbox" id="refreshRepRescan"> re-scan ads first</label>
+            <label class="ap-opt" title="After rebuilding, post the refreshed weekly report links to each client’s Slack."><input type="checkbox" id="refreshRepSlack"> then post weekly links to clients’ Slack</label>
+            <div class="ap-confirm" id="apRefConfirm"></div>
+            <div class="ap-btnrow"><button class="btn btn-g" id="refreshRepBtn" onclick="apArmRefresh()">↻ Refresh reports</button></div>
+            <div class="ap-st" id="refreshRepSt"></div>
+          </div>
+          <div class="ap-card">
+            <h3>⚡ Send daily briefs</h3>
+            <p class="ap-grow">Posts each client their current daily brief to their own Slack right now — identical to the 08:00 send. Use after a refresh finishes to push today’s updated brief.</p>
+            <div class="ap-confirm" id="apBriefConfirm"></div>
+            <div class="ap-btnrow"><button class="btn btn-g" id="sendBriefBtn" onclick="apArmBrief()">⚡ Send daily briefs</button></div>
+            <div class="ap-st" id="sendBriefSt"></div>
+          </div>
+          <div class="ap-card">
+            <h3>📢 Announcement</h3>
+            <p class="ap-grow">Write one message — or load and edit today’s brief — and post it to selected clients’ Slack channels, with a per-client preview before anything sends.</p>
+            <div class="ap-btnrow"><button class="btn btn-g" onclick="openAnn()">📢 Compose…</button></div>
+          </div>
+        </div>
+      </section>
+      <section class="ap-sec" id="apsec-clients"><div class="ap-h">Clients — logins, competitors, share links</div><div id="adminBody"></div></section>
+      <section class="ap-sec" id="apsec-leads"><div class="ap-h">Leads — self-serve signups awaiting approval</div><div id="apLeadsBody"></div></section>
+      <section class="ap-sec" id="apsec-inbox"><div class="ap-h">Inbox — bug reports &amp; feedback</div><div id="apInboxBody"></div></section>
+      <section class="ap-sec" id="apsec-health"><div class="ap-h">System health</div><div id="apHealthBody"></div></section>
+    </main>
   </div>
 </div>
 
@@ -2821,18 +2893,87 @@ function loadFeedbackInto(targetId){
 }
 function loadFeedback(){loadFeedbackInto('fbAdmin');}
 /* ── Admin panel: signups (approve) + submissions ── */
-function openAdmin(){if(!ADMIN)return;document.getElementById('adminOv').classList.add('open');adminTab('clients');}
-function closeAdmin(){document.getElementById('adminOv').classList.remove('open');}
+var APSEC='clients';   // last-visited section survives close/reopen
+function openAdmin(sec){if(!ADMIN)return;document.getElementById('adminPage').classList.add('open');document.body.style.overflow='hidden';try{if(location.hash!=='#admin')history.replaceState(null,'',location.pathname+location.search+'#admin');}catch(e){}apSection(sec||APSEC);}
+function closeAdmin(){document.getElementById('adminPage').classList.remove('open');document.body.style.overflow='';try{if(location.hash==='#admin')history.replaceState(null,'',location.pathname+location.search);}catch(e){}}
+function apSection(t){
+  APSEC=t;
+  Array.prototype.forEach.call(document.querySelectorAll('#apRail .ap-nav'),function(x){x.classList.toggle('on',x.getAttribute('data-sec')===t);});
+  Array.prototype.forEach.call(document.querySelectorAll('.ap-sec'),function(s){s.classList.toggle('on',s.id==='apsec-'+t);});
+  if(t==='clients'){document.getElementById('adminBody').innerHTML='<div class="adsload" style="padding:16px 0"><span class="spin"></span>Loading…</div>';loadAdminClients();}
+  else if(t==='leads'){document.getElementById('apLeadsBody').innerHTML='<div class="adsload" style="padding:16px 0"><span class="spin"></span>Loading…</div>';loadAdminUsers();}
+  else if(t==='inbox'){loadFeedbackInto('apInboxBody');}
+  else if(t==='health'){loadAdminHealth();}
+}
+// Esc leaves Mission Control — but never while a dialog (announcement, lightbox…) is on top.
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!document.querySelector('.ov.open')){var p=document.getElementById('adminPage');if(p&&p.classList.contains('open'))closeAdmin();}});
+// In-card confirms replace the old browser confirm() popups.
+function apUnarm(id){var c=document.getElementById(id);if(c){c.classList.remove('on');c.innerHTML='';}}
+function apArmBrief(){
+  if(!ADMIN)return;
+  var btn=document.getElementById('sendBriefBtn');if(btn&&btn.disabled)return;
+  var c=document.getElementById('apBriefConfirm');
+  c.innerHTML='<div id="apBriefWarn"></div>Post each client their <b>current</b> daily brief to their Slack now? Same message as the 08:00 send.'
+    +'<div class="ap-btnrow"><button class="btn btn-g" onclick="apUnarm(\'apBriefConfirm\');sendDailyBriefs(true)">Yes — send now</button><button class="btn btn-g" onclick="apUnarm(\'apBriefConfirm\')">Cancel</button></div>';
+  c.classList.add('on');
+  // A brief sent mid-rebuild quotes half-updated reports (it happened 8 Aug) — warn first.
+  fetch(API+'/api/health').then(function(r){return r.json();}).then(function(h){var w=document.getElementById('apBriefWarn');if(w&&h&&h.running)w.innerHTML='<div style="color:var(--gold);margin-bottom:6px">⚠ A report rebuild is running right now — a brief sent now may quote half-updated reports. Better to wait for it to finish (see Health).</div>';}).catch(function(){});
+}
+function apArmRefresh(){
+  if(!ADMIN)return;
+  var btn=document.getElementById('refreshRepBtn');if(btn&&btn.disabled)return;
+  var rs=!!(document.getElementById('refreshRepRescan')||{}).checked,slk=!!(document.getElementById('refreshRepSlack')||{}).checked;
+  var c=document.getElementById('apRefConfirm');
+  c.innerHTML='Rebuild every competitor’s reports with the latest logic?'
+    +'<div style="margin-top:4px;color:var(--muted)">'+(rs?'Ads re-scrape first (a few extra minutes, uses Apify budget), then every daily read + weekly report rebuilds':'No new scraping — re-reads the data already captured and rebuilds every daily read + weekly report')+(slk?', then the refreshed weekly links post to clients’ Slack.':'.')+'</div>'
+    +'<div class="ap-btnrow"><button class="btn btn-g" onclick="apUnarm(\'apRefConfirm\');refreshReports(true)">Yes — rebuild now</button><button class="btn btn-g" onclick="apUnarm(\'apRefConfirm\')">Cancel</button></div>';
+  c.classList.add('on');
+}
+// ── System health (new, 8 Aug): the panel that would have shown Nolan's missing ads read ──
+function loadAdminHealth(){
+  var b=document.getElementById('apHealthBody');
+  b.innerHTML='<div class="adsload" style="padding:16px 0"><span class="spin"></span>Checking systems…</div>';
+  var yday=new Date(Date.now()-864e5).toISOString().slice(0,10);
+  Promise.all([
+    fetch(API+'/api/credits').then(function(r){return r.json();}).catch(function(){return null;}),
+    fetch(API+'/api/coverage?day='+yday).then(function(r){return r.json();}).catch(function(){return null;}),
+    fetch(adminUrl('/api/admin/clients'),{headers:authH()}).then(function(r){return r.json();}).catch(function(){return null;}),
+    fetch(API+'/api/health').then(function(r){return r.json();}).catch(function(){return null;})
+  ]).then(function(res){
+    var cred=res[0],cov=res[1],cl=res[2],hl=res[3];
+    var warm=(cl&&cl.warm)||null,cs=(cl&&cl.clients)||[];
+    var slackN=cs.filter(function(c){return c.slack;}).length;
+    var t='';
+    t+='<div class="ap-tile '+(cred?(cred.ok?'ok':'bad'):'warn')+'"><div class="k">AI credits</div><div class="v">'+(cred?(cred.ok?'OK':(cred.empty?'EMPTY':'error')):'?')+'</div><div class="s">'+(cred&&cred.ok?'API answering normally':'blank AI sections mean empty credits — top up at console.anthropic.com')+'</div></div>';
+    t+='<div class="ap-tile '+(warm?(warm.used>=warm.cap?'warn':'ok'):'')+'"><div class="k">Scraping slots</div><div class="v">'+(warm?warm.used+' / '+warm.cap:'?')+'</div><div class="s">'+(warm&&warm.used>=warm.cap?'FULL — raise MAX_USER_BRANDS in Railway before adding brands':'brands captured nightly at 23:00')+'</div></div>';
+    t+='<div class="ap-tile"><div class="k">Clients</div><div class="v">'+cs.length+'</div><div class="s">'+slackN+' with Slack connected</div></div>';
+    var miss=(cov&&cov.missing)||[];
+    t+='<div class="ap-tile '+(cov?(miss.length?'warn':'ok'):'')+'"><div class="k">Yesterday’s captures</div><div class="v">'+(cov?(cov.ok+' / '+cov.total):'?')+'</div><div class="s">'+(cov&&cov.repairRunning?'repair running now…':(miss.length?miss.length+' brand'+(miss.length===1?' has':'s have')+' gaps — listed below':'every channel landed'))+'</div></div>';
+    t+='<div class="ap-tile '+(hl&&hl.running?'warn':'ok')+'"><div class="k">Rebuild</div><div class="v">'+(hl&&hl.running?'RUNNING':'idle')+'</div><div class="s">'+(hl&&hl.running?'reports are regenerating — wait before sending briefs':'no refresh in progress')+'</div></div>';
+    var html='<div class="ap-tiles">'+t+'</div>';
+    if(miss.length){
+      html+='<div class="ap-h">Capture gaps — '+esc(yday)+'</div><div class="ap-gaps">'+miss.map(function(m){
+        var chips='';
+        if(!m.web)chips+='<span class="cl-chip warn">site ✗</span>';
+        if(!m.shot)chips+='<span class="cl-chip warn">screenshot ✗</span>';
+        if(!m.ads)chips+='<span class="cl-chip warn">ads ✗</span>';
+        if(!m.social)chips+='<span class="cl-chip warn">social ✗</span>';
+        return '<div class="ap-gap"><span class="gh">'+esc(m.name||m.host)+'</span>'+chips+'</div>';
+      }).join('')+'</div><div class="ap-st">Gaps fill during the nightly capture; a channel missing for a finished day means that scrape failed — tell Claude if one keeps appearing.</div>';
+    }
+    b.innerHTML=html;
+  });
+}
 // Rebuild every competitor's daily insights + weekly reports from the data we already captured,
 // with the CURRENT logic (e.g. after a reporting change) — regenerates this week AND the just-
 // completed week so the report users see refreshes too. Server does it in the background; no new
 // scraping. Uses the admin key already stored in this browser, so no re-auth.
 // Send each client their current daily brief to their own Slack now (same as the 8am scheduler).
-function sendDailyBriefs(){
+function sendDailyBriefs(force){
   if(!ADMIN)return;
-  var btn=document.getElementById('sendBriefBtn'),st=document.getElementById('refreshRepSt');
+  var btn=document.getElementById('sendBriefBtn'),st=document.getElementById('sendBriefSt');
   if(btn&&btn.disabled)return;
-  if(!confirm('Post each client their CURRENT daily brief to their Slack now?\n\nThis is the same brief the 8am scheduler sends — use it to push today’s updated brief immediately.'))return;
+  if(!force){apArmBrief();return;}   // in-card confirm replaced the old browser popup
   if(btn){btn.disabled=true;btn.textContent='⚡ Sending…';}
   if(st){st.style.color='';st.textContent='Sending daily briefs…';}
   fetch(API+'/api/admin/send-daily-briefs',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({key:adminKey()})})
@@ -2846,15 +2987,13 @@ function sendDailyBriefs(){
     .catch(function(){if(st){st.style.color='#d66';st.textContent='Network error — try again.';}if(btn)btn.disabled=false;})
     .then(function(){setTimeout(function(){if(btn){btn.disabled=false;btn.textContent='⚡ Send daily briefs';}},60000);});
 }
-function refreshReports(){
+function refreshReports(force){
   if(!ADMIN)return;
   var btn=document.getElementById('refreshRepBtn'),st=document.getElementById('refreshRepSt');
   var slkEl=document.getElementById('refreshRepSlack'),slk=!!(slkEl&&slkEl.checked);
   var rsEl=document.getElementById('refreshRepRescan'),rs=!!(rsEl&&rsEl.checked);
   if(btn&&btn.disabled)return;
-  var msg='Rebuild all competitor reports with the latest logic?\n\n'+(rs?'It will FIRST re-scrape every competitor’s ads (newest-first — a few extra minutes, uses Apify budget), then refresh':'This re-reads the data we already captured (no new scraping) and refreshes')+' every daily read + weekly report. It runs in the background.';
-  if(slk)msg+='\n\n⚡ It will ALSO post the refreshed weekly report links to each client’s Slack channel.';
-  if(!confirm(msg))return;
+  if(!force){apArmRefresh();return;}   // in-card confirm replaced the old browser popup
   if(btn){btn.disabled=true;btn.textContent='↻ Rebuilding…';}
   if(st){st.style.color='';st.textContent='Starting…';}
   fetch(API+'/api/admin/refresh',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({key:adminKey(),slack:slk,rescan:rs})})
@@ -2872,11 +3011,7 @@ function refreshReports(){
     .catch(function(){if(st){st.style.color='#d66';st.textContent='Network error — try again.';}if(btn)btn.disabled=false;})
     .then(function(){setTimeout(function(){if(btn){btn.disabled=false;btn.textContent='↻ Refresh reports';}},90000);});
 }
-function adminTab(t){
-  ['clients','users','subs'].forEach(function(x){var el=document.getElementById('atab-'+x);if(el)el.classList.toggle('on',t===x);});
-  document.getElementById('adminBody').innerHTML='<div class="adsload" style="padding:16px 0"><span class="spin"></span>Loading…</div>';
-  if(t==='clients')loadAdminClients();else if(t==='users')loadAdminUsers();else loadFeedbackInto('adminBody');
-}
+// (the old modal's adminTab() is gone — sections live in apSection() on the full page)
 // ── Admin: client accounts (create logins, assign competitors, share links) ──
 function adminUrl(path){return API+path+(adminKey()?(path.indexOf('?')<0?'?':'&')+'key='+encodeURIComponent(adminKey()):'');}
 function adminHeaders(json){return Object.assign(json?{'Content-Type':'application/json'}:{},authH());}
@@ -3026,7 +3161,9 @@ function clientCard(c){
     // 5 · account: plan · limit · password · delete
     +'<div class="cl-lbl">Account</div>'
     +'<div class="cl-share-row" style="flex-wrap:wrap;margin-bottom:4px"><span class="cl-none" style="align-self:center">Plan: '+(c.comp?'free access':(c.plan_status==='active'?'paying ✓':(c.plan_status?c.plan_status:((c.trial_ends_at&&new Date(c.trial_ends_at)>new Date())?'trial':'no plan'))))+'</span><button class="cl-mini" onclick="toggleComp('+c.id+','+(c.comp?'false':'true')+',this)">'+(c.comp?'Revoke free access':'Grant free access')+'</button></div>'
-    +'<div class="cl-share-row" style="flex-wrap:wrap"><input class="cl-in cl-nm" id="cllim-'+c.id+'" type="number" min="0" max="500" value="'+(c.max_competitors==null?'':c.max_competitors)+'" placeholder="limit — default ('+CLIENT_DFLT+')"><button class="cl-mini" onclick="setClientLimit('+c.id+',this)">Save limit</button><button class="cl-mini" onclick="resetClientPass('+c.id+',\''+esc(c.email)+'\')">Reset password…</button><button class="cl-del" style="margin-left:auto" title="Delete this client and their data" onclick="deleteClient('+c.id+',\''+esc(c.email)+'\')">Delete</button></div>'
+    +'<div class="cl-share-row" style="flex-wrap:wrap"><input class="cl-in cl-nm" id="cllim-'+c.id+'" type="number" min="0" max="500" value="'+(c.max_competitors==null?'':c.max_competitors)+'" placeholder="limit — default ('+CLIENT_DFLT+')"><button class="cl-mini" onclick="setClientLimit('+c.id+',this)">Save limit</button><button class="cl-mini" onclick="resetClientPass('+c.id+',\''+esc(c.email)+'\')">Reset password…</button></div>'
+    // Destructive action in its own red zone — never beside routine buttons (founder, 8 Aug).
+    +'<div class="cl-danger"><span class="cl-none">Deletes this client’s login, competitors, share link and data — cannot be undone.</span><button class="cl-del" title="Delete this client and their data" onclick="deleteClient('+c.id+',\''+esc(c.email)+'\')">Delete client…</button></div>'
     +'</div></div>';
 }
 var ADM_OPEN={};   // client-id -> card expanded (survives panel re-renders)
@@ -3166,7 +3303,7 @@ function resetClientPass(id,email){
   }).catch(function(){alert('Couldn’t update.');});
 }
 function loadAdminUsers(){
-  var b=document.getElementById('adminBody');
+  var b=document.getElementById('apLeadsBody');
   fetch(API+'/api/admin/users'+(adminKey()?'?key='+encodeURIComponent(adminKey()):''),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
     if(!d||d.error){b.innerHTML='<div class="fb-empty">'+esc((d&&d.error)||'Couldn’t load.')+'</div>';return;}
     var us=d.users||[],pending=us.filter(function(u){return !u.approved;});
@@ -3197,6 +3334,8 @@ function deleteUser(btn,email){
 render();
 loadMyBrand();
 paintAuth();
+// Deep link: app.html#admin reopens Mission Control (survives reloads mid-session).
+if(location.hash==='#admin'&&isAdmin())openAdmin();
 /* ── update nudge: this is a long-lived single-page app (the founder keeps one tab open for
    days), so freshly deployed features are invisible until a reload — which looked like "the
    feature doesn't exist". Poll our own ETag (HEAD, no body) and offer a one-click reload
