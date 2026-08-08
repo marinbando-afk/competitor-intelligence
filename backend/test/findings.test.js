@@ -66,6 +66,7 @@ console.log('\nAD LAUNCHES (7 Aug) — first-seen id + fresh Meta start date = r
 const launch = adsFindings([
   row('2026-08-07', { ads: [
     { id: 'a9', landing: 'https://glovbeauty.com/x', page: 'Glov Beauty', started: '2026-08-06', hasVideo: true, format: 'VIDEO', text: 'Scalp detox in 90 seconds — watch what comes out', link: 'https://facebook.com/ads/library/?id=a9' },
+    { id: 'a5', landing: 'https://glovbeauty.com/y', page: 'Glov Beauty', started: '2026-08-03', format: 'IMAGE', text: 'Silk-free summer waves' },
     { id: 'a1', landing: 'https://glovbeauty.com/a', page: 'Glov Beauty', started: '2026-07-01' },
     { id: 'a0', landing: 'https://glovbeauty.com/b', page: 'Glov Beauty', started: '2026-06-15' },
   ] }),
@@ -77,8 +78,11 @@ const l9 = launch.find((f) => f.key === 'ads.launch:a9');
 check('a first-seen id with a fresh start date is a LAUNCH finding', !!l9 && l9.type === 'new');
 check('the launch carries date, format, page and the opening hook',
   !!l9 && l9.text.includes('2026-08-06') && l9.text.includes('video') && l9.text.includes('Glov Beauty') && l9.text.includes('Scalp detox'), l9 && l9.text);
-check('an aggregate launches count is stated', launch.some((f) => f.key === 'ads.launches' && /1 new ad launched since 2026-08-06/.test(f.text)));
-check('an OLD ad first sampled today is NOT a launch (date test)', !launch.some((f) => f.key === 'ads.launch:a0'));
+check('lag-tail: started days ago but NEVER seen before is still a launch (capped windows surface late)',
+  launch.some((f) => f.key === 'ads.launch:a5'));
+check('an aggregate launches count is stated, dated from the oldest fresh ad',
+  launch.some((f) => f.key === 'ads.launches' && /2 new ads launched since 2026-08-03/.test(f.text)));
+check('an ad older than the 7-day window first sampled today is NOT a launch (date test)', !launch.some((f) => f.key === 'ads.launch:a0'));
 check('an id captured before is NOT a launch (id test)', !launch.some((f) => f.key === 'ads.launch:a1'));
 
 console.log('\nWEBSITE — the diff is ground truth; banners rotate:');

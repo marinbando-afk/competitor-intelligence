@@ -57,6 +57,23 @@ export async function buildDigest(brands) {
 // Layout: header, a blank row, then one line per brand — 💡 marks a brand with
 // moves (its signals listed beneath), ✅ marks an all-quiet brand — then a blank
 // row and a read-only view link teammates can open without an account.
+// ADS RECAP ROW (client feedback via founder, 8 Aug: "these daily updates could be next
+// level if they said the core message in the ads"). Every brand block now carries ONE ads
+// line — the core message/angles their ads are running — quoted from the same stored
+// insights snapshot the app shows (SYNC RULE: the brief recaps the platform's report, it
+// never re-derives). On launch days the stored summary leads with the launches; on quiet
+// days it states the standing core message — either way the client learns what the
+// competitor's ads are SAYING, every single morning. Exported for test/slack.test.js.
+export function adsRecapLine(ins) {
+  const a = ins && ins.ads;
+  if (!a || !a.summary) return '';
+  const clean = (x) => String(x || '').replace(/[\n_]+/g, ' ').replace(/\s+/g, ' ').trim();
+  let t = clean(a.summary);
+  const b1 = clean(Array.isArray(a.bullets) && a.bullets[0]);
+  if (b1 && (t.length + b1.length) <= 300) t += (/[.!?]$/.test(t) ? ' ' : ' — ') + b1;
+  return t;
+}
+
 export async function buildDailyBrief(brands, viewUrl, commit) {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   const head = '🛰️ *WatchBack daily* · ' + today;
@@ -76,12 +93,13 @@ export async function buildDailyBrief(brands, viewUrl, commit) {
     // byte-identical to what the user sees in the app). The deterministic signal lines
     // then list what CHANGED. Skipped only when the stored read is stale (>2 days) —
     // better no quote than quoting old news as today's.
-    let read = '';
+    let read = '', adsRow = '';
     try {
       const ins = await latestSnapshot(b.host, 'insights');
       const v = ins && ins.brief && Array.isArray(ins.brief.verdict) && ins.brief.verdict[0];
       const fresh = ins && ins.__day && (Date.parse(todayISO) - Date.parse(ins.__day)) <= 2 * 864e5;
       if (v && fresh) read = '   _' + String(v).replace(/[\n_]+/g, ' ').trim() + '_';
+      if (fresh) { const al = adsRecapLine(ins); if (al) adsRow = '   📣 Ads: ' + al; }
     } catch (e) { /* signals still carry the block */ }
     // Three tiers, so "quiet" never hides real activity:
     //   💡 a PRIORITY move (sale/funnel/FB page/products/angle/fake-sale) — the big callout
@@ -109,15 +127,19 @@ export async function buildDailyBrief(brands, viewUrl, commit) {
       return hit / w.length < 0.6;   // most of this line is already in the read → drop it
     };
     const bullets = (ls) => ls.map((l) => '   • ' + l).join('\n');
+    // The ads row obeys the same no-repeat rule: if the italic read already carries the ad
+    // message, don't say it twice — otherwise it appears in EVERY tier, including quiet days
+    // (the client reads the brief precisely to learn what competitors' ads are saying).
+    if (adsRow && !notInRead(adsRow)) adsRow = '';
     const sigK = sig.filter(notInRead);
     if (sigK.length) {
-      blocks.push('*' + b.name + '* 💡\n' + (read ? read + '\n' : '') + bullets(sigK));
+      blocks.push('*' + b.name + '* 💡\n' + (read ? read + '\n' : '') + (adsRow ? adsRow + '\n' : '') + bullets(sigK));
     } else if (sig.length && read) {
-      blocks.push('*' + b.name + '* 💡\n' + read);   // the read already says it all
+      blocks.push('*' + b.name + '* 💡\n' + read + (adsRow ? '\n' + adsRow : ''));   // the read already says it all
     } else {
       const act = activityLines(s).filter(notInRead);
-      if (act.length) blocks.push('*' + b.name + '* 🔹 routine activity\n' + (read ? read + '\n' : '') + bullets(act));
-      else blocks.push('*' + b.name + '* ✅ no new moves' + (read ? '\n' + read : ''));
+      if (act.length) blocks.push('*' + b.name + '* 🔹 routine activity\n' + (read ? read + '\n' : '') + (adsRow ? adsRow + '\n' : '') + bullets(act));
+      else blocks.push('*' + b.name + '* ✅ no new moves' + (read ? '\n' + read : '') + (adsRow ? '\n' + adsRow : ''));
     }
   }
   return head + '\n\n' + blocks.join('\n\n') + '\n\n🔗 <' + link + '|View the full dashboard & signals →>';

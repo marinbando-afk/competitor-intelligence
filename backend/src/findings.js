@@ -118,9 +118,14 @@ export function adsFindings(rows, capN) {
   if (earlier.length) {
     const seenIds = new Set();
     for (const r of earlier) for (const a of ((r.data && r.data.ads) || [])) if (a.id) seenIds.add(String(a.id));
-    const prevAdsDay = earlier[0].day;
+    // Recency window: 7 days back from today's capture (founder freshness rule — "new"
+    // means this week). Anchoring on the previous capture day alone missed the lag-tail:
+    // with capped 100-ad windows a fresh ad can take days to rotate into view, and an ad
+    // started 5 Aug but first SEEN on the 8th is still news. The id test keeps every
+    // re-sighting out; the date test keeps genuinely old ads out.
+    const cutoff = new Date(Date.parse(today.day + 'T00:00:00Z') - 7 * 864e5).toISOString().slice(0, 10);
     const fresh = ads
-      .filter((a) => a.id && !seenIds.has(String(a.id)) && /^\d{4}-\d{2}-\d{2}$/.test(String(a.started || '')) && a.started >= prevAdsDay)
+      .filter((a) => a.id && !seenIds.has(String(a.id)) && /^\d{4}-\d{2}-\d{2}$/.test(String(a.started || '')) && a.started >= cutoff)
       .sort((a, b) => String(b.started).localeCompare(String(a.started)));
     const fmtOf2 = (a) => (a.hasVideo ? 'video' : String(a.format || 'image').toLowerCase());
     for (const a of fresh.slice(0, 6)) {
@@ -133,10 +138,11 @@ export function adsFindings(rows, capN) {
     }
     if (fresh.length) {
       const nVid = fresh.filter((a) => a.hasVideo).length;
+      const since = fresh[fresh.length - 1].started;
       out.push({
         type: 'new', key: 'ads.launches',
-        text: fresh.length + ' new ad' + (fresh.length > 1 ? 's' : '') + ' launched since ' + prevAdsDay + ' (Meta start dates; ' + nVid + ' video, ' + (fresh.length - nVid) + ' image/carousel)' + (fresh.length > 6 ? ' — the 6 newest are itemised above' : '') + '.',
-        evidence: { count: fresh.length, video: nVid, since: prevAdsDay },
+        text: fresh.length + ' new ad' + (fresh.length > 1 ? 's' : '') + ' launched since ' + since + ' (Meta start dates; ' + nVid + ' video, ' + (fresh.length - nVid) + ' image/carousel)' + (fresh.length > 6 ? ' — the 6 newest are itemised above' : '') + '.',
+        evidence: { count: fresh.length, video: nVid, since },
       });
     }
   }
