@@ -598,7 +598,19 @@ async function ask(channel, brand, todayBlock, prevBlock, me, today) {
     system += `Return ONLY minified JSON, no markdown: {"summary":"<one tight sentence (<=16 words): the single most important or most-new takeaway>","bullets":["<one complete, self-contained point, ≤ 16 words — tight, no filler>", ...]} with 0–3 bullets (only the genuinely notable ones — fewer is better). If nothing changed and nothing notable, return a 1-sentence summary and an empty bullets array.`;
   }
   const user = `=== TODAY ===\n${todayBlock}\n\n=== PREVIOUS CAPTURE ===\n${prevBlock && prevBlock.trim() ? prevBlock : '(no earlier capture to compare against yet)'}`;
-  const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 1200, system, messages: [{ role: 'user', content: user }] });
+  // ONE retry after a 20s pause (8 Aug): Nolan Interior's ads read vanished from the 7 Aug
+  // report because a single transient API failure threw here and the channel's best-effort
+  // catch dropped the whole section — and a report with 4 of 5 channels never self-heals
+  // (repair only triggers at ZERO channels), so one blip wounded the report for a full day.
+  // The pause also absorbs rate-limit bursts now that every judge runs on Sonnet.
+  let resp;
+  try {
+    resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 1200, system, messages: [{ role: 'user', content: user }] });
+  } catch (e) {
+    console.warn('ask(' + channel + ') failed for ' + brand + ' — retrying in 20s:', e.message);
+    await new Promise((r) => setTimeout(r, 20000));
+    resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 1200, system, messages: [{ role: 'user', content: user }] });
+  }
   const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
   return parseOut(txt);
 }
@@ -660,7 +672,7 @@ export async function generateInsights(brand, host) {
         out.ads = await gateSection(out.ads, f, FIND && FIND.ads, adsFacts, brand + '/ads');
       } catch (e) { /* gate is best-effort — never lose the read */ }
     }
-  } catch (e) { /* skip */ }
+  } catch (e) { console.warn('ads read SKIPPED for ' + host + ' (channel missing from today\'s report):', e.message); }
 
   try {
     const today = [], prev = [];
@@ -683,7 +695,7 @@ export async function generateInsights(brand, host) {
         out.social = await gateSection(out.social, f, FIND && FIND.social, socialFacts, brand + '/social');
       } catch (e) { /* best-effort */ }
     }
-  } catch (e) { /* skip */ }
+  } catch (e) { console.warn('social read SKIPPED for ' + host + ' (channel missing from today\'s report):', e.message); }
 
   try {
     const r = await recentSnapshots(host, 'website', 45);   // deep history: sale-streak dating + the last SALE slide
@@ -778,7 +790,7 @@ export async function generateInsights(brand, host) {
         out.website = await gateSection(out.website, f, FIND && FIND.website, todayBlock, brand + '/website');
       } catch (e) { /* best-effort */ }
     }
-  } catch (e) { /* skip */ }
+  } catch (e) { console.warn('website read SKIPPED for ' + host + ' (channel missing from today\'s report):', e.message); }
 
   try {
     const em = await getEmails(host, brand);
@@ -797,7 +809,7 @@ export async function generateInsights(brand, host) {
         out.email = await gateSection(out.email, f, FIND && FIND.email, emailFacts, brand + '/email');
       } catch (e) { /* best-effort */ }
     }
-  } catch (e) { /* skip */ }
+  } catch (e) { console.warn('email read SKIPPED for ' + host + ' (channel missing from today\'s report):', e.message); }
 
   // Top-of-report brief: THREAT ASSESSMENT + RECOMMENDED COUNTER-OP, synthesized
   // across all channels — user-added competitors get the same dossier treatment as
