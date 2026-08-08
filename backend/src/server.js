@@ -208,8 +208,10 @@ async function competitorAllowance(uid) {
 app.get('/api/health', async (req, res) => {
   let userTracked = null;
   try { userTracked = (await getTracked()).length; } catch (e) { /* db optional */ }
-  // stripe: env-readiness at a glance (no secrets) — 'key'+'webhook' true = billing live.
-  const stripeReady = { key: !!process.env.STRIPE_SECRET_KEY, webhook: !!process.env.STRIPE_WEBHOOK_SECRET, prices: (process.env.STRIPE_PRICE_BASE && process.env.STRIPE_PRICE_ADDON) ? 'env' : 'auto' };
+  // stripe: env-readiness at a glance (no secrets) — 'key'+'webhook' true = billing live;
+  // mode says whether real cards are charged (live) or 4242-test cards (test).
+  const _sk = String(process.env.STRIPE_SECRET_KEY || '');
+  const stripeReady = { key: !!_sk, webhook: !!process.env.STRIPE_WEBHOOK_SECRET, mode: _sk ? (_sk.indexOf('sk_live_') === 0 ? 'live' : 'test') : null, prices: (process.env.STRIPE_PRICE_BASE && process.env.STRIPE_PRICE_ADDON) ? 'env' : 'auto' };
   res.json({ ok: true, v: String(process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7) || 'dev', ...warmStatus(), userTracked, stripe: stripeReady });   // v = deployed commit, so 'which build am I talking to' is never a guess
 });
 
