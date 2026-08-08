@@ -1,6 +1,8 @@
 // Stripe billing — the standard offer: $197/mo (2 competitors included) + $47/mo per
-// additional competitor. 14-day card-free trial for new signups; existing beta accounts
-// are comped (users.comp) and admins never pay.
+// additional competitor. Trial (founder, 8 Aug): 30 days, CARD REQUIRED — the trial
+// starts at Stripe Checkout ($0 today, converts automatically on day 30). Existing beta
+// accounts are comped (users.comp) and admins never pay. Legacy card-free trials granted
+// before this change keep working until they expire.
 //
 // DORMANT WITHOUT KEYS: every entry point checks billingEnabled() first, so the app runs
 // exactly as before until these are set in Railway → Variables:
@@ -18,7 +20,7 @@
 import { pool } from './db.js';
 import { capiEvent } from './metacapi.js';
 
-const BASE_CENTS = 19700, ADDON_CENTS = 4700, INCLUDED = 2, TRIAL_DAYS = 14;
+const BASE_CENTS = 19700, ADDON_CENTS = 4700, INCLUDED = 2, TRIAL_DAYS = Number(process.env.TRIAL_DAYS) || 30;
 const APP_URL = (process.env.APP_URL || 'https://watchback.ai').replace(/\/+$/, '');
 
 export function billingEnabled() { return !!process.env.STRIPE_SECRET_KEY; }
@@ -80,7 +82,10 @@ export async function billingStatus(uid) {
     const days = Math.max(1, Math.ceil((new Date(u.trial_ends_at) - Date.now()) / 86400000));
     return { status: 'trialing', ok: true, trialDaysLeft: days, trialEndsAt: u.trial_ends_at };
   }
-  return { status: 'locked', ok: false };
+  // trialAvailable → the checkout will start a 30-day card trial for this account (fresh
+  // signups); false → their trial is spent, checkout charges from day one. Drives the
+  // upgrade modal's copy ("Start your 30-day trial" vs "Trial ended — subscribe").
+  return { status: 'locked', ok: false, trialAvailable: !u.stripe_subscription_id && !(u.trial_ends_at && new Date(u.trial_ends_at) < new Date()), trialDays: TRIAL_DAYS };
 }
 
 // ── checkout / portal ─────────────────────────────────────────────────────────
@@ -109,12 +114,17 @@ export async function checkoutSession(uid) {
   const extra = Math.max(0, (await competitorCount(uid)) - INCLUDED);
   const items = [{ price: pr.base, quantity: 1 }];
   if (extra > 0) items.push({ price: pr.addon, quantity: extra });
+  // 30-day trial WITH card, but only for a genuinely fresh account: anyone whose legacy
+  // card-free trial already EXPIRED, or who held a subscription before, pays from day one
+  // — otherwise "cancel, re-checkout" would mint a fresh free month forever.
+  const freshTrial = !u.stripe_subscription_id && !(u.trial_ends_at && new Date(u.trial_ends_at) < new Date());
   const sess = await s.checkout.sessions.create({
     mode: 'subscription',
     customer: cust,
     line_items: items,
     allow_promotion_codes: true,
-    subscription_data: { metadata: { wb_uid: String(u.id) } },
+    payment_method_collection: 'always',   // the card is the point — collect it even during the $0 trial
+    subscription_data: Object.assign({ metadata: { wb_uid: String(u.id) } }, freshTrial ? { trial_period_days: TRIAL_DAYS } : {}),
     success_url: APP_URL + '/app.html?billing=success&sid={CHECKOUT_SESSION_ID}',
     cancel_url: APP_URL + '/app.html?billing=cancelled',
   });

@@ -31,6 +31,10 @@ import { capiEnabled, capiTokenValid } from './metacapi.js';
 import { snapshotDays, snapshotForDay, recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost } from './snapshots.js';
 
 const app = express();
+// Railway terminates TLS at exactly one proxy hop — with this set, req.ip is the real
+// client address from the proxy, not whatever a caller typed into x-forwarded-for
+// (audit #2 MED: the rate limiter keyed on the first XFF entry, which is client-spoofable).
+app.set('trust proxy', 1);
 // Stripe webhook FIRST, on the RAW body — signature verification fails on parsed JSON.
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
@@ -58,7 +62,9 @@ function rateLimit(max, windowMs, authMax) {
     // insight loads at open (one per mirrored competitor) — the owner was rate-limiting
     // themselves out of their own brief preview (founder, 24 Jul).
     const uid = optionalUid(req);
-    const key = uid ? ('u' + uid) : String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'x').split(',')[0].trim();
+    // req.ip = the proxy-verified client (trust proxy above) — never the spoofable
+    // first x-forwarded-for entry the limiter used to key on.
+    const key = uid ? ('u' + uid) : String(req.ip || req.socket?.remoteAddress || 'x');
     const cap = uid ? (authMax || max * 4) : max;
     const now = Date.now();
     let e = hits.get(key);
@@ -202,7 +208,9 @@ async function competitorAllowance(uid) {
 app.get('/api/health', async (req, res) => {
   let userTracked = null;
   try { userTracked = (await getTracked()).length; } catch (e) { /* db optional */ }
-  res.json({ ok: true, v: String(process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7) || 'dev', ...warmStatus(), userTracked });   // v = deployed commit, so 'which build am I talking to' is never a guess
+  // stripe: env-readiness at a glance (no secrets) — 'key'+'webhook' true = billing live.
+  const stripeReady = { key: !!process.env.STRIPE_SECRET_KEY, webhook: !!process.env.STRIPE_WEBHOOK_SECRET, prices: (process.env.STRIPE_PRICE_BASE && process.env.STRIPE_PRICE_ADDON) ? 'env' : 'auto' };
+  res.json({ ok: true, v: String(process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7) || 'dev', ...warmStatus(), userTracked, stripe: stripeReady });   // v = deployed commit, so 'which build am I talking to' is never a guess
 });
 
 // Real capture counts for the landing page's proof band (never invented — see stats.js).
@@ -501,8 +509,14 @@ app.get('/api/daily-brief', aiLimit, async (req, res) => {
 });
 app.post('/api/angle', aiLimit, async (req, res) => {
   try {
+    // Vision + (for video) Whisper spend on every call — account holders and share-link
+    // viewers only, same gate as /api/chat (audit #2 HIGH: this was open to anonymous
+    // traffic, an open wallet once ads start driving strangers here). Demo visitors lose
+    // nothing visible: the precomputed hook/angle from the nightly warm still renders.
+    const uid = await viewUid(req);
+    if (!uid) return res.status(401).json({ error: 'Sign in to use the AI analyst.' });
     const { text, kind, image, video } = req.body || {};
-    const r = await quickAngle(text, kind, image, video, await viewUid(req));
+    const r = await quickAngle(text, kind, image, video, uid);
     res.json({ angle: r.angle, hook: r.hook, creative: r.creative, apply: r.apply, script: r.script });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -538,6 +552,15 @@ app.post('/api/track', async (req, res) => {
     const admin = await isAdminReq(req);   // owner bypass (key or admin login)
     // Enrolment costs money (daily scraping) — only signed-in customers or the owner.
     if (!admin && !optionalUid(req)) return res.status(401).json({ error: 'Sign in required.' });
+    // …and a customer may only enrol a host that is ON THEIR OWN WATCHLIST (audit #2 MED:
+    // any signed-in account could previously enrol an arbitrary host — one paid capture
+    // each). The legit flow adds the competitor first (plan-limited), then tracks it.
+    if (!admin) {
+      const uid = optionalUid(req);
+      const h = String(host || url || '').toLowerCase().replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '');
+      const own = await pool.query("SELECT 1 FROM competitors WHERE user_id = $1 AND lower(replace(host, 'www.', '')) = $2 LIMIT 1", [uid, h]);
+      if (!own.rows[0]) return res.status(403).json({ error: 'Add the competitor to your watchlist first.' });
+    }
     const r = await addTracked({ name, host, url, country }, admin);
     res.json({ ok: true, added: !!(r && r.added), limited: !!(r && r.limited) });
     if (r && r.added) warmBrand(r.comp, false).catch(() => {});   // immediate baseline (async)
@@ -774,10 +797,27 @@ const UA_IMG = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.
 // Website screenshot proxy. With SCREENSHOTONE_KEY set, uses ScreenshotOne with
 // cookie/consent banners + ad/chat widgets auto-blocked. Falls back to WordPress
 // mShots (no key, but bakes in any popup) so the screenshot always works.
+// /api/shot renders are PAID (ScreenshotOne) — only hosts we actually track may be
+// shot (audit #2 HIGH: anonymous + any URL = open spend). Demo visitors keep working
+// (demo brands are tracked); the app's <img onerror> fallback handles the 403 shape.
+// The allow-list is cached 5 min so the check never costs a DB round-trip per image.
+let _shotHosts = { at: 0, set: new Set() };
+async function shotHostAllowed(u) {
+  let h = '';
+  try { h = new URL(u).hostname.toLowerCase().replace(/^www\./, ''); } catch (e) { return false; }
+  if (!h) return false;
+  if (Date.now() - _shotHosts.at > 5 * 60 * 1000) {
+    try { _shotHosts = { at: Date.now(), set: new Set((await allBrands()).map((b) => String((b && b.host) || '').toLowerCase().replace(/^www\./, '')).filter(Boolean)) }; }
+    catch (e) { /* keep the previous set on a DB blip */ }
+  }
+  for (const t of _shotHosts.set) { if (h === t || h.endsWith('.' + t)) return true; }
+  return false;
+}
 app.get('/api/shot', aiLimit, async (req, res) => {
   try {
     const u = String(req.query.url || '');
     if (!/^https?:\/\//i.test(u)) return res.status(400).end();
+    if (!(await shotHostAllowed(u))) return res.status(403).end();
     const key = process.env.SCREENSHOTONE_KEY;
     if (key) {
       const target = 'https://api.screenshotone.com/take?access_key=' + encodeURIComponent(key) +

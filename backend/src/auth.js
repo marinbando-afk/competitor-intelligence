@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { pool } from './db.js';
+import { billingEnabled } from './billing.js';
 
 const TOKEN_TTL = '30d';
 
@@ -68,9 +69,13 @@ export async function createUser(email, password, { approved = false, admin = fa
   if (password.length < 8) { const e = new Error('Password must be at least 8 characters.'); e.status = 400; throw e; }
   const hash = await bcrypt.hash(password, 10);
   try {
+    // Card-required trials (founder, 8 Aug): with billing LIVE a new signup gets NO
+    // card-free window — the 30-day trial starts at Stripe Checkout instead, so a fresh
+    // account is 'locked' until a card is added. While billing is dormant (no Stripe key)
+    // the grace period keeps the app usable exactly as before.
     const r = await pool.query(
-      'INSERT INTO users(email, password_hash, approved, admin, trial_ends_at) VALUES($1, $2, $3, $4, now() + interval \'14 days\') RETURNING id, email',
-      [email, hash, !!approved, !!admin],
+      'INSERT INTO users(email, password_hash, approved, admin, trial_ends_at) VALUES($1, $2, $3, $4, CASE WHEN $5 THEN NULL ELSE now() + interval \'30 days\' END) RETURNING id, email',
+      [email, hash, !!approved, !!admin, billingEnabled()],
     );
     return r.rows[0];
   } catch (err) {

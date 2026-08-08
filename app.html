@@ -1080,19 +1080,22 @@ function openPortal(btn){
 }
 function openPaywall(){
   var ov=document.getElementById('payOv');
-  if(!ov){
-    ov=document.createElement('div');ov.id='payOv';ov.className='pay-ov';
-    ov.innerHTML='<div class="pay-box">'
-      +'<span class="pay-k">TRIAL ENDED</span>'
-      +'<h2>Your competitors didn\u2019t stop moving</h2>'
-      +'<p>Daily captures for your competitors continue — subscribe to keep your dossiers, morning briefs and chat.</p>'
-      +'<div class="pay-price">$197<span>/mo</span></div>'
-      +'<div class="pay-sub">2 competitors included · +$47/mo each additional · cancel anytime</div>'
-      +'<button class="pay-cta" onclick="startCheckout(this)">Subscribe · $197/mo</button>'
-      +'<div class="pay-foot">Questions? Use the feedback button — we answer personally.</div>'
-      +'</div>';
-    document.body.appendChild(ov);
-  }
+  if(!ov){ov=document.createElement('div');ov.id='payOv';ov.className='pay-ov';document.body.appendChild(ov);}
+  // Two audiences, one gate (rebuilt each open so a late BILLING load still lands right):
+  // a FRESH account starts its 30-day card trial at checkout ($0 today); an account whose
+  // trial is spent subscribes from day one.
+  var fresh=!!(BILLING&&BILLING.trialAvailable);
+  var days=(BILLING&&BILLING.trialDays)||30;
+  ov.innerHTML='<div class="pay-box">'
+    +'<span class="pay-k">'+(fresh?'START YOUR FREE TRIAL':'TRIAL ENDED')+'</span>'
+    +(fresh?'<h2>Watch your competitors free for '+days+' days</h2>':'<h2>Your competitors didn\u2019t stop moving</h2>')
+    +(fresh?'<p>Add a card to start \u2014 <b>$0 today</b>, then $197/mo after your '+days+'-day trial. Cancel anytime from the billing portal, one click.</p>'
+           :'<p>Daily captures for your competitors continue \u2014 subscribe to keep your dossiers, morning briefs and chat.</p>')
+    +'<div class="pay-price">$197<span>/mo</span></div>'
+    +'<div class="pay-sub">2 competitors included \u00b7 +$47/mo each additional \u00b7 cancel anytime</div>'
+    +'<button class="pay-cta" onclick="startCheckout(this)">'+(fresh?'Start '+days+'-day free trial':'Subscribe \u00b7 $197/mo')+'</button>'
+    +'<div class="pay-foot">Questions? Use the feedback button \u2014 we answer personally.</div>'
+    +'</div>';
   ov.style.display='flex';
 }
 (function(){var st=document.createElement('style');st.textContent=
