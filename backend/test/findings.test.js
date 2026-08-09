@@ -122,5 +122,35 @@ const fresh = windowFindings([
 check('a post that APPEARED is a new finding', fresh.some((f) => f.type === 'new' && f.text.includes('Lash serum tutorial')));
 check('a window never emits absence findings', !types(fresh).includes('absence') && !types(noneToday).includes('absence'));
 
+console.log('\nSTALE OFFERS + LANDING HEALTH — no live-since clutter; dead/redirected funnels caught:');
+
+// Nolan (9 Aug): "live since 2026-08-08" was the newest AD's launch day read as the
+// offer's age. The stale-offer finding must carry the staleness and nothing datable.
+const bfAds = [{ id: 'bf1', text: 'Black Friday deal — 50% off everything', started: '2026-08-08', page: 'Nolan Interior', link: 'https://x/bf', landing: 'https://nolan.com/sale' }];
+const staleF = adsFindings([
+  row('2026-08-09', { ads: bfAds }),
+  row('2026-08-08', { ads: [{ id: 'z9', text: 'old ad', started: '2026-06-01', landing: 'https://nolan.com/' }] }),
+], 500);
+const so = staleF.find((f) => f.key && String(f.key).startsWith('ads.staleOffer:'));
+check('out-of-season offer is flagged', !!so && /out of season/.test(so.text));
+check('stale-offer finding carries NO live-since date', !!so && !/live since|2026-08-08/.test(so.text));
+const agg = staleF.find((f) => f.key === 'ads.launches');
+check('launch aggregate quotes the opening hook', !!agg && agg.text.includes('Black Friday deal'));
+check('launch aggregate names the landing domain', !!agg && agg.text.includes('nolan.com'));
+
+// Landing health (9 Aug): get.thetallowedtruth.com served a 404 while ads ran to it, and
+// try-derm.com silently redirected to the main site — both must become findings; a
+// same-domain resolve and a network error must stay silent.
+const landRow = row('2026-08-09', { ads: bfAds, landings: {
+  'get.thetallowedtruth.com': { url: 'https://get.thetallowedtruth.com/', finalUrl: 'https://get.thetallowedtruth.com/', status: 404 },
+  'try-derm.com': { url: 'https://try-derm.com/offer', finalUrl: 'https://thedrmlab.com/', status: 200 },
+  'thedrmlab.com': { url: 'https://thedrmlab.com/x', finalUrl: 'https://www.thedrmlab.com/x', status: 200 },
+  'flaky.com': { url: 'https://flaky.com/', error: 'timeout' },
+} });
+const lf = adsFindings([landRow], 500);
+check('404 landing → DEAD-page finding', lf.some((f) => f.key === 'ads.landDown:get.thetallowedtruth.com' && /404/.test(f.text)));
+check('cross-domain redirect → REDIRECT finding', lf.some((f) => String(f.key).startsWith('ads.landRedirect:try-derm.com') && f.text.includes('thedrmlab.com')));
+check('same-domain resolve and network error stay silent', !lf.some((f) => String(f.key).includes('thedrmlab.com>') || String(f.key).includes('flaky')));
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

@@ -193,12 +193,16 @@ export function offerFacts(ads, today) {
   const lines = offerFlags(ads, today).map((f) => {
     // NO RUNNING-DAY COUNTERS (founder, 24 Jul: "never call out how many days the sale or ad
     // is running"). The START DATE answers new-vs-old; a "live for 123 days" tally is noise.
-    const runLine = f.started ? ' It has been live since ' + f.started + '.' : '';
+    // NO "LIVE SINCE" DATING (founder, 9 Aug: "you don't need to report that something is
+    // live since XYZ, it clutters the data and it's not useful"). The Nolan brief read
+    // "running 8.3 months out of season, live since 2026-08-08" — that date was merely the
+    // newest AD's launch day, not the offer's age, which is unknowable from our view.
+    // Staleness is the story; dates belong only on genuine LAUNCH findings.
     if (f.kind === 'occasion') {
       let l = '- OUT-OF-SEASON OFFER — a LIVE ad invokes "' + f.label + '". ' + f.label + ' last fell on ' + f.last +
         ' — ' + f.monthsSince + ' months (' + f.daysSince + ' days) BEFORE today — and does not come round again until ' +
-        f.next + ', ' + f.monthsUntil + ' months away. This occasion is FAR OUT OF SEASON.' + runLine;
-      if (f.createdAfter) l += ' The ad was CREATED on ' + f.started + ', ' + months(f.createdAfter) + ' months AFTER that ' + f.label + ' — it was never a real seasonal promo.';
+        f.next + ', ' + f.monthsUntil + ' months away. This occasion is FAR OUT OF SEASON. NEVER write "live since <date>" or any start date for this offer — how long they have pushed the claim is unknown; report only the out-of-season staleness.';
+      if (f.createdAfter) l += ' This ad was CREATED ' + months(f.createdAfter) + ' months AFTER that ' + f.label + ' — a deliberate out-of-season launch, never a real seasonal promo left running by accident.';
       // Name the ad: which Facebook page runs it, what it says, where to open it. Without
       // this the model can date the finding but not identify it, and starts guessing.
       const idBits = [];

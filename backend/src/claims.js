@@ -152,13 +152,31 @@ const RULES = [
     id: 'durationDays',
     re: /\b(running|live|active|been on)\b[^.]{0,24}\b\d+\+? days?\b/i,
     allow: () => false,
-    why: 'states a running duration in days — banned; give the start date instead',
+    why: 'states a running duration in days — banned; say it is active/ongoing without dating it',
   },
   {
     id: 'captureCount',
     re: /\b\d+\+? (consecutive )?captures?\b|\bsince the (last|previous) capture\b/i,
     allow: () => false,
     why: 'counts captures — internal plumbing language; use dates',
+  },
+  {
+    // Founder, 9 Aug: "you don't need to report that something is live since XYZ, it
+    // clutters the data and it's not useful" — and the date is usually just when WE (or
+    // the newest ad) first appeared, not the thing's real age. Dates belong on launches.
+    id: 'liveSince',
+    re: /\b(live|running|active|on[- ]?site|up) since\b/i,
+    allow: () => false,
+    why: '"live since" dating is clutter — say it is active/unchanged; date only genuine launches ("launched <date>")',
+  },
+  {
+    // Founder, 9 Aug: "it's not important how many ads you captured … also that number
+    // could be wrong". Capture volume is plumbing; launch counts are news and stay —
+    // but only when the sentence doesn't dress them in capture arithmetic.
+    id: 'adCount',
+    re: /\ball \d+\+? ads?\b|\b\d+\+? ads? (in|from) (today|yesterday|this week)['’]s capture\b|\btypical capture\b|\bads? captured today\b/i,
+    allow: (s) => !/captur/i.test(s) && /\blaunch/i.test(s),
+    why: 'cites capture volume — sample size is plumbing and may be wrong; report the creative content, count only launches',
   },
   {
     id: 'guessIdentity',

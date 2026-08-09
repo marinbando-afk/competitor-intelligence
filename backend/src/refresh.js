@@ -15,6 +15,7 @@ import { getEmails } from './email.js';
 import { captureWebsiteFull } from './website.js';
 import { generateInsights, enrichCreativeHooks, creditStatus } from './insights.js';
 import { saveSnapshot, latestSnapshot } from './snapshots.js';
+import { resolveLandings } from './landcheck.js';
 import { pool } from './db.js';
 import { ensureWeeklies } from './weekly.js';
 import { postText, postDailyBrief, sendUserDailyBriefs, sendUserWeeklyLinks } from './slack.js';
@@ -113,7 +114,7 @@ export async function warmBrand(b, force) {
   const adBudget = { left: Number(process.env.AD_HOOK_CAP) || 40 };
   const socialBudget = { left: Number(process.env.SOCIAL_HOOK_CAP) || 18 };
   const POST_PER = Number(process.env.SOCIAL_HOOK_PER) || 6;
-  try { const a = await fetchAds(b.name, b.country, force, false, b.host); ok++; if (a && a.ads && a.ads.length) { await enrichCreativeHooks(b.host, 'ads', 'ad', a.ads, adBudget); await saveSnapshot(b.host, 'ads', a); } }
+  try { const a = await fetchAds(b.name, b.country, force, false, b.host); ok++; if (a && a.ads && a.ads.length) { await enrichCreativeHooks(b.host, 'ads', 'ad', a.ads, adBudget); try { const L = await resolveLandings(a.ads); if (L) a.landings = L; } catch (e) { console.warn('[landcheck]', b.host, (e && e.message) || e); } await saveSnapshot(b.host, 'ads', a); } }
   catch (e) { fail++; console.warn('warm ads ' + b.name + ':', e.message); }
   for (const [pf, hk] of PLATFORMS) {
     try {

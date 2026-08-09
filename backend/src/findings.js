@@ -139,10 +139,16 @@ export function adsFindings(rows, capN) {
     if (fresh.length) {
       const nVid = fresh.filter((a) => a.hasVideo).length;
       const since = fresh[fresh.length - 1].started;
+      // Carry the CREATIVE SUBSTANCE, not just the count (founder, 9 Aug: "can you give an
+      // angle or hook or ad style summary in cases like this one") — the newest opening
+      // line and where the batch drives, so a mass-launch day reads as WHAT they are
+      // saying, never as capture arithmetic.
+      const hook = String(fresh[0].text || fresh[0].title || '').replace(/\s+/g, ' ').trim().slice(0, 110);
+      const doms = [...new Set(fresh.map((a) => domOf(a.landing)).filter(Boolean))].slice(0, 3);
       out.push({
         type: 'new', key: 'ads.launches',
-        text: fresh.length + ' new ad' + (fresh.length > 1 ? 's' : '') + ' launched since ' + since + ' (Meta start dates; ' + nVid + ' video, ' + (fresh.length - nVid) + ' image/carousel)' + (fresh.length > 6 ? ' — the 6 newest are itemised above' : '') + '.',
-        evidence: { count: fresh.length, video: nVid, since },
+        text: fresh.length + ' new ad' + (fresh.length > 1 ? 's' : '') + ' launched since ' + since + ' (Meta start dates; ' + nVid + ' video, ' + (fresh.length - nVid) + ' image/carousel)' + (hook ? '; newest opens: "' + hook + '"' : '') + (doms.length ? ' → ' + doms.join(', ') : '') + (fresh.length > 6 ? ' — the 6 newest are itemised above' : '') + '.',
+        evidence: { count: fresh.length, video: nVid, since, hook, landing: doms.join(', ') },
       });
     }
   }
@@ -160,9 +166,28 @@ export function adsFindings(rows, capN) {
   // Out-of-season offers (computed in occasions.js, identity attached).
   try {
     for (const f of offerFlags(ads, new Date(today.day + 'T00:00:00Z')).slice(0, 3)) {
-      out.push({ type: 'state', key: 'ads.staleOffer:' + f.fp, text: '"' + f.label + '" offer is running ' + f.monthsSince + ' months out of season' + (f.started ? ', live since ' + f.started : '') + '.', evidence: { page: f.page, quote: f.quote, link: f.link } });
+      // NO date clause (founder, 9 Aug): "live since <ad start>" implied the offer began
+      // the day the newest ad did; offer age is unknowable and live-since dating is clutter.
+      out.push({ type: 'state', key: 'ads.staleOffer:' + f.fp, text: '"' + f.label + '" offer is running ' + f.monthsSince + ' months out of season.', evidence: { page: f.page, quote: f.quote, link: f.link } });
     }
   } catch (e) { /* optional */ }
+
+  // LANDING-URL HEALTH — resolved at capture time (landcheck.js): where each ad domain
+  // ACTUALLY lands. Catches dead funnels (founder, 9 Aug: "get.thetallowedtruth.com is
+  // giving me 404 — you must catch this") and silent retirements ("even more useful if
+  // you tested the URL and caught they are redirecting try-derm to their homepage").
+  const lands = (today.data && today.data.landings) || null;
+  if (lands) {
+    for (const [d, r] of Object.entries(lands)) {
+      if (!r || r.error) continue;                       // network failure ≠ dead page
+      if (r.status === 404 || r.status === 410) {
+        out.push({ type: 'state', key: 'ads.landDown:' + d, text: 'Ad landing page ' + (r.url || d) + ' is DEAD — it returned HTTP ' + r.status + ' when checked on ' + today.day + '; ads are paying for clicks to a broken page.', evidence: { domain: d, url: r.url, status: r.status } });
+      } else if (r.finalUrl) {
+        const fh = domOf(r.finalUrl);
+        if (fh && fh !== d) out.push({ type: 'state', key: 'ads.landRedirect:' + d + '>' + fh, text: 'Ad landing domain ' + d + ' now REDIRECTS to ' + r.finalUrl + ' — the ' + d + ' funnel is not being served; ad traffic lands on ' + fh + ' instead.', evidence: { domain: d, url: r.url, finalUrl: r.finalUrl } });
+      }
+    }
+  }
   return out;
 }
 

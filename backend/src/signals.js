@@ -415,8 +415,9 @@ export function signalLines(s) {
     if (!cur.link && f.link) cur.link = f.link;
   }
   for (const f of byLabel.values()) {
-    lines.push('Fake sale: “' + f.label + '” still live — ' + f.monthsSince + ' months out of season' +
-      (f.started ? ', live since ' + f.started : '') + link(f.link, 'view ad'));
+    // No "live since" clause (founder, 9 Aug): the date was just the newest ad's launch
+    // day and read as the offer's age — clutter; the staleness alone is the signal.
+    lines.push('Fake sale: “' + f.label + '” still live — ' + f.monthsSince + ' months out of season' + link(f.link, 'view ad'));
   }
   if (s.sale) lines.push(s.sale);
   for (const f of (s.funnel || [])) {

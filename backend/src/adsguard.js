@@ -33,7 +33,11 @@ export function stripAdTotals(s) {
   return String(s)
     .replace(/\b\d+\s+of\s+(?:their\s+|its\s+)?\d+\s+ads\b/gi, 'many of their ads')          // "10 of 19 ads"
     .replace(/\b\d+\+?\s+(?:active|live|running|total|current)\s+ads\b/gi, 'their ads')       // "19 active ads"
-    .replace(/\b(?:across|spanning|of)\s+(?:their\s+|its\s+)?\d+\+?\s+ads\b/gi, 'across their ads');   // "across 19 ads"
+    .replace(/\b(?:across|spanning|of)\s+(?:their\s+|its\s+)?\d+\+?\s+ads\b/gi, 'across their ads')   // "across 19 ads"
+    .replace(/\ball\s+\d+\+?\s+ads?\b/gi, 'all their ads')                                    // "All 98 ads" (founder, 9 Aug)
+    .replace(/\b\d+\+?\s+ads?\s+(?:in|from)\s+(?:today|yesterday|this week)['’]s\s+capture\b/gi, "today's captured ads")
+    .replace(/\s*\((?:a\s+)?typical capture[^)]*\)/gi, '')                                    // "(typical capture is around 4)"
+    .replace(/\bin\s+today['’]s\s+capture\b/gi, 'captured today');
 }
 
 // One object of capture-health facts from the recent ads snapshot rows (newest first).

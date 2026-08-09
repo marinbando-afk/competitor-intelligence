@@ -50,6 +50,16 @@ t('Froya: read variance reported as a replacement',
 // Founder rules that predate the validator.
 t('day counter', 'Fake sale: "Black Friday" still live — running 241 days.', { canJudgeAbsence: true }, true, 'durationDays');
 t('capture counting', 'Meta ads completely off — no spend for 2+ consecutive captures.', { canJudgeAbsence: true }, true, 'captureCount');
+
+// Nolan, 9 Aug — "live since 2026-08-08" was just the newest AD's launch day read as the
+// offer's age. Founder: live-since dating is clutter; capture volumes are plumbing.
+t('live-since dating', 'The Black Friday offer has been live since 2026-08-08.', { canJudgeAbsence: true, hasEarlier: true }, true, 'liveSince');
+t('on-site since', 'Up to 50% off, live on-site since 30 Jul.', { canJudgeAbsence: true, hasEarlier: true }, true, 'liveSince');
+t('bare staleness is fine', 'The "Black Friday" offer is running 8.3 months out of season.', { canJudgeAbsence: true, hasEarlier: true }, false);
+t('capture volume', "All 98 ads in today's capture run to thedrmlab.com.", { canJudgeAbsence: true, hasEarlier: true }, true, 'adCount');
+t('launch dressed in capture arithmetic', 'Casa & Beyond launched all 16 ads captured today.', { canJudgeAbsence: true, hasEarlier: true }, true);
+t('typical-capture aside', 'An unusually high volume for them (typical capture is around 4).', { canJudgeAbsence: true, hasEarlier: true }, true, 'adCount');
+t('launch counts stay allowed', 'Six new ads launched this week, mostly UGC video.', { canJudgeAbsence: true, hasEarlier: true }, false);
 t('guessed identity', "The Valentine's ad is most likely from Nordic Wellness Secrets.", { hasEarlier: true }, true, 'guessIdentity');
 
 // Tallowed Truth, 2 Aug — caught by the validator itself during a routine audit. Their
@@ -189,8 +199,13 @@ t('present-tense description needs no finding',
   'Ads run to casaandbeyond.com.au from their own Casa & Beyond page.',
   { hasEarlier: true, comparable: true, changeFindings: [] }, false);
 
-t('scoped completeness is fine',
+// Founder, 9 Aug, superseding the earlier completeness pin: the COUNT is plumbing and may
+// be wrong — a scoped-completeness read must be phrased without it.
+t('numbered completeness is now blocked',
   'All 79 ads in today\'s capture run from their own branded page to advertorial landing pages.',
+  { hasEarlier: true, comparable: true, sampleReliable: true }, true, 'adCount');
+t('scoped completeness is fine without the count',
+  'Every captured ad runs from their own branded page to advertorial landing pages.',
   { hasEarlier: true, comparable: true, sampleReliable: true }, false);
 
 t('legitimate end-of-tactic on a healthy capture',
