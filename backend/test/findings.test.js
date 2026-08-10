@@ -97,8 +97,11 @@ const unchanged = websiteFindings([
 ]);
 check('identical feeds → explicit nochange state', unchanged.some((f) => f.key === 'web.nochange'));
 const bannerF = unchanged.find((f) => f.key === 'web.banner');
-check('unchanged sale banner is dated from its own history, not today',
-  !!bannerF && bannerF.type === 'state' && bannerF.text.includes('unchanged since 2026-08-06'),
+// 10 Aug (supersedes the dated-banner pin): standing state carries no since-date in the
+// TEXT — dating is clutter; the history date lives in evidence.since for the machinery.
+check('unchanged sale banner: state, undated text, date kept in evidence',
+  !!bannerF && bannerF.type === 'state' && /unchanged across recent captures/.test(bannerF.text)
+  && !/since 2026/.test(bannerF.text) && bannerF.evidence.since === '2026-08-06',
   bannerF && bannerF.text);
 
 // Glov (6 Aug): the announcement bar ROTATES — one captured slide is a sample of the bar.
@@ -151,6 +154,30 @@ const lf = adsFindings([landRow], 500);
 check('404 landing → DEAD-page finding', lf.some((f) => f.key === 'ads.landDown:get.thetallowedtruth.com' && /404/.test(f.text)));
 check('cross-domain redirect → REDIRECT finding', lf.some((f) => String(f.key).startsWith('ads.landRedirect:try-derm.com') && f.text.includes('thedrmlab.com')));
 check('same-domain resolve and network error stay silent', !lf.some((f) => String(f.key).includes('thedrmlab.com>') || String(f.key).includes('flaky')));
+
+// Casa & Beyond (10 Aug): "50% off Clearance Sale ends in 14:27:10" — the ticking value
+// must be stripped, the TIMER named as a tactic, the daily reset called evergreen, and
+// no "unchanged since <date>" clause (live-since dating is clutter).
+const timerRows = websiteFindings([
+  row('2026-08-09', { banner: '50% OFF Clearance Sale ends in 14:27:10', summary: feed }),
+  row('2026-08-08', { banner: '50% off Clearance Sale ends in 01:26:21', summary: feed }),
+]);
+const tb = timerRows.find((f) => f.key === 'web.banner');
+check('countdown timer named as a tactic', !!tb && /COUNTDOWN TIMER/.test(tb.text));
+check('daily reset called evergreen', !!tb && /resetting|evergreen/i.test(tb.text));
+check('ticking value + since-date stripped', !!tb && !/14:27:10|since 2026/.test(tb.text));
+
+// Same-brand redirect (casaandbeyond.com.au → casaandbeyond.com) is a geo/storefront
+// hop, not a retired funnel; and redirect text must never carry querystrings/UTMs.
+const geoRow = row('2026-08-09', { ads: bfAds, landings: {
+  'casaandbeyond.com.au': { url: 'https://casaandbeyond.com.au/', finalUrl: 'https://casaandbeyond.com/', status: 200 },
+  'go.seranovabeauty.com': { url: 'https://go.seranovabeauty.com/x', finalUrl: 'https://quiz.seranova.com/misw-offer?tw_source=a&lptoken=17388', status: 200 },
+} });
+const gf = adsFindings([geoRow], 500);
+check('same-brand geo redirect stays silent', !gf.some((f) => String(f.key).includes('casaandbeyond')));
+const sr = gf.find((f) => String(f.key).startsWith('ads.landRedirect:go.seranovabeauty.com'));
+check('cross-brand redirect fires with clean path', !!sr && sr.text.includes('quiz.seranova.com/misw-offer'));
+check('no querystrings/UTMs in redirect text', !!sr && !/[?]|lptoken|tw_source/.test(sr.text));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

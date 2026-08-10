@@ -219,6 +219,12 @@ export function offerFacts(ads, today) {
   return '\nOFFER TIMING FACTS (computed from today\'s date — ground truth, do NOT contradict, do NOT recompute):\n' + [...new Set(lines)].join('\n');
 }
 
+// Countdown timers tick, so the same banner reads differently every capture — and an
+// "ends in 14:27:10" that reappears day after day is an EVERGREEN urgency timer, not a
+// real deadline. Exported so findings can name the tactic and strip the ticking value.
+export const TIMER_RE = /\b(?:ends?|ending|expires?|closes?)\s+in[:\s]*\d[\d:\s]*(?:[dhms][\s:]*\d*)*\b/i;
+export function timerIn(s) { const m = String(s || '').match(TIMER_RE); return m ? m[0].trim() : ''; }
+
 // Same check for the storefront's promo banner, which is where a sale usually lives.
 export function bannerFacts(banner, today) {
   const out = [];

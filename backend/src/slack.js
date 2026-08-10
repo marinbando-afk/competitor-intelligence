@@ -74,6 +74,57 @@ export function adsRecapLine(ins) {
   return t;
 }
 
+// ——— delivery-time cleanup (founder, 10 Aug: the brief "became a mess") ————————————
+// The brief is read the morning AFTER the capture it quotes ("just say 'yesterday'
+// because that's what the report is about" — global rule for every future update).
+// Generators keep writing "today" on capture day; the SENDER re-anchors day language to
+// the reader's clock. Only the capture day itself is relativized — real news dates from
+// before it (a Meta launch date, a sale start) stay as dates. Exported for tests.
+export function relativizeDay(s, capDay, sendDay) {
+  s = String(s || '');
+  if (!s || !capDay || !sendDay || capDay === sendDay) return s;
+  const prev = new Date(Date.parse(sendDay + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10);
+  const word = capDay === prev ? 'yesterday' : 'on ' + capDay;
+  const poss = capDay === prev ? 'yesterday’s' : 'that day’s';
+  return s
+    .replace(/\btoday\s*\(\s*\d{4}-\d{2}-\d{2}\s*\)/gi, word)     // "today (2026-08-09)"
+    .replace(new RegExp('\\s*\\(\\s*' + capDay + '\\s*\\)', 'g'), '')  // bare "(2026-08-09)" = clutter
+    .replace(new RegExp('\\bon\\s+' + capDay + '\\b', 'g'), word)
+    .replace(new RegExp('\\b' + capDay + '\\b', 'g'), word)
+    .replace(/\btoday['’]s\b/gi, poss)
+    .replace(/\btoday\b/gi, word)
+    .replace(/\b(yesterday)(\s+yesterday)+\b/gi, '$1')
+    .replace(/ {2,}/g, ' ');
+}
+
+// Clip at a SENTENCE boundary — a mid-quote chop ("...spec-led hooks (':rotating_light:
+// BEST SELLER…") reads as a glitch — and close anything the model's own clipping left open.
+function clipSent(t, n) {
+  t = String(t || '').trim();
+  if (t.length <= n) return t;
+  const cut = t.slice(0, n);
+  const b = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+  if (b > n * 0.4) return cut.slice(0, b + 1);
+  const sp = cut.lastIndexOf(' ');
+  return (sp > 0 ? cut.slice(0, sp) : cut).replace(/[\s.,;:—–-]+$/, '') + '…';
+}
+function balanceQuotes(t) {
+  t = String(t || '').trim();
+  while ((t.match(/\(/g) || []).length > (t.match(/\)/g) || []).length && t.includes('(')) {
+    t = t.slice(0, t.lastIndexOf('(')).replace(/[\s—–\-:,;]+$/, '');
+  }
+  if (((t.match(/"/g) || []).length % 2) === 1) {
+    const i = t.lastIndexOf('"');
+    if (i > t.length * 0.4) t = t.slice(0, i).replace(/[\s—–\-:,;]+$/, '');
+  }
+  if ((t.match(/“/g) || []).length > (t.match(/”/g) || []).length && t.includes('“')) {
+    t = t.slice(0, t.lastIndexOf('“')).replace(/[\s—–\-:,;]+$/, '');
+  }
+  if (t && !/[.!?…]$/.test(t)) t += '.';
+  return t;
+}
+const sentSplit = (t) => String(t || '').trim().split(/(?<=[.!?])\s+/).filter(Boolean);
+
 export async function buildDailyBrief(brands, viewUrl, commit) {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   const head = '🛰️ *WatchBack daily* · ' + today;
@@ -86,60 +137,45 @@ export async function buildDailyBrief(brands, viewUrl, commit) {
     if (b.__demo && !demoHeaderWritten) { blocks.push('— — —\n_Example brands we watch daily — not your competitors, and they don\u2019t use your slots._'); demoHeaderWritten = true; }
     let s = null;
     try { s = await dailySignals(b.host, !!commit); } catch (e) { /* treat as quiet */ }
-    // THE SYNC RULE (founder, 21 Jul): the Slack brief is a RECAP of the platform's own
-    // report — it must tell the same story the dashboard shows. So every brand's block
-    // leads with the top line of the SAME shared insights snapshot the app displays
-    // (cache-only read: latestSnapshot, never getInsights — no AI call, no self-heal,
-    // byte-identical to what the user sees in the app). The deterministic signal lines
-    // then list what CHANGED. Skipped only when the stored read is stale (>2 days) —
-    // better no quote than quoting old news as today's.
-    let read = '', adsRow = '';
-    try {
-      const ins = await latestSnapshot(b.host, 'insights');
-      const v = ins && ins.brief && Array.isArray(ins.brief.verdict) && ins.brief.verdict[0];
-      const fresh = ins && ins.__day && (Date.parse(todayISO) - Date.parse(ins.__day)) <= 2 * 864e5;
-      if (v && fresh) read = '   _' + String(v).replace(/[\n_]+/g, ' ').trim() + '_';
-      if (fresh) { const al = adsRecapLine(ins); if (al) adsRow = '   📣 Ads: ' + al; }
-    } catch (e) { /* signals still carry the block */ }
-    // Three tiers, so "quiet" never hides real activity:
-    //   💡 a PRIORITY move (sale/funnel/FB page/products/angle/fake-sale) — the big callout
-    //   🔹 ROUTINE activity — they shipped a new ad/email/post but nothing rose to priority
-    //   ✅ genuinely nothing new captured (the current read still shown, so Slack and the
-    //      dashboard agree even on a quiet day)
-    const sig = signalLines(s);
-    // A SALE-state signal is TODAY's news; the quoted read regenerates only nightly, so on
-    // sale-change mornings it can flatly contradict the bullet beneath it ("No active sale"
-    // above "• Sale live: …", 22 Jul). The fresher fact wins — drop the stale read line.
-    if (read && s && s.sale) read = '';
-    // BULLETED layout (founder, 22 Jul): the italic read is the brand's summary line;
-    // every change line below it is a bullet — scannable instead of a wall of text.
-    // Don't say the same thing twice (founder, 1 Aug): the italic read already summarised
-    // the day, so a bullet whose distinctive words are all present in it adds nothing but
-    // noise — and usually a worse, truncated version of the same fact.
-    const distinctive = (t) => (String(t).toLowerCase().match(/[a-z0-9][a-z0-9'’-]{4,}/g) || [])
-      .filter((w) => !['their','there','these','those','still','since','after','before','which','while','running','launched','products','product','website','storefront'].includes(w));
-    const readWords = new Set(distinctive(read || ''));
-    const notInRead = (l) => {
-      if (!readWords.size) return true;
-      const w = distinctive(l);
-      if (w.length < 2) return true;
-      const hit = w.filter((x) => readWords.has(x)).length;
-      return hit / w.length < 0.6;   // most of this line is already in the read → drop it
-    };
-    const bullets = (ls) => ls.map((l) => '   • ' + l).join('\n');
-    // The ads row obeys the same no-repeat rule: if the italic read already carries the ad
-    // message, don't say it twice — otherwise it appears in EVERY tier, including quiet days
-    // (the client reads the brief precisely to learn what competitors' ads are saying).
-    if (adsRow && !notInRead(adsRow)) adsRow = '';
-    const sigK = sig.filter(notInRead);
-    if (sigK.length) {
-      blocks.push('*' + b.name + '* 💡\n' + (read ? read + '\n' : '') + (adsRow ? adsRow + '\n' : '') + bullets(sigK));
-    } else if (sig.length && read) {
-      blocks.push('*' + b.name + '* 💡\n' + read + (adsRow ? '\n' + adsRow : ''));   // the read already says it all
+    // INTERCEPTED-SIGNALS LAYOUT (founder, 10 Aug: "just use the app intercepted signals
+    // in the slack message, and put an exclamation mark or something if it's a new signal
+    // — I actually like this"). Each brand block mirrors the dashboard's per-channel
+    // summary lines — the SYNC RULE made literal, so the brief can never contradict the
+    // app (Babe Original, 10 Aug: app said "no changes today" while the brief re-announced
+    // an 8-Aug price rise). One line per channel, ❗ when that channel carries a NEW
+    // signal today. No verdict quote — a clipped verdict shipped context-free nonsense
+    // ("It didn't matter how expensive.", Seranova, 10 Aug).
+    let ins = null, capDay = '';
+    try { ins = await latestSnapshot(b.host, 'insights'); } catch (e) { /* fall back to signal bullets */ }
+    const fresh = !!(ins && ins.__day && (Date.parse(todayISO) - Date.parse(ins.__day)) <= 2 * 864e5);
+    if (ins && ins.__day) capDay = String(ins.__day).slice(0, 10);
+    // Re-anchor day language to the reader's clock (founder, 10 Aug — global rule: the
+    // brief is read the morning after the capture, so "today" must become "yesterday").
+    const prevISO = new Date(Date.parse(todayISO + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10);
+    const rel = (t) => relativizeDay(t, capDay || prevISO, todayISO);
+    const line = (t) => balanceQuotes(clipSent(rel(String(t || '').replace(/[\n_]+/g, ' ').replace(/\s+/g, ' ').trim()), 240));
+    const A = (s && s.activity) || {};
+    const n = (x) => (Array.isArray(x) ? x.length : 0);
+    const mark = (isNew) => (isNew ? '❗' : '');
+    const ch = (k) => (fresh && ins[k] && ins[k].summary) ? String(ins[k].summary) : '';
+    const social = ch('instagram') || ch('tiktok') || ch('facebook') || ch('social');
+    const adsNew = !!(n(A.ads) || (s && (n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.angle))));
+    const webNew = !!((s && s.sale) || (s && n(s.products)) || n(A.website));
+    const rows = [];
+    if (ch('ads')) rows.push('   ' + mark(adsNew) + '📣 Ads: ' + line(adsRecapLine(ins)));
+    if (social) rows.push('   ' + mark(!!n(A.posts)) + '📱 Social: ' + line(social));
+    if (ch('website')) rows.push('   ' + mark(webNew) + '🛒 Website: ' + line(ins.website.summary));
+    if (ch('email')) rows.push('   ' + mark(!!n(A.emails)) + '✉️ Email: ' + line(ins.email.summary));
+    const pri = !!(s && (s.sale || n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.products) || n(s.angle)));
+    const anyAct = !!(n(A.ads) || n(A.posts) || n(A.emails) || n(A.website));
+    const badge = pri ? '💡' : anyAct ? '🔹 routine activity' : '✅ no new moves';
+    if (rows.length) {
+      blocks.push('*' + b.name + '* ' + badge + '\n' + rows.join('\n'));
     } else {
-      const act = activityLines(s).filter(notInRead);
-      if (act.length) blocks.push('*' + b.name + '* 🔹 routine activity\n' + (read ? read + '\n' : '') + (adsRow ? adsRow + '\n' : '') + bullets(act));
-      else blocks.push('*' + b.name + '* ✅ no new moves' + (read ? '\n' + read : '') + (adsRow ? '\n' + adsRow : ''));
+      // No fresh stored read (rebuild missed the brand) — the deterministic signal lines
+      // still carry the block, old-style bullets, so news is never dropped.
+      const ls = (signalLines(s).length ? signalLines(s) : activityLines(s)).map(rel);
+      blocks.push('*' + b.name + '* ' + badge + (ls.length ? '\n' + ls.map((l) => '   • ' + l).join('\n') : ''));
     }
   }
   return head + '\n\n' + blocks.join('\n\n') + '\n\n🔗 <' + link + '|View the full dashboard & signals →>';

@@ -22,7 +22,7 @@
 
 import { pool } from './db.js';
 import { diffWebsite } from './website.js';
-import { sameBannerText, isSaleBanner, offerFlags } from './occasions.js';
+import { sameBannerText, isSaleBanner, offerFlags, timerIn, TIMER_RE } from './occasions.js';
 
 const dOf = (v) => String(v instanceof Date ? v.toISOString() : v || '').slice(0, 10);
 const domOf = (u) => String(u || '').replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '').toLowerCase();
@@ -178,13 +178,27 @@ export function adsFindings(rows, capN) {
   // you tested the URL and caught they are redirecting try-derm to their homepage").
   const lands = (today.data && today.data.landings) || null;
   if (lands) {
+    // A domain that doesn't serve must never render as a clickable link (founder, 10 Aug:
+    // "you included the website that doesn't work") — a zero-width space after each dot
+    // keeps it readable but stops Slack and the dashboard linkifier cold. And never print
+    // querystrings ("why for god's sake are you including UTMs") — host + path only.
+    const unlink = (h) => String(h).replace(/\./g, '.​');
+    // Registrable brand label: casaandbeyond.com.au → "casaandbeyond". A redirect within
+    // the same brand (…com.au → …com) is a geo/storefront hop, not a retired funnel.
+    const sld = (h) => { const p = String(h).split('.'); let i = p.length - 2; if (i > 0 && /^(com|co|net|org|gov|edu)$/.test(p[i]) && String(p[i + 1] || '').length === 2) i--; return p[i] || String(h); };
     for (const [d, r] of Object.entries(lands)) {
       if (!r || r.error) continue;                       // network failure ≠ dead page
       if (r.status === 404 || r.status === 410) {
-        out.push({ type: 'state', key: 'ads.landDown:' + d, text: 'Ad landing page ' + (r.url || d) + ' is DEAD — it returned HTTP ' + r.status + ' when checked on ' + today.day + '; ads are paying for clicks to a broken page.', evidence: { domain: d, url: r.url, status: r.status } });
+        const showUrl = unlink(String(r.url || d).replace(/^https?:\/\//, '').split('?')[0]);
+        out.push({ type: 'state', key: 'ads.landDown:' + d, text: 'Ad landing page ' + showUrl + ' is DEAD — it returned HTTP ' + r.status + ' when checked on ' + today.day + '; ads are paying for clicks to a broken page. Do not link it.', evidence: { domain: d, url: r.url, status: r.status } });
       } else if (r.finalUrl) {
         const fh = domOf(r.finalUrl);
-        if (fh && fh !== d) out.push({ type: 'state', key: 'ads.landRedirect:' + d + '>' + fh, text: 'Ad landing domain ' + d + ' now REDIRECTS to ' + r.finalUrl + ' — the ' + d + ' funnel is not being served; ad traffic lands on ' + fh + ' instead.', evidence: { domain: d, url: r.url, finalUrl: r.finalUrl } });
+        if (fh && fh !== d && sld(fh) !== sld(d)) {
+          let path = '';
+          try { path = new URL(r.finalUrl).pathname; } catch (e) { /* host only */ }
+          const dest = fh + (path && path !== '/' ? (path.length > 48 ? path.slice(0, 48) + '…' : path) : '');
+          out.push({ type: 'state', key: 'ads.landRedirect:' + d + '>' + fh, text: 'Ad landing domain ' + unlink(d) + ' now REDIRECTS to ' + dest + ' — the ' + unlink(d) + ' funnel is not being served; ad traffic lands on ' + fh + ' instead.', evidence: { domain: d, url: r.url, finalUrl: r.finalUrl } });
+        }
       }
     }
   }
@@ -225,12 +239,19 @@ export function websiteFindings(rows) {
       if (b && sameBannerText(b, bannerNow)) since = r.day; else if (b) break;
     }
     const isNew = since === today.day && rows.length > 1 && rows.slice(1).some((r) => r.data);
+    // A ticking countdown makes the quoted banner stale within hours — strip the value
+    // and name the TACTIC instead (founder, 10 Aug: the 50%-off clearance WITH THE TIMER
+    // is the important callout). A timer on a banner already seen on earlier days has by
+    // definition reset — an evergreen urgency timer, not a real deadline.
+    const tm = timerIn(bannerNow);
+    const seenBefore = since !== today.day;
+    const quote = tm ? bannerNow.replace(TIMER_RE, '').replace(/\s{2,}/g, ' ').trim().replace(/[\s—–\-:,;]+$/, '') : bannerNow;
     out.push({
       type: isNew ? 'new' : 'state', key: 'web.banner',
       text: isSaleBanner(bannerNow)
-        ? ('Storefront promo: "' + bannerNow + '"' + (isNew ? ' — first seen today; earlier captures showed a different banner.' : ' — unchanged since ' + since + '.'))
-        : ('Storefront announcement bar shows operational messaging (not a promo): "' + bannerNow + '".'),
-      evidence: { banner: bannerNow, since },
+        ? ('Storefront promo: "' + quote + '"' + (tm ? ' — with a COUNTDOWN TIMER' + (seenBefore ? ' that keeps resetting day after day (evergreen urgency, not a real deadline)' : '') : '') + (isNew ? ' — first seen today; earlier captures showed a different banner.' : ' — unchanged across recent captures.'))
+        : ('Storefront announcement bar shows operational messaging (not a promo): "' + quote + '".'),
+      evidence: { banner: bannerNow, since, timer: tm || undefined },
     });
   }
 

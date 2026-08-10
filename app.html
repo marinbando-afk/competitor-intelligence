@@ -154,6 +154,15 @@ button{font-family:inherit;cursor:pointer}
 .move::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--sage)}
 .move .lbl{display:block;margin-bottom:12px;color:var(--sage-d)}
 .move-t{font-size:15.5px;line-height:1.62;color:var(--text);margin:0;max-width:760px}
+/* Counter-op collapsed by default (founder, 10 Aug): the intel stays scannable; the
+   advice expands on click. The label itself is the toggle. */
+.move .lbl{cursor:pointer;user-select:none;margin-bottom:0}
+.move .lbl::before{content:'▸ ';color:var(--sage)}
+.move.open .lbl::before{content:'▾ '}
+.move.open .lbl{margin-bottom:12px}
+.move .brief-l,.move .move-t{display:none}
+.move.open .brief-l{display:flex}
+.move.open .move-t{display:block}
 /* Threat assessment / counter-op as readable bullet points */
 .brief-l{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:11px;max-width:760px}
 .brief-l li{position:relative;padding-left:20px;line-height:1.5;font-family:'Inter',sans-serif}
@@ -2182,6 +2191,8 @@ function briefHTML(b){
   return '<div class="assess"><span class="lbl">Threat assessment</span><ul class="brief-l">'+v.map(li).join('')+'</ul></div>'
     +(m.length?'<div class="move"><span class="lbl">Recommended counter-op</span><ul class="brief-l">'+m.map(li).join('')+'</ul></div>':'');
 }
+// Counter-op collapsed by default (founder, 10 Aug): one click on the label expands it.
+document.addEventListener('click',function(e){var l=e.target&&e.target.closest&&e.target.closest('.move .lbl');if(l&&l.closest('.move')){l.closest('.move').classList.toggle('open');}});
 // The Threat assessment + counter-op take a few seconds to generate on first load — show a
 // clear loading state (labelled, with a spinner) instead of a blank gap that just vanishes.
 function briefLoadingHTML(){return '<div class="assess"><span class="lbl">Threat assessment</span><div class="adsload" style="padding:2px 0 6px"><span class="spin"></span>Reading the latest capture…</div></div>';}
