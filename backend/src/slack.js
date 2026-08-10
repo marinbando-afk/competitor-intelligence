@@ -7,6 +7,7 @@ import { randomBytes } from 'crypto';
 import { getInsights } from './insights.js';
 import { dailySignals, signalLines, activityLines } from './signals.js';
 import { latestSnapshot } from './snapshots.js';
+import { stripUrlParams } from './adsguard.js';
 import { pool } from './db.js';
 
 // The founder roll-up brief's "view" link must be a REAL read-only share link (opens
@@ -153,7 +154,9 @@ export async function buildDailyBrief(brands, viewUrl, commit) {
     // brief is read the morning after the capture, so "today" must become "yesterday").
     const prevISO = new Date(Date.parse(todayISO + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10);
     const rel = (t) => relativizeDay(t, capDay || prevISO, todayISO);
-    const line = (t) => balanceQuotes(clipSent(rel(String(t || '').replace(/[\n_]+/g, ' ').replace(/\s+/g, ' ').trim()), 240));
+    // stripUrlParams as a delivery-time backstop too: stored reads written before the
+    // scrubber shipped (or any future surface that slips one through) still carry UTMs.
+    const line = (t) => balanceQuotes(clipSent(rel(stripUrlParams(String(t || '').replace(/[\n_]+/g, ' ').replace(/\s+/g, ' ').trim())), 240));
     const A = (s && s.activity) || {};
     const n = (x) => (Array.isArray(x) ? x.length : 0);
     const mark = (isNew) => (isNew ? '❗' : '');

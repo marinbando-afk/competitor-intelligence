@@ -20,7 +20,7 @@ import { offerFlags, offerFacts, bannerFacts, todayLine, isSaleBanner, sameBanne
 import { resolveCapture } from './capture.js';
 import { enforceClaims } from './claims.js';
 import { computeFindings, findingsBlock } from './findings.js';
-import { adsCaptureFacts, adsAbsenceGuard, stripAdTotals } from './adsguard.js';
+import { adsCaptureFacts, adsAbsenceGuard, stripAdTotals, stripUrlParams } from './adsguard.js';
 
 // True when an Anthropic error means the account is out of credit (vs auth/rate/etc).
 function isCreditError(e) { return /credit balance is too low/i.test(String((e && e.message) || e)); }
@@ -525,9 +525,9 @@ function parseOut(txt) {
   }
   if (o && typeof o === 'object') {
     return {
-      summary: stripAdTotals(clip(o.summary, 240)),
-      bullets: Array.isArray(o.bullets) ? o.bullets.map((b) => stripAdTotals(clip(b, 230))).filter(Boolean).slice(0, 5) : [],
-      apply: clip(o.apply, 260),
+      summary: stripUrlParams(stripAdTotals(clip(o.summary, 240))),
+      bullets: Array.isArray(o.bullets) ? o.bullets.map((b) => stripUrlParams(stripAdTotals(clip(b, 230)))).filter(Boolean).slice(0, 5) : [],
+      apply: stripUrlParams(clip(o.apply, 260)),
     };
   }
   // Malformed/truncated JSON (e.g. hit the token limit) — salvage the fields by regex
@@ -541,7 +541,7 @@ function parseOut(txt) {
     if (!bm) bm = raw.match(/"bullets"\s*:\s*\[([\s\S]*)/);
     const bullets = bm ? (bm[1].match(/"((?:[^"\\]|\\.)*)"/g) || []).map((s) => oneLine(s.slice(1, -1).replace(/\\"/g, '"'))).filter(Boolean).slice(0, 5) : [];
     const summary = grab('summary');
-    if (summary || bullets.length) return { summary: clip(summary, 240), bullets: bullets.map((b) => clip(b, 230)), apply: clip(grab('apply'), 260) };
+    if (summary || bullets.length) return { summary: stripUrlParams(clip(summary, 240)), bullets: bullets.map((b) => stripUrlParams(clip(b, 230))), apply: stripUrlParams(clip(grab('apply'), 260)) };
   }
   // Genuinely plain text — use it as the summary.
   return { summary: clip(raw, 240), bullets: [], apply: '' };

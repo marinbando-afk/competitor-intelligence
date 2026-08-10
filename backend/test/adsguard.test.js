@@ -6,7 +6,7 @@
 // saw the SAMPLE WARNING, the ALREADY-SEEN list or the ABSENCE RULE — while the code read as
 // if it worked. These fixtures pin the now-shared facts + guard (src/adsguard.js) so that
 // failure mode cannot come back silently. Run: node test/adsguard.test.js
-import { adsCaptureFacts, adsAbsenceGuard, stripAdTotals } from '../src/adsguard.js';
+import { adsCaptureFacts, adsAbsenceGuard, stripAdTotals, stripUrlParams } from '../src/adsguard.js';
 
 let pass = 0, fail = 0;
 function check(name, cond, extra) {
@@ -81,6 +81,16 @@ console.log('\nAD-TOTAL BACKSTOP — counts of an incomplete sample never ship:'
 check('"10 of 19 ads" softened', stripAdTotals('Testing hooks in 10 of 19 ads.') === 'Testing hooks in many of their ads.');
 check('"19 active ads" softened', stripAdTotals('They run 19 active ads on Meta.') === 'They run their ads on Meta.');
 check('deltas the founder allows stay intact', stripAdTotals('3 new ads launched this week.') === '3 new ads launched this week.');
+
+console.log('\nURL-PARAM BACKSTOP — anything after "?" is tracking noise (founder, 10 Aug):');
+check('Seranova UTM tail cut at the "?"',
+  stripUrlParams('lands on https://quiz.seranova.com/misw-offer?tw_source=a&lptoken=1738 instead.')
+  === 'lands on https://quiz.seranova.com/misw-offer instead.');
+check('bare-domain URL with params cleaned',
+  stripUrlParams('runs to try-derm.com/offer?utm_campaign=x today') === 'runs to try-derm.com/offer today');
+check('genuine question mark after a domain survives',
+  stripUrlParams('Are they still on seranova.com? Yes.') === 'Are they still on seranova.com? Yes.');
+check('prose questions untouched', stripUrlParams('What changed? Nothing.') === 'What changed? Nothing.');
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

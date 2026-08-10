@@ -40,6 +40,16 @@ export function stripAdTotals(s) {
     .replace(/\bin\s+today['’]s\s+capture\b/gi, 'captured today');
 }
 
+// Anything after "?" in a URL is tracking noise (founder, 10 Aug: "anything after the
+// question mark is UTM tag that should not be reported, to keep the URL link short and
+// readable"). Deterministic — applied to every report field, so a UTM can never ship no
+// matter what the model writes. Requires ≥1 char after the "?" so a genuine question
+// mark ending a sentence right after a domain survives.
+export function stripUrlParams(s) {
+  if (!s) return s;
+  return String(s).replace(/\b((?:https?:\/\/)?[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[^\s?"'<>)\]]*)?)\?[^\s"'<>)\]]+/gi, '$1');
+}
+
 // One object of capture-health facts from the recent ads snapshot rows (newest first).
 // Feeds BOTH the prompt guard (adsAbsenceGuard) and the claim-gate facts in generateInsights.
 export function adsCaptureFacts(rows, capN) {
