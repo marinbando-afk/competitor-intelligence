@@ -4,13 +4,13 @@
 <meta charset="utf-8"/>
 <meta name="facebook-domain-verification" content="s4bchjiwbg00g4eufhnkmc2vfv3res" />
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Case study — Building WatchBack, the autonomous competitor-intelligence analyst</title>
-<meta name="description" content="How WatchBack was designed, engineered and shipped: an autonomous analyst that watches every competitor's ads, social, email and storefront daily — and turns it into the counter-move. With real product screenshots."/>
+<title>Case study — WatchBack, the autonomous competitor-intelligence analyst</title>
+<meta name="description" content="The autonomous analyst that watches every competitor's ads, prices, emails and socials daily — shown in motion, on real brands. 30-day free trial."/>
 <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png"/>
 <meta property="og:type" content="article"/>
-<meta property="og:title" content="Case study — Building WatchBack"/>
-<meta property="og:description" content="Four channels. Every rival. Every morning. How the autonomous competitor-intelligence analyst was built — with the product in motion."/>
+<meta property="og:title" content="Case study — WatchBack in motion"/>
+<meta property="og:description" content="Four channels. Every rival. Every morning. Real captures of the live product."/>
 <meta property="og:image" content="https://watchback.ai/og.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -51,45 +51,31 @@ a{color:inherit; text-decoration:none}
 .brand b{font-family:var(--disp); font-weight:600; font-size:18px; letter-spacing:.01em; color:#e7edef}
 .nav .btn{padding:9px 16px}
 
-/* hero */
-.hero{padding:84px 0 30px; text-align:center}
+.hero{padding:70px 0 20px; text-align:center}
 .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--faint)}
 h1{font-family:var(--disp); font-weight:600; font-size:clamp(40px,6.8vw,74px); line-height:1.03; letter-spacing:-.01em; color:#eef3f4; margin:20px auto 0; max-width:18ch}
 h1 .hl{color:var(--sage)}
-.lede{font-size:clamp(16px,2.1vw,19px); color:var(--muted); max-width:58ch; margin:22px auto 0}
+.lede{font-size:clamp(16px,2.1vw,19px); color:var(--muted); max-width:52ch; margin:20px auto 0}
 .lede b{color:var(--text); font-weight:600}
-.hero .cta-row{display:flex; gap:13px; justify-content:center; flex-wrap:wrap; margin-top:32px}
+.cta-row{display:flex; gap:13px; justify-content:center; flex-wrap:wrap; margin-top:30px}
+.hero-note{margin-top:14px; font-family:var(--mono); font-size:11px; letter-spacing:.05em; color:var(--faint)}
+.statband{margin-top:26px; display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap; font-family:var(--mono); font-size:11.5px; letter-spacing:.04em; color:var(--muted)}
+.statband b{color:var(--sage); font-weight:700}
+.st-sep{color:var(--faint)}
+.st-dot{width:5px; height:5px; border-radius:50%; background:var(--quiet); box-shadow:0 0 6px var(--quiet); display:inline-block; margin-right:6px; animation:dotpulse 1.2s ease-in-out infinite}
+@keyframes dotpulse{0%,100%{opacity:1} 50%{opacity:.3}}
+@media(prefers-reduced-motion:reduce){.st-dot{animation:none}}
 
-/* numbered section frame */
-section{padding:70px 0; position:relative}
-.sec-no{font-family:var(--disp); font-weight:700; font-size:15px; color:var(--sage); letter-spacing:.06em}
-.sec-no::after{content:''; display:inline-block; width:44px; height:2px; background:var(--sage); vertical-align:middle; margin-left:14px; box-shadow:0 0 12px var(--sage)}
-.sec-title{font-family:var(--disp); font-weight:600; font-size:clamp(30px,4.4vw,46px); line-height:1.08; color:#eaf0f1; margin:14px 0 0}
-.sec-sub{color:var(--muted); font-size:16px; margin:14px 0 0; max-width:62ch}
-.sec-sub b{color:var(--text)}
-
-/* the brief */
-.brief{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:40px}
-.bcard{border:1px solid var(--line2); border-radius:12px; background:var(--panel); padding:26px 24px}
-.bcard .bh{font-family:var(--mono); font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; margin-bottom:12px}
-.bcard.prob .bh{color:var(--clay)}
-.bcard.sol .bh{color:var(--sage)}
-.bcard.stat .bh{color:var(--quiet)}
-.bcard p{font-size:14.5px; color:var(--muted); margin:0; line-height:1.65}
-.bcard p b{color:var(--text)}
-
-/* platform surfaces */
-.surface{display:grid; grid-template-columns:5fr 7fr; gap:36px; align-items:center; margin-top:64px}
+section{padding:44px 0; position:relative}
+.surface{display:grid; grid-template-columns:5fr 7fr; gap:36px; align-items:center; margin-top:44px}
 .surface.flip{grid-template-columns:7fr 5fr}
 .surface.flip .s-txt{order:2}
 .surface.flip .s-vis{order:1}
 .s-code{font-family:var(--mono); font-size:10.5px; letter-spacing:.2em; color:var(--sage); border:1px solid var(--sage-d); border-radius:3px; padding:3px 9px; display:inline-block}
 .s-txt h3{font-family:var(--disp); font-weight:600; font-size:clamp(22px,3vw,30px); color:#e9eff0; margin:14px 0 10px; line-height:1.12}
-.s-txt p{font-size:14.8px; color:var(--muted); margin:0 0 12px; line-height:1.65}
+.s-txt p{font-size:15px; color:var(--muted); margin:0; line-height:1.65}
 .s-txt p b{color:var(--text)}
-.s-use{border-left:2px solid var(--sage-d); padding:10px 16px; background:var(--sage-soft); border-radius:0 8px 8px 0; font-size:13.5px; color:var(--text); font-style:italic}
 
-/* screenshot frames — the "in motion" bits */
 .frame{border:1px solid var(--line2); border-radius:12px; background:var(--panel2); overflow:hidden; box-shadow:0 30px 80px -40px rgba(0,0,0,.85), 0 0 0 1px rgba(87,210,207,.05)}
 .frame-bar{display:flex; align-items:center; gap:6px; padding:10px 14px; border-bottom:1px solid var(--line); background:var(--panel)}
 .frame-bar i{width:9px; height:9px; border-radius:50%; background:var(--raised); border:1px solid var(--line2)}
@@ -97,10 +83,8 @@ section{padding:70px 0; position:relative}
 .frame-bar .fb-url{margin-left:10px; font-family:var(--mono); font-size:10px; color:var(--faint); letter-spacing:.05em}
 .frame-view{position:relative; overflow:hidden}
 .frame-view img{display:block; width:100%; height:auto}
-/* slow drift for single-screen shots */
 .drift img{animation:drift 14s ease-in-out infinite alternate; transform-origin:50% 30%}
 @keyframes drift{from{transform:scale(1)} to{transform:scale(1.06) translateY(-1.5%)}}
-/* auto-pan for the tall full-dossier capture */
 .pan .frame-view{height:460px}
 .pan img{animation:pan 22s ease-in-out infinite alternate}
 @keyframes pan{0%,6%{transform:translateY(0)} 94%,100%{transform:translateY(calc(-100% + 460px))}}
@@ -109,7 +93,6 @@ section{padding:70px 0; position:relative}
 .cap .c2{font-family:var(--mono); font-size:10px; letter-spacing:.14em; color:var(--faint); white-space:nowrap; align-self:center}
 @media(prefers-reduced-motion:reduce){.drift img,.pan img{animation:none}}
 
-/* slack message recreation — real brief text, Slack dark-theme styling */
 .slackmsg{background:#1a1d21; padding:18px 18px 16px; font-size:13.5px; line-height:1.55; color:#d1d2d3}
 .sm-row{display:flex; gap:12px; align-items:flex-start}
 .sm-avatar{flex:none; width:38px; height:38px; border-radius:8px; background:#2a2d31; display:flex; align-items:center; justify-content:center; font-size:19px}
@@ -126,20 +109,11 @@ section{padding:70px 0; position:relative}
 .sm-link{color:#1d9bd1}
 @media(max-width:520px){.slackmsg{font-size:12.5px}}
 
-/* live badge */
+.midcta{text-align:center; padding:34px 0 6px}
 .livebadge{display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--clay); border:1px solid rgba(226,85,79,.4); padding:5px 13px; border-radius:3px; background:rgba(226,85,79,.07)}
 .livebadge .dot{width:6px; height:6px; border-radius:50%; background:var(--clay); box-shadow:0 0 8px var(--clay); animation:dotpulse 1.2s ease-in-out infinite}
-@keyframes dotpulse{0%,100%{opacity:1} 50%{opacity:.3}}
 @media(prefers-reduced-motion:reduce){.livebadge .dot{animation:none}}
 
-/* proof */
-.proof{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:40px}
-.pstat{border:1px solid var(--line2); border-radius:12px; background:linear-gradient(180deg,var(--panel2),var(--panel)); padding:26px 22px; text-align:center}
-.pstat .pn{font-family:var(--disp); font-weight:700; font-size:clamp(28px,3.6vw,40px); color:var(--sage); line-height:1}
-.pstat .pl{font-size:12.5px; color:var(--faint); margin-top:9px; font-family:var(--mono); letter-spacing:.03em}
-.proof-note{margin-top:16px; text-align:center; font-family:var(--mono); font-size:10.5px; letter-spacing:.05em; color:var(--faint)}
-
-/* pitch */
 .close{margin:10px auto 0; max-width:860px; border:1px solid var(--line2); border-radius:14px; background:linear-gradient(180deg,rgba(87,210,207,.06),var(--panel)); padding:56px 30px; text-align:center}
 .close h2{font-family:var(--disp); font-weight:600; font-size:clamp(28px,4.4vw,44px); color:#eef3f4; margin:0 0 10px; line-height:1.08}
 .close p{color:var(--muted); margin:0 auto 26px; max-width:48ch}
@@ -152,13 +126,11 @@ html.js .reveal{opacity:0; transform:translateY(14px); transition:opacity .7s ea
 html.js .reveal.in{opacity:1; transform:none}
 
 @media(max-width:860px){
-  .brief,.proof{grid-template-columns:1fr 1fr}
   .surface,.surface.flip{grid-template-columns:1fr}
   .surface.flip .s-txt{order:1}
   .surface.flip .s-vis{order:2}
-  section{padding:52px 0}
+  section{padding:34px 0}
 }
-@media(max-width:520px){.brief,.proof{grid-template-columns:1fr}}
 @media(max-width:560px){.nav .btn-ghost{display:none}}
 </style>
 <!-- Meta Pixel -->
@@ -191,56 +163,37 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
 </nav>
 
 <header class="hero wrap">
-  <div class="kicker">Case study · designed, engineered &amp; shipped by one founder</div>
+  <div class="kicker">Built by a media buyer who watched 200+ brands find out three weeks late</div>
   <h1>Four channels. Every rival. <span class="hl">Every morning.</span></h1>
-  <p class="lede">How WatchBack went from a media buyer's frustration to an <b>autonomous competitor-intelligence analyst</b> — capturing every rival's ads, social, email and storefront daily, and turning it into <b>the exact counter-move</b>. The product below is live; every screenshot is the real thing.</p>
+  <p class="lede">Every screenshot below is the <b>live product</b> reading real brands — this morning.</p>
   <div class="cta-row">
     <a class="btn btn-primary" href="app.html" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
     <a class="btn btn-ghost" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}">Book a 30-min call</a>
   </div>
-  <div style="margin-top:15px; font-family:var(--mono); font-size:11px; letter-spacing:.05em; color:var(--faint)">$0 today · card required · cancel anytime · or <a href="app.html?c=theoodie.com" style="color:var(--sage); border-bottom:1px dotted var(--sage-d)">open the live demo first ↗</a></div>
+  <div class="hero-note">$0 today · card required · cancel anytime</div>
+  <div class="statband" id="statband" style="display:none">
+    <span><b id="pr-signals">0</b> signals intercepted</span>
+    <span class="st-sep">·</span>
+    <span><b id="pr-ads">0</b> ads decoded</span>
+    <span class="st-sep">·</span>
+    <span><b id="pr-caps">0</b> daily captures</span>
+    <span><span class="st-dot"></span>live from the system</span>
+  </div>
 </header>
 
-<!-- 01 THE BRIEF -->
-<section id="brief" class="wrap">
-  <div class="sec-no">01</div>
-  <h2 class="sec-title">The brief</h2>
-  <p class="sec-sub">Years buying media for 200+ eCommerce brands — $100M+ in spend — and the same failure on repeat: the competitor's move always surfaced <b>weeks after it started working</b>.</p>
-  <div class="brief">
-    <div class="bcard prob reveal">
-      <div class="bh">The problem</div>
-      <p>A rival launches a new funnel and cuts prices on Monday. Your ROAS slips by Thursday. Nobody connects the two until someone opens their ad library — <b>three weeks and a lot of ad spend later</b>. Competitor watching was open tabs, screenshots and luck.</p>
-    </div>
-    <div class="bcard sol reveal">
-      <div class="bh">The build</div>
-      <p>An analyst that never sleeps: <b>capture every channel daily</b>, diff it against yesterday, decode what changed and why it's working, then write the counter-move for <b>your</b> catalogue and price points. Grounded in captured evidence — never a model's guess.</p>
-    </div>
-    <div class="bcard stat reveal">
-      <div class="bh">Status</div>
-      <p><b>Live, in production, watching real brands daily.</b> Private beta with founding customers onboarding in batches. Three public demo dossiers run on real household-name brands so anyone can inspect the output before asking for access.</p>
-    </div>
-  </div>
-</section>
-
-<!-- 02 THE PLATFORM -->
 <section id="platform" class="wrap">
-  <div class="sec-no">02</div>
-  <h2 class="sec-title">The platform — in motion</h2>
-  <p class="sec-sub">Not mockups: these are live captures of the production app watching real brands. <b>Open any of them yourself</b> — the demo dossiers are public.</p>
 
   <div class="surface reveal">
     <div class="s-txt">
       <span class="s-code">WB·01</span>
-      <h3>The dossier — threat assessment first</h3>
-      <p>Every competitor gets a subject file that opens with the three things that actually matter today, then a recommended counter-op, then the four intercepted channels underneath.</p>
-      <p><b>What it solves:</b> the fourteen-tab morning ritual. Ninety seconds, fully briefed — and a channel that captured nothing says so, instead of padding itself with filler.</p>
-      <div class="s-use">This capture, this morning: "Afterpay Day sale went live today — storefront banner, 41 new Meta ads and a dedicated email all push 30% off." That's a real read of a real brand.</div>
+      <h3>The threat assessment — read for you, daily</h3>
+      <p>Opens with the three things that matter today, then the counter-move. This capture: <b>"Afterpay Day sale went live today — 41 new Meta ads and a dedicated email all push 30% off."</b> Ninety seconds, fully briefed.</p>
     </div>
     <div class="s-vis">
       <div class="frame drift">
         <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — subject file</span></div>
-        <div class="frame-view"><img src="case/01-dossier-overview.jpg" alt="WatchBack dossier for The Oodie: threat assessment, recommended counter-op and four channels of intercepted signals" loading="lazy"/></div>
-        <div class="cap"><span class="c1">Subject file · The Oodie — threat assessment &amp; counter-op</span><span class="c2">WB·01</span></div>
+        <div class="frame-view"><img src="case/01-dossier-overview.jpg" alt="WatchBack dossier for The Oodie: threat assessment and four channels" loading="lazy"/></div>
+        <div class="cap"><span class="c1">Subject file · The Oodie — captured this morning</span><span class="c2">WB·01</span></div>
       </div>
     </div>
   </div>
@@ -248,33 +201,33 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
   <div class="surface flip reveal">
     <div class="s-txt">
       <span class="s-code">WB·02</span>
-      <h3>Every ad decoded — hooks named, angles read</h3>
-      <p>Pulled daily from the public ad library: new launches flagged, variant tests counted, video scripts transcribed, and each creative's hook and angle named — <b>flash-sale urgency, nostalgia brand collab, meme humour</b> — not just thumbnails in a grid.</p>
-      <p><b>What it solves:</b> knowing a rival "runs ads" versus knowing <b>which angle they just started scaling</b>.</p>
-      <div class="s-use">41 new ads launched overnight, 10 variant tests running — and the AI read tells you the dominant launch and where it's driving traffic.</div>
+      <h3>Every ad decoded</h3>
+      <p><b>41 new ads flagged overnight</b> — video scripts transcribed, hooks named, variant tests counted. Not thumbnails in a grid: you know <b>which angle they just started scaling</b>.</p>
     </div>
     <div class="s-vis">
       <div class="frame drift">
         <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — ads channel</span></div>
-        <div class="frame-view"><img src="case/02-ads.jpg" alt="WatchBack ads channel: 41 new ads decoded with hooks and angles named, variant tests counted" loading="lazy"/></div>
-        <div class="cap"><span class="c1">Ads channel · 41 new launches decoded, 10 variant tests flagged</span><span class="c2">WB·02</span></div>
+        <div class="frame-view"><img src="case/02-ads.jpg" alt="WatchBack ads channel: 41 new ads decoded, hooks named" loading="lazy"/></div>
+        <div class="cap"><span class="c1">41 new launches decoded · 10 variant tests flagged</span><span class="c2">WB·02</span></div>
       </div>
     </div>
+  </div>
+
+  <div class="midcta">
+    <a class="btn btn-primary" href="app.html" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','StartTrial')}catch(e){}">Get this on your competitors — free for 30 days</a>
   </div>
 
   <div class="surface reveal">
     <div class="s-txt">
       <span class="s-code">WB·03</span>
-      <h3>Storefront — prices to the cent, with receipts</h3>
-      <p>The full catalogue captured daily: price moves, sales starting and ending, new products, pulled colourways — with a <b>draggable before/after screenshot</b> of the storefront, dated to the day.</p>
-      <p><b>What it solves:</b> "when did they actually start that sale?" You'll have the date, the exact prices, and the screenshot.</p>
-      <div class="s-use">"Tile 139 → 97.3, +40 more price changes, 5 new products listed" — evidence you can drop straight into a deck.</div>
+      <h3>Prices to the cent, with receipts</h3>
+      <p><b>44 price changes itemised</b> and a draggable before/after screenshot, dated to the day. "When did they start that sale?" is never a guess again.</p>
     </div>
     <div class="s-vis">
       <div class="frame drift">
         <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — storefront intercept</span></div>
-        <div class="frame-view"><img src="case/02-website.jpg" alt="WatchBack storefront channel: before/after storefront comparison and itemised price changes" loading="lazy"/></div>
-        <div class="cap"><span class="c1">Storefront channel · before/after capture + 44 price changes itemised</span><span class="c2">WB·03</span></div>
+        <div class="frame-view"><img src="case/02-website.jpg" alt="WatchBack storefront channel: before/after comparison and price changes" loading="lazy"/></div>
+        <div class="cap"><span class="c1">Before/after capture + 44 price changes itemised</span><span class="c2">WB·03</span></div>
       </div>
     </div>
   </div>
@@ -282,77 +235,8 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
   <div class="surface flip reveal">
     <div class="s-txt">
       <span class="s-code">WB·04</span>
-      <h3>Their email programme, read for you</h3>
-      <p>A seeded inbox catches every campaign they send: offers, cadence, discount codes, the creatives themselves — and the AI notices patterns, like a licensed-collab angle appearing in a subject line.</p>
-      <p><b>What it solves:</b> subscribing to ten rival newsletters and reading none of them.</p>
-      <div class="s-use">"Cadence runs ~2.8 emails/week; offers rotate across 30% off, 15% off, BOGO and clearance." You know their promo calendar better than their interns do.</div>
-    </div>
-    <div class="s-vis">
-      <div class="frame drift">
-        <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — email channel</span></div>
-        <div class="frame-view"><img src="case/02-email.jpg" alt="WatchBack email channel: captured campaigns with offers, cadence analysis and creatives" loading="lazy"/></div>
-        <div class="cap"><span class="c1">Email channel · 16 campaigns captured, cadence &amp; offer rotation read</span><span class="c2">WB·04</span></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="surface reveal">
-    <div class="s-txt">
-      <span class="s-code">WB·05</span>
-      <h3>Organic social — what's actually landing</h3>
-      <p>Instagram, TikTok and Facebook captured with real engagement numbers, so the AI can tell you which formats work — and what the content spine of their whole strategy is.</p>
-      <p><b>What it solves:</b> scrolling three feeds hoping to notice a pattern. The pattern is handed to you.</p>
-      <div class="s-use">"Licensed characters are their clear content spine" — one line that reframes who you're actually competing with.</div>
-    </div>
-    <div class="s-vis">
-      <div class="frame drift">
-        <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — organic social</span></div>
-        <div class="frame-view"><img src="case/02-social.jpg" alt="WatchBack organic social channel: posts across Instagram, TikTok and Facebook with real engagement" loading="lazy"/></div>
-        <div class="cap"><span class="c1">Organic social · IG, TikTok &amp; Facebook with real engagement</span><span class="c2">WB·05</span></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="surface flip reveal">
-    <div class="s-txt">
-      <span class="s-code">WB·06</span>
-      <h3>The full sweep — every channel, one scroll</h3>
-      <p>Ads, organic social, email and storefront read <b>side by side</b> — because a price cut plus an urgency email plus a new ad push is <b>one coordinated move</b>, not three coincidences. You only see that when the channels sit in one file.</p>
-      <div class="s-use">The panel here is the real dossier auto-scrolling, top to bottom — exactly what a founding customer sees every morning.</div>
-    </div>
-    <div class="s-vis">
-      <div class="frame pan">
-        <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — full dossier</span></div>
-        <div class="frame-view"><img src="case/03-dossier-full.jpg" alt="Full WatchBack dossier scrolling through threat assessment and all four channels" loading="lazy"/></div>
-        <div class="cap"><span class="c1">The whole battlefield in one file — auto-scrolling capture</span><span class="c2">WB·06 · live</span></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="surface reveal">
-    <div class="s-txt">
-      <span class="s-code">WB·07</span>
-      <h3>Any market, any brand</h3>
-      <p>Point it at a rival and the machine does the rest — capture, diff, decode, brief. A different vertical needs zero extra configuration, and creative gets decoded in any language.</p>
-      <p><b>What it solves:</b> coverage that depends on someone remembering to check. It never forgets, never gets bored, never skips a day.</p>
-      <div class="s-use">Liquid Death's file, captured the same morning: a 1.88M-view MrBeast collab flagged at the top — and when the system needs one click from you, it says exactly that.</div>
-    </div>
-    <div class="s-vis">
-      <div class="frame drift">
-        <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — subject file</span></div>
-        <div class="frame-view"><img src="case/04-dossier-liquiddeath.jpg" alt="WatchBack dossier for Liquid Death: threat assessment led by a 1.88M-view collab reel" loading="lazy"/></div>
-        <div class="cap"><span class="c1">Subject file · Liquid Death — same machine, different market</span><span class="c2">WB·07</span></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="surface flip reveal">
-    <div class="s-txt">
-      <span class="s-code">WB·08</span>
-      <h3>The daily brief — delivered in Slack</h3>
-      <p>Every morning, one message per competitor: what actually happened, in plain lines. You know in <b>ten seconds</b> whether anything deserves your attention — no logging in to find out nothing changed.</p>
-      <p><b>What it solves:</b> another dashboard you have to remember to open. This one comes to you.</p>
-      <div class="s-use">A real morning brief: it read a rotating-pretext discount pattern across a competitor's ads and called their "sale" what it is — the real price.</div>
+      <h3>The brief comes to you — in Slack</h3>
+      <p>One message every morning. This real brief caught a fake-sale pattern: <b>"unchanged since 15 Jul — looks like their real price."</b> Ten seconds and you know if anything needs you.</p>
     </div>
     <div class="s-vis">
       <div class="frame">
@@ -374,43 +258,41 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
             </div>
           </div>
         </div>
-        <div class="cap"><span class="c1">Daily pulse · one line per channel, straight to your channel</span><span class="c2">WB·08</span></div>
+        <div class="cap"><span class="c1">A real morning brief · one line per channel</span><span class="c2">WB·04</span></div>
       </div>
     </div>
   </div>
 
-  <div style="text-align:center; margin-top:54px">
-    <span class="livebadge"><span class="dot"></span>These dossiers are public — inspect them live</span>
-    <div class="cta-row" style="display:flex; gap:13px; justify-content:center; flex-wrap:wrap; margin-top:20px">
-      <a class="btn btn-primary" href="app.html?c=theoodie.com">The Oodie ↗</a>
+  <div class="surface reveal">
+    <div class="s-txt">
+      <span class="s-code">WB·05</span>
+      <h3>The full sweep — one scroll</h3>
+      <p>Ads, social, email and storefront <b>side by side</b> — a price cut plus an urgency email plus a new ad push is one coordinated move, and you see it as one. This is the real dossier, auto-scrolling.</p>
+    </div>
+    <div class="s-vis">
+      <div class="frame pan">
+        <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — full dossier</span></div>
+        <div class="frame-view"><img src="case/03-dossier-full.jpg" alt="Full WatchBack dossier auto-scrolling through all four channels" loading="lazy"/></div>
+        <div class="cap"><span class="c1">The whole battlefield in one file</span><span class="c2">WB·05 · live</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center; margin-top:50px">
+    <span class="livebadge"><span class="dot"></span>Don't take our word — the dossiers are public</span>
+    <div class="cta-row" style="margin-top:18px">
+      <a class="btn btn-ghost" href="app.html?c=theoodie.com">The Oodie ↗</a>
       <a class="btn btn-ghost" href="app.html?c=liquiddeath.com">Liquid Death ↗</a>
       <a class="btn btn-ghost" href="app.html?c=smooche.com">Smooche ↗</a>
     </div>
   </div>
 </section>
 
-<!-- 03 THE PROOF -->
-<section id="proof" class="wrap">
-  <div class="sec-no">03</div>
-  <h2 class="sec-title">The proof</h2>
-  <p class="sec-sub">Live counts from the production capture database — the same numbers the system reports right now. If the API is unreachable, this section shows nothing rather than a made-up figure.</p>
-  <div class="proof" id="proofGrid" style="display:none">
-    <div class="pstat reveal"><div class="pn" id="pr-signals">0</div><div class="pl">competitor signals intercepted</div></div>
-    <div class="pstat reveal"><div class="pn" id="pr-ads">0</div><div class="pl">ads decoded</div></div>
-    <div class="pstat reveal"><div class="pn" id="pr-caps">0</div><div class="pl">daily captures run</div></div>
-    <div class="pstat reveal"><div class="pn" id="pr-emails">0</div><div class="pl">rival emails captured</div></div>
-  </div>
-  <div class="proof-note" id="proofNote" style="display:none">Live from the system · nothing simulated</div>
-</section>
-
-<!-- 04 THE PITCH -->
 <section id="pitch" class="wrap">
-  <div class="sec-no">04</div>
-  <h2 class="sec-title">The pitch</h2>
-  <div class="close reveal" style="margin-top:40px">
+  <div class="close reveal">
     <span class="lbl" style="color:var(--clay)">They're watching you, too</span>
     <h2>Get this running on your competitors.</h2>
-    <p>Start the 30-day free trial — $0 today, card required, cancel anytime. Your first dossier lands within 24 hours. Prefer to talk first? Grab 30 minutes with the founder.</p>
+    <p>$0 today, card required, cancel anytime. First dossier within 24 hours.</p>
     <div style="display:flex; gap:13px; justify-content:center; flex-wrap:wrap">
       <a class="btn btn-primary" href="app.html" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
       <a class="btn btn-ghost" href="https://cal.com/marin-bando/30min" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','Schedule')}catch(e){}">Book a 30-min call</a>
@@ -429,16 +311,15 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
 </footer>
 
 <script>
-// Live proof stats — same source and same honesty rule as the homepage band.
+// Live proof stats in the hero — same honesty rule as the homepage: real numbers or nothing.
 (function(){
   if(!window.fetch) return;
   fetch('https://competitor-intelligence-production-2629.up.railway.app/api/stats')
     .then(function(r){ return r.json(); })
     .then(function(s){
       if(!s || !s.available || !s.signals) return;
-      document.getElementById('proofGrid').style.display = 'grid';
-      document.getElementById('proofNote').style.display = 'block';
-      [['pr-signals', s.signals], ['pr-ads', s.adsDecoded], ['pr-caps', s.capturesRun], ['pr-emails', s.emailsCaptured]].forEach(function(pair){
+      document.getElementById('statband').style.display = 'flex';
+      [['pr-signals', s.signals], ['pr-ads', s.adsDecoded], ['pr-caps', s.capturesRun]].forEach(function(pair){
         var el = document.getElementById(pair[0]), target = pair[1] || 0, t0 = null;
         function step(ts){
           if(!t0) t0 = ts;
