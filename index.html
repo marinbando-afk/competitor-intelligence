@@ -287,6 +287,7 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
       <a href="#how">How it works</a>
       <a href="#stack">What you get</a>
       <a href="#faq">FAQ</a>
+      <a href="case-study.html">Case study</a>
       <a href="blog.html">Blog</a>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
@@ -721,6 +722,7 @@ function joinList(e){
 // ── Live proof band: REAL counts from the capture database. If the API is
 //    unreachable the band simply stays hidden — never a fabricated number.
 (function(){
+  if(!window.fetch) return;
   fetch(API + '/api/stats').then(function(r){ return r.json(); }).then(function(s){
     if(!s || !s.available || !s.signals) return;
     var band = document.getElementById('statband');
@@ -746,15 +748,27 @@ document.querySelectorAll('a[href^="#"]').forEach(function(a){
   });
 });
 
-// reveal on scroll
-if('IntersectionObserver' in window){
-  var io = new IntersectionObserver(function(es){
-    es.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
-  }, {threshold:.12, rootMargin:'0px 0px -8% 0px'});
-  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
-} else {
-  document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); });
-}
+// reveal on scroll — fail-safe sweep: anything whose top has entered (or passed) the
+// viewport gets revealed, so fast scrolls, anchor jumps and quirky in-app browsers
+// can never leave a section permanently blank the way an IntersectionObserver miss can.
+(function(){
+  var pending = [].slice.call(document.querySelectorAll('.reveal'));
+  var timer = setInterval(sweep, 400); // catch-all for missed events, throttled/prerendered tabs
+  function sweep(){
+    if(!pending.length){ clearInterval(timer); return; }
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    if(!vh) return; // hidden/prerendered — try again when the page is actually visible
+    var limit = vh - 40;
+    pending = pending.filter(function(el){
+      if(el.getBoundingClientRect().top < limit){ el.classList.add('in'); return false; }
+      return true;
+    });
+  }
+  window.addEventListener('scroll', sweep, {passive:true});
+  window.addEventListener('resize', sweep);
+  window.addEventListener('load', sweep);
+  sweep();
+})();
 </script>
 </body>
 </html>
