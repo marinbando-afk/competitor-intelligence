@@ -3387,6 +3387,11 @@ else if(TOKEN){loadUserComps();loadBilling();
 }
 DEMOS.forEach(function(c){loadInsights(c);});   // live rail one-liners + instant briefs on the demos
 if(!RO&&!TOKEN&&/[?&]signin=1/.test(location.search))openAuth('signin');  // arriving from the site's "Sign in"
+// Arriving from a "Start free trial" CTA: open signup immediately, and after the account
+// is created go STRAIGHT to Stripe Checkout ($0 today, card starts the 30-day trial).
+// Already-signed-in visitors skip the modal — loadBilling()'s paywall takes over if they
+// still need a plan, and paying users just land in their app.
+if(!RO&&!TOKEN&&/[?&]trial=1/.test(location.search))openAuth('signup',function(){startCheckout();});
 // Deep link from the landing page: app.html?c=theoodie.com opens that dossier directly.
 (function(){try{
   var qc=(new URLSearchParams(location.search).get('c')||'').toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*$/,'').replace(/^www\./,'');
