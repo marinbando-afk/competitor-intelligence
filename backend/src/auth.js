@@ -44,13 +44,24 @@ export async function signup(email, password) {
 
   const hash = await bcrypt.hash(password, 10);
   try {
+    // With billing LIVE, the Stripe card wall is the gate: self-serve accounts activate
+    // immediately (approved, trial_ends_at NULL = locked until a card starts the 30-day
+    // trial at Checkout). While billing is dormant, keep the old private-beta pending
+    // flow — account created, no session until the founder approves it.
+    if (billingEnabled()) {
+      const r = await pool.query(
+        'INSERT INTO users(email, password_hash, approved) VALUES($1, $2, TRUE) RETURNING id, email',
+        [email, hash],
+      );
+      const user = r.rows[0];
+      const dflt = Number(process.env.DEFAULT_MAX_COMPETITORS) || 2;
+      return { token: sign(user), user: { id: user.id, email: user.email, admin: false, maxCompetitors: dflt } };
+    }
     const r = await pool.query(
       'INSERT INTO users(email, password_hash) VALUES($1, $2) RETURNING id, email',
       [email, hash],
     );
     const user = r.rows[0];
-    // Private beta: accounts are created PENDING and activated personally by the
-    // founder (manual billing) — no session until approved.
     return { pending: true, email: user.email };
   } catch (err) {
     if (err.code === '23505') { // unique_violation

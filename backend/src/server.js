@@ -855,10 +855,13 @@ app.post('/api/signup', async (req, res) => {
     const { email, password } = req.body || {};
     const r = await signup(email, password);
     res.json(r);
-    // Ping the founder so pending accounts get approved fast (manual billing model).
+    // Ping the founder: pending accounts need fast approval (dormant-billing model);
+    // self-serve trial signups are FYI — Stripe Checkout is the gate, no action needed.
     if (r && r.pending) {
       postText('👤 *New WatchBack signup awaiting approval:* ' + r.email +
         '\nApprove it: https://watchback.ai/app.html → ⚙ Admin → Signups').catch(() => {});   // (the old message pasted a dead ...key=YOUR_ADMIN_KEY link — audit)
+    } else if (r && r.user) {
+      postText('🎉 *New self-serve signup:* ' + r.user.email + ' — heading to Stripe Checkout now.').catch(() => {});
     }
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
