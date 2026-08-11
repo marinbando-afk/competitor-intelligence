@@ -89,10 +89,18 @@ async function senseCheckUnsupported(body, factsText, label) {
 // back to the computed STATE findings (what the data does support), or to nothing at all.
 // Only STATE facts may surface to a reader — 'limit' and 'context' entries are guidance
 // for the model and must never be shown (DRM LAB's read leaked one verbatim).
-function gated(g, findList) {
+export function gated(g, findList) {
   if (g && g.text) return g.text;
-  const states = (findList || []).filter((f) => f.type === 'state').map((f) => f.text);
-  return states.length ? states.slice(0, 3).join(' ') : '';
+  // FALLBACK PREFERS SUBSTANCE (founder, 11 Aug): when the claim gate strips a model
+  // read, what ships instead must still say what the competitor is DOING — launches,
+  // stale offers, landing health, banner state. The domains/pages inventory lines
+  // ("Every captured ad runs to X") are last-resort filler and must never lead: exactly
+  // that boilerplate shipped as Nolan's whole ads read on 10 Aug. 'new'-typed findings
+  // are eligible too — launches are the story and they are type 'new'.
+  const P = ['ads.launches', 'ads.launch:', 'ads.staleOffer', 'ads.landDown', 'ads.landRedirect', 'web.banner', 'web.change'];
+  const rank = (x) => { const k = String(x.key || ''); const i = P.findIndex((p) => k.startsWith(p)); return i >= 0 ? i : (/^ads\.(domains|pages)$/.test(k) ? 99 : 50); };
+  const el = (findList || []).filter((x) => x.type === 'state' || x.type === 'new').sort((a, b) => rank(a) - rank(b)).map((x) => x.text);
+  return el.length ? el.slice(0, 3).join(' ') : '';
 }
 
 // ── FULL-SECTION GATE (7 Aug) ─────────────────────────────────────────────────
@@ -134,6 +142,13 @@ async function gateSection(section, f, findList, factsText, label) {
     if (Array.isArray(section.bullets)) section.bullets = section.bullets.map((b, i) => det(b, label + '.final.bullet' + i, f).text).filter(Boolean);
   }
   if (!section.summary) section.summary = gated({ text: '' }, findList);
+  // Final scrub on EVERY path out — fallback texts come from findings, not parseOut, so
+  // they'd otherwise skip the count/UTM scrubbers (that's how "All 100 ads in today's
+  // capture" reached the 10 Aug brief).
+  const scrub = (t) => stripUrlParams(stripAdTotals(t));
+  if (section.summary) section.summary = scrub(section.summary);
+  if (Array.isArray(section.bullets)) section.bullets = section.bullets.map(scrub).filter(Boolean);
+  if (section.apply) section.apply = scrub(section.apply);
   if (rules.length) section.blocked = [...new Set(rules)];
   return section;
 }
@@ -682,6 +697,15 @@ export async function generateInsights(brand, host) {
         };
         out.__facts = Object.assign(out.__facts || {}, { adsAbsenceOk: f.canJudgeAbsence, hasEarlier: f.hasEarlier });
         out.ads = await gateSection(out.ads, f, FIND && FIND.ads, adsFacts, brand + '/ads');
+        // GUARANTEED CREATIVE SUBSTANCE (founder, 11 Aug: "make sure you send it the way
+        // you corrected yourself — for all competitors"): a shipped ads read must carry
+        // what the ads SAY. If gating left no quoted hook anywhere in the summary, append
+        // the newest hook from the computed findings — deterministic, model-independent.
+        if (out.ads && out.ads.summary && !/["“”]/.test(out.ads.summary)) {
+          const hf = (FIND && FIND.ads || []).find((x) => x.evidence && x.evidence.hook) || (FIND && FIND.ads || []).find((x) => /opening: "/.test(x.text));
+          const hk = hf && (hf.evidence && hf.evidence.hook || (String(hf.text).match(/opening: "([^"]+)"/) || [])[1]);
+          if (hk) out.ads.summary = (out.ads.summary.replace(/\s+$/, '').replace(/\.?$/, '.') + ' Newest ad opens: "' + hk + '".').slice(0, 300);
+        }
       } catch (e) { /* gate is best-effort — never lose the read */ }
     }
   } catch (e) { noteReadError(host, 'ads', e); console.warn('ads read SKIPPED for ' + host + ' (channel missing from today\'s report):', e.message); }
