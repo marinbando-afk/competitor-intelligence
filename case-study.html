@@ -2,6 +2,7 @@
 <html lang="en" class="nojs">
 <head>
 <meta charset="utf-8"/>
+<meta name="facebook-domain-verification" content="s4bchjiwbg00g4eufhnkmc2vfv3res" />
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Case study — Building WatchBack, the autonomous competitor-intelligence analyst</title>
 <meta name="description" content="How WatchBack was designed, engineered and shipped: an autonomous analyst that watches every competitor's ads, social, email and storefront daily — and turns it into the counter-move. With real product screenshots."/>
@@ -108,6 +109,23 @@ section{padding:70px 0; position:relative}
 .cap .c2{font-family:var(--mono); font-size:10px; letter-spacing:.14em; color:var(--faint); white-space:nowrap; align-self:center}
 @media(prefers-reduced-motion:reduce){.drift img,.pan img{animation:none}}
 
+/* slack message recreation — real brief text, Slack dark-theme styling */
+.slackmsg{background:#1a1d21; padding:18px 18px 16px; font-size:13.5px; line-height:1.55; color:#d1d2d3}
+.sm-row{display:flex; gap:12px; align-items:flex-start}
+.sm-avatar{flex:none; width:38px; height:38px; border-radius:8px; background:#2a2d31; display:flex; align-items:center; justify-content:center; font-size:19px}
+.sm-body{min-width:0}
+.sm-head{color:#fff}
+.sm-head b{font-weight:700}
+.sm-app{font-size:10px; font-weight:700; color:#b6b7b8; background:#35383c; border-radius:3px; padding:1px 4px; vertical-align:1px}
+.sm-time{font-size:11.5px; color:#9a9b9c; margin-left:4px}
+.sm-title{margin-top:2px; color:#e8e8e9}
+.sm-brand{margin-top:12px; color:#e8e8e9}
+.sm-read{font-style:italic; color:#b8b9ba; margin-top:2px}
+.sm-li{margin-top:4px}
+.sm-linkline{margin-top:12px}
+.sm-link{color:#1d9bd1}
+@media(max-width:520px){.slackmsg{font-size:12.5px}}
+
 /* live badge */
 .livebadge{display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--clay); border:1px solid rgba(226,85,79,.4); padding:5px 13px; border-radius:3px; background:rgba(226,85,79,.07)}
 .livebadge .dot{width:6px; height:6px; border-radius:50%; background:var(--clay); box-shadow:0 0 8px var(--clay); animation:dotpulse 1.2s ease-in-out infinite}
@@ -143,6 +161,18 @@ html.js .reveal.in{opacity:1; transform:none}
 @media(max-width:520px){.brief,.proof{grid-template-columns:1fr}}
 @media(max-width:560px){.nav .btn-ghost{display:none}}
 </style>
+<!-- Meta Pixel -->
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init','28423431670573533');fbq('track','PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none" alt=""
+src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/></noscript>
+<!-- End Meta Pixel -->
 </head>
 <body>
 <script>document.documentElement.className='js';</script>
@@ -154,8 +184,8 @@ html.js .reveal.in{opacity:1; transform:none}
       <b>WatchBack</b>
     </a>
     <div style="display:flex;align-items:center;gap:10px">
-      <a class="btn btn-ghost" href="index.html">← Back to site</a>
-      <a class="btn btn-primary" href="index.html#access">Request access</a>
+      <a class="btn btn-ghost" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}">Book a call</a>
+      <a class="btn btn-primary" href="app.html" onclick="try{fbq('track','StartTrial')}catch(e){}">Start free trial</a>
     </div>
   </div>
 </nav>
@@ -165,9 +195,10 @@ html.js .reveal.in{opacity:1; transform:none}
   <h1>Four channels. Every rival. <span class="hl">Every morning.</span></h1>
   <p class="lede">How WatchBack went from a media buyer's frustration to an <b>autonomous competitor-intelligence analyst</b> — capturing every rival's ads, social, email and storefront daily, and turning it into <b>the exact counter-move</b>. The product below is live; every screenshot is the real thing.</p>
   <div class="cta-row">
-    <a class="btn btn-primary" href="app.html?c=theoodie.com">Open the live product ↗</a>
-    <a class="btn btn-ghost" href="#brief">Read the case study</a>
+    <a class="btn btn-primary" href="app.html" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
+    <a class="btn btn-ghost" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}">Book a 30-min call</a>
   </div>
+  <div style="margin-top:15px; font-family:var(--mono); font-size:11px; letter-spacing:.05em; color:var(--faint)">$0 today · card required · cancel anytime · or <a href="app.html?c=theoodie.com" style="color:var(--sage); border-bottom:1px dotted var(--sage-d)">open the live demo first ↗</a></div>
 </header>
 
 <!-- 01 THE BRIEF -->
@@ -315,6 +346,39 @@ html.js .reveal.in{opacity:1; transform:none}
     </div>
   </div>
 
+  <div class="surface flip reveal">
+    <div class="s-txt">
+      <span class="s-code">WB·08</span>
+      <h3>The daily brief — delivered in Slack</h3>
+      <p>Every morning, one message per competitor: what actually happened, in plain lines. You know in <b>ten seconds</b> whether anything deserves your attention — no logging in to find out nothing changed.</p>
+      <p><b>What it solves:</b> another dashboard you have to remember to open. This one comes to you.</p>
+      <div class="s-use">A real morning brief: it read a rotating-pretext discount pattern across a competitor's ads and called their "sale" what it is — the real price.</div>
+    </div>
+    <div class="s-vis">
+      <div class="frame">
+        <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">Slack — daily pulse</span></div>
+        <div class="slackmsg">
+          <div class="sm-row">
+            <div class="sm-avatar">🛰️</div>
+            <div class="sm-body">
+              <div class="sm-head"><b>incoming-webhook</b> <span class="sm-app">APP</span> <span class="sm-time">8:00 AM</span></div>
+              <div class="sm-title">🛰️ <b>WatchBack daily</b> · Fri, 31 Jul</div>
+              <div class="sm-brand"><b>The Tallowed Truth</b> 🔷 routine activity</div>
+              <div class="sm-read">Three new whitelisted Facebook pages launched today, shifting dark-post reach from one page to at least four overnight.</div>
+              <div class="sm-li">• Website change — 1 product removed: “F-Balm Whipped Body Butter”</div>
+              <div class="sm-brand"><b>Froya</b> 🔷 routine activity</div>
+              <div class="sm-read">'Up to 40% off' milestone sale live on the website, unchanged since 15 Jul — looks like their real price given rotating-pretext discounting seen across their ads.</div>
+              <div class="sm-li">• New email — “Your scalp needs some love too ;)”</div>
+              <div class="sm-li">• 2 new Instagram posts, latest: “Bold headline 'JUST EAT THIS FOR 1 WEEK AND SEE THE DIFFERENCE' over woman in kitchen” — <span class="sm-link">view ↗</span></div>
+              <div class="sm-li sm-linkline">🔗 <span class="sm-link">View the full dashboard &amp; signals →</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="cap"><span class="c1">Daily pulse · one line per channel, straight to your channel</span><span class="c2">WB·08</span></div>
+      </div>
+    </div>
+  </div>
+
   <div style="text-align:center; margin-top:54px">
     <span class="livebadge"><span class="dot"></span>These dossiers are public — inspect them live</span>
     <div class="cta-row" style="display:flex; gap:13px; justify-content:center; flex-wrap:wrap; margin-top:20px">
@@ -346,10 +410,10 @@ html.js .reveal.in{opacity:1; transform:none}
   <div class="close reveal" style="margin-top:40px">
     <span class="lbl" style="color:var(--clay)">They're watching you, too</span>
     <h2>Get this running on your competitors.</h2>
-    <p>Founding seats are released in small batches, each watchlist set up personally. Your first dossier lands within 24 hours.</p>
+    <p>Start the 30-day free trial — $0 today, card required, cancel anytime. Your first dossier lands within 24 hours. Prefer to talk first? Grab 30 minutes with the founder.</p>
     <div style="display:flex; gap:13px; justify-content:center; flex-wrap:wrap">
-      <a class="btn btn-primary" href="index.html#access" style="padding:15px 30px; font-size:13px">Request early access</a>
-      <a class="btn btn-ghost" href="index.html">Back to the site</a>
+      <a class="btn btn-primary" href="app.html" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
+      <a class="btn btn-ghost" href="https://cal.com/marin-bando/30min" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','Schedule')}catch(e){}">Book a 30-min call</a>
     </div>
   </div>
 </section>
