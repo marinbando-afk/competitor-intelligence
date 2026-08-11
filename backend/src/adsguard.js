@@ -37,7 +37,7 @@ export function stripAdTotals(s) {
     .replace(/\ball\s+\d+\+?\s+ads?\b/gi, 'all their ads')                                    // "All 98 ads" (founder, 9 Aug)
     .replace(/\b\d+\+?\s+ads?\s+(?:in|from)\s+(?:today|yesterday|this week)['’]s\s+capture\b/gi, "today's captured ads")
     .replace(/\s*\((?:a\s+)?typical capture[^)]*\)/gi, '')                                    // "(typical capture is around 4)"
-    .replace(/\bin\s+today['’]s\s+capture\b/gi, 'captured today');
+    .replace(/\bin\s+(today|yesterday)['’]s\s+capture\b/gi, 'captured $1');
 }
 
 // Anything after "?" in a URL is tracking noise (founder, 10 Aug: "anything after the

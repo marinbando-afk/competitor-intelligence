@@ -81,14 +81,16 @@ export function adsFindings(rows, capN) {
   if (domNow.size) {
     out.push({
       type: 'state', key: 'ads.destinations',
-      text: 'All ' + ads.length + ' ads in today\'s capture run to ' + [...domNow.keys()].join(', ') + '.',
+      // No counts (founder, 10-11 Aug): these state texts ship VERBATIM when the claim
+      // gate falls back to findings, so capture arithmetic here reaches Slack.
+      text: 'Every captured ad runs to ' + [...domNow.keys()].join(', ') + '.',
       evidence: { domains: [...domNow.entries()] },
     });
   }
   if (pageNow.size) {
     out.push({
       type: 'state', key: 'ads.pages',
-      text: 'The ' + ads.length + ' ads captured today run from ' + [...pageNow.keys()].map((p) => '"' + String(p).trim() + '"').join(', ') + '.',
+      text: 'The captured ads run from ' + [...pageNow.keys()].map((p) => '"' + String(p).trim() + '"').join(', ') + '.',
       evidence: { pages: [...pageNow.entries()] },
     });
   }
