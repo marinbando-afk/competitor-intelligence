@@ -292,7 +292,7 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <a class="btn btn-ghost" href="app.html?signin=1">Sign in</a>
-      <a class="btn btn-primary" href="#access">Request access</a>
+      <a class="btn btn-primary" href="app.html" onclick="try{fbq('track','StartTrial')}catch(e){}">Start free trial</a>
     </div>
   </div>
 </nav>
@@ -304,10 +304,10 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
   <h1>Never get blindsided by a <span class="hl">competitor</span> again.</h1>
   <p class="lede">The first autonomous competitor-intelligence analyst for eCommerce. Every morning it hands you what every rival changed yesterday — <b>ads, funnels, prices, emails</b> — why it's working, and <b>the exact counter-move for your brand</b>.</p>
   <div class="cta-row">
-    <a class="btn btn-primary" href="#access">Request early access</a>
-    <a class="btn btn-ghost" href="#cost">Why this exists</a>
+    <a class="btn btn-primary" href="app.html" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
+    <a class="btn btn-ghost" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}">Book a 30-min call</a>
   </div>
-  <div class="hero-note">Private beta · limited founding seats · nothing to install · first dossier within 24 hours</div>
+  <div class="hero-note">$0 today · card required · cancel anytime · nothing to install · first dossier within 24 hours</div>
 
   <div class="demo-cta reveal">
     <span class="demo-tag"><span class="dcdot"></span>Live demo · no sign-up</span>
@@ -536,13 +536,13 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
 <section id="stack" class="wrap">
   <div class="sec-head">
     <div class="rule"></div>
-    <span class="lbl" style="display:block;margin-top:14px">Founding access</span>
+    <span class="lbl" style="display:block;margin-top:14px">The offer</span>
     <h2>Everything below. Running for you, daily.</h2>
     <p>Not a tool you'll have to learn — a fully-run intelligence operation on every competitor you name, personalised to your brand from day one.</p>
   </div>
   <div class="plans one">
     <div class="plan feat reveal">
-      <span class="pl-badge">The founding watchlist</span>
+      <span class="pl-badge">30-day free trial</span>
       <span class="pl-name">What you get</span>
       <div class="pl-sub" style="margin-top:14px">Every capability, on every competitor you name:</div>
       <ul>
@@ -555,8 +555,8 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
         <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Before/after storefront evidence — dated screenshots you can drop straight into any deck</li>
         <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>The morning brief in Slack — know in ten seconds whether anything deserves your attention</li>
       </ul>
-      <a class="btn btn-primary" href="#access">Request early access</a>
-      <div class="pl-foot">Founding terms locked in before public launch</div>
+      <a class="btn btn-primary" href="app.html" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
+      <div class="pl-foot">$197/mo after the trial · 2 competitors included · +$47/mo per extra · cancel anytime</div>
     </div>
   </div>
 </section>
@@ -645,11 +645,12 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
     <details class="reveal">
       <summary>How much does it cost?</summary>
       <div class="faq-a">
-        <p>We're in private beta and onboarding founding brands in small batches — pricing is shared on your onboarding call, and <b>founding terms are locked in before public launch</b>. That's deliberately part of the deal for joining early.</p>
+        <p><b>$197/month with 2 competitors included</b>, then $47/month per additional competitor. Every plan starts with a <b>30-day free trial</b> — card required, $0 charged today, cancel anytime before day 30 and you never pay.</p>
+        <p>Rather talk it through? <a href="https://cal.com/marin-bando/30min">Book a 30-minute call</a> with the founder.</p>
       </div>
     </details>
     <details class="reveal">
-      <summary>Can I see it working before I request access?</summary>
+      <summary>Can I see it working before I start the trial?</summary>
       <div class="faq-a">
         <p>Yes — that's the point. <a href="app.html">Open the live dossiers</a> on three real brands (The Oodie, Liquid Death, Smooche), no sign-up required. Real captured data, real daily AI reads, exactly what you'd get on your own competitors.</p>
       </div>
@@ -660,16 +661,14 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
 <!-- ── ACCESS ── -->
 <section id="access" class="wrap">
   <div class="close reveal">
-    <span class="lbl" style="color:var(--sage)">Private beta</span>
-    <h2>Request access</h2>
-    <p>We onboard a small batch of founding brands at a time — each one set up personally by the founder, so every watchlist is airtight. Leave your email and we'll reach out when your seat opens.</p>
-    <form class="access-form" id="accessForm" onsubmit="return joinList(event)">
-      <input type="email" id="alEmail" required placeholder="you@yourbrand.com" autocomplete="email"/>
-      <input type="text" id="alStore" placeholder="Your store URL — optional, moves you up the list" autocomplete="off"/>
-      <button class="btn btn-primary" type="submit" id="alGo">Request early access</button>
-    </form>
-    <div class="al-note" id="alNote">No spam. No card. Your first dossier lands within 24 hours of onboarding.</div>
-    <div class="al-ok" id="alOk" style="display:none">✓ You're on the list — watch your inbox. Founding seats are released in small batches, store URLs first.</div>
+    <span class="lbl" style="color:var(--sage)">Start now</span>
+    <h2>Try it free for 30 days</h2>
+    <p>$0 today — card required, cancel anytime. Name your competitors and your first dossier lands within 24 hours. Prefer to talk it through first? Grab 30 minutes with the founder.</p>
+    <div class="cta-row" style="margin-top:6px">
+      <a class="btn btn-primary" href="app.html" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
+      <a class="btn btn-ghost" href="https://cal.com/marin-bando/30min" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','Schedule')}catch(e){}">Book a 30-min call</a>
+    </div>
+    <div class="al-note">$197/mo after the trial · 2 competitors included · +$47/mo per extra</div>
   </div>
 </section>
 
@@ -680,7 +679,7 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
     <h2>They're watching you, too.</h2>
     <p>The sharpest brands in your category already track every move you make. Watch back — and stop being the last to find out.</p>
     <div class="cta-row" style="margin-top:6px">
-      <a class="btn btn-primary" href="#access" style="padding:15px 30px; font-size:13px">Request early access</a>
+      <a class="btn btn-primary" href="app.html" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
     </div>
   </div>
 </section>
@@ -691,33 +690,12 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
       <span class="crest"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12C6.6 6.7 17.4 6.7 21 12C17.4 17.3 6.6 17.3 3 12Z" stroke="#57d2cf" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="3.5" stroke="#57d2cf" stroke-width="1.6"/><path d="M12 8.5v7M8.5 12h7" stroke="#57d2cf" stroke-width="1.1"/><circle cx="12" cy="12" r="1.1" fill="#e2554f"/></svg></span>
       <b style="font-family:var(--disp);font-weight:600;font-size:15px;color:#dfe6e8">WatchBack</b>
     </a>
-    <span class="lbl">© 2026 · Know every move first</span>
+    <span class="lbl">© 2026 · Know every move first · <a href="privacy.html" style="color:inherit">Privacy</a> · <a href="terms.html" style="color:inherit">Terms</a></span>
   </div>
 </footer>
 
 <script>
-// ── Early-access list. Requests land in the feedback inbox (tagged [EARLY ACCESS]) —
-//    the founder reads them in-app via the admin "View submissions" panel.
 var API = 'https://competitor-intelligence-production-2629.up.railway.app';
-function joinList(e){
-  e.preventDefault();
-  var em = document.getElementById('alEmail').value.trim();
-  var st = document.getElementById('alStore').value.trim();
-  if(!em || em.indexOf('@') < 1) return false;
-  var go = document.getElementById('alGo'); go.disabled = true; var was = go.textContent; go.textContent = 'Requesting…';
-  fetch(API + '/api/feedback', {method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({name:'[EARLY ACCESS]', email: em, message:'[EARLY ACCESS] Waitlist request from the landing page.' + (st ? ' Store: ' + st : '')})})
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if(d && d.ok){
-        document.getElementById('accessForm').style.display = 'none';
-        document.getElementById('alNote').style.display = 'none';
-        document.getElementById('alOk').style.display = 'block';
-      } else { go.disabled = false; go.textContent = was; }
-    })
-    .catch(function(){ go.disabled = false; go.textContent = was; });
-  return false;
-}
 
 // ── Live proof band: REAL counts from the capture database. If the API is
 //    unreachable the band simply stays hidden — never a fabricated number.
