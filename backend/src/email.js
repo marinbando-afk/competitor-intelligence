@@ -28,6 +28,7 @@ function decodeQPish(s) {
   s = String(s == null ? '' : s);
   if ((s.match(/=[0-9A-Fa-f]{2}/g) || []).length < 3) return s;
   s = s.replace(/=\r?\n/g, '').replace(/=\s(?=\S)/g, '');   // soft breaks, raw and whitespace-collapsed
+  s = s.replace(/=[0-9A-Fa-f]?$/, '');   // escape cut in half by the 320-char store clip
   const bytes = [];
   for (let i = 0; i < s.length; i++) {
     if (s[i] === '=' && /^[0-9A-Fa-f]{2}$/.test(s.slice(i + 1, i + 3))) { bytes.push(parseInt(s.slice(i + 1, i + 3), 16)); i += 2; }
@@ -38,7 +39,7 @@ function decodeQPish(s) {
 }
 // The preheader padding decodes to zero-width joiners and non-breaking spaces — strip
 // the invisibles so a preview shows the email's real first line, not blank filler.
-function stripInvisibles(s) { return String(s == null ? '' : s).replace(/[\u200B\u200C\u200D\u2060\uFEFF\u00AD\u034F]+/g, '').replace(/\u00A0/g, ' '); }
+function stripInvisibles(s) { return String(s == null ? '' : s).replace(/[\u200B\u200C\u200D\u2060\uFEFF\u00AD\u034F\uFFFD]+/g, '').replace(/\u00A0/g, ' '); }
 // Used at store time for new mail AND at read time, so previews already stored broken
 // (before this fix) repair themselves the next time the channel is opened.
 export function repairPreview(s) { return clean(stripInvisibles(decodeQPish(String(s == null ? '' : s)))); }
@@ -331,7 +332,7 @@ export async function getEmails(host, name) {
     id: e.id,
     from: e.from_name || e.sender_email,
     subject: e.subject,
-    preview: repairPreview(e.preview),   // repairs rows stored before the QP fix too
+    preview: (repairPreview(e.preview) || repairPreview(stripHtml(e.html))).slice(0, 320),   // repairs rows stored before the QP fix; all-padding previews rebuild from the html
     offer: e.offer || '',
     date: e.received_at,
     hasFull: !!(e.html && e.html.length > 40),
