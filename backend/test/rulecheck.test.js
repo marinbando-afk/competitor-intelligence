@@ -99,5 +99,17 @@ ok(websiteRowText('Sale live: Back to School Sale: up to 58% off', 'Back to Scho
 ok(websiteRowText('', 'Storefront unchanged — same prices, products and sale.') === 'Storefront unchanged — same prices, products and sale.', 'no sale signal → AI read ships as before');
 ok(websiteRowText(null, '') === '', 'nothing → empty (row skipped)');
 
+console.log('\nDAY-LOCK — a completed capture is immutable until tomorrow (founder, 12 Aug):');
+const { hasSubstantiveData } = await import('../src/snapshots.js');
+ok(hasSubstantiveData('ads', { ads: [{ id: 'a' }] }), 'ads with data → locked');
+ok(!hasSubstantiveData('ads', { ads: [] }), 'empty ads capture → heal allowed');
+ok(hasSubstantiveData('website', { summary: { items: {} } }), 'website with summary → locked');
+ok(hasSubstantiveData('website', { shot: 'data:image/jpeg;…' }), 'website with frame → locked');
+ok(!hasSubstantiveData('website', { banner: '' }), 'failed website capture → heal allowed');
+ok(hasSubstantiveData('instagram', { posts: [{}] }), 'social with posts → locked');
+ok(!hasSubstantiveData('instagram', { posts: [] }), 'empty social scrape → heal allowed');
+ok(!hasSubstantiveData('insights', { ads: { summary: 'x' } }), 'insights never locked — re-runs recompute reads freely');
+ok(!hasSubstantiveData('weekly', { report: {} }), 'weekly never locked');
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);

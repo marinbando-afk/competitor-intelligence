@@ -28,6 +28,12 @@ misses to the founder's Slack.
 
 ---
 
+## Data boundary — the reporting day
+
+- [snapshots.js R-DAYLOCK] [ENFORCED] **One capture per brand per day, taken in the morning; the reporting day closes there.** This morning's capture = yesterday's completed activity; today's report is always this-morning vs yesterday-morning = "what they did yesterday". WatchBack never scrapes or reports partial-today data — "we need a full day to end, otherwise there is always a gap from the moment you reported until the day finished" (founder, 12 Aug)
+- [snapshots.js R-DAYLOCK] [ENFORCED] A capture-channel day row that already holds real data is IMMUTABLE until tomorrow — admin refreshes, brief re-runs, chat questions and view-time re-checks recompute from stored data, never re-scrape into today. Exception: a FAILED capture (empty) may be completed later — filling a hole is repair, not a boundary shift. Insight/read/weekly channels are never locked (recomputing phrasing from stored captures is always allowed)
+- [slack.js] [ENFORCED] Re-running the daily brief at any hour produces the identical comparison and identical content — the pair cannot shift intra-day
+
 ## Ads
 
 - [insights.js GUIDE.ads] [PROMPT] New ad launches LEAD the ads read: how many, formats, hook/angle of each with Meta start dates — never compress launches into a bare count (founder, 7 Aug)

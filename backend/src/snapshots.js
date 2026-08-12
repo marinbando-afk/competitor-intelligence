@@ -21,9 +21,38 @@ export function isPublicHost(h) {
   return /^[a-z0-9.-]+$/.test(h);
 }
 
+// R-DAYLOCK (founder, 12 Aug): the reporting day CLOSES at the morning capture. "You never
+// scrape or report today's data — we need a full day to end, otherwise there is always a
+// gap from the moment you reported until the day finished." So a capture-channel day row
+// that already holds real data is IMMUTABLE until tomorrow: admin refreshes, re-runs,
+// questions and view-time re-checks recompute from stored data, they never re-scrape into
+// today. A FAILED capture (no substantive data) may be completed later — filling a hole is
+// repair, not a boundary shift. Read/insight channels and _state channels are never locked
+// (recomputing a read from stored captures is always allowed).
+export function hasSubstantiveData(channel, data) {
+  if (!data || typeof data !== 'object') return false;
+  const c = String(channel || '');
+  if (c === 'ads') return Array.isArray(data.ads) && data.ads.length > 0;
+  if (c === 'website') return !!(data.summary || data.shot);
+  if (c === 'email') return !!(data.storage || (Array.isArray(data.emails) && data.emails.length));
+  if (c === 'instagram' || c === 'tiktok' || c === 'facebook' || c === 'youtube') return Array.isArray(data.posts) && data.posts.length > 0;
+  return false;   // insights, weekly, lists…: recomputation is always allowed
+}
+
 export async function saveSnapshot(host, channel, data) {
   if (!ok() || !host || !data) return;
   try {
+    if (!isInternalChannel(channel)) {
+      const r = await pool.query(
+        `SELECT data FROM snapshots WHERE host = $1 AND channel = $2 AND day = CURRENT_DATE`,
+        [String(host).toLowerCase(), channel],
+      );
+      const existing = r.rows[0] && r.rows[0].data;
+      if (existing && hasSubstantiveData(channel, existing)) {
+        console.log('[daylock] ' + host + '/' + channel + ' already captured today — write skipped (R-DAYLOCK)');
+        return;
+      }
+    }
     await pool.query(
       `INSERT INTO snapshots(host, channel, day, data) VALUES($1, $2, CURRENT_DATE, $3)
        ON CONFLICT (host, channel, day) DO UPDATE SET data = EXCLUDED.data, created_at = now()`,
