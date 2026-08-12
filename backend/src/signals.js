@@ -45,7 +45,9 @@ const SALE_STATE = '_salestate';     // sales actually ANNOUNCED in a delivered 
 // R-SALE-NEW (founder, 12 Aug): the first-ever announcement of a sale says NEW in the text
 // itself — "New sale live: …" — so it is 100% clear this was not there before. Exported for
 // test/rulecheck.test.js.
-export const saleAnnouncement = (banner) => 'New sale live: ' + String(banner || '').trim();
+// Slack-formatted: bold status, em-dash, the banner quoted verbatim — reads as an alert,
+// and the double-colon pileup ('live: Back to School Sale: up to') is gone.
+export const saleAnnouncement = (banner) => '*New sale live* — \u201c' + String(banner || '').trim() + '\u201d';
 const OFFER_STATE_TTL_DAYS = 400;    // forget a fingerprint long after its ad can plausibly still run
 
 // A real promo banner is a short headline. Older snapshots may hold a model's non-answer
