@@ -65,11 +65,11 @@ const two = adsFindings([
     { id: 'h2', landing: 'https://x.com/b', page: 'Daily Discounts Online', started: '2026-08-11' },
   ] } },
   { day: '2026-08-11', data: { ads: [ { id: 'h1', landing: 'https://x.com/a', page: 'Seranova', started: '2026-08-10' } ] } },
-], 50).find((f) => f.key === 'ads.pages');
+], 50).find((f) => f.key === 'ads.footprint');
 ok(two && / handles\.$/.test(two.text) && two.text.indexOf('"Daily Discounts Online"') > 0, 'multiple pages end with "handles."');
 const one = adsFindings([
   { day: '2026-08-12', data: { ads: [ { id: 'h1', landing: 'https://x.com/a', page: 'Seranova', started: '2026-08-12' } ] } },
-], 50).find((f) => f.key === 'ads.pages');
+], 50).find((f) => f.key === 'ads.footprint');
 ok(one && / handle\.$/.test(one.text), 'a single page ends with "handle."');
 
 console.log('\nLAUNCH GATE LINE — "all video" needs a plural (founder, 12 Aug):');

@@ -47,6 +47,8 @@ misses to the founder's Slack.
 - [adsguard.js + claims.js] [BOTH] Entities seen in earlier captures may never be described as new/first/just added (founder, 6 Aug)
 - [findings.js] [ENFORCED] "New ad" requires BOTH: id never seen before AND Meta start date within 7 days ("new" means this week)
 - [findings.js] [ENFORCED] Launch findings carry Meta start date, format, Facebook page, opening hook quote, landing domain
+- [findings.js R-ADS-FOOTPRINT] [ENFORCED] Where the ads run TO and FROM is ONE sentence, never two: "Every captured ad runs to shop.mikmak.ai and from \"Pacific Foods\" handle." Two findings on the same subject ship as two consecutive sentences whenever the claim gate falls back, and read as a stutter (founder, 12 Aug)
+- [ALL SURFACES] [PROMPT] **No sentence may restate the subject of the one before it.** If two consecutive sentences describe the same set of ads/posts/products, they are one sentence. Applies to every generated line, not only the ads read (founder, 12 Aug: "polish the other messages if and when needed")
 - [findings.js] [ENFORCED] Launch batch line: human dates ("today"/"since yesterday"), "all video"/"all image" for a uniform mix of 2+, just "video"/"image" for a single ad ("all" of one is nonsense), no bookkeeping parentheticals, no itemisation suffix (founder, 12 Aug ×2)
 - [findings.js] [ENFORCED] Launch batch line carries creative substance — newest hook quoted (word-boundary clip, inner quotes normalised) + destination (founder, 9 & 12 Aug)
 - [insights.js] [ENFORCED] Guaranteed hook: if a gated ads summary has no quoted hook, the newest hook is appended deterministically (founder, 11 Aug)
@@ -84,7 +86,11 @@ misses to the founder's Slack.
 - [insights.js + findings.js] [BOTH] ANNOUNCEMENT BARS ROTATE: a slide missing ≠ sale ended; a slide seen ≠ sale started; sale start/end comes ONLY from the ACTIVE SALE facts (founder, 6 Aug)
 - [insights.js] [ENFORCED] SALE TIMELINE dates computed in code, quoted verbatim — never model arithmetic (founder, 24 Jul)
 - [insights.js] [ENFORCED] Baseline day: promo "already running when monitoring began" — never "launched today" (founder, 30 Jul)
-- [insights.js + claims.js + rulecheck.js R-DATE-02] [BOTH] Already-running promo: ACTIVE and unchanged; no start date, no "live/running since", no day counts; wording variance of the same banner is never a new sale (founder, 9 Aug)
+- [insights.js + claims.js + rulecheck.js R-DATE-02] [BOTH] Already-running promo: ACTIVE and unchanged; no start date, no "live/running since", no day counts; wording variance of the same banner (rephrasing, partial reads) is never a new sale (founder, 9 Aug) — but an OCCASION change is, see R-SALE-RENAME
+- [findings.js R-SALE-RENAME] [ENFORCED] **A RENAMED SALE IS A NEW SALE.** A change of OCCASION ("Summer Sale" → "Back to School Sale") is a new sale even when the headline discount is identical — the occasion IS the sale. Report it as a new sale, name what it replaced and when that was last captured, and add that the economics are unchanged. Never "renamed, not new"; never "active and unchanged" (Seranova, 12 Aug)
+- [findings.js R-SALE-RENAME] [ENFORCED] A rename is dated to the capture that first SAW the new wording, never to a publish date we cannot know — say so explicitly ("we know when we first saw it")
+- [findings.js R-SALE-RENAME] [ENFORCED] A rename is news for 6 days, then reverts to unchanged — a client reading Wednesday's brief has not necessarily read Tuesday's
+- [findings.js R-SALE-RENAME] [ENFORCED] Rename/replacement requires a clean split at the WORDING level: exactly two wordings, the older one held the bar for a run of ≥2 days, no reappearance after the swap, neither text a substring of the other, identical discount figures. A ROTATING bar and a PARTIAL vision read can never produce a rename (Glov 6 Aug / Frøya 27 Jul)
 - [findings.js] [ENFORCED] Countdown values stripped from banner quotes; a timer recurring across days = "evergreen urgency, not a real deadline" (founder, 10 Aug)
 - [insights.js] [ENFORCED] "Checked, no sale" is a finding — never "no website data available" (founder, 27 Jul)
 - [insights.js] [BOTH] Typical price range = 10th–90th percentile; $0/joke/PR listings are stunts, never the range

@@ -96,6 +96,8 @@ const unchanged = websiteFindings([
   row('2026-08-06', { banner: 'Summer Sale: 40% off sitewide', summary: feed }),
 ]);
 check('identical feeds → explicit nochange state', unchanged.some((f) => f.key === 'web.nochange'));
+// R-PROV-01 (founder, 12 Aug): the no-change line is absolute — never "compared A → B".
+check('nochange text carries no comparison window', !/compared|\d{4}-\d{2}-\d{2}/.test((unchanged.find((f) => f.key === 'web.nochange') || {}).text || ''));
 const bannerF = unchanged.find((f) => f.key === 'web.banner');
 // 10 Aug (supersedes the dated-banner pin): standing state carries no since-date in the
 // TEXT — dating is clutter; the history date lives in evidence.since for the machinery.
@@ -190,11 +192,11 @@ const seraRows = ['2026-08-12','2026-08-11'].map((d) => row(d, { banner: 'Back t
   .concat(['2026-08-10','2026-08-09','2026-08-08','2026-08-07','2026-08-06'].map((d) => row(d, { banner: 'SUMMER SALE: UP TO 58% OFF', summary: seraFeed })));
 const sb = websiteFindings(seraRows).find((f) => f.key === 'web.banner');
 check('renamed sale is not reported as unchanged', !!sb && !/unchanged across recent captures/.test(sb.text));
-check('renamed sale is not reported as a launch', !!sb && !/\blaunch/i.test(sb.text));
+check('a renamed sale IS treated as a new sale (founder, 12 Aug)', !!sb && /NEW SALE/.test(sb.text));
 check('the rename names what it replaced', !!sb && sb.text.includes('SUMMER SALE: UP TO 58% OFF'));
 check('the rename is dated to the capture that first saw it', !!sb && sb.text.includes('2026-08-11'));
-check('says the offer itself did not change', !!sb && /did not change|only its occasion/i.test(sb.text));
-check('claims first-SEEN, never a publish date', !!sb && /first SAW|first appeared under this name/i.test(sb.text));
+check('the matching discount is context, not a reason to call it unchanged', !!sb && /economics are unchanged|Same headline discount/i.test(sb.text));
+check('claims first-SEEN, never a publish date', !!sb && /first SAW/i.test(sb.text));
 check('rename counts as news', !!sb && sb.type === 'new');
 
 // It must go quiet again — a rename is news for a few days, not forever.
@@ -217,6 +219,28 @@ const partial = websiteFindings([
   row('2026-08-10', { banner: 'SUMMER SALE: UP TO 58% OFF — shop now', summary: seraFeed }),
 ]).find((f) => f.key === 'web.banner');
 check('a partial read of the same bar is not a rename', !!partial && !/RENAMED/.test(partial.text));
+
+// ONE SENTENCE FOR THE AD FOOTPRINT (founder, 12 Aug). Slack shipped "Every captured ad
+// runs to shop.mikmak.ai. The captured ads run from 'Pacific Foods'." — the same subject
+// announced twice, because destination and origin were two findings and these texts ship
+// verbatim whenever the claim gate falls back to findings.
+const pfAds = [
+  { id: 'a1', landing: 'https://shop.mikmak.ai/x', page: 'Pacific Foods', started: '2026-08-11' },
+  { id: 'a2', landing: 'https://shop.mikmak.ai/y', page: 'Pacific Foods', started: '2026-08-11' },
+];
+const pfOut = adsFindings([row('2026-08-12', { ads: pfAds })], 500);
+const foot = pfOut.find((f) => f.key === 'ads.footprint');
+check('destination + origin are ONE finding', !!foot);
+check('reads as one sentence', !!foot && foot.text === 'Every captured ad runs to shop.mikmak.ai and from "Pacific Foods" handle.', foot && foot.text);
+check('the split findings are gone', !pfOut.some((f) => f.key === 'ads.destinations' || f.key === 'ads.pages'));
+check('still no capture counts in the footprint', !!foot && !/\b\d+\s+ads?\b/.test(foot.text));
+
+// Plural pages keep the "handles" wording (R-ADS-HANDLE).
+const multiFoot = adsFindings([row('2026-08-12', { ads: [
+  { id: 'b1', landing: 'https://a.com/1', page: 'Seranova', started: '2026-08-11' },
+  { id: 'b2', landing: 'https://b.com/2', page: 'Daily Discounts Online', started: '2026-08-11' },
+] })], 500).find((f) => f.key === 'ads.footprint');
+check('multiple pages read as "handles"', !!multiFoot && /handles\.$/.test(multiFoot.text), multiFoot && multiFoot.text);
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

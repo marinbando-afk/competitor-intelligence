@@ -78,24 +78,26 @@ export function adsFindings(rows, capN) {
   }
 
   // Present-tense facts are always safe to state.
-  if (domNow.size) {
+  // ONE SENTENCE FOR THE AD FOOTPRINT (founder, 12 Aug). Destination and origin used to be
+  // two findings, and because these texts ship VERBATIM whenever the claim gate falls back,
+  // Slack read: "Every captured ad runs to shop.mikmak.ai. The captured ads run from
+  // 'Pacific Foods'." — the same subject announced twice. Where they run FROM and TO is one
+  // fact about one set of ads, so it is one sentence.
+  // R-ADS-HANDLE (founder, 12 Aug): quoted page names alone read ambiguously — say what they
+  // ARE by appending "handle"/"handles".
+  const domList = [...domNow.keys()].join(', ');
+  const pageList = [...pageNow.keys()].map((p) => '"' + String(p).trim() + '"').join(', ') + (pageNow.size > 1 ? ' handles' : ' handle');
+  if (domNow.size && pageNow.size) {
     out.push({
-      type: 'state', key: 'ads.destinations',
-      // No counts (founder, 10-11 Aug): these state texts ship VERBATIM when the claim
-      // gate falls back to findings, so capture arithmetic here reaches Slack.
-      text: 'Every captured ad runs to ' + [...domNow.keys()].join(', ') + '.',
-      evidence: { domains: [...domNow.entries()] },
+      // No counts (founder, 10-11 Aug): capture arithmetic here would reach Slack verbatim.
+      type: 'state', key: 'ads.footprint',
+      text: 'Every captured ad runs to ' + domList + ' and from ' + pageList + '.',
+      evidence: { domains: [...domNow.entries()], pages: [...pageNow.entries()] },
     });
-  }
-  if (pageNow.size) {
-    // R-ADS-HANDLE (founder, 12 Aug): quoted page names alone read ambiguously — say what
-    // they ARE by appending "handle"/"handles": …run from "Seranova", "Daily Discounts
-    // Online" handles.
-    out.push({
-      type: 'state', key: 'ads.pages',
-      text: 'The captured ads run from ' + [...pageNow.keys()].map((p) => '"' + String(p).trim() + '"').join(', ') + (pageNow.size > 1 ? ' handles' : ' handle') + '.',
-      evidence: { pages: [...pageNow.entries()] },
-    });
+  } else if (domNow.size) {
+    out.push({ type: 'state', key: 'ads.destinations', text: 'Every captured ad runs to ' + domList + '.', evidence: { domains: [...domNow.entries()] } });
+  } else if (pageNow.size) {
+    out.push({ type: 'state', key: 'ads.pages', text: 'The captured ads run from ' + pageList + '.', evidence: { pages: [...pageNow.entries()] } });
   }
 
   if (ads.length) {
@@ -372,8 +374,12 @@ export function websiteFindings(rows) {
     else if (isNew) when = ' — first seen today; earlier captures showed a different banner.';
     else if (recentSwap) when = ' — replaced "' + prevBanner.text + '" and was first seen in our ' + since + ' capture'
       + (sameDiscount ? '. Same headline discount, new occasion name: the offer did not change, only its pretext' : '') + '.';
-    else if (renamed) when = ' — RENAMED, not new: the same discount ran as "' + renamed.from + '" through '
-      + renamed.lastSeen + ' and first appeared under this name in our ' + renamed.since + ' capture. The offer did not change, only its occasion — an evergreen discount re-dressed. We know when we first SAW the new wording, not when they published it.';
+    // A RENAMED SALE IS A NEW SALE (founder, 12 Aug: "it's a new sale if it was renamed from
+    // Summer Sale to Back To School sale, the discount % is the same but it's a different
+    // sale and this is the way how it should be treated"). The occasion IS the sale — the
+    // matching discount is context, not grounds for calling it unchanged.
+    else if (renamed) when = ' — a NEW SALE: it replaced "' + renamed.from + '" (last captured '
+      + renamed.lastSeen + ') and was first captured ' + renamed.since + '. Same headline discount under a new occasion, so the economics are unchanged, but this is a distinct sale. We know when we first SAW it, not when they published it.';
     else when = ' — unchanged across recent captures.';
     out.push({
       type: (isNew || recentSwap || renamed) ? 'new' : 'state', key: 'web.banner',
@@ -391,7 +397,10 @@ export function websiteFindings(rows) {
 
   const changes = diffWebsite(prev.data.summary, cur.summary) || [];
   if (!changes.length) {
-    out.push({ type: 'state', key: 'web.nochange', text: 'Storefront compared ' + prev.day + ' → ' + today.day + ': prices, products and sale scope unchanged.' });
+    // R-PROV-01 (founder, 12 Aug): NEVER state the comparison window — briefs are daily,
+    // so "vs yesterday" is implicit and "compared 2026-08-11 → 2026-08-12" only confuses.
+    // Change/no-change statements are absolute; the dates live in evidence, not prose.
+    out.push({ type: 'state', key: 'web.nochange', text: 'Storefront unchanged — same prices, products and sale.', evidence: { compared: prev.day + ' → ' + today.day } });
   } else {
     // Products already seen in ANY earlier capture can never be new.
     const known = new Set();
