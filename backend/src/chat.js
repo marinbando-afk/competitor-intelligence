@@ -12,6 +12,8 @@ import { getEmails } from './email.js';
 import { latestSnapshot, recentSnapshots } from './snapshots.js';
 import { funnelFacts, getInsights } from './insights.js';
 import { offerFacts, offerFlags } from './occasions.js';
+import { userChannels } from './channels.js';
+import { pool } from './db.js';
 
 const MODEL = process.env.CHAT_MODEL || 'claude-sonnet-4-6';
 
@@ -42,9 +44,13 @@ async function allPosts(host, pf) {
 }
 
 // Pull together everything we already have on this competitor (cache-only: no live scrape).
-async function assembleContext({ name, host, country, handles }) {
+// `allow(k)` gates each channel for the asking account (channels.js). A social-only client
+// must not be able to ask the analyst "what ads are they running?" and get an answer the
+// dashboard withholds — the restriction has to hold at the data layer, not just the UI.
+async function assembleContext({ name, host, country, handles, allow }) {
   const out = [];
-  try {
+  const on = allow || (() => true);
+  if (on('ads')) try {
     let a = await latestSnapshot(host, 'ads');               // persisted daily snapshot (complete)
     if (!a || !a.ads || !a.ads.length) a = await fetchAds(name, country, false, true, host); // fallback: warm cache
     if (a && a.ads && a.ads.length) {
@@ -72,7 +78,7 @@ async function assembleContext({ name, host, country, handles }) {
     }
   } catch (e) { /* skip channel on error */ }
 
-  for (const [pf, key, label] of [['instagram', 'ig', 'Instagram'], ['tiktok', 'tt', 'TikTok'], ['facebook', 'fb', 'Facebook']]) {
+  for (const [pf, key, label] of (on('social') ? [['instagram', 'ig', 'Instagram'], ['tiktok', 'tt', 'TikTok'], ['facebook', 'fb', 'Facebook']] : [])) {
     const h = handles && handles[key];
     if (!h && !host) continue;
     try {
@@ -89,7 +95,7 @@ async function assembleContext({ name, host, country, handles }) {
     } catch (e) { /* skip platform on error */ }
   }
 
-  try {
+  if (on('email')) try {
     const em = await getEmails(host, name);
     if (em && em.emails && em.emails.length) {
       const sm = em.summary || {};
@@ -129,8 +135,12 @@ export async function chat(body, uid) {
   const handles = body.handles || {};
   const extra = oneLine(body.context).slice(0, 1500);
 
-  let data = await assembleContext({ name, host, country, handles });
-  if (extra) data = (data ? data + '\n' : '') + 'WEBSITE / OFFERS: ' + extra;
+  // This account's channel access decides what the analyst may see at all.
+  const allowed = await userChannels(pool, uid);
+  const on = (k) => !allowed || allowed.includes(k);
+
+  let data = await assembleContext({ name, host, country, handles, allow: on });
+  if (extra && on('website')) data = (data ? data + '\n' : '') + 'WEBSITE / OFFERS: ' + extra;
   if (!data) data = 'No data has been captured for this competitor yet.';
 
   // Load the same insights the user is looking at in-app, so the chat NEVER contradicts the AI-read panel.
@@ -139,7 +149,7 @@ export async function chat(body, uid) {
     const ins = await getInsights(host, name, false);   // shared, tenant-neutral snapshot (no per-viewer tailoring)
     if (ins) {
       const parts = [];
-      for (const [k, label] of [['ads', 'Ads'], ['social', 'Social'], ['website', 'Website'], ['email', 'Email']]) {
+      for (const [k, label] of [['ads', 'Ads'], ['social', 'Social'], ['website', 'Website'], ['email', 'Email']].filter(([k]) => on(k))) {
         const c = ins[k];
         if (c && (c.summary || (c.bullets && c.bullets.length))) parts.push(`${label}: ${c.summary || ''}${(c.bullets || []).length ? '\n    - ' + c.bullets.join('\n    - ') : ''}`);
       }
@@ -163,6 +173,9 @@ export async function chat(body, uid) {
     `- When you reference a specific post, ad, or email, include its link/URL from the data, in full and on its own. If an item has no link in the data, say so.\n` +
     `- Lead with the answer. Be concise and direct. Don't narrate reasoning or restate the question.\n` +
     `- Write for a busy marketer: practical and specific.\n\n` +
+    // Without this the model treats a restricted client's missing channels as evidence of
+    // absence ("they aren't running any ads") instead of as data it was never given.
+    (allowed ? `SCOPE: this account subscribes to ${allowed.join(' + ')} monitoring only. The other channels are NOT part of their plan and their data is not below. If asked about ads, website, storefront, pricing or email, say plainly that their plan covers ${allowed.join(' + ')} only and that you therefore have no data on it — never infer that the brand has none, and never guess.\n\n` : '') +
     (analysis ? `IN-APP ANALYSIS — the AI read currently shown to the user (this is established; be consistent with it):\n${analysis}\n\n` : '') +
     `DATA (as of ${today}):\n${data}`;
 

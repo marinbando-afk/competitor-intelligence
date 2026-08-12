@@ -964,6 +964,13 @@ var KEY='intelai_v5';
 var API='https://competitor-intelligence-production-2629.up.railway.app';
 
 var CH=[{k:'ads',label:'Ads'},{k:'social',label:'Organic Social'},{k:'website',label:'Website'},{k:'email',label:'Email'}];
+// PER-CLIENT CHANNEL ACCESS (founder, 12 Aug). Some accounts subscribe to a subset — a
+// social-only client sees Organic Social and nothing else. null = the normal plan, all four.
+// The share link carries the owner's restriction so a teammate can't read around it.
+var SHARECH=null;
+function chanAllowed(){return RO?SHARECH:((USER&&USER.channels)||null);}
+function chanOn(k){var a=chanAllowed();return !a||a.indexOf(k)>=0;}
+function chList(){var a=chanAllowed();return a?CH.filter(function(x){return a.indexOf(x.k)>=0;}):CH;}
 var PRIO={act:{l:'Active'},watch:{l:'Monitoring'},quiet:{l:'Dormant'},setup:{l:'Acquiring'}};
 var ORD={act:0,watch:1,setup:2,quiet:3};
 
@@ -1155,6 +1162,7 @@ function loadSharedComps(cb){
     .then(function(r){return r.json();})
     .then(function(d){
       if(!d||d.error||!d.readonly){RO=false;try{document.documentElement.classList.remove('ro');}catch(e){}alert('This shared link is no longer active.');if(cb)cb();return;}
+      SHARECH=d.channels||null;   // the owner's channel restriction travels with the link
       USERCOMPS=(d.competitors||[]).map(mapServerComp);
       if(autoSel){state.sel=null;autoSel=false;}   // land on the client's first competitor, not a demo
       registerCompetitors();render();USERCOMPS.forEach(function(x){loadInsights(x);});
@@ -2143,9 +2151,12 @@ function handlesUnconfirmed(c){return !!(c&&c.account&&!(c.handles&&c.handles.co
 // Demo brands are shared showcase data — their setup "issues" (unconfirmed handles,
 // email not wired) are only the founder's concern, so surface the red flag on a demo
 // ONLY to an admin. A user's OWN competitors always flag when they need action.
-function needsAction(c){if(!c)return false;if(c.demo&&!ADMIN)return false;return handlesUnconfirmed(c)||!!emailPending[c.host];}
+// A restricted account is never nagged to set up a channel it doesn't receive — the email
+// inbox step and the social handle confirmation are both channel-specific.
+function needsAction(c){if(!c)return false;if(c.demo&&!ADMIN)return false;return (chanOn('social')&&handlesUnconfirmed(c))||(chanOn('email')&&!!emailPending[c.host]);}
 function toggleRailFlag(c){var el=c&&document.getElementById('railflag-'+c.id);if(el)el.style.display=needsAction(c)?'':'none';}
 function checkRailActions(list){
+  if(!chanOn('email'))return;   // no email channel = no inbox setup to chase
   (list||[]).forEach(function(c){
     if(!c||!c.host)return;
     if(emailPending.hasOwnProperty(c.host)){toggleRailFlag(c);return;}
@@ -2196,7 +2207,26 @@ document.addEventListener('click',function(e){var l=e.target&&e.target.closest&&
 // The Threat assessment + counter-op take a few seconds to generate on first load — show a
 // clear loading state (labelled, with a spinner) instead of a blank gap that just vanishes.
 function briefLoadingHTML(){return '<div class="assess"><span class="lbl">Threat assessment</span><div class="adsload" style="padding:2px 0 6px"><span class="spin"></span>Reading the latest capture…</div></div>';}
-function briefFinalHTML(ins){return (ins&&ins.brief&&asBullets(ins.brief.verdict).length)?briefHTML(ins.brief):'';}
+// The stored Threat assessment reads ACROSS all four channels, so on a restricted account it
+// can name a sale, an ad or an email that account doesn't subscribe to. Filtering it sentence
+// by sentence would be guesswork — the wording rarely names its own channel — so a restricted
+// account's assessment is built from the allowed channels' own reads instead. Those are
+// generated per channel and never cross over, so nothing can leak.
+function restrictedBrief(ins,a){
+  var v=[],m=[];
+  a.forEach(function(k){
+    var o=ins&&ins[k];if(!o)return;
+    if(o.summary)v.push(o.summary);
+    (o.bullets||[]).forEach(function(b){v.push(b);});
+    if(o.apply)m.push(o.apply);
+  });
+  return v.length?{verdict:v,move:m}:null;
+}
+function briefFinalHTML(ins){
+  var a=chanAllowed();
+  if(a){var rb=restrictedBrief(ins,a);return rb?briefHTML(rb):'';}
+  return (ins&&ins.brief&&asBullets(ins.brief.verdict).length)?briefHTML(ins.brief):'';
+}
 // What to render in the brief slot at report()-time: the brief if we already have it,
 // otherwise the loading state (loadInsights fetches it and paints the final result).
 function briefSlotHTML(c){var ins=insightsCache[c.host];return ins?briefFinalHTML(ins):briefLoadingHTML();}
@@ -2205,8 +2235,10 @@ function paintInsights(c,ins){
   if(ub)ub.innerHTML=briefFinalHTML(ins);   // resolve the slot: the brief, or empty — never leave it spinning
   // Keep the rail one-liner live too: the first point of today's AI threat read.
   var rs=document.getElementById('rsub-'+c.id);
-  if(rs&&ins&&ins.brief){var vb=asBullets(ins.brief.verdict);if(vb.length)rs.textContent=vb[0];}
-  ['ads','social','website','email'].forEach(function(k){
+  // Restricted accounts get their own channels' headline here, never the cross-channel one.
+  var rbrief=chanAllowed()?restrictedBrief(ins,chanAllowed()):(ins&&ins.brief);
+  if(rs&&rbrief){var vb=asBullets(rbrief.verdict);if(vb.length)rs.textContent=vb[0];}
+  (chanAllowed()||['ads','social','website','email']).forEach(function(k){
     var o=ins&&ins[k];if(!o||!(o.summary||(o.bullets&&o.bullets.length)))return;
     var sum=document.getElementById('csum-'+k+'-'+c.id);
     if(sum&&o.summary){sum.className='chan-sum ai';sum.innerHTML=linkify(o.summary);}
@@ -2439,7 +2471,7 @@ function report(c){
   var p=c.demo?c.priority:'setup';
   var back='<button class="back-btn" onclick="back()"><svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Watchlist</button>';
   var meta;
-  var wk=' · <a class="wklink" href="report.html?host='+encodeURIComponent(c.host)+'" target="_blank" rel="noopener" title="This week\'s shareable intelligence report">Weekly report ↗</a>';
+  var wk=chanAllowed()?'':' · <a class="wklink" href="report.html?host='+encodeURIComponent(c.host)+'" target="_blank" rel="noopener" title="This week\'s shareable intelligence report">Weekly report ↗</a>';
   var ed=(c.account&&!RO)?' · <a class="wklink" href="#" onclick="openConfirmPages(\''+c.id+'\');return false" title="Edit name, social pages, or replace this competitor">✎ Edit</a>':'';
   if(state.day){meta=esc(c.host)+' · <span class="snaplbl">📅 viewing '+esc(fmtFullDay(state.day))+'</span>';}
   else if(c.live){meta=esc(c.host)+' · <span class="live"><span class="livedot"></span>Live feed</span><span class="asof" id="asof-'+c.id+'"></span><span class="lr" id="lr-'+c.id+'"></span>'+wk;}
@@ -2453,9 +2485,9 @@ function report(c){
   var head=back+'<div class="rep-head"><span class="rep-badge">'+badge(c)+'</span>'
     +'<div><div class="rep-name">'+esc(c.name)+exTag+'</div><div class="rep-meta">'+meta+'</div>'+exNote+'</div></div>';
   // Top banner: email is the one channel that needs a manual step — shown until their emails start arriving (toggled by checkEmailBanner).
-  var ewb='<div class="email-warn" id="emailWarn-'+c.id+'" style="display:none">⚠ <b>Email isn’t tracked automatically.</b> To capture '+esc(c.name)+'’s newsletters you must paste our inbox into their email sign-up — a one-time manual step, or no emails come through. <button type="button" class="ew-go" onclick="jumpEmail()">Set it up ↓</button></div>';
+  var ewb=!chanOn('email')?'':'<div class="email-warn" id="emailWarn-'+c.id+'" style="display:none">⚠ <b>Email isn’t tracked automatically.</b> To capture '+esc(c.name)+'’s newsletters you must paste our inbox into their email sign-up — a one-time manual step, or no emails come through. <button type="button" class="ew-go" onclick="jumpEmail()">Set it up ↓</button></div>';
   // Banner to confirm a user-added competitor's socials (a guessed handle can track the wrong profile).
-  var hwb=handlesUnconfirmed(c)?('<div class="email-warn" id="handlesWarn-'+c.id+'">⚠ <b>Confirm '+esc(c.name)+'’s pages.</b> Check we’re tracking the right Facebook, Instagram and TikTok — a guessed handle can pull the wrong profile. <button type="button" class="ew-go" onclick="openConfirmPages(\''+c.id+'\')">Confirm pages</button></div>'):'';
+  var hwb=(chanOn('social')&&handlesUnconfirmed(c))?('<div class="email-warn" id="handlesWarn-'+c.id+'">⚠ <b>Confirm '+esc(c.name)+'’s pages.</b> Check we’re tracking the right Facebook, Instagram and TikTok — a guessed handle can pull the wrong profile. <button type="button" class="ew-go" onclick="openConfirmPages(\''+c.id+'\')">Confirm pages</button></div>'):'';
 
   if(lockedComp(c)){
     return '<div class="report">'+head
@@ -2468,7 +2500,7 @@ function report(c){
     var note=c.status==='watching'?'':'<p class="setup-note">Capturing a live baseline of <b>'+esc(c.host)+'</b> now — each channel below populates within a few minutes; day-over-day comparisons build from tomorrow.</p>';
     return '<div class="report'+(state.day?' hist':'')+'">'+head+ewb+hwb+note
       +'<div id="ubrief-'+c.id+'">'+briefSlotHTML(c)+'</div>'
-      +'<span class="lbl sec-l">Intercepted signals</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
+      +'<span class="lbl sec-l">Intercepted signals</span><div class="chans">'+chList().map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
   }
 
   // Demos are REAL examples — their threat assessment + counter-op are the same
@@ -2476,7 +2508,7 @@ function report(c){
   var dBrief=state.day?'':'<div id="ubrief-'+c.id+'">'+briefSlotHTML(c)+'</div>';
   return '<div class="report'+(state.day?' hist':'')+'">'+head+ewb+hwb
     +dBrief
-    +'<span class="lbl sec-l">Intercepted signals</span><div class="chans">'+CH.map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
+    +'<span class="lbl sec-l">Intercepted signals</span><div class="chans">'+chList().map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
 }
 
 function render(){
@@ -2740,7 +2772,7 @@ function pollPersonalize(tries){
 var chatThreads={};
 var CHAT_CHIPS=['When did they launch their current sale?','What offer are they pushing hardest?','How often do they email — and about what?','What angle do their top posts use?'];
 function currentComp(){var l=getList();return l.find(function(c){return c.id===state.sel;})||l[0];}
-function chatCtx(c){var p=[];var lb=insightsCache[c.host]&&insightsCache[c.host].brief;var lbv=lb&&asBullets(lb.verdict);if(lbv&&lbv.length)p.push(lbv.join(' '));else if(c.verdict)p.push(c.verdict);else if(c.oneLiner)p.push(c.oneLiner);var w=c.channels&&c.channels.website;if(w){if(w.stats)p.push('Website: '+w.stats);if(w.changes)w.changes.forEach(function(d){p.push('• '+d.s+': '+String(d.d).replace(/<[^>]+>/g,''));});}return p.join(' · ');}
+function chatCtx(c){var p=[];var ins=insightsCache[c.host];var lb=chanAllowed()?restrictedBrief(ins,chanAllowed()):(ins&&ins.brief);var lbv=lb&&asBullets(lb.verdict);if(lbv&&lbv.length)p.push(lbv.join(' '));else if(!chanAllowed()&&c.verdict)p.push(c.verdict);else if(!chanAllowed()&&c.oneLiner)p.push(c.oneLiner);var w=chanOn('website')&&c.channels&&c.channels.website;if(w){if(w.stats)p.push('Website: '+w.stats);if(w.changes)w.changes.forEach(function(d){p.push('• '+d.s+': '+String(d.d).replace(/<[^>]+>/g,''));});}return p.join(' · ');}
 function openChat(){var c=currentComp();if(!c)return;document.getElementById('chatSub').textContent='about '+c.name;document.getElementById('chatPanel').classList.add('open');renderChat(c);setTimeout(function(){document.getElementById('chatInput').focus();},150);}
 function closeChat(){var p=document.getElementById('chatPanel');if(p)p.classList.remove('open');}
 function syncChat(c){var p=document.getElementById('chatPanel');if(c&&p&&p.classList.contains('open')){document.getElementById('chatSub').textContent='about '+c.name;renderChat(c);}}
@@ -3159,6 +3191,7 @@ function clientCard(c){
         +'<span class="cl-chip">'+used+' / '+lim+' competitors</span>'
         +(atCap?'<span class="cl-chip warn">at limit</span>':'')
         +'<span class="cl-chip'+(c.slack?' ok':'')+'">'+(c.slack?'⚡ Slack ✓':'no Slack')+'</span>'
+        +(c.channels?'<span class="cl-chip warn">'+esc(chLabels(c.channels))+' only</span>':'')
         +'<span class="cl-caret">▾</span>'
       +'</span>'
     +'</button>'
@@ -3173,6 +3206,20 @@ function clientCard(c){
     +'<div class="cl-lbl">Weekly report → Slack</div><div class="cl-share-row"><button class="cl-mini add" onclick="sendClientWeekly('+c.id+',this)"'+(c.slack?'':' disabled')+'>⚡ Send to Slack</button><span class="cl-none" style="align-self:center">'+(c.slack?'posts this client\u2019s report links to their Slack':'client hasn\u2019t connected Slack yet')+'</span></div>'
     // 4 · share link
     +(link?'<div class="cl-lbl">Read-only share link</div><div class="cl-share-row"><input class="cl-in cl-link" id="cllink-'+c.id+'" readonly value="'+esc(link)+'" onclick="this.select()"><button class="cl-mini" onclick="copyClientLink('+c.id+',this)">Copy</button><button class="cl-mini" title="New link — the old one stops working" onclick="rotateShare('+c.id+',this)">Rotate</button></div>':'')
+    // 5 · channels this client receives (founder, 12 Aug: "restrict some clients to
+    // monitor only social media posts"). Delivery-side only — every channel keeps being
+    // captured, so lifting a restriction reveals full history rather than starting fresh.
+    +'<div class="cl-lbl">Channels this client receives</div>'
+    +'<div class="cl-share-row" style="flex-wrap:wrap;gap:10px">'
+      +CH.map(function(d){var on=!c.channels||c.channels.indexOf(d.k)>=0;
+        return '<label class="ann-row" style="margin:0;gap:5px"><input type="checkbox" class="chn-'+c.id+'" value="'+d.k+'"'+(on?' checked':'')+'> <span>'+esc(d.label)+'</span></label>';}).join('')
+      +'<button class="cl-mini add" onclick="setClientChannels('+c.id+',null,this)">Save channels</button>'
+      +'<button class="cl-mini" title="Organic Social only — no ads, website or email" onclick="setClientChannels('+c.id+',[\'social\'],this)">Social only</button>'
+      +(c.channels?'<button class="cl-mini" onclick="setClientChannels('+c.id+',null,this,1)">Remove restriction</button>':'')
+    +'</div>'
+    +'<div class="cl-none" style="margin:-2px 0 4px">'+(c.channels
+      ? 'Restricted — dashboard, Slack brief and AI analyst show <b>'+esc(chLabels(c.channels))+'</b> only, and the weekly report link is withheld (it is a full four-channel read). Captures continue on every channel.'
+      : 'All four channels — the normal plan.')+'</div>'
     // 5 · account: plan · limit · password · delete
     +'<div class="cl-lbl">Account</div>'
     +'<div class="cl-share-row" style="flex-wrap:wrap;margin-bottom:4px"><span class="cl-none" style="align-self:center">Plan: '+(c.comp?'free access':(c.plan_status==='active'?'paying ✓':(c.plan_status?c.plan_status:((c.trial_ends_at&&new Date(c.trial_ends_at)>new Date())?'trial':'no plan'))))+'</span><button class="cl-mini" onclick="toggleComp('+c.id+','+(c.comp?'false':'true')+',this)">'+(c.comp?'Revoke free access':'Grant free access')+'</button></div>'
@@ -3248,6 +3295,21 @@ function toggleComp(id,val,btn){
   fetch(adminUrl('/api/admin/clients/'+id+'/comp'),{method:'POST',headers:adminHeaders(true),body:JSON.stringify({comp:val})}).then(function(r){return r.json();}).then(function(d){
     btn.disabled=false;if(d&&d.ok)loadAdminClients();else alert((d&&d.error)||'Could not update.');
   }).catch(function(){btn.disabled=false;});
+}
+function chLabels(ks){return (ks||[]).map(function(k){var d=CH.filter(function(x){return x.k===k;})[0];return d?d.label:k;}).join(' + ');}
+function setClientChannels(id,preset,btn,clear){
+  var list=clear?[]:(preset||Array.prototype.slice.call(document.querySelectorAll('.chn-'+id+':checked')).map(function(x){return x.value;}));
+  // Server-side an empty list means "no restriction" (a mis-click must never blank a paying
+  // client's dashboard) — so saying that out loud here beats silently granting all four.
+  if(!clear&&!list.length){alert('Tick at least one channel. To give this client everything again, use “Remove restriction”.');return;}
+  var t=btn.textContent;btn.disabled=true;btn.textContent='…';
+  fetch(adminUrl('/api/admin/clients/'+id+'/channels'),{method:'POST',headers:adminHeaders(true),body:JSON.stringify({channels:list})})
+    .then(function(r){return r.json();}).then(function(d){
+      btn.disabled=false;btn.textContent=t;
+      if(!d||d.error){alert((d&&d.error)||'Couldn\u2019t save the channels.');return;}
+      var c=(ADMIN_CLIENTS||[]).filter(function(x){return x.id===id;})[0];if(c)c.channels=d.channels||null;
+      renderClientList();
+    }).catch(function(){btn.disabled=false;btn.textContent=t;alert('Couldn\u2019t save the channels.');});
 }
 function setClientLimit(id,btn){
   var v=(document.getElementById('cllim-'+id).value||'').trim();

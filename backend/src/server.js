@@ -29,6 +29,7 @@ import { getWeekly, generateWeekly, mondayOf } from './weekly.js';
 import { billingEnabled, billingStatus, checkoutSession, portalSession, syncQuantity, handleWebhook } from './billing.js';
 import { capiEnabled, capiTokenValid } from './metacapi.js';
 import { snapshotDays, snapshotForDay, recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost } from './snapshots.js';
+import { ALL_CHANNELS, normChannels } from './channels.js';
 
 const app = express();
 // Railway terminates TLS at exactly one proxy hop — with this set, req.ip is the real
@@ -1025,11 +1026,11 @@ app.get('/api/admin/clients', async (req, res) => {
   if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   try {
     await healStaleSetup();   // tidy every client's stale 'setup' row while we're here
-    const us = await pool.query('SELECT id, email, approved, share_token, max_competitors, created_at, slack_webhook, comp, plan_status, trial_ends_at FROM users WHERE admin = FALSE ORDER BY created_at DESC');
+    const us = await pool.query('SELECT id, email, approved, share_token, max_competitors, created_at, slack_webhook, comp, plan_status, trial_ends_at, channels FROM users WHERE admin = FALSE ORDER BY created_at DESC');
     const cs = await pool.query('SELECT id, user_id, name, host, url, country, status, handles FROM competitors ORDER BY created_at ASC');
     const byUser = {};
     for (const c of cs.rows) (byUser[c.user_id] = byUser[c.user_id] || []).push(c);
-    res.json({ dflt: DEFAULT_MAX_COMPETITORS, warm: await warmUsage(), clients: us.rows.map((u) => ({ id: u.id, email: u.email, approved: u.approved, share_token: u.share_token, max_competitors: u.max_competitors, created_at: u.created_at, slack: isSlackWebhook(u.slack_webhook), comp: u.comp, plan_status: u.plan_status, trial_ends_at: u.trial_ends_at, competitors: byUser[u.id] || [] })) });
+    res.json({ dflt: DEFAULT_MAX_COMPETITORS, warm: await warmUsage(), clients: us.rows.map((u) => ({ id: u.id, email: u.email, approved: u.approved, share_token: u.share_token, max_competitors: u.max_competitors, created_at: u.created_at, slack: isSlackWebhook(u.slack_webhook), comp: u.comp, plan_status: u.plan_status, trial_ends_at: u.trial_ends_at, channels: normChannels(u.channels), competitors: byUser[u.id] || [] })) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1059,12 +1060,14 @@ app.get('/api/admin/clients/:id/brief', async (req, res) => {
   if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   try {
     const id = Number(req.params.id);
-    const u = await pool.query('SELECT share_token FROM users WHERE id = $1 AND admin = FALSE', [id]);
+    const u = await pool.query('SELECT share_token, channels FROM users WHERE id = $1 AND admin = FALSE', [id]);
     if (!u.rows[0]) return res.status(404).json({ error: 'No such client.' });
     const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [id]);
     if (!cs.rows.length) return res.json({ text: '' });
     const viewUrl = u.rows[0].share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.rows[0].share_token)) : 'https://watchback.ai/app.html';
-    res.json({ text: await buildDailyBrief(cs.rows, viewUrl, false) });
+    // Preview what THIS client receives, restriction included — the point of the preview is
+    // to see their brief, not a founder-eye version of it.
+    res.json({ text: await buildDailyBrief(cs.rows, viewUrl, false, normChannels(u.rows[0].channels)) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1105,6 +1108,20 @@ app.post('/api/admin/clients/:id/limit', async (req, res) => {
     const r = await pool.query('UPDATE users SET max_competitors = $2 WHERE id = $1 AND admin = FALSE RETURNING id, max_competitors', [Number(req.params.id), n]);
     if (!r.rows[0]) return res.status(404).json({ error: 'No such client.' });
     res.json({ ok: true, max_competitors: r.rows[0].max_competitors, dflt: DEFAULT_MAX_COMPETITORS });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Which channels this client receives (founder, 12 Aug: "restrict some clients to monitor
+// only social media posts"). Body: { channels: ['social'] } — or [] / all four to lift the
+// restriction. Delivery-side only: their competitors keep being captured on every channel,
+// so lifting a restriction reveals full history rather than starting from that day.
+app.post('/api/admin/clients/:id/channels', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try {
+    const list = normChannels((req.body || {}).channels);
+    const r = await pool.query('UPDATE users SET channels = $2 WHERE id = $1 AND admin = FALSE RETURNING id, channels', [Number(req.params.id), list]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'No such client.' });
+    res.json({ ok: true, channels: normChannels(r.rows[0].channels), all: ALL_CHANNELS });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1238,13 +1255,15 @@ app.get('/api/shared/:token', async (req, res) => {
   try {
     const token = String(req.params.token || '').trim();
     if (!token) return res.status(404).json({ error: 'Not found.' });
-    const u = await pool.query('SELECT id FROM users WHERE share_token = $1', [token]);
+    const u = await pool.query('SELECT id, channels FROM users WHERE share_token = $1', [token]);
     if (!u.rows[0]) return res.status(404).json({ error: 'This shared link is no longer active.' });
     const uid = u.rows[0].id;
     const cs = await pool.query('SELECT id, name, host, url, country, status, handles, created_at, updated_at FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [uid]);
     let brand = null;
     try { const b = await getMyBrand(uid); if (b && b.name) brand = { name: b.name }; } catch (e) { /* optional */ }
-    res.json({ readonly: true, brand, competitors: cs.rows });
+    // A teammate on the share link sees exactly what the account holder sees — including
+    // their channel restriction, or the link would be a way around it.
+    res.json({ readonly: true, brand, competitors: cs.rows, channels: normChannels(u.rows[0].channels) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1284,14 +1303,15 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.get('/api/me', requireAuth, async (req, res) => {
-  let admin = false, slack = false, demoBrands = false, maxCompetitors = DEFAULT_MAX_COMPETITORS;
+  let admin = false, slack = false, demoBrands = false, maxCompetitors = DEFAULT_MAX_COMPETITORS, channels = null;
   try {
-    const r = await pool.query('SELECT admin, slack_webhook, max_competitors, demo_brands FROM users WHERE id = $1', [req.user.uid]);
+    const r = await pool.query('SELECT admin, slack_webhook, max_competitors, demo_brands, channels FROM users WHERE id = $1', [req.user.uid]);
     admin = !!(r.rows[0] && r.rows[0].admin); slack = !!(r.rows[0] && r.rows[0].slack_webhook);
     demoBrands = !!(r.rows[0] && r.rows[0].demo_brands);
+    channels = normChannels(r.rows[0] && r.rows[0].channels);
     if (r.rows[0] && r.rows[0].max_competitors != null) maxCompetitors = r.rows[0].max_competitors;
   } catch (e) { /* defaults */ }
-  res.json({ user: { id: req.user.uid, email: req.user.email, admin, slack, demoBrands, maxCompetitors } });
+  res.json({ user: { id: req.user.uid, email: req.user.email, admin, slack, demoBrands, maxCompetitors, channels } });
 });
 
 // ── Per-account Slack connection ──────────────────────────────────────────────

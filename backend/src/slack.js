@@ -10,6 +10,7 @@ import { latestSnapshot } from './snapshots.js';
 import { stripUrlParams, stripAdTotals } from './adsguard.js';
 import { gateLine } from './rulecheck.js';
 import { pool } from './db.js';
+import { normChannels } from './channels.js';
 
 // The founder roll-up brief's "view" link must be a REAL read-only share link (opens
 // without a login), not the bare app URL. Resolve the founder/admin account's share
@@ -132,11 +133,15 @@ function balanceQuotes(t) {
 }
 const sentSplit = (t) => String(t || '').trim().split(/(?<=[.!?])\s+/).filter(Boolean);
 
-export async function buildDailyBrief(brands, viewUrl, commit) {
+// `channels` = this recipient's allowed channels (channels.js), or null for all four. A
+// restricted client's brief must match their dashboard exactly — the SYNC RULE applies to
+// access as much as to content, or a social-only client reads about a sale they cannot open.
+export async function buildDailyBrief(brands, viewUrl, commit, channels) {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   const head = '🛰️ *WatchBack daily* · ' + today;
   if (!(brands || []).length) return head + '\nNo competitors on the watchlist yet.';
   const link = viewUrl || await founderShareUrl();
+  const on = (k) => !channels || channels.includes(k);
   const todayISO = new Date().toISOString().slice(0, 10);
   const blocks = [];
   const qaNotes = [];   // delivery-gate downgrades, QA-pinged to the founder after a real send
@@ -182,19 +187,23 @@ export async function buildDailyBrief(brands, viewUrl, commit) {
     };
     const gated = (raw, channel) => gateLine(line(raw), line(fb[channel]), { surface: 'slack', qa: qaNotes, brand: b.name, channel }).text;
     const rows = [];
-    if (ch('ads')) rows.push('   ' + mark(adsNew) + '📣 Ads: ' + gated(adsRecapLine(ins), 'ads'));
-    if (social) rows.push('   ' + mark(!!n(A.posts)) + '📱 Social: ' + gated(social, 'social'));
-    if (ch('website')) rows.push('   ' + mark(webNew) + '🛒 Website: ' + gated(ins.website.summary, 'website'));
-    if (ch('email')) rows.push('   ' + mark(!!n(A.emails)) + '✉️ Email: ' + gated(ins.email.summary, 'email'));
-    const pri = !!(s && (s.sale || n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.products) || n(s.angle)));
-    const anyAct = !!(n(A.ads) || n(A.posts) || n(A.emails) || n(A.website));
+    if (on('ads') && ch('ads')) rows.push('   ' + mark(adsNew) + '📣 Ads: ' + gated(adsRecapLine(ins), 'ads'));
+    if (on('social') && social) rows.push('   ' + mark(!!n(A.posts)) + '📱 Social: ' + gated(social, 'social'));
+    if (on('website') && ch('website')) rows.push('   ' + mark(webNew) + '🛒 Website: ' + gated(ins.website.summary, 'website'));
+    if (on('email') && ch('email')) rows.push('   ' + mark(!!n(A.emails)) + '✉️ Email: ' + gated(ins.email.summary, 'email'));
+    // The badge summarises only the channels this reader actually gets — a 💡 earned by a
+    // website sale a social-only client cannot open is a promise the brief never keeps.
+    const pri = !!(s && ((on('website') && (s.sale || n(s.products))) || (on('ads') && (n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.angle)))));
+    const anyAct = !!((on('ads') && n(A.ads)) || (on('social') && n(A.posts)) || (on('email') && n(A.emails)) || (on('website') && n(A.website)));
     const badge = pri ? '💡' : anyAct ? '🔹 routine activity' : '✅ no new moves';
     if (rows.length) {
       blocks.push('*' + b.name + '* ' + badge + '\n' + rows.join('\n'));
     } else {
       // No fresh stored read (rebuild missed the brand) — the deterministic signal lines
-      // still carry the block, old-style bullets, so news is never dropped.
-      const ls = (signalLines(s).length ? signalLines(s) : activityLines(s)).map(rel);
+      // still carry the block, old-style bullets, so news is never dropped. Those bullets
+      // are cross-channel and carry no channel tag, so a restricted reader gets the brand
+      // line only: dropping news is recoverable, leaking a channel they don't have is not.
+      const ls = channels ? [] : (signalLines(s).length ? signalLines(s) : activityLines(s)).map(rel);
       blocks.push('*' + b.name + '* ' + badge + (ls.length ? '\n' + ls.map((l) => '   • ' + l).join('\n') : ''));
     }
   }
@@ -238,7 +247,7 @@ export async function sendUserDailyBriefs(pool) {
   let sent = 0, total = 0, lastText = '';
   const auditBrands = new Map();
   try {
-    const us = await pool.query(`SELECT id, slack_webhook, share_token, demo_brands FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
+    const us = await pool.query(`SELECT id, slack_webhook, share_token, demo_brands, channels FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
     for (const u of us.rows) {
       try {
         const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [u.id]);
@@ -250,7 +259,7 @@ export async function sendUserDailyBriefs(pool) {
         total++;
         // Teammate view link = this account's OWN read-only share link (opens without a login).
         const viewUrl = u.share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.share_token)) : 'https://watchback.ai/app.html';
-        const text = await buildDailyBrief(cs.rows.concat(demoRows), viewUrl, true);   // real delivery → commit announce-once state
+        const text = await buildDailyBrief(cs.rows.concat(demoRows), viewUrl, true, normChannels(u.channels));   // real delivery → commit announce-once state
         const r = await postTo(u.slack_webhook, text);
         if (r.sent) { sent++; lastText = text; for (const c of cs.rows) auditBrands.set(c.host, c); }
       } catch (e) { /* skip this user */ }
@@ -270,9 +279,12 @@ export async function sendUserDailyBriefs(pool) {
 export async function sendUserWeeklyLinks(pool, weekLabel) {
   if (!pool) return;
   try {
-    const us = await pool.query(`SELECT id, slack_webhook FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
+    const us = await pool.query(`SELECT id, slack_webhook, demo_brands, channels FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
     for (const u of us.rows) {
       try {
+        // The weekly report page is a FULL four-channel read — a restricted account gets no
+        // link to it, or the link hands back exactly the channels their plan excludes.
+        if (normChannels(u.channels)) continue;
         const cs = await pool.query('SELECT name, host FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [u.id]);
         if (!cs.rows.length) continue;
         // Opt-in example brands (founder, 6 Aug): appended, never mixed into the client's own
