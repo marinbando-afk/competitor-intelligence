@@ -53,6 +53,7 @@ misses to the founder's Slack.
 - [insights.js GUIDE.ads] [PROMPT] Dominant-hook template: quoted hook — angle in plain marketing terms — destination — tactic named (founder-praised, 9 Aug)
 - [insights.js GUIDE.ads] [PROMPT] Unchanged days: never stop at "unchanged" — say what the ad IS (hook, format, destination)
 - [insights.js GUIDE.ads] [PROMPT] Always "Facebook page" or "landing page" — never a bare "page"
+- [findings.js ads.pages] [ENFORCED] Quoted page names are labelled as what they are: `…run from "Seranova", "Daily Discounts Online" handles.` — the word "handle"/"handles" is appended (founder, 12 Aug)
 - [insights.js + rulecheck.js R-PHRASE-01] [BOTH] Page-like campaigns: exactly "optimised for Facebook page likes" / "optimised for Instagram follows" — never "sends traffic to Facebook's login page" (founder, 22 Jul)
 - [insights.js] [BOTH] Landing-page format comes from the fetched-and-read page, never inferred from the URL/subdomain; unread pages are said to be unread
 - [insights.js GUIDE.ads] [PROMPT] Marketplace destinations are a deliberate channel strategy — never "not driving sales" or a DTC shortfall

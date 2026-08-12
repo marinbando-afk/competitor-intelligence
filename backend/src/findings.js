@@ -88,9 +88,12 @@ export function adsFindings(rows, capN) {
     });
   }
   if (pageNow.size) {
+    // R-ADS-HANDLE (founder, 12 Aug): quoted page names alone read ambiguously — say what
+    // they ARE by appending "handle"/"handles": …run from "Seranova", "Daily Discounts
+    // Online" handles.
     out.push({
       type: 'state', key: 'ads.pages',
-      text: 'The captured ads run from ' + [...pageNow.keys()].map((p) => '"' + String(p).trim() + '"').join(', ') + '.',
+      text: 'The captured ads run from ' + [...pageNow.keys()].map((p) => '"' + String(p).trim() + '"').join(', ') + (pageNow.size > 1 ? ' handles' : ' handle') + '.',
       evidence: { pages: [...pageNow.entries()] },
     });
   }

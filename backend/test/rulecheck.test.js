@@ -3,6 +3,7 @@
 import { checkText, gateLine } from '../src/rulecheck.js';
 import { checkMisses } from '../src/qa.js';
 import { repairPreview } from '../src/email.js';
+import { adsFindings } from '../src/findings.js';
 
 let pass = 0, fail = 0;
 function ok(cond, name) {
@@ -56,6 +57,20 @@ ok(repairPreview('=E2=80=8C=C2=A0=E2=80=8C=C2=A0 2-In-1 =C2=B7 SPF 50. T= wo Job
 ok(repairPreview('[500,000+ Women =C2=B7 Approved by Germany’s Testing = Institute. SE= E HOW]') .indexOf('=') < 0, 'low-escape QP with soft breaks decodes');
 ok(repairPreview('Plain preview text, price = 42 stays.') === 'Plain preview text, price = 42 stays.', 'plain text with a legit = untouched');
 ok(repairPreview('story =E2=80=8C=E2=80=8C=E2=80=8C=E2=8') === 'story', 'truncated escape tail dropped cleanly');
+
+console.log('\nADS PAGES — quoted names are labelled as handles (founder, 12 Aug):');
+const two = adsFindings([
+  { day: '2026-08-12', data: { ads: [
+    { id: 'h1', landing: 'https://x.com/a', page: 'Seranova', started: '2026-08-12' },
+    { id: 'h2', landing: 'https://x.com/b', page: 'Daily Discounts Online', started: '2026-08-11' },
+  ] } },
+  { day: '2026-08-11', data: { ads: [ { id: 'h1', landing: 'https://x.com/a', page: 'Seranova', started: '2026-08-10' } ] } },
+], 50).find((f) => f.key === 'ads.pages');
+ok(two && / handles\.$/.test(two.text) && two.text.indexOf('"Daily Discounts Online"') > 0, 'multiple pages end with "handles."');
+const one = adsFindings([
+  { day: '2026-08-12', data: { ads: [ { id: 'h1', landing: 'https://x.com/a', page: 'Seranova', started: '2026-08-12' } ] } },
+], 50).find((f) => f.key === 'ads.pages');
+ok(one && / handle\.$/.test(one.text), 'a single page ends with "handle."');
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);
