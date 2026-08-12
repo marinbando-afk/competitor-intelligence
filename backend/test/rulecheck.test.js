@@ -95,7 +95,9 @@ ok(twoAds && /\(all video\)/.test(twoAds.text), 'two uniform ads → "(all video
 
 console.log('\nWEBSITE ROW — a fired sale signal IS the line, never an "unchanged" read (founder, 12 Aug):');
 const { websiteRowText } = await import('../src/slack.js');
-ok(websiteRowText('Sale live: Back to School Sale: up to 58% off', 'Back to School Sale, up to 58% off, is active and unchanged.') === 'Sale live: Back to School Sale: up to 58% off', 'sale signal replaces the unchanged read');
+const { saleAnnouncement } = await import('../src/signals.js');
+ok(saleAnnouncement('Back to School Sale: up to 58% off') === 'New sale live: Back to School Sale: up to 58% off', 'announcement says NEW sale live (founder, 12 Aug)');
+ok(websiteRowText(saleAnnouncement('Back to School Sale: up to 58% off'), 'Back to School Sale, up to 58% off, is active and unchanged.') === 'New sale live: Back to School Sale: up to 58% off', 'sale signal replaces the unchanged read');
 ok(websiteRowText('', 'Storefront unchanged — same prices, products and sale.') === 'Storefront unchanged — same prices, products and sale.', 'no sale signal → AI read ships as before');
 ok(websiteRowText(null, '') === '', 'nothing → empty (row skipped)');
 

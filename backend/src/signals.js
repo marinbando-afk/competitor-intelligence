@@ -41,6 +41,11 @@ function startedWithinDays(started, todayStr, n) {
 }
 const OFFER_STATE = '_offerstate';   // internal channel — never served publicly (see snapshots.js)
 const SALE_STATE = '_salestate';     // sales actually ANNOUNCED in a delivered brief, per host
+
+// R-SALE-NEW (founder, 12 Aug): the first-ever announcement of a sale says NEW in the text
+// itself — "New sale live: …" — so it is 100% clear this was not there before. Exported for
+// test/rulecheck.test.js.
+export const saleAnnouncement = (banner) => 'New sale live: ' + String(banner || '').trim();
 const OFFER_STATE_TTL_DAYS = 400;    // forget a fingerprint long after its ad can plausibly still run
 
 // A real promo banner is a short headline. Older snapshots may hold a model's non-answer
@@ -206,7 +211,7 @@ export async function dailySignals(host, commit) {
         // window (i.e. it's actually new, not just the sale slide coming back around).
         const saleB = bannerOk(cur.banner) && isSaleBanner(cur.banner) ? String(cur.banner).trim() : '';
         if (saleB && !(await saleBannerSeenRecently(host, saleB, todayStr))) {
-          out.sale = 'Sale live: ' + saleB;
+          out.sale = saleAnnouncement(saleB);
         } else if (saleB) {
           // CATCH-UP (founder, 12 Aug: Seranova's Back-to-School sale started between the
           // 10 and 11 Aug captures, the transition-day brief ran before the capture, and
@@ -216,7 +221,7 @@ export async function dailySignals(host, commit) {
           const st2 = await latestSnapshot(host, SALE_STATE);
           const seen2 = (st2 && st2.seen && typeof st2.seen === 'object') ? st2.seen : {};
           const fp2 = normBanner(saleB);
-          if (fp2 && (!seen2[fp2] || seen2[fp2] === todayStr)) out.sale = 'Sale live: ' + saleB;
+          if (fp2 && (!seen2[fp2] || seen2[fp2] === todayStr)) out.sale = saleAnnouncement(saleB);
         }
       }
       // Record ANY announced sale (transition, new-banner or catch-up path) so the
