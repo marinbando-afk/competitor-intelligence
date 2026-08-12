@@ -19,6 +19,29 @@ const ALIAS_MODEL = process.env.BRAND_MODEL || 'claude-sonnet-4-6';
 let _ai; function aiClient() { if (!_ai) _ai = new Anthropic(); return _ai; }
 
 function clean(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
+
+// Quoted-printable that reaches us undecoded (some inbound webhooks hand over the raw
+// MIME part): '=E2=80=8C=C2=A0' preheader padding renders as garbage and '=\n' soft
+// breaks split words ('T= wo Jobs'). Only kicks in when a string clearly smells like QP
+// (several =XX escapes), so real text with a stray '=' is never touched.
+function decodeQPish(s) {
+  s = String(s == null ? '' : s);
+  if ((s.match(/=[0-9A-Fa-f]{2}/g) || []).length < 3) return s;
+  s = s.replace(/=\r?\n/g, '').replace(/=\s(?=\S)/g, '');   // soft breaks, raw and whitespace-collapsed
+  const bytes = [];
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '=' && /^[0-9A-Fa-f]{2}$/.test(s.slice(i + 1, i + 3))) { bytes.push(parseInt(s.slice(i + 1, i + 3), 16)); i += 2; }
+    else for (const b of Buffer.from(s[i], 'utf8')) bytes.push(b);
+  }
+  try { s = Buffer.from(bytes).toString('utf8'); } catch (e) { /* keep undecoded */ }
+  return s;
+}
+// The preheader padding decodes to zero-width joiners and non-breaking spaces — strip
+// the invisibles so a preview shows the email's real first line, not blank filler.
+function stripInvisibles(s) { return String(s == null ? '' : s).replace(/[\u200B\u200C\u200D\u2060\uFEFF\u00AD\u034F]+/g, '').replace(/\u00A0/g, ' '); }
+// Used at store time for new mail AND at read time, so previews already stored broken
+// (before this fix) repair themselves the next time the channel is opened.
+export function repairPreview(s) { return clean(stripInvisibles(decodeQPish(String(s == null ? '' : s)))); }
 function extractEmail(s) { const m = String(s || '').match(/[\w.+-]+@[\w-]+\.[\w.-]+/); return m ? m[0].toLowerCase() : ''; }
 function displayName(s) { const m = String(s || '').match(/^\s*"?([^"<]+?)"?\s*</); return m ? m[1].trim() : ''; }
 function domainOf(email) { const i = String(email || '').lastIndexOf('@'); return i < 0 ? '' : email.slice(i + 1).toLowerCase(); }
@@ -151,7 +174,7 @@ export async function storeInbound(body) {
   const p = parseInbound(body);
   if (!p.fromEmail && !p.subject) { const e = new Error('Could not parse email payload.'); e.status = 400; throw e; }
   const senderDomain = rootDomain(domainOf(p.fromEmail));
-  const preview = (clean(p.text) || stripHtml(p.html)).slice(0, 320);
+  const preview = (repairPreview(p.text) || repairPreview(stripHtml(p.html))).slice(0, 320);
   const offer = detectOffer(p.subject + ' — ' + preview);
   const receivedAt = (p.dateStr && !isNaN(Date.parse(p.dateStr))) ? new Date(p.dateStr) : new Date();
   // A NULL message_id defeats ON CONFLICT (NULLs never conflict in Postgres), so an inbound
@@ -308,7 +331,7 @@ export async function getEmails(host, name) {
     id: e.id,
     from: e.from_name || e.sender_email,
     subject: e.subject,
-    preview: e.preview,
+    preview: repairPreview(e.preview),   // repairs rows stored before the QP fix too
     offer: e.offer || '',
     date: e.received_at,
     hasFull: !!(e.html && e.html.length > 40),

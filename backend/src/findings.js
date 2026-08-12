@@ -140,16 +140,25 @@ export function adsFindings(rows, capN) {
     }
     if (fresh.length) {
       const nVid = fresh.filter((a) => a.hasVideo).length;
+      const nImg = fresh.length - nVid;
       const since = fresh[fresh.length - 1].started;
-      // Carry the CREATIVE SUBSTANCE, not just the count (founder, 9 Aug: "can you give an
-      // angle or hook or ad style summary in cases like this one") — the newest opening
-      // line and where the batch drives, so a mass-launch day reads as WHAT they are
-      // saying, never as capture arithmetic.
-      const hook = String(fresh[0].text || fresh[0].title || '').replace(/\s+/g, ' ').trim().slice(0, 110);
-      const doms = [...new Set(fresh.map((a) => domOf(a.landing)).filter(Boolean))].slice(0, 3);
+      // Founder, 12 Aug: the gate line was drowning in bookkeeping ("since 2026-08-10
+      // (Meta start dates; 18 video, 0 image/carousel)"). Human dates ("yesterday"),
+      // "all video" when the mix is uniform, and no trailing itemisation note — the
+      // items are already listed above.
+      const dayMinus1 = new Date(Date.parse(today.day + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10);
+      const when = since === today.day ? 'today' : (since === dayMinus1 ? 'since yesterday' : 'since ' + since);
+      const mix = nImg === 0 ? 'all video' : (nVid === 0 ? 'all image' : nVid + ' video, ' + nImg + ' image');
+      // Carry the CREATIVE SUBSTANCE, not just the count (founder, 9 Aug) — the newest
+      // opening line and where the batch drives. Inner double quotes become singles so
+      // a hook that opens with a quotation never renders as ""nested"" garbage, and the
+      // clip lands on a word boundary instead of mid-sentence mush.
+      let hook = String(fresh[0].text || fresh[0].title || '').replace(/["“”]/g, "'").replace(/\s+/g, ' ').trim();
+      if (hook.length > 90) hook = hook.slice(0, 90).replace(/\s+\S*$/, '') + '…';
+      const doms = [...new Set(fresh.map((a) => domOf(a.landing)).filter(Boolean))].slice(0, 2);
       out.push({
         type: 'new', key: 'ads.launches',
-        text: fresh.length + ' new ad' + (fresh.length > 1 ? 's' : '') + ' launched since ' + since + ' (Meta start dates; ' + nVid + ' video, ' + (fresh.length - nVid) + ' image/carousel)' + (hook ? '; newest opens: "' + hook + '"' : '') + (doms.length ? ' → ' + doms.join(', ') : '') + (fresh.length > 6 ? ' — the 6 newest are itemised above' : '') + '.',
+        text: fresh.length + ' new ad' + (fresh.length > 1 ? 's' : '') + ' launched ' + when + ' (' + mix + ')' + (hook ? ' — newest opens: "' + hook + '"' : '') + (doms.length ? ' → ' + doms.join(', ') : '') + '.',
         evidence: { count: fresh.length, video: nVid, since, hook, landing: doms.join(', ') },
       });
     }
@@ -187,7 +196,10 @@ export function adsFindings(rows, capN) {
     const unlink = (h) => String(h).replace(/\./g, '.​');
     // Registrable brand label: casaandbeyond.com.au → "casaandbeyond". A redirect within
     // the same brand (…com.au → …com) is a geo/storefront hop, not a retired funnel.
-    const sld = (h) => { const p = String(h).split('.'); let i = p.length - 2; if (i > 0 && /^(com|co|net|org|gov|edu)$/.test(p[i]) && String(p[i + 1] || '').length === 2) i--; return p[i] || String(h); };
+    // Compared with punctuation stripped: casaandbeyond.com.au → casaand-beyond.com is
+    // the SAME brand behind a hyphenated variant (founder, 12 Aug: reported as a retired
+    // funnel; it wasn't).
+    const sld = (h) => { const p = String(h).split('.'); let i = p.length - 2; if (i > 0 && /^(com|co|net|org|gov|edu)$/.test(p[i]) && String(p[i + 1] || '').length === 2) i--; return (p[i] || String(h)).replace(/[^a-z0-9]/gi, ''); };
     for (const [d, r] of Object.entries(lands)) {
       if (!r || r.error) continue;                       // network failure ≠ dead page
       if (r.status === 404 || r.status === 410) {
@@ -199,7 +211,11 @@ export function adsFindings(rows, capN) {
           let path = '';
           try { path = new URL(r.finalUrl).pathname; } catch (e) { /* host only */ }
           const dest = fh + (path && path !== '/' ? (path.length > 48 ? path.slice(0, 48) + '…' : path) : '');
-          out.push({ type: 'state', key: 'ads.landRedirect:' + d + '>' + fh, text: 'Ad landing domain ' + unlink(d) + ' now REDIRECTS to ' + dest + ' — the ' + unlink(d) + ' funnel is not being served; ad traffic lands on ' + fh + ' instead.', evidence: { domain: d, url: r.url, finalUrl: r.finalUrl } });
+          // Name the exact URL that was probed and when — we tested ONE representative ad
+          // landing URL, not the whole domain (founder, 12 Aug: "domain X redirects" read
+          // as a claim about the domain root, which serves fine).
+          const probed = unlink(String(r.url || d).replace(/^https?:\/\//, '').split('?')[0]);
+          out.push({ type: 'state', key: 'ads.landRedirect:' + d + '>' + fh, text: 'Ad landing page ' + probed + ' redirected to ' + dest + ' when checked on ' + today.day + ' — that ad\'s traffic ends up on ' + fh + ', a different site. (One ad URL tested, not the whole ' + unlink(d) + ' domain.)', evidence: { domain: d, url: r.url, finalUrl: r.finalUrl } });
         }
       }
     }

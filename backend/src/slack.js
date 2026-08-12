@@ -106,6 +106,11 @@ function clipSent(t, n) {
   const cut = t.slice(0, n);
   const b = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
   if (b > n * 0.4) return cut.slice(0, b + 1);
+  // Next best: a clause boundary. Cutting mid-clause left dangling labels in the brief
+  // ("…; newest opens." with the quote gone — founder, 12 Aug); dropping the whole
+  // unfinished clause keeps every surviving clause complete.
+  const c = Math.max(cut.lastIndexOf('; '), cut.lastIndexOf(' — '));
+  if (c > n * 0.4) return cut.slice(0, c).replace(/[\s.,;:—–-]+$/, '') + '.';
   const sp = cut.lastIndexOf(' ');
   return (sp > 0 ? cut.slice(0, sp) : cut).replace(/[\s.,;:—–-]+$/, '') + '…';
 }
