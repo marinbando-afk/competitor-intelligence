@@ -40,6 +40,7 @@ function startedWithinDays(started, todayStr, n) {
   return age >= 0 && age <= n;
 }
 const OFFER_STATE = '_offerstate';   // internal channel — never served publicly (see snapshots.js)
+const SALE_STATE = '_salestate';     // sales actually ANNOUNCED in a delivered brief, per host
 const OFFER_STATE_TTL_DAYS = 400;    // forget a fingerprint long after its ad can plausibly still run
 
 // A real promo banner is a short headline. Older snapshots may hold a model's non-answer
@@ -206,7 +207,32 @@ export async function dailySignals(host, commit) {
         const saleB = bannerOk(cur.banner) && isSaleBanner(cur.banner) ? String(cur.banner).trim() : '';
         if (saleB && !(await saleBannerSeenRecently(host, saleB, todayStr))) {
           out.sale = 'Sale live: ' + saleB;
+        } else if (saleB) {
+          // CATCH-UP (founder, 12 Aug: Seranova's Back-to-School sale started between the
+          // 10 and 11 Aug captures, the transition-day brief ran before the capture, and
+          // the rotation guard then muted it as "seen" — so the sale was never announced
+          // at all). Captured is NOT announced: a live sale banner whose fingerprint has
+          // never been through a DELIVERED brief still fires, once.
+          const st2 = await latestSnapshot(host, SALE_STATE);
+          const seen2 = (st2 && st2.seen && typeof st2.seen === 'object') ? st2.seen : {};
+          const fp2 = normBanner(saleB);
+          if (fp2 && (!seen2[fp2] || seen2[fp2] === todayStr)) out.sale = 'Sale live: ' + saleB;
         }
+      }
+      // Record ANY announced sale (transition, new-banner or catch-up path) so the
+      // catch-up can never repeat it. Only a REAL delivery commits — previews must not
+      // consume the once-only state (same rule as newStaleOffers).
+      if (commit && out.sale) {
+        try {
+          const stS = await latestSnapshot(host, SALE_STATE);
+          const seenS = (stS && stS.seen && typeof stS.seen === 'object') ? stS.seen : {};
+          const cutS = new Date(Date.parse(todayStr) - 180 * 864e5).toISOString().slice(0, 10);
+          const nextS = {};
+          for (const [fp, day] of Object.entries(seenS)) if (typeof day === 'string' && day >= cutS) nextS[fp] = day;
+          const fpS = normBanner((bannerOk(cur.banner) && isSaleBanner(cur.banner) ? cur.banner : '') || out.sale);
+          if (fpS && !nextS[fpS]) nextS[fpS] = todayStr;
+          await saveSnapshot(host, SALE_STATE, { seen: nextS });
+        } catch (e) { /* announce state is best-effort */ }
       }
       out.products = diffs.filter((d) => /new product/i.test(d));
       // Tier-2: any OTHER real storefront change (price moves, products removed, lowest-price
