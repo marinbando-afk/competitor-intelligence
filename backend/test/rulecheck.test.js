@@ -123,5 +123,16 @@ const pfFacts = [{ name: 'Pacific Foods', host: 'pacificfoods.com', sale: '', pr
 ok(checkMisses('*Pacific Foods* 🔹\n   📣 Ads: something.', pfFacts).some((v) => v.rule === 'R-MISS-04'), 'posts captured + no Social row → R-MISS-04');
 ok(checkMisses('*Pacific Foods* 🔹\n   📱 Social: No new posts on the tracked profiles.', pfFacts).length === 0, 'Social row present → clean');
 
+console.log('\nCONGRUENCE — app, Slack and admin surfaces tell one story (founder, 12 Aug):');
+const { checkCongruence } = await import('../src/qa.js');
+const appRead = { ads: { summary: 'Discount-led video push.' }, social: { summary: 'IP collabs dominate.' }, website: { summary: 'Back to School Sale live, up to 58% off.' }, email: { summary: 'Latest: SPF launch email.' } };
+const fullBlock = '*X* 💡\n   📣 Ads: a.\n   📱 Social: b.\n   🛒 Website: c.\n   ✉️ Email: d.';
+const noSocial = '*X* 💡\n   📣 Ads: a.\n   🛒 Website: c.\n   ✉️ Email: d.';
+const fx = { name: 'X', sale: '', postsSeen: 0 };
+ok(checkCongruence(fullBlock, appRead, fx).length === 0, 'all four rows match the app → congruent');
+ok(checkCongruence(noSocial, appRead, fx).some((v) => v.rule === 'R-SYNC-01'), 'app shows social, brief lacks the row → R-SYNC-01');
+ok(checkCongruence(fullBlock, { ads: appRead.ads, website: appRead.website, email: appRead.email }, fx).some((v) => v.rule === 'R-SYNC-02'), 'brief row without an app read → R-SYNC-02');
+ok(checkCongruence(fullBlock, { ...appRead, website: { summary: 'Storefront unchanged — same prices.' } }, { name: 'X', sale: 'New sale live', postsSeen: 0 }).some((v) => v.rule === 'R-SYNC-03'), 'sale fired but app read silent → R-SYNC-03');
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);

@@ -13,6 +13,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { dailySignals } from './signals.js';
+import { latestSnapshot } from './snapshots.js';
 import { checkText } from './rulecheck.js';
 
 const JUDGE_MODEL = process.env.QA_MODEL || 'claude-sonnet-4-6';
@@ -37,6 +38,31 @@ export function checkMisses(text, factsByBrand) {
     // R-MISS-04 (Pacific Foods, 12 Aug): posts are captured (the app shows the channel) but
     // the brief block has no Social row — an empty AI read silently dropped a channel.
     if (f.postsSeen > 0 && block.indexOf('📱 Social') < 0) out.push({ brand: f.name, rule: 'R-MISS-04', why: f.postsSeen + ' captured post(s) but no Social row in the brief' });
+  }
+  return out;
+}
+
+// Layer 1b — CONGRUENCE (founder, 12 Aug: "make an audit so the app and Slack, but also
+// admin reads are all congruent"). Every surface derives from the same stored snapshots,
+// so any disagreement is a pipeline bug — flagged, never rationalised. Compares the
+// brand's brief block against the same stored app read the dashboard renders.
+export function checkCongruence(block, appRead, f) {
+  const out = [];
+  if (!block || !appRead) return out;
+  const rowFor = { ads: '📣 Ads', social: '📱 Social', website: '🛒 Website', email: '✉️ Email' };
+  const shows = {
+    ads: !!(appRead.ads && appRead.ads.summary),
+    social: !!((appRead.social && appRead.social.summary) || (f.postsSeen || 0) > 0),
+    website: !!((appRead.website && appRead.website.summary) || f.sale),
+    email: !!(appRead.email && appRead.email.summary),
+  };
+  for (const ch of Object.keys(rowFor)) {
+    const inBrief = block.indexOf(rowFor[ch]) >= 0;
+    if (shows[ch] && !inBrief) out.push({ brand: f.name, rule: 'R-SYNC-01', why: 'app shows a ' + ch + ' read but the brief has no ' + ch + ' row' });
+    if (!shows[ch] && inBrief) out.push({ brand: f.name, rule: 'R-SYNC-02', why: 'brief has a ' + ch + ' row but the app shows no ' + ch + ' read or capture' });
+  }
+  if (f.sale && appRead.website && appRead.website.summary && !/sale|%\s*off|discount|bogo|clearance/i.test(appRead.website.summary)) {
+    out.push({ brand: f.name, rule: 'R-SYNC-03', why: 'sale signal fired but the app website read does not mention it' });
   }
   return out;
 }
@@ -70,14 +96,25 @@ async function judgeText(text, factsByBrand) {
 export async function auditDaily({ text, brands, postText }) {
   try {
     const factsByBrand = [];
+    const appReads = new Map();
     for (const b of brands || []) {
       try {
         const s = await dailySignals(b.host, false);
         const n = (x) => (Array.isArray(x) ? x.length : 0);
         factsByBrand.push({ name: b.name, host: b.host, sale: s.sale || '', products: n(s.products), staleOffers: n(s.staleOffer), funnels: n(s.funnel), newAds: n(s.activity && s.activity.ads), newEmails: n(s.activity && s.activity.emails), postsSeen: s.postsSeen || 0 });
+        // The same stored read the app renders — congruence is only judged against a FRESH
+        // read (a stale one means the brief used deterministic lines, a different, honest path).
+        try {
+          const ins = await latestSnapshot(b.host, 'insights');
+          if (ins && ins.__day && (Date.now() - Date.parse(ins.__day)) <= 2 * 864e5) appReads.set(b.name, ins);
+        } catch (e) { /* congruence skipped for this brand */ }
       } catch (e) { /* brand facts are best-effort */ }
     }
     const misses = checkMisses(text, factsByBrand);
+    for (const f of factsByBrand) {
+      const ar = appReads.get(f.name);
+      if (ar) misses.push(...checkCongruence(blockFor(text, f.name), ar, f));
+    }
     const hard = checkText(text, { surface: 'slack' }).map((v) => ({ brand: '(brief)', rule: v.id, why: v.why }));
     const judged = await judgeText(text, factsByBrand);
     const all = misses.concat(hard, judged);
