@@ -26,7 +26,7 @@ import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { systemStats } from './stats.js';
 import { getWeekly, generateWeekly, mondayOf } from './weekly.js';
-import { billingEnabled, billingStatus, checkoutSession, portalSession, syncQuantity, handleWebhook } from './billing.js';
+import { billingEnabled, billingStatus, checkoutSession, confirmCheckout, subscriptionAudit, portalSession, syncQuantity, handleWebhook } from './billing.js';
 import { capiEnabled, capiTokenValid } from './metacapi.js';
 import { snapshotDays, snapshotForDay, recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost } from './snapshots.js';
 import { ALL_CHANNELS, normChannels } from './channels.js';
@@ -742,6 +742,19 @@ app.post('/api/billing/checkout', requireAuth, async (req, res) => {
   try {
     if (!billingEnabled()) return res.status(503).json({ error: 'Billing is not live yet.' });
     res.json(await checkoutSession(req.user.uid));
+  } catch (e) {
+    // `code` lets the app tell "already paid" apart from a real failure and reload instead
+    // of inviting a second payment (founder was double-charged this way on 12 Aug).
+    res.status(e.status || 500).json({ error: e.message, code: e.code || null });
+  }
+});
+// Called by the app the moment Stripe redirects back with ?billing=success&sid=… . Applies
+// the subscription from Stripe directly, so a webhook that is slow (or lost) can no longer
+// leave a paying account looking unpaid — the failure that caused a double charge.
+app.post('/api/billing/confirm', requireAuth, async (req, res) => {
+  try {
+    if (!billingEnabled()) return res.json({ status: 'disabled', ok: true });
+    res.json(await confirmCheckout(req.user.uid, (req.body || {}).sid));
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
 app.post('/api/billing/portal', requireAuth, async (req, res) => {
@@ -749,6 +762,14 @@ app.post('/api/billing/portal', requireAuth, async (req, res) => {
     if (!billingEnabled()) return res.status(503).json({ error: 'Billing is not live yet.' });
     res.json(await portalSession(req.user.uid));
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+
+// Admin: every subscription Stripe holds for a client — spots a double charge at a glance.
+// Read-only; cancelling and refunding stay in Stripe's own UI where a human confirms them.
+app.get('/api/admin/clients/:id/subscriptions', async (req, res) => {
+  if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
+  try { res.json(await subscriptionAudit(Number(req.params.id))); }
+  catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
 
 // Feature requests / feedback. Anyone can POST; only the owner (admin key) can list.

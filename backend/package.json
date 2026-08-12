@@ -6,7 +6,7 @@
   "description": "Auth + accounts API for Competitor Intelligence AI (runs on Railway).",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node test/claims.test.js && node test/findings.test.js && node test/adsguard.test.js && node test/slack.test.js && node test/gated.test.js && node test/rulecheck.test.js && node test/channels.test.js"
+    "test": "node test/claims.test.js && node test/findings.test.js && node test/adsguard.test.js && node test/slack.test.js && node test/gated.test.js && node test/rulecheck.test.js && node test/channels.test.js && node test/billing.test.js"
   },
   "engines": {
     "node": ">=18"

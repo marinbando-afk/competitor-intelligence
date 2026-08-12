@@ -1052,12 +1052,36 @@ var TOKEN=localStorage.getItem('ci_token')||'';
 var USER=null; try{USER=JSON.parse(localStorage.getItem('ci_user')||'null');}catch(e){}
 /* ── billing (Stripe) — the app asks the server, the server owns the truth ── */
 var BILLING=null;
+// PAYWALL SUPPRESSION (founder, 12 Aug — he paid, the popup came back, he paid AGAIN).
+// Stripe's redirect beats its webhook, so for a second or two after a real payment the
+// server still reports 'locked'. Showing the paywall in that window invites a duplicate
+// purchase, so it is held shut whenever a payment has just happened or is in flight.
+// Belt and braces: the server now also refuses to open a second checkout (billing.js).
+var PAYWALL_HOLD=/[?&]billing=success/.test(location.search);
 function loadBilling(){
   if(!TOKEN||RO)return;
   fetch(API+'/api/billing/status',{headers:authH()}).then(function(r){return r.ok?r.json():null;}).then(function(d){
     if(!d)return;BILLING=d;paintBilling();paintAuth();
-    if(d.status==='locked')openPaywall();
+    if(d.status==='locked'&&!PAYWALL_HOLD)openPaywall();
   }).catch(function(){});
+}
+function closePaywall(){var ov=document.getElementById('payOv');if(ov)ov.remove();}
+// Ask the server to reconcile with Stripe using the checkout-session id, then repaint.
+// Retries briefly: Stripe can take a moment to attach the subscription to the session.
+function confirmCheckout(sid,tries){
+  tries=tries||0;
+  fetch(API+'/api/billing/confirm',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({sid:sid||''})})
+    .then(function(r){return r.ok?r.json():null;}).then(function(d){
+      if(d&&d.status&&d.status!=='locked'){BILLING=d;PAYWALL_HOLD=false;closePaywall();paintBilling();paintAuth();return;}
+      if(tries<6){setTimeout(function(){confirmCheckout(sid,tries+1);},2000);return;}
+      // ~12s and Stripe still shows nothing on this account. Do NOT reopen the paywall —
+      // that is exactly how the double charge happened. Say what we know, point at support.
+      PAYWALL_HOLD=false;
+      alert('Your payment went through, but our system is still confirming it — this can take a minute.\n\nPlease DO NOT pay again. Refresh in a minute; if the app still asks for payment, email marin.bando@gmail.com and it will be sorted without a second charge.');
+    }).catch(function(){
+      if(tries<6){setTimeout(function(){confirmCheckout(sid,tries+1);},2000);}
+      else{PAYWALL_HOLD=false;}
+    });
 }
 // .app is sized height:calc(100vh - 60px) for the header, and body has overflow:hidden —
 // so a banner added on top pushes the bottom of the app off-screen. Publish the banner's
@@ -1081,13 +1105,21 @@ function paintBilling(){
   } else dropBanner(el);
 }
 window.addEventListener('resize',function(){var b=document.getElementById('trialbar');if(b)fitBanner(b);});
+var CHECKOUT_INFLIGHT=false;
 function startCheckout(btn){
+  if(CHECKOUT_INFLIGHT)return;   // a double-click must never mint two checkout sessions
+  CHECKOUT_INFLIGHT=true;
   if(btn){btn.disabled=true;btn.textContent='Opening secure checkout…';}
   fbTrack('InitiateCheckout',{value:197.00,currency:'USD',content_name:'WatchBack subscription',num_items:1});
   fetch(API+'/api/billing/checkout',{method:'POST',headers:authH()}).then(function(r){return r.json();}).then(function(d){
-    if(d&&d.url)location.href=d.url;
-    else{if(btn){btn.disabled=false;btn.textContent='Subscribe · $197/mo';}alert((d&&d.error)||'Could not open checkout — please try again.');}
-  }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Subscribe · $197/mo';}});
+    if(d&&d.url){location.href=d.url;return;}
+    CHECKOUT_INFLIGHT=false;
+    // The server found a live subscription already on this account — show the app, never
+    // a second payment prompt.
+    if(d&&d.code==='already_subscribed'){closePaywall();PAYWALL_HOLD=false;loadBilling();alert('\u2713 You\u2019re already subscribed — no second payment needed.');return;}
+    if(btn){btn.disabled=false;btn.textContent='Subscribe \u00b7 $197/mo';}
+    alert((d&&d.error)||'Could not open checkout — please try again.');
+  }).catch(function(){CHECKOUT_INFLIGHT=false;if(btn){btn.disabled=false;btn.textContent='Subscribe \u00b7 $197/mo';}});
 }
 function openPortal(btn){
   if(btn)btn.disabled=true;
@@ -3442,6 +3474,7 @@ else if(TOKEN){loadUserComps();loadBilling();
     var _sid=(location.search.match(/[?&]sid=([^&]+)/)||[])[1]||'';
     var _fireBuy=function(){var v=(BILLING&&BILLING.monthly)?BILLING.monthly:197.00;try{if(window.fbq){fbq('track','Purchase',{value:v,currency:'USD',content_name:'WatchBack subscription'},_sid?{eventID:_sid}:undefined);fbq('track','Subscribe',{value:v,currency:'USD',predicted_ltv:v*12},_sid?{eventID:_sid+'-sub'}:undefined);}}catch(e){}};
     setTimeout(_fireBuy,1500);   // give loadBilling() a moment so the value is exact
+    confirmCheckout(_sid);       // write the subscription from Stripe now — never wait on the webhook
     setTimeout(function(){alert('\u2713 Subscription active — welcome aboard! Your dossiers, briefs and chat continue uninterrupted.');history.replaceState(null,'',location.pathname);},400);
   }
   // Refresh the stored profile (picks up the admin flag for sessions from before it existed).
