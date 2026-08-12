@@ -31,7 +31,9 @@ console.log('\nDELIVERY GATE — clean lines pass:');
 ok(clean('18 new ads launched since yesterday (all video) — newest opens: "Will these fit?" → nolaninterior.com.'), 'good gate line passes');
 ok(clean('New ad launched 2026-08-05 — video from “The Oodie”.'), 'launch date is allowed');
 ok(clean('Ad landing page x.com/lp redirected to y.com/p when checked on 2026-08-11 — that ad’s traffic ends up on y.com, a different site. (One ad URL tested, not the whole x.com domain.)'), 'scoped redirect claim passes');
-ok(clean('Storefront: 2 new products listed (2026-08-10 → 2026-08-11).'), 'date ranges are allowed');
+ok(fires('Storefront: 2 new products listed (2026-08-10 → 2026-08-11).', 'R-PROV-01'), 'R-PROV-01 date-range window fires (overturned 12 Aug: daily cadence makes it implicit)');
+ok(fires('Storefront compared 2026-08-11 → 2026-08-12: prices unchanged.', 'R-PROV-01'), 'R-PROV-01 "compared" phrasing fires');
+ok(clean('Storefront unchanged — same prices, products and sale.'), 'absolute no-change line passes');
 ok(clean('Cadence runs ~2.8 emails/week; offers rotate across 30% off and BOGO.'), 'normal email read passes');
 
 console.log('\nDELIVERY GATE — fallback behaviour:');

@@ -86,6 +86,12 @@ export function checkText(text, opts = {}) {
   const out = [];
   for (const c of CHECKS) { try { if (c.test(t)) out.push({ id: c.id, why: c.why }); } catch (e) { /* a broken check must never block delivery */ } }
   if (opts.surface === 'slack' && isoDateViolation(t)) out.push({ id: 'R-DATE-01', why: 'raw ISO date in brief (should be relativized)' });
+  // R-PROV-01 (founder, 12 Aug): the brief is DAILY — "vs yesterday" is implicit, so a
+  // stated comparison window ("compared 2026-08-11 → 2026-08-12", any date→date range)
+  // is pure confusion and never ships in Slack. Provenance belongs in evidence fields.
+  if (opts.surface === 'slack' && (/\d{4}-\d{2}-\d{2}\s*(?:→|->)\s*\d{4}-\d{2}-\d{2}/.test(t) || /\bcompared\s+\d{4}-\d{2}-\d{2}/i.test(t))) {
+    out.push({ id: 'R-PROV-01', why: 'comparison window in brief (daily cadence makes it implicit)' });
+  }
   return out;
 }
 
@@ -102,4 +108,4 @@ export function gateLine(text, fallback, opts = {}) {
   return { text: 'update captured — open the dashboard for the full read.', downgraded: true };
 }
 
-export const RULE_IDS = CHECKS.map((c) => c.id).concat(['R-DATE-01']);
+export const RULE_IDS = CHECKS.map((c) => c.id).concat(['R-DATE-01', 'R-PROV-01']);
