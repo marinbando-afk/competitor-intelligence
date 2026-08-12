@@ -240,12 +240,34 @@ export function websiteFindings(rows) {
   // proof + USP slides, so one capture is a SAMPLE of the bar, not the bar. Surface the other
   // slides we have seen recently, and say plainly that today's slide proves nothing about the
   // others still being there.
+  // ROTATION vs REPLACEMENT: two distinct banner texts in the window can mean either, and
+  // the count alone cannot tell them apart (Seranova, 12 Aug — a clean Summer→Back-to-School
+  // swap looked identical to a two-slide rotation). The tell is INTERLEAVING: a rotating bar
+  // shows its slides on overlapping days, while a replacement splits cleanly in time — every
+  // sighting of the old text strictly before every sighting of the new one.
   const slides = [];
   for (const r of rows.slice(0, 14)) {
     const b2 = r.data && r.data.banner;
-    if (b2 && !slides.some((x) => sameBannerText(x.text, b2))) slides.push({ text: b2, day: r.day, sale: isSaleBanner(b2) });
+    if (!b2) continue;
+    const hit = slides.find((x) => sameBannerText(x.text, b2));
+    if (hit) { hit.days.push(r.day); hit.day = r.day; }               // r.day is older each step
+    else slides.push({ text: b2, day: r.day, days: [r.day], sale: isSaleBanner(b2) });
   }
-  if (slides.length > 1) {
+  const spanOf = (sl) => ({ first: sl.days[sl.days.length - 1], last: sl.days[0] });
+  // Overlapping runs mean the texts alternate — that is a rotating bar, never a swap.
+  const interleaved = slides.length > 1 && slides.some((a, i) => slides.some((b, j) => {
+    if (i >= j) return false;
+    const A = spanOf(a), B = spanOf(b);
+    return A.first <= B.last && B.first <= A.last;
+  }));
+  // A REPLACEMENT looks like exactly two texts, not interleaved, where the OLDER one held
+  // the bar for a run of days before the newer took over. Run length is what separates the
+  // two cases: with one capture a day, a rotating bar shows a different slide each day, so
+  // its runs are single days and never overlap — an interleaving test alone would read that
+  // as a clean swap (it wrongly muted the Glov rotation fixture). An established banner that
+  // ran for days and then stopped is a different animal.
+  const cleanSplit = slides.length === 2 && !interleaved && slides[1].days.length >= 2;
+  if (slides.length > 1 && !cleanSplit) {
     out.push({
       type: 'context', key: 'web.rotation',
       text: 'Their announcement bar ROTATES — slides seen recently: ' + slides.slice(0, 4).map((x) => '"' + x.text + '" (' + x.day + ')').join(', ') +
@@ -262,6 +284,80 @@ export function websiteFindings(rows) {
       if (b && sameBannerText(b, bannerNow)) since = r.day; else if (b) break;
     }
     const isNew = since === today.day && rows.length > 1 && rows.slice(1).some((r) => r.data);
+    // WHAT IT REPLACED, and when we first saw the swap (Seranova, 12 Aug: "Back to School
+    // Sale … active and unchanged" — it had replaced "SUMMER SALE: UP TO 58% OFF" the day
+    // before). Dating was binary: "first seen today", else "unchanged across recent
+    // captures" — so a banner that changed YESTERDAY was reported as stability, and the
+    // change itself was never told. A swap inside the recent window is news on the day it
+    // is spotted AND for a few days after, per the news-event-first rule: say what
+    // replaced what, in time order, before interpreting anything.
+    let prevBanner = null;
+    for (const r of rows) {
+      const b = r.data && r.data.banner;
+      if (b && !sameBannerText(b, bannerNow)) { prevBanner = { text: b, day: r.day }; break; }
+    }
+    // RENAMED, NOT REPLACED (Seranova, 12 Aug — the founder asked when the "new Back to
+    // School Sale" launched; there was no new sale). sameBannerText deliberately treats
+    // "same discount + heavy word overlap" as ONE promo re-worded — that rule is what stops
+    // a false "new sale launched" every time a bar is rephrased (UKLASH, 2 Aug). But it also
+    // swallowed a real event: "SUMMER SALE: UP TO 58% OFF" became "Back to School Sale: up
+    // to 58% off" overnight, and the read called it unchanged. The offer genuinely did not
+    // change; its PRETEXT did, which is the evergreen-occasion tactic worth naming. So the
+    // wording gets its own timeline alongside the promo's.
+    // The slide list above groups by PROMO identity, and a rename is the same promo — so the
+    // old and new wording collapse into one slide there. The rename test therefore needs its
+    // own pass at the WORDING level: exact normalised text, its own runs, its own split test.
+    const norm = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
+    const nowN = norm(bannerNow);
+    const wordRuns = [];
+    for (const r of rows.slice(0, 14)) {
+      const b = r.data && r.data.banner;
+      if (!b) continue;
+      const hit = wordRuns.find((x) => norm(x.text) === norm(b));
+      if (hit) hit.days.push(r.day); else wordRuns.push({ text: b, days: [r.day] });
+    }
+    let wordSince = today.day, priorWording = null;
+    for (const r of rows.slice(1)) {
+      const b = r.data && r.data.banner;
+      if (!b) continue;
+      if (norm(b) === nowN) { wordSince = r.day; continue; }
+      priorWording = { text: b, day: r.day };
+      break;
+    }
+    // Same shape as a promo replacement, judged on wording: exactly two wordings in the
+    // window, the older one held the bar for a run of days, and it never comes back after
+    // the new one starts (a reappearance would mean the bar is rotating, not renamed).
+    const wordCleanSplit = wordRuns.length === 2 && wordRuns[1].days.length >= 2
+      && !!priorWording && wordRuns[0].days.every((d) => d >= wordSince) && wordRuns[1].days.every((d) => d < wordSince);
+    // Guard against the Frøya failure (a PARTIAL vision read of the same bar reported as a
+    // replacement): a rename requires two genuinely different texts — neither containing the
+    // other — carrying the SAME discount, with real wording differences on both sides.
+    const words = (t) => new Set(norm(t).split(' ').filter((w) => w.length > 2));
+    const pctOf = (t) => String((String(t || '').match(/\d+\s*%/g) || []).map((x) => x.replace(/\s+/g, '')).sort());
+    let renamed = null;
+    if (priorWording && sameBannerText(priorWording.text, bannerNow)) {
+      const pN = norm(priorWording.text);
+      const partialRead = nowN.indexOf(pN) >= 0 || pN.indexOf(nowN) >= 0;
+      const A = words(bannerNow), B = words(priorWording.text);
+      const onlyNow = [...A].filter((w) => !B.has(w)), onlyPrev = [...B].filter((w) => !A.has(w));
+      if (!partialRead && wordCleanSplit && pctOf(bannerNow) === pctOf(priorWording.text) && pctOf(bannerNow) !== '[]'
+          && onlyNow.length && onlyPrev.length) {
+        const age = Math.round((Date.parse(today.day) - Date.parse(wordSince)) / 864e5);
+        if (age <= 6) renamed = { from: priorWording.text, lastSeen: priorWording.day, since: wordSince };
+      }
+    }
+    // A swap needs the older banner to sit strictly BEFORE the current one started, and the
+    // window to be a clean split rather than a rotation — in a rotating bar no slide has
+    // replaced any other, so "replaced X" would be a straight invention.
+    const swapped = !!(prevBanner && prevBanner.day < since && cleanSplit);
+    const daysSince = Math.round((Date.parse(today.day) - Date.parse(since)) / 864e5);
+    // News for the days AFTER the swap too: the change is what matters, and a client reading
+    // Wednesday's brief has not necessarily read Tuesday's.
+    const recentSwap = swapped && daysSince >= 1 && daysSince <= 6;
+    // Same headline discount under a new occasion name = the evergreen-pretext tactic, not
+    // a new offer. Worth naming outright — it is the whole story of a swap like this one.
+    const pct = (t) => (String(t || '').match(/\d+\s*%/g) || []).map((x) => x.replace(/\s+/g, ''));
+    const sameDiscount = swapped && pct(bannerNow).length > 0 && String(pct(bannerNow)) === String(pct(prevBanner.text));
     // A ticking countdown makes the quoted banner stale within hours — strip the value
     // and name the TACTIC instead (founder, 10 Aug: the 50%-off clearance WITH THE TIMER
     // is the important callout). A timer on a banner already seen on earlier days has by
@@ -269,12 +365,22 @@ export function websiteFindings(rows) {
     const tm = timerIn(bannerNow);
     const seenBefore = since !== today.day;
     const quote = tm ? bannerNow.replace(TIMER_RE, '').replace(/\s{2,}/g, ' ').trim().replace(/[\s—–\-:,;]+$/, '') : bannerNow;
+    // The dating clause, in time order: what replaced what, then how settled it is. Never
+    // "launched"/"live since" — we know when we FIRST SAW it, not when they published it.
+    let when;
+    if (isNew && swapped) when = ' — first seen in today\'s capture, replacing "' + prevBanner.text + '" (last seen ' + prevBanner.day + ').';
+    else if (isNew) when = ' — first seen today; earlier captures showed a different banner.';
+    else if (recentSwap) when = ' — replaced "' + prevBanner.text + '" and was first seen in our ' + since + ' capture'
+      + (sameDiscount ? '. Same headline discount, new occasion name: the offer did not change, only its pretext' : '') + '.';
+    else if (renamed) when = ' — RENAMED, not new: the same discount ran as "' + renamed.from + '" through '
+      + renamed.lastSeen + ' and first appeared under this name in our ' + renamed.since + ' capture. The offer did not change, only its occasion — an evergreen discount re-dressed. We know when we first SAW the new wording, not when they published it.';
+    else when = ' — unchanged across recent captures.';
     out.push({
-      type: isNew ? 'new' : 'state', key: 'web.banner',
+      type: (isNew || recentSwap || renamed) ? 'new' : 'state', key: 'web.banner',
       text: isSaleBanner(bannerNow)
-        ? ('Storefront promo: "' + quote + '"' + (tm ? ' — with a COUNTDOWN TIMER' + (seenBefore ? ' that keeps resetting day after day (evergreen urgency, not a real deadline)' : '') : '') + (isNew ? ' — first seen today; earlier captures showed a different banner.' : ' — unchanged across recent captures.'))
+        ? ('Storefront promo: "' + quote + '"' + (tm ? ' — with a COUNTDOWN TIMER' + (seenBefore ? ' that keeps resetting day after day (evergreen urgency, not a real deadline)' : '') : '') + when)
         : ('Storefront announcement bar shows operational messaging (not a promo): "' + quote + '".'),
-      evidence: { banner: bannerNow, since, timer: tm || undefined },
+      evidence: { banner: bannerNow, since, replaced: prevBanner || undefined, renamed: renamed || undefined, sameDiscount: sameDiscount || undefined, timer: tm || undefined },
     });
   }
 

@@ -179,5 +179,44 @@ const sr = gf.find((f) => String(f.key).startsWith('ads.landRedirect:go.seranova
 check('cross-brand redirect fires with clean path', !!sr && sr.text.includes('quiz.seranova.com/misw-offer'));
 check('no querystrings/UTMs in redirect text', !!sr && !/[?]|lptoken|tw_source/.test(sr.text));
 
+// RENAMED SALE, NOT A NEW ONE (Seranova, 12 Aug). The founder asked when their "new Back
+// to School Sale" launched. It was not new: "SUMMER SALE: UP TO 58% OFF" ran through 10 Aug
+// and the identical 58% discount appeared as "Back to School Sale: up to 58% off" on 11 Aug.
+// The brief said "active and unchanged" — because sameBannerText treats same-discount +
+// word-overlap as one promo re-worded (the rule that stops false launch alarms). Both halves
+// were wrong for the reader: nothing new launched, but the pretext DID change.
+const seraFeed = { products: [] };
+const seraRows = ['2026-08-12','2026-08-11'].map((d) => row(d, { banner: 'Back to School Sale: up to 58% off', summary: seraFeed }))
+  .concat(['2026-08-10','2026-08-09','2026-08-08','2026-08-07','2026-08-06'].map((d) => row(d, { banner: 'SUMMER SALE: UP TO 58% OFF', summary: seraFeed })));
+const sb = websiteFindings(seraRows).find((f) => f.key === 'web.banner');
+check('renamed sale is not reported as unchanged', !!sb && !/unchanged across recent captures/.test(sb.text));
+check('renamed sale is not reported as a launch', !!sb && !/\blaunch/i.test(sb.text));
+check('the rename names what it replaced', !!sb && sb.text.includes('SUMMER SALE: UP TO 58% OFF'));
+check('the rename is dated to the capture that first saw it', !!sb && sb.text.includes('2026-08-11'));
+check('says the offer itself did not change', !!sb && /did not change|only its occasion/i.test(sb.text));
+check('claims first-SEEN, never a publish date', !!sb && /first SAW|first appeared under this name/i.test(sb.text));
+check('rename counts as news', !!sb && sb.type === 'new');
+
+// It must go quiet again — a rename is news for a few days, not forever.
+const seraOld = ['2026-08-19','2026-08-18','2026-08-17','2026-08-16','2026-08-15','2026-08-14','2026-08-13']
+  .map((d) => row(d, { banner: 'Back to School Sale: up to 58% off', summary: seraFeed })).concat(seraRows);
+const sbOld = websiteFindings(seraOld).find((f) => f.key === 'web.banner');
+check('a week later the rename stops being news', !!sbOld && sbOld.type === 'state' && /unchanged/.test(sbOld.text));
+
+// A genuinely ROTATING bar must never claim one slide replaced another (Glov, 6 Aug).
+const rotRows = ['2026-08-12','2026-08-11','2026-08-10','2026-08-09','2026-08-08','2026-08-07'].map((d, i) =>
+  row(d, { banner: i % 2 ? 'FREE SHIPPING OVER $50' : 'SUMMER SALE: UP TO 58% OFF', summary: seraFeed }));
+const rotOut = websiteFindings(rotRows);
+check('rotation still detected', rotOut.some((f) => f.key === 'web.rotation'));
+check('rotation never claims a replacement', !rotOut.some((f) => /replac|RENAMED/i.test(f.text) && f.key === 'web.banner'));
+
+// A PARTIAL vision read of the same bar is not a rename (Frøya, 27 Jul).
+const partial = websiteFindings([
+  row('2026-08-12', { banner: 'SUMMER SALE: UP TO 58% OFF', summary: seraFeed }),
+  row('2026-08-11', { banner: 'SUMMER SALE: UP TO 58% OFF — shop now', summary: seraFeed }),
+  row('2026-08-10', { banner: 'SUMMER SALE: UP TO 58% OFF — shop now', summary: seraFeed }),
+]).find((f) => f.key === 'web.banner');
+check('a partial read of the same bar is not a rename', !!partial && !/RENAMED/.test(partial.text));
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);
