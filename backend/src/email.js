@@ -26,7 +26,9 @@ function clean(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(
 // (several =XX escapes), so real text with a stray '=' is never touched.
 function decodeQPish(s) {
   s = String(s == null ? '' : s);
-  if ((s.match(/=[0-9A-Fa-f]{2}/g) || []).length < 3) return s;
+  const hex = (s.match(/=[0-9A-Fa-f]{2}/g) || []).length;
+  const softBreaks = (s.match(/[A-Za-z]= [A-Za-z]/g) || []).length;   // 'SE= E HOW' — a collapsed soft break mid-word
+  if (hex < 3 && !(hex >= 1 && softBreaks >= 1) && softBreaks < 2) return s;
   s = s.replace(/=\r?\n/g, '').replace(/=\s(?=\S)/g, '');   // soft breaks, raw and whitespace-collapsed
   s = s.replace(/=[0-9A-Fa-f]?$/, '');   // escape cut in half by the 320-char store clip
   const bytes = [];
