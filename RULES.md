@@ -167,10 +167,49 @@ misses to the founder's Slack.
 
 ## Slack brief composition
 
-- [slack.js R-BRIEF-FORMAT] [ENFORCED] NO decorative emoji: no channel glyphs (📣📱🛒✉️), no status badges (💡/🔹/✅) — the labels already say it. The ONLY emoji is ❗, marking a channel with news, hanging in the left gutter so the news is scannable down one edge (founder, 12 Aug)
-- [slack.js R-BRIEF-FORMAT] [ENFORCED] Blank line between brands and between news blocks — a brief must never read as a wall of text
-- [slack.js R-BRIEF-FORMAT] [ENFORCED] Every subscribed channel is accounted for every day. Channels WITH news get their own spaced block; quiet channels collapse into ONE compact line carrying how long each has been quiet (founder, 12 Aug)
-- [slack.js R-BRIEF-FORMAT] [ENFORCED] Three states, never two: news · checked-and-quiet (with the date it went quiet) · NOT CHECKED (capture failed or channel not connected — said plainly, never dressed as quiet). A failed capture rendering as "competitor is quiet" is a false claim (Pannonian Padel, 5 Aug)
+The agreed layout (founder, 12 Aug — "format it somehow so it's readable and not a pile
+of text"). One block per brand, one row per channel, dividers between brands:
+
+```
+WatchBack daily · Wed 13 Aug
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+*Seranova*
+
+❗  *Website* — New sale: "Back to School Sale: up to 58% off" replaced
+     "SUMMER SALE: UP TO 58% OFF", first captured yesterday. Same headline
+     discount, new occasion — the economics are unchanged.
+
+❗  *Ads* — 6 new ads launched yesterday, all video. Newest opens
+     "Doctors are begging you to stop" → seranova.com, from "Seranova"
+     and "Daily Discounts Online" handles.
+
+     *Social* — No new posts since 9 Aug. Latest is still the founder-story
+     Reel on TikTok.
+
+     *Email* — No sends since 7 Aug. Last was "Your 58% is ending".
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+*Pacific Foods*
+
+     *Ads* — No new ads since 5 Aug. Longest-running is still "Real
+     ingredients, real simple" → shop.mikmak.ai, from "Pacific Foods" handle.
+
+     *Social* — Not checked: no handles confirmed yet.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+View the full dashboard →
+```
+
+- [slack.js R-BRIEF-FORMAT] [ENFORCED] NO decorative emoji: no channel glyphs (📣📱🛒✉️), no status badges (💡/🔹/✅) — the labels already say it. The ONLY emoji is ❗, marking a channel with news, hanging in the LEFT GUTTER so every move is scannable down one edge without reading a word (founder, 12 Aug)
+- [slack.js R-BRIEF-FORMAT] [ENFORCED] EVERY subscribed channel gets its OWN ROW, every day — never collapsed into a shared "quiet" line. A brand is a predictable block of rows, so the reader's eye finds Social in the same place every morning (founder, 12 Aug)
+- [slack.js R-BRIEF-FORMAT] [ENFORCED] Rows sort NEWS FIRST within each brand, so the ❗ rows cluster at the top instead of scattering
+- [slack.js R-BRIEF-FORMAT] [ENFORCED] Blank line between rows and a divider between brands — a brief must never read as a wall of text. Each row opens with ONE clause before its detail
+- [slack.js R-BRIEF-FORMAT] [ENFORCED] A QUIET row states how long the channel has been quiet AND what still stands: "No new ads since 5 Aug. Longest-running is still X" / "No new posts since 9 Aug. Latest is still X" — the age is the intelligence (founder, 12 Aug)
+- [slack.js R-BRIEF-FORMAT] [ENFORCED] Three states, never two: news · checked-and-quiet (with the date it went quiet) · NOT CHECKED (capture failed or channel not connected — said plainly, never dressed as quiet). Once a row prints every day, a failed capture would otherwise read as "the competitor is quiet", which is a false claim (Pannonian Padel, 5 Aug)
+- [slack.js R-BRIEF-FORMAT] [ENFORCED] A brand with nothing anywhere still gets its rows — silence must never look like a failure
 
 - [slack.js] [ENFORCED] SYNC RULE: brand blocks mirror the app's per-channel summaries; ❗ marks new signals; brief can never contradict the app (founder, 10 Aug)
 - [slack.js] [ENFORCED] No verdict quotes in the brief (clipped nonsense, 10 Aug); every block carries one ads-recap line with the core message (client feedback, 8 Aug)
