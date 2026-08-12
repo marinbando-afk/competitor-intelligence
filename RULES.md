@@ -135,6 +135,7 @@ misses to the founder's Slack.
 - [signals.js] [ENFORCED] Stale-offer announced ONCE (fingerprint state; previews never consume it); one line per occasion, merged (founder, 24 Jul)
 - [signals.js] [ENFORCED] Slack sale trigger: product-feed transition primary; banner fallback rotation-safe; sale→non-sale slide rotation is never "sale ended" (founder, 17 Jul)
 - [signals.js] [ENFORCED] CATCH-UP: captured ≠ announced — a live sale banner never through a DELIVERED brief fires once (_salestate) (founder, 12 Aug — Seranova Back-to-School)
+- [slack.js R-SALE-LEADS] [ENFORCED] When a sale signal fires (transition or catch-up), the website row IS the announcement ("Sale live: Back to School Sale: up to 58% off") — never an "active and unchanged" read with an ❗ on it; the ❗ and the sentence must agree (founder, 12 Aug — Seranova)
 - [qa.js R-MISS-01..03] [ENFORCED] Self-audit: a computed sale / new-product / stale-offer signal missing from the delivered brief pings the founder (12 Aug)
 - [occasions.js] [ENFORCED] One meaning-based "same banner" definition shared by all surfaces
 

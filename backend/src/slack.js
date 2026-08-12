@@ -133,6 +133,16 @@ function balanceQuotes(t) {
 }
 const sentSplit = (t) => String(t || '').trim().split(/(?<=[.!?])\s+/).filter(Boolean);
 
+// R-SALE-LEADS (founder, 12 Aug — Seranova): when a sale signal fires (transition day OR
+// the one-time catch-up for a never-announced sale), the website row must READ as the
+// announcement itself. The stored AI read is built from the capture pair and truthfully
+// says "active and unchanged" on a catch-up day — shipping that next to an ❗ is a
+// contradiction that buries the news. The deterministic sale line wins; the fuller AI
+// read still lives in the app. Exported for test/rulecheck.test.js.
+export function websiteRowText(sale, summary) {
+  return sale ? String(sale) : String(summary || '');
+}
+
 // `channels` = this recipient's allowed channels (channels.js), or null for all four. A
 // restricted client's brief must match their dashboard exactly — the SYNC RULE applies to
 // access as much as to content, or a social-only client reads about a sale they cannot open.
@@ -189,7 +199,7 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     const rows = [];
     if (on('ads') && ch('ads')) rows.push('   ' + mark(adsNew) + '📣 Ads: ' + gated(adsRecapLine(ins), 'ads'));
     if (on('social') && social) rows.push('   ' + mark(!!n(A.posts)) + '📱 Social: ' + gated(social, 'social'));
-    if (on('website') && ch('website')) rows.push('   ' + mark(webNew) + '🛒 Website: ' + gated(ins.website.summary, 'website'));
+    if (on('website') && (ch('website') || (s && s.sale))) rows.push('   ' + mark(webNew) + '🛒 Website: ' + gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website'));
     if (on('email') && ch('email')) rows.push('   ' + mark(!!n(A.emails)) + '✉️ Email: ' + gated(ins.email.summary, 'email'));
     // The badge summarises only the channels this reader actually gets — a 💡 earned by a
     // website sale a social-only client cannot open is a promise the brief never keeps.
