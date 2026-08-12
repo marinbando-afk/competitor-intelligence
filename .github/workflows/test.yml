@@ -1,0 +1,21 @@
+# Every push runs the reporting-rules regression suite. A red X on the commit means a
+# founder rule broke — do not let it ride. (Optionally set Railway to "Wait for CI" in
+# service settings so a red commit cannot deploy at all.)
+name: tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
