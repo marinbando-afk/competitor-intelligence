@@ -151,7 +151,9 @@ export function adsFindings(rows, capN) {
       // items are already listed above.
       const dayMinus1 = new Date(Date.parse(today.day + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10);
       const when = since === today.day ? 'today' : (since === dayMinus1 ? 'since yesterday' : 'since ' + since);
-      const mix = nImg === 0 ? 'all video' : (nVid === 0 ? 'all image' : nVid + ' video, ' + nImg + ' image');
+      // "all video" needs a plural to make sense — one ad is just "(video)" (founder, 12 Aug:
+      // "what do you mean by all if you said it's 1 ad?").
+      const mix = nImg === 0 ? (fresh.length === 1 ? 'video' : 'all video') : (nVid === 0 ? (fresh.length === 1 ? 'image' : 'all image') : nVid + ' video, ' + nImg + ' image');
       // Carry the CREATIVE SUBSTANCE, not just the count (founder, 9 Aug) — the newest
       // opening line and where the batch drives. Inner double quotes become singles so
       // a hook that opens with a quotation never renders as ""nested"" garbage, and the

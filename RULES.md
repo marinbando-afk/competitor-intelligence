@@ -47,7 +47,7 @@ misses to the founder's Slack.
 - [adsguard.js + claims.js] [BOTH] Entities seen in earlier captures may never be described as new/first/just added (founder, 6 Aug)
 - [findings.js] [ENFORCED] "New ad" requires BOTH: id never seen before AND Meta start date within 7 days ("new" means this week)
 - [findings.js] [ENFORCED] Launch findings carry Meta start date, format, Facebook page, opening hook quote, landing domain
-- [findings.js] [ENFORCED] Launch batch line: human dates ("today"/"since yesterday"), "all video"/"all image" for uniform mix, no bookkeeping parentheticals, no itemisation suffix (founder, 12 Aug)
+- [findings.js] [ENFORCED] Launch batch line: human dates ("today"/"since yesterday"), "all video"/"all image" for a uniform mix of 2+, just "video"/"image" for a single ad ("all" of one is nonsense), no bookkeeping parentheticals, no itemisation suffix (founder, 12 Aug ×2)
 - [findings.js] [ENFORCED] Launch batch line carries creative substance — newest hook quoted (word-boundary clip, inner quotes normalised) + destination (founder, 9 & 12 Aug)
 - [insights.js] [ENFORCED] Guaranteed hook: if a gated ads summary has no quoted hook, the newest hook is appended deterministically (founder, 11 Aug)
 - [insights.js GUIDE.ads] [PROMPT] Dominant-hook template: quoted hook — angle in plain marketing terms — destination — tactic named (founder-praised, 9 Aug)

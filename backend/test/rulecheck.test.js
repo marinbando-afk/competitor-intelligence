@@ -72,5 +72,24 @@ const one = adsFindings([
 ], 50).find((f) => f.key === 'ads.pages');
 ok(one && / handle\.$/.test(one.text), 'a single page ends with "handle."');
 
+console.log('\nLAUNCH GATE LINE — "all video" needs a plural (founder, 12 Aug):');
+const oneAd = adsFindings([
+  { day: '2026-08-12', data: { ads: [
+    { id: 'g1', landing: 'https://glov.com/a', page: 'Glov', started: '2026-08-11', hasVideo: true },
+    { id: 'g0', landing: 'https://glov.com/b', page: 'Glov', started: '2026-07-01' },
+  ] } },
+  { day: '2026-08-11', data: { ads: [ { id: 'g0', landing: 'https://glov.com/b', page: 'Glov', started: '2026-07-01' } ] } },
+], 50).find((f) => f.key === 'ads.launches');
+ok(oneAd && /\(video\)/.test(oneAd.text) && oneAd.text.indexOf('all video') < 0, 'one ad → "(video)", never "(all video)"');
+const twoAds = adsFindings([
+  { day: '2026-08-12', data: { ads: [
+    { id: 'g1', landing: 'https://glov.com/a', page: 'Glov', started: '2026-08-11', hasVideo: true },
+    { id: 'g2', landing: 'https://glov.com/c', page: 'Glov', started: '2026-08-12', hasVideo: true },
+    { id: 'g0', landing: 'https://glov.com/b', page: 'Glov', started: '2026-07-01' },
+  ] } },
+  { day: '2026-08-11', data: { ads: [ { id: 'g0', landing: 'https://glov.com/b', page: 'Glov', started: '2026-07-01' } ] } },
+], 50).find((f) => f.key === 'ads.launches');
+ok(twoAds && /\(all video\)/.test(twoAds.text), 'two uniform ads → "(all video)"');
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);
