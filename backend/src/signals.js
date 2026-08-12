@@ -332,6 +332,7 @@ export async function dailySignals(host, commit) {
       const snaps = await recentSnapshots(host, pf, 6);
       const cur = (snaps[0] && snaps[0].data && snaps[0].data.posts) || [];
       if (!cur.length) continue;
+      out.postsSeen = (out.postsSeen || 0) + cur.length;   // captured posts exist → the app shows this channel (R-SOCIAL-ROW)
       // prev = the most recent EARLIER capture that actually returned posts — skip a failed/empty
       // scrape, which would otherwise make every current post look "new".
       const prevSnap = snaps.slice(1).find((s) => s.data && Array.isArray(s.data.posts) && s.data.posts.length);

@@ -219,6 +219,7 @@ View the full dashboard →
 - [slack.js R-BRIEF-FORMAT] [ENFORCED] A brand with nothing anywhere still gets its rows — silence must never look like a failure
 
 - [slack.js] [ENFORCED] SYNC RULE: brand blocks mirror the app's per-channel summaries; ❗ marks new signals; brief can never contradict the app (founder, 10 Aug)
+- [slack.js R-SOCIAL-ROW + qa.js R-MISS-04] [ENFORCED] A channel the app displays always gets a row: if posts are captured but the AI social read gated to empty, the row ships deterministically — new-post line, else "No new posts on the tracked profiles." An empty read can never silently drop a channel; the self-audit pings R-MISS-04 if it ever happens (founder, 12 Aug — Pacific Foods: 9 IG posts in the app, no Social row in the brief)
 - [slack.js] [ENFORCED] No verdict quotes in the brief (clipped nonsense, 10 Aug); every block carries one ads-recap line with the core message (client feedback, 8 Aug)
 - [slack.js + rulecheck.js] [ENFORCED] DELIVERY GATE: every line passes rulecheck after scrubbing; violations → deterministic fallback text + QA ping to founder (12 Aug)
 - [qa.js] [ENFORCED] SELF-AUDIT after real sends: deterministic miss-checks + model judge over delivered text vs computed facts; issues ping the founder's Slack (12 Aug)

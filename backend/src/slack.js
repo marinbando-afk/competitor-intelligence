@@ -143,6 +143,18 @@ export function websiteRowText(sale, summary) {
   return sale ? String(sale) : String(summary || '');
 }
 
+// R-SOCIAL-ROW (founder, 12 Aug — Pacific Foods): the app showed 9 captured Instagram posts
+// while the brief had NO social row, because the AI social read gated to empty and an empty
+// read silently dropped the row. SYNC RULE: a channel the app displays always gets a row —
+// fresh read first, else the deterministic new-post line, else an honest "no new posts".
+// Exported for test/rulecheck.test.js.
+export function socialRowText(read, newPosts, postsSeen) {
+  if (read) return String(read);
+  if (newPosts > 0) return newPosts + ' new post' + (newPosts > 1 ? 's' : '') + ' captured — details in the app.';
+  if (postsSeen > 0) return 'No new posts on the tracked profiles.';
+  return '';
+}
+
 // `channels` = this recipient's allowed channels (channels.js), or null for all four. A
 // restricted client's brief must match their dashboard exactly — the SYNC RULE applies to
 // access as much as to content, or a social-only client reads about a sale they cannot open.
@@ -198,7 +210,8 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     const gated = (raw, channel) => gateLine(line(raw), line(fb[channel]), { surface: 'slack', qa: qaNotes, brand: b.name, channel }).text;
     const rows = [];
     if (on('ads') && ch('ads')) rows.push('   ' + mark(adsNew) + '📣 Ads: ' + gated(adsRecapLine(ins), 'ads'));
-    if (on('social') && social) rows.push('   ' + mark(!!n(A.posts)) + '📱 Social: ' + gated(social, 'social'));
+    const socialTxt = socialRowText(social, n(A.posts), (s && s.postsSeen) || 0);
+    if (on('social') && socialTxt) rows.push('   ' + mark(!!n(A.posts)) + '📱 Social: ' + gated(socialTxt, 'social'));
     if (on('website') && (ch('website') || (s && s.sale))) rows.push('   ' + mark(webNew) + '🛒 Website: ' + gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website'));
     if (on('email') && ch('email')) rows.push('   ' + mark(!!n(A.emails)) + '✉️ Email: ' + gated(ins.email.summary, 'email'));
     // The badge summarises only the channels this reader actually gets — a 💡 earned by a

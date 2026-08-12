@@ -113,5 +113,15 @@ ok(!hasSubstantiveData('instagram', { posts: [] }), 'empty social scrape → hea
 ok(!hasSubstantiveData('insights', { ads: { summary: 'x' } }), 'insights never locked — re-runs recompute reads freely');
 ok(!hasSubstantiveData('weekly', { report: {} }), 'weekly never locked');
 
+console.log('\nSOCIAL ROW — a channel the app shows always gets a row (Pacific Foods, 12 Aug):');
+const { socialRowText } = await import('../src/slack.js');
+ok(socialRowText('IP collabs dominate the feed.', 2, 9) === 'IP collabs dominate the feed.', 'fresh read wins');
+ok(socialRowText('', 2, 9) === '2 new posts captured — details in the app.', 'empty read + new posts → deterministic line');
+ok(socialRowText('', 0, 9) === 'No new posts on the tracked profiles.', 'empty read + captured posts → honest no-new-posts row');
+ok(socialRowText('', 0, 0) === '', 'nothing captured → row omitted (never padded)');
+const pfFacts = [{ name: 'Pacific Foods', host: 'pacificfoods.com', sale: '', products: 0, staleOffers: 0, postsSeen: 9 }];
+ok(checkMisses('*Pacific Foods* 🔹\n   📣 Ads: something.', pfFacts).some((v) => v.rule === 'R-MISS-04'), 'posts captured + no Social row → R-MISS-04');
+ok(checkMisses('*Pacific Foods* 🔹\n   📱 Social: No new posts on the tracked profiles.', pfFacts).length === 0, 'Social row present → clean');
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);

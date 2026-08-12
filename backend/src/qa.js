@@ -34,6 +34,9 @@ export function checkMisses(text, factsByBrand) {
     if (f.sale && !/sale|%\s*off|\boff\b|discount/i.test(block)) out.push({ brand: f.name, rule: 'R-MISS-01', why: 'computed sale signal not mentioned: ' + String(f.sale).slice(0, 90) });
     if (f.products > 0 && !/new product|listed/i.test(block)) out.push({ brand: f.name, rule: 'R-MISS-02', why: f.products + ' new product(s) captured but not mentioned' });
     if (f.staleOffers > 0 && !/fake sale|out of season|stale|pretext/i.test(block)) out.push({ brand: f.name, rule: 'R-MISS-03', why: 'fake/stale offer flagged but not mentioned' });
+    // R-MISS-04 (Pacific Foods, 12 Aug): posts are captured (the app shows the channel) but
+    // the brief block has no Social row — an empty AI read silently dropped a channel.
+    if (f.postsSeen > 0 && block.indexOf('📱 Social') < 0) out.push({ brand: f.name, rule: 'R-MISS-04', why: f.postsSeen + ' captured post(s) but no Social row in the brief' });
   }
   return out;
 }
@@ -71,7 +74,7 @@ export async function auditDaily({ text, brands, postText }) {
       try {
         const s = await dailySignals(b.host, false);
         const n = (x) => (Array.isArray(x) ? x.length : 0);
-        factsByBrand.push({ name: b.name, host: b.host, sale: s.sale || '', products: n(s.products), staleOffers: n(s.staleOffer), funnels: n(s.funnel), newAds: n(s.activity && s.activity.ads), newEmails: n(s.activity && s.activity.emails) });
+        factsByBrand.push({ name: b.name, host: b.host, sale: s.sale || '', products: n(s.products), staleOffers: n(s.staleOffer), funnels: n(s.funnel), newAds: n(s.activity && s.activity.ads), newEmails: n(s.activity && s.activity.emails), postsSeen: s.postsSeen || 0 });
       } catch (e) { /* brand facts are best-effort */ }
     }
     const misses = checkMisses(text, factsByBrand);
