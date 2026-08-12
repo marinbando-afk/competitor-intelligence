@@ -8,6 +8,7 @@ import { getInsights } from './insights.js';
 import { dailySignals, signalLines, activityLines } from './signals.js';
 import { latestSnapshot } from './snapshots.js';
 import { stripUrlParams, stripAdTotals } from './adsguard.js';
+import { gateLine } from './rulecheck.js';
 import { pool } from './db.js';
 
 // The founder roll-up brief's "view" link must be a REAL read-only share link (opens
@@ -138,6 +139,7 @@ export async function buildDailyBrief(brands, viewUrl, commit) {
   const link = viewUrl || await founderShareUrl();
   const todayISO = new Date().toISOString().slice(0, 10);
   const blocks = [];
+  const qaNotes = [];   // delivery-gate downgrades, QA-pinged to the founder after a real send
   let demoHeaderWritten = false;
   for (const b of brands) {
     if (b.__demo && !demoHeaderWritten) { blocks.push('— — —\n_Example brands we watch daily — not your competitors, and they don\u2019t use your slots._'); demoHeaderWritten = true; }
@@ -169,11 +171,21 @@ export async function buildDailyBrief(brands, viewUrl, commit) {
     const social = ch('instagram') || ch('tiktok') || ch('facebook') || ch('social');
     const adsNew = !!(n(A.ads) || (s && (n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.angle))));
     const webNew = !!((s && s.sale) || (s && n(s.products)) || n(A.website));
+    // DELIVERY GATE (founder, 12 Aug): no AI-written line ships unverified. A line that
+    // violates a mechanical rule after scrubbing is replaced by deterministic fallback
+    // text, and the downgrade is QA-pinged to the founder webhook. Rules: rulecheck.js.
+    const fb = {
+      ads: n(A.ads) ? n(A.ads) + ' new ad' + (n(A.ads) > 1 ? 's' : '') + ' captured — details in the app.' : '',
+      social: n(A.posts) ? 'New post' + (n(A.posts) > 1 ? 's' : '') + ' captured — details in the app.' : '',
+      website: (s && s.sale) || (n(A.website) ? String(A.website[0]) : ''),
+      email: n(A.emails) ? 'New email: "' + String((A.emails[0] && A.emails[0].subject) || '').replace(/"/g, "'") + '"' : '',
+    };
+    const gated = (raw, channel) => gateLine(line(raw), line(fb[channel]), { surface: 'slack', qa: qaNotes, brand: b.name, channel }).text;
     const rows = [];
-    if (ch('ads')) rows.push('   ' + mark(adsNew) + '📣 Ads: ' + line(adsRecapLine(ins)));
-    if (social) rows.push('   ' + mark(!!n(A.posts)) + '📱 Social: ' + line(social));
-    if (ch('website')) rows.push('   ' + mark(webNew) + '🛒 Website: ' + line(ins.website.summary));
-    if (ch('email')) rows.push('   ' + mark(!!n(A.emails)) + '✉️ Email: ' + line(ins.email.summary));
+    if (ch('ads')) rows.push('   ' + mark(adsNew) + '📣 Ads: ' + gated(adsRecapLine(ins), 'ads'));
+    if (social) rows.push('   ' + mark(!!n(A.posts)) + '📱 Social: ' + gated(social, 'social'));
+    if (ch('website')) rows.push('   ' + mark(webNew) + '🛒 Website: ' + gated(ins.website.summary, 'website'));
+    if (ch('email')) rows.push('   ' + mark(!!n(A.emails)) + '✉️ Email: ' + gated(ins.email.summary, 'email'));
     const pri = !!(s && (s.sale || n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.products) || n(s.angle)));
     const anyAct = !!(n(A.ads) || n(A.posts) || n(A.emails) || n(A.website));
     const badge = pri ? '💡' : anyAct ? '🔹 routine activity' : '✅ no new moves';
@@ -185,6 +197,13 @@ export async function buildDailyBrief(brands, viewUrl, commit) {
       const ls = (signalLines(s).length ? signalLines(s) : activityLines(s)).map(rel);
       blocks.push('*' + b.name + '* ' + badge + (ls.length ? '\n' + ls.map((l) => '   • ' + l).join('\n') : ''));
     }
+  }
+  // QA ping — founder webhook only, only on REAL deliveries. Every downgraded line is a
+  // rule the generator broke; the client saw clean fallback text, the founder sees why.
+  if (commit && qaNotes.length) {
+    const msg = '🧯 *QA — delivery gate downgraded ' + qaNotes.length + ' line' + (qaNotes.length > 1 ? 's' : '') + ' today:*\n'
+      + qaNotes.slice(0, 8).map((q) => '• ' + q.brand + ' / ' + q.channel + ' — ' + q.rules.join(', ') + ': “' + q.sample + '…”').join('\n');
+    postText(msg).catch(() => {});
   }
   return head + '\n\n' + blocks.join('\n\n') + '\n\n🔗 <' + link + '|View the full dashboard & signals →>';
 }
@@ -216,7 +235,8 @@ export async function postTo(webhook, text) {
 // brief in THEIR channel. (The env webhook, if set, still gets the founder's roll-up.)
 export async function sendUserDailyBriefs(pool) {
   if (!pool) return { sent: 0, total: 0 };
-  let sent = 0, total = 0;
+  let sent = 0, total = 0, lastText = '';
+  const auditBrands = new Map();
   try {
     const us = await pool.query(`SELECT id, slack_webhook, share_token, demo_brands FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
     for (const u of us.rows) {
@@ -232,11 +252,17 @@ export async function sendUserDailyBriefs(pool) {
         const viewUrl = u.share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.share_token)) : 'https://watchback.ai/app.html';
         const text = await buildDailyBrief(cs.rows.concat(demoRows), viewUrl, true);   // real delivery → commit announce-once state
         const r = await postTo(u.slack_webhook, text);
-        if (r.sent) sent++;
+        if (r.sent) { sent++; lastText = text; for (const c of cs.rows) auditBrands.set(c.host, c); }
       } catch (e) { /* skip this user */ }
     }
   } catch (e) { console.warn('sendUserDailyBriefs:', e.message); }
   if (sent) console.log('✓ per-user Slack daily briefs sent: ' + sent);
+  // SELF-AUDIT (founder, 12 Aug): after the real send, re-check what was delivered against
+  // what the captures actually contain — misses and nonsense ping the founder's Slack
+  // instead of waiting for the founder to catch them. Fire-and-forget, never blocks sends.
+  if (sent && lastText) {
+    import('./qa.js').then((qa) => qa.auditDaily({ text: lastText, brands: [...auditBrands.values()], postText })).catch((e) => console.warn('qa launch:', e.message));
+  }
   return { sent, total };
 }
 
