@@ -47,6 +47,10 @@ misses to the founder's Slack.
 - [adsguard.js + claims.js] [BOTH] Entities seen in earlier captures may never be described as new/first/just added (founder, 6 Aug)
 - [findings.js] [ENFORCED] "New ad" requires BOTH: id never seen before AND Meta start date within 7 days ("new" means this week)
 - [findings.js] [ENFORCED] Launch findings carry Meta start date, format, Facebook page, opening hook quote, landing domain
+- [findings.js R-ADS-LEADING] [ENFORCED] **"Leading ad" = the LONGEST CONTINUOUSLY-RUNNING ACTIVE ad**, by Meta's own ad_delivery_start_time, with creative duplication (same copy across several ad ids/pages) as the tiebreak. Advertisers kill losers within days, so survival is the proxy for performance (founder, 12 Aug)
+- [findings.js R-ADS-LEADING] [ENFORCED] Meta publishes impressions and spend ONLY for political/issue ads — never for commercial ads. NEVER write or imply "most impressions", "top performing", "best performer" or "highest spend": we cannot know it. Say "their longest-running ad"
+- [findings.js R-ADS-LEADING] [ENFORCED] The leading ad is computed over the FULL capture, never the model's impression of the ~16-ad prompt sample — that sample is deliberately biased toward third-party/whitelisted ads for coverage, so it can never establish dominance
+- [findings.js R-ADS-LEADING] [ENFORCED] No clear winner → say so ("no single dominant angle — captured ads split across X and Y"); never manufacture a lead
 - [findings.js R-ADS-FOOTPRINT] [ENFORCED] Where the ads run TO and FROM is ONE sentence, never two: "Every captured ad runs to shop.mikmak.ai and from \"Pacific Foods\" handle." Two findings on the same subject ship as two consecutive sentences whenever the claim gate falls back, and read as a stutter (founder, 12 Aug)
 - [ALL SURFACES] [PROMPT] **No sentence may restate the subject of the one before it.** If two consecutive sentences describe the same set of ads/posts/products, they are one sentence. Applies to every generated line, not only the ads read (founder, 12 Aug: "polish the other messages if and when needed")
 - [findings.js] [ENFORCED] Launch batch line: human dates ("today"/"since yesterday"), "all video"/"all image" for a uniform mix of 2+, just "video"/"image" for a single ad ("all" of one is nonsense), no bookkeeping parentheticals, no itemisation suffix (founder, 12 Aug ×2)
@@ -161,6 +165,11 @@ misses to the founder's Slack.
 - [signals.js] [ENFORCED] Long ad URLs linked behind "view ad ↗" labels
 
 ## Slack brief composition
+
+- [slack.js R-BRIEF-FORMAT] [ENFORCED] NO decorative emoji: no channel glyphs (📣📱🛒✉️), no status badges (💡/🔹/✅) — the labels already say it. The ONLY emoji is ❗, marking a channel with news, hanging in the left gutter so the news is scannable down one edge (founder, 12 Aug)
+- [slack.js R-BRIEF-FORMAT] [ENFORCED] Blank line between brands and between news blocks — a brief must never read as a wall of text
+- [slack.js R-BRIEF-FORMAT] [ENFORCED] Every subscribed channel is accounted for every day. Channels WITH news get their own spaced block; quiet channels collapse into ONE compact line carrying how long each has been quiet (founder, 12 Aug)
+- [slack.js R-BRIEF-FORMAT] [ENFORCED] Three states, never two: news · checked-and-quiet (with the date it went quiet) · NOT CHECKED (capture failed or channel not connected — said plainly, never dressed as quiet). A failed capture rendering as "competitor is quiet" is a false claim (Pannonian Padel, 5 Aug)
 
 - [slack.js] [ENFORCED] SYNC RULE: brand blocks mirror the app's per-channel summaries; ❗ marks new signals; brief can never contradict the app (founder, 10 Aug)
 - [slack.js] [ENFORCED] No verdict quotes in the brief (clipped nonsense, 10 Aug); every block carries one ads-recap line with the core message (client feedback, 8 Aug)
