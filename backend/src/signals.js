@@ -48,6 +48,10 @@ const SALE_STATE = '_salestate';     // sales actually ANNOUNCED in a delivered 
 // Slack-formatted: bold status, em-dash, the banner quoted verbatim — reads as an alert,
 // and the double-colon pileup ('live: Back to School Sale: up to') is gone.
 export const saleAnnouncement = (banner) => '*New sale live* — \u201c' + String(banner || '').trim() + '\u201d';
+// A catch-up may announce a sale that started WEEKS ago (Ancestral's lip-balm GWP ran
+// since late July; the brief called it "New" on 13 Aug — a false claim). An old,
+// never-announced sale is reported as already running, never as new.
+export const saleCatchupAnnouncement = (banner) => '*Sale live (already running)* — \u201c' + String(banner || '').trim() + '\u201d';
 const OFFER_STATE_TTL_DAYS = 400;    // forget a fingerprint long after its ad can plausibly still run
 
 // A real promo banner is a short headline. Older snapshots may hold a model's non-answer
@@ -223,7 +227,20 @@ export async function dailySignals(host, commit) {
           const st2 = await latestSnapshot(host, SALE_STATE);
           const seen2 = (st2 && st2.seen && typeof st2.seen === 'object') ? st2.seen : {};
           const fp2 = normBanner(saleB);
-          if (fp2 && (!seen2[fp2] || seen2[fp2] === todayStr)) out.sale = saleAnnouncement(saleB);
+          if (fp2 && (!seen2[fp2] || seen2[fp2] === todayStr)) {
+            // "New" only if this banner genuinely first appeared within the last 2 days —
+            // an older never-announced sale ships as already running (R-SALE-NEW, 13 Aug).
+            let firstSeen = todayStr;
+            try {
+              const hist = await allSnapshots(host, 'website');   // oldest → newest
+              for (const sn of hist) {
+                const bb = sn.data && sn.data.banner;
+                if (sn.day && bb && isSaleBanner(bb) && sameBannerText(bb, saleB)) { firstSeen = sn.day; break; }
+              }
+            } catch (e) { /* default: treat as recent */ }
+            const recent = (Date.parse(todayStr) - Date.parse(firstSeen)) <= 2 * 864e5;
+            out.sale = recent ? saleAnnouncement(saleB) : saleCatchupAnnouncement(saleB);
+          }
         }
       }
       // Record ANY announced sale (transition, new-banner or catch-up path) so the
