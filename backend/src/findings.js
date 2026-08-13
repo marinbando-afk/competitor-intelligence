@@ -211,7 +211,7 @@ export function adsFindings(rows, capN) {
       if (!r || r.error) continue;                       // network failure ≠ dead page
       if (r.status === 404 || r.status === 410) {
         const showUrl = unlink(String(r.url || d).replace(/^https?:\/\//, '').split('?')[0]);
-        out.push({ type: 'state', key: 'ads.landDown:' + d, text: 'Ad landing page ' + showUrl + ' is DEAD — it returned HTTP ' + r.status + ' when checked on ' + today.day + '; ads are paying for clicks to a broken page. Do not link it.', evidence: { domain: d, url: r.url, status: r.status } });
+        out.push({ type: 'change', key: 'ads.landDown:' + d, text: 'Ad landing page ' + showUrl + ' is DEAD — it returned HTTP ' + r.status + ' when checked on ' + today.day + '; ads are paying for clicks to a broken page. Do not link it.', evidence: { domain: d, url: r.url, status: r.status } });
       } else if (r.finalUrl) {
         const fh = domOf(r.finalUrl);
         if (fh && fh !== d && sld(fh) !== sld(d)) {
@@ -222,7 +222,7 @@ export function adsFindings(rows, capN) {
           // landing URL, not the whole domain (founder, 12 Aug: "domain X redirects" read
           // as a claim about the domain root, which serves fine).
           const probed = unlink(String(r.url || d).replace(/^https?:\/\//, '').split('?')[0]);
-          out.push({ type: 'state', key: 'ads.landRedirect:' + d + '>' + fh, text: 'Ad landing page ' + probed + ' redirected to ' + dest + ' when checked on ' + today.day + ' — that ad\'s traffic ends up on ' + fh + ', a different site. (One ad URL tested, not the whole ' + unlink(d) + ' domain.)', evidence: { domain: d, url: r.url, finalUrl: r.finalUrl } });
+          out.push({ type: 'change', key: 'ads.landRedirect:' + d + '>' + fh, text: 'Ad landing page ' + probed + ' redirected to ' + dest + ' when checked on ' + today.day + ' — that ad\'s traffic ends up on ' + fh + ', a different site (one ad URL tested, not the whole ' + unlink(d) + ' domain).', evidence: { domain: d, url: r.url, finalUrl: r.finalUrl } });
         }
       }
     }

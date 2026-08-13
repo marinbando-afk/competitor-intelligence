@@ -99,7 +99,7 @@ export function gated(g, findList) {
   // are eligible too — launches are the story and they are type 'new'.
   const P = ['ads.launches', 'ads.launch:', 'ads.staleOffer', 'ads.landDown', 'ads.landRedirect', 'web.banner', 'web.change'];
   const rank = (x) => { const k = String(x.key || ''); const i = P.findIndex((p) => k.startsWith(p)); return i >= 0 ? i : (/^ads\.(domains|pages)$/.test(k) ? 99 : 50); };
-  const el = (findList || []).filter((x) => x.type === 'state' || x.type === 'new').sort((a, b) => rank(a) - rank(b)).map((x) => x.text);
+  const el = (findList || []).filter((x) => x.type === 'state' || x.type === 'new' || x.type === 'change').sort((a, b) => rank(a) - rank(b)).map((x) => x.text);
   return el.length ? el.slice(0, 3).join(' ') : '';
 }
 

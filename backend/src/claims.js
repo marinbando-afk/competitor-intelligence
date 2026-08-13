@@ -243,7 +243,9 @@ export function enforceClaims(text, facts = {}, label = '') {
   // survives no longer starts like a sentence, it is unreadable and gets dropped too.
   const kept = sentencesOf(text)
     .filter((x) => !bad.has(x))
-    .filter((x) => /^[A-Z0-9"'“(]/.test(x.trim()));
+    // A survivor opening with "(" is a parenthetical caveat whose main clause was stripped
+    // ("(One ad URL tested…)" led Seranova's ads row, context-free — founder, 13 Aug).
+    .filter((x) => /^[A-Z0-9"'“]/.test(x.trim()));
   for (const v of violations) console.warn('⚠ claim blocked' + (label ? ' [' + label + ']' : '') + ' (' + v.rule + '): ' + v.sentence + ' — ' + v.why);
   return { text: kept.join(' ').trim(), violations, allStripped: violations.length > 0 && !kept.length };
 }

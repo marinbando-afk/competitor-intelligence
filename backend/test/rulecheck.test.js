@@ -26,6 +26,7 @@ ok(fires('the ads send traffic to Facebook’s login page', 'R-PHRASE-01'), 'R-P
 ok(fires('runs from a third-party page', 'R-PHRASE-02'), 'R-PHRASE-02 vague third-party page');
 ok(fires('Ad landing domain x.com now redirects to y.com', 'R-CLAIM-01'), 'R-CLAIM-01 domain-wide redirect claim');
 ok(fires('Storefront promo first seen 2026-08-11 on the banner', 'R-DATE-01'), 'R-DATE-01 raw ISO date in brief');
+ok(fires('(One ad URL tested, not the whole go.seranovabeauty.com domain.) Every captured ad runs to go.seranovabeauty.com.', 'R-TEXT-04'), 'R-TEXT-04 orphaned leading parenthetical (Seranova, 13 Aug)');
 
 console.log('\nDELIVERY GATE — clean lines pass:');
 ok(clean('18 new ads launched since yesterday (all video) — newest opens: "Will these fit?" → nolaninterior.com.'), 'good gate line passes');
@@ -73,6 +74,21 @@ const one = adsFindings([
   { day: '2026-08-12', data: { ads: [ { id: 'h1', landing: 'https://x.com/a', page: 'Seranova', started: '2026-08-12' } ] } },
 ], 50).find((f) => f.key === 'ads.footprint');
 ok(one && / handle\.$/.test(one.text), 'a single page ends with "handle."');
+
+console.log('\nREDIRECT FINDING — caveat lives inside ONE sentence, typed as change (13 Aug):');
+const redir = adsFindings([
+  { day: '2026-08-13', data: {
+    ads: [ { id: 'r1', landing: 'https://go.brandx.com/lp', page: 'BrandX', started: '2026-08-01' } ],
+    landings: { 'go.brandx.com': { url: 'https://go.brandx.com/lp', finalUrl: 'https://other-site.com/p', status: 200 } },
+  } },
+  { day: '2026-08-12', data: { ads: [ { id: 'r1', landing: 'https://go.brandx.com/lp', page: 'BrandX', started: '2026-08-01' } ] } },
+], 50).find((f) => f.key && f.key.indexOf('ads.landRedirect') === 0);
+ok(!!redir, 'redirect finding fires');
+ok(redir && redir.type === 'change', 'typed change → traceable, our own gate cannot strip it');
+ok(redir && !/\. \(/.test(redir.text), 'caveat is inside the sentence — no standalone parenthetical to orphan');
+const { enforceClaims } = await import('../src/claims.js');
+const ec = enforceClaims('BrandX launched a brand-new mega funnel yesterday. (One ad URL tested, not the whole domain.)', { knownEntities: ['mega funnel'], changeFindings: [] }, 'test');
+ok(ec.text.indexOf('(One ad URL tested') < 0, 'claims strip can no longer leave a leading-parenthetical survivor');
 
 console.log('\nLAUNCH GATE LINE — "all video" needs a plural (founder, 12 Aug):');
 const oneAd = adsFindings([

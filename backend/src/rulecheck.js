@@ -59,6 +59,12 @@ const CHECKS = [
   // exact checked URL, never "domain X redirects".
   { id: 'R-CLAIM-01', why: 'domain-wide redirect claim',
     test: (t) => /\bdomain\s+\S+\s+(now\s+)?redirects\b/i.test(t) },
+
+  // R-TEXT-04 (founder, 13 Aug — Seranova): a line that OPENS with a parenthetical is a
+  // caveat whose main clause was stripped upstream ("(One ad URL tested…)") — context-free
+  // and meaningless to the reader.
+  { id: 'R-TEXT-04', why: 'orphaned parenthetical caveat leads the line',
+    test: (t) => /^\s*\(/.test(t) },
 ];
 
 // ISO dates in the SLACK BRIEF specifically: allowed only for genuine launch/check dates
