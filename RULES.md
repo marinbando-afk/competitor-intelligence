@@ -104,6 +104,7 @@ misses to the founder's Slack.
 - [insights.js + website.js] [BOTH] A NEW PRODUCT LAUNCH is the top website signal — lead with it and NAME the product(s); never just a number; variants collapse to "Name — N variants" (founder, 18 & 22 Jul, 1 Aug)
 - [website.js + claims.js] [BOTH] A new LISTING is not a new PRODUCT (-1/-2 handles, shared base names = re-listings); zero-price "FREE gift" SKUs are a promo mechanic; laddered duplicate prices are PRICE TESTING (founder, 1 & 6 Aug)
 - [website.js] [ENFORCED] A 0-price placeholder is never a price move (founder, 22 Jul)
+- [website.js R-CURRENCY-01] [ENFORCED] Price-move evidence captions state the numbers in the STORE'S OWN currency and label them "(store currency)" — the paired screenshot may render geo-converted prices (Casa & Beyond: A$119.99 feed vs $96 USD page). Never guess or convert a currency; precision-first (founder, 13 Aug)
 - [insights.js + findings.js] [BOTH] ANNOUNCEMENT BARS ROTATE: a slide missing ≠ sale ended; a slide seen ≠ sale started; sale start/end comes ONLY from the ACTIVE SALE facts (founder, 6 Aug)
 - [insights.js] [ENFORCED] SALE TIMELINE dates computed in code, quoted verbatim — never model arithmetic (founder, 24 Jul)
 - [insights.js] [ENFORCED] Baseline day: promo "already running when monitoring began" — never "launched today" (founder, 30 Jul)

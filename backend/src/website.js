@@ -323,11 +323,14 @@ export async function captureWebsite(host, url) {
 
 // Which specific products changed price (drop/rise) or are new — so we can
 // screenshot exactly those pages. Prioritises drops + new (most interesting).
-function changedHandles(a, b, cap) {
+export function changedHandles(a, b, cap) {
   const am = (a && a.items) || {}, bm = (b && b.items) || {}, out = [];
   for (const h in bm) {
     if (am[h] && am[h].price != null && bm[h].price != null && Math.abs(am[h].price - bm[h].price) >= 0.01) {
-      out.push({ handle: h, title: bm[h].title || h, kind: bm[h].price < am[h].price ? 'drop' : 'rise', detail: money(am[h].price) + ' → ' + money(bm[h].price) });
+      // R-CURRENCY-01 (founder, 13 Aug — Casa & Beyond): feed prices are in the STORE'S OWN
+      // currency; the screenshot beside this caption may render geo-converted prices
+      // (A$119.99 shows as $96 to a US visitor). Say so — never guess or convert.
+      out.push({ handle: h, title: bm[h].title || h, kind: bm[h].price < am[h].price ? 'drop' : 'rise', detail: money(am[h].price) + ' → ' + money(bm[h].price) + ' (store currency)' });
     }
   }
   for (const h in bm) { if (!am[h]) out.push({ handle: h, title: bm[h].title || h, kind: 'new', detail: 'New product' + (bm[h].price != null ? ' · ' + money(bm[h].price) : '') }); }

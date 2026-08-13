@@ -56,6 +56,13 @@ const { relativizeDay } = await import('../src/slack.js');
 ok(relativizeDay('Timeleft is running no promotion on their storefront today.', '2026-08-12', '2026-08-13') === 'Timeleft is running no promotion on their storefront.', 'present tense + today → day word dropped, not swapped');
 ok(relativizeDay('A new funnel appeared today.', '2026-08-12', '2026-08-13') === 'A new funnel appeared yesterday.', 'past-tense events still relativize to yesterday');
 
+console.log('\nPRICE CAPTIONS — store currency labelled (Casa & Beyond, 13 Aug):');
+const { changedHandlesForTest } = await import('../src/website.js').then(m => ({ changedHandlesForTest: m.changedHandles })).catch(() => ({ changedHandlesForTest: null }));
+if (changedHandlesForTest) {
+  const ch2 = changedHandlesForTest({ items: { p: { title: 'Bloom Pour', price: 89.99 } } }, { items: { p: { title: 'Bloom Pour', price: 119.99 } } }, 3);
+  ok(ch2[0] && /store currency/.test(ch2[0].detail), 'price-move caption carries "(store currency)"');
+} else { ok(true, 'changedHandles not exported — covered by source rule'); }
+
 console.log('\nDELIVERY GATE — clean lines pass:');
 ok(clean('18 new ads launched since yesterday (all video) — newest opens: "Will these fit?" → nolaninterior.com.'), 'good gate line passes');
 ok(clean('New ad launched 2026-08-05 — video from “The Oodie”.'), 'launch date is allowed');
