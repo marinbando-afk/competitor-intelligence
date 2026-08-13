@@ -97,6 +97,8 @@ console.log('\nWEBSITE ROW — a fired sale signal IS the line, never an "unchan
 const { websiteRowText } = await import('../src/slack.js');
 const { saleAnnouncement } = await import('../src/signals.js');
 ok(saleAnnouncement('Back to School Sale: up to 58% off') === '*New sale live* — \u201cBack to School Sale: up to 58% off\u201d', 'announcement: bold status, em-dash, banner quoted verbatim');
+const { saleCatchupAnnouncement } = await import('../src/signals.js');
+ok(saleCatchupAnnouncement('Spend $97 and get a FREE lip balm') === '*Sale live (already running)* — \u201cSpend $97 and get a FREE lip balm\u201d', 'old never-announced sale says already running, never New (Ancestral, 13 Aug)');
 ok(websiteRowText(saleAnnouncement('Back to School Sale: up to 58% off'), 'Back to School Sale, up to 58% off, is active and unchanged.').indexOf('*New sale live*') === 0, 'sale signal replaces the unchanged read');
 ok(websiteRowText('', 'Storefront unchanged — same prices, products and sale.') === 'Storefront unchanged — same prices, products and sale.', 'no sale signal → AI read ships as before');
 ok(websiteRowText(null, '') === '', 'nothing → empty (row skipped)');
