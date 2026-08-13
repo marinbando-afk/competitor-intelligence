@@ -161,6 +161,16 @@ export function socialRowText(read, newPosts, postsSeen) {
   return '';
 }
 
+// R-CHANNEL-ROW (founder, 13 Aug — Smooche: 16 captured emails, latest "Smooche is now on
+// Amazon!", yet the brief had no Email row because the read was empty at send time). The
+// social fix, generalised to email: a channel the app displays always gets a row.
+export function emailRowText(read, newEmails, emailsSeen, latestSubject) {
+  if (read) return String(read);
+  if (newEmails > 0) return 'New email: "' + String(latestSubject || '').replace(/"/g, "'") + '"';
+  if (emailsSeen > 0) return 'No new emails — latest: "' + String(latestSubject || '').replace(/"/g, "'") + '".';
+  return '';
+}
+
 // `channels` = this recipient's allowed channels (channels.js), or null for all four. A
 // restricted client's brief must match their dashboard exactly — the SYNC RULE applies to
 // access as much as to content, or a social-only client reads about a sale they cannot open.
@@ -219,7 +229,8 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     const socialTxt = socialRowText(social, n(A.posts), (s && s.postsSeen) || 0);
     if (on('social') && socialTxt) rows.push('   ' + mark(!!n(A.posts)) + 'Social: ' + gated(socialTxt, 'social'));
     if (on('website') && (ch('website') || (s && s.sale))) rows.push('   ' + mark(webNew) + 'Website: ' + gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website'));
-    if (on('email') && ch('email')) rows.push('   ' + mark(!!n(A.emails)) + 'Email: ' + gated(ins.email.summary, 'email'));
+    const emailTxt = emailRowText(ch('email'), n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || '');
+    if (on('email') && emailTxt) rows.push('   ' + mark(!!n(A.emails)) + 'Email: ' + gated(emailTxt, 'email'));
     // The badge summarises only the channels this reader actually gets — a 💡 earned by a
     // website sale a social-only client cannot open is a promise the brief never keeps.
     const pri = !!(s && ((on('website') && (s.sale || n(s.products))) || (on('ads') && (n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.angle)))));

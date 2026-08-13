@@ -176,6 +176,12 @@ ok(socialRowText('', 0, 0) === '', 'nothing captured → row omitted (never padd
 const pfFacts = [{ name: 'Pacific Foods', host: 'pacificfoods.com', sale: '', products: 0, staleOffers: 0, postsSeen: 9 }];
 ok(checkMisses('*Pacific Foods* 🔹\n   Ads: something.', pfFacts).some((v) => v.rule === 'R-MISS-04'), 'posts captured + no Social row → R-MISS-04');
 ok(checkMisses('*Pacific Foods* 🔹\n   Social: No new posts on the tracked profiles.', pfFacts).length === 0, 'Social row present → clean');
+const { emailRowText } = await import('../src/slack.js');
+ok(emailRowText('', 0, 16, 'Smooche is now on Amazon!') === 'No new emails — latest: "Smooche is now on Amazon!".', 'empty read + captured emails → honest latest-email row (Smooche, 13 Aug)');
+ok(emailRowText('Latest email: cadence read.', 2, 16, 'x') === 'Latest email: cadence read.', 'app read wins when present');
+ok(emailRowText('', 0, 0, '') === '', 'nothing captured → row omitted');
+const smFacts = [{ name: 'Smooche', host: 'smooche.com', sale: '', products: 0, staleOffers: 0, postsSeen: 0, emailsSeen: 16 }];
+ok(checkMisses('*Smooche* 💡\n   Ads: a.', smFacts).some((v) => v.rule === 'R-MISS-05'), 'captured emails + no Email row → R-MISS-05');
 
 console.log('\nCONGRUENCE — app, Slack and admin surfaces tell one story (founder, 12 Aug):');
 const { checkCongruence } = await import('../src/qa.js');

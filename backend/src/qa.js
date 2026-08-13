@@ -38,6 +38,7 @@ export function checkMisses(text, factsByBrand) {
     // R-MISS-04 (Pacific Foods, 12 Aug): posts are captured (the app shows the channel) but
     // the brief block has no Social row — an empty AI read silently dropped a channel.
     if (f.postsSeen > 0 && block.indexOf('Social:') < 0) out.push({ brand: f.name, rule: 'R-MISS-04', why: f.postsSeen + ' captured post(s) but no Social row in the brief' });
+    if (f.emailsSeen > 0 && block.indexOf('Email:') < 0) out.push({ brand: f.name, rule: 'R-MISS-05', why: f.emailsSeen + ' captured email(s) but no Email row in the brief' });
   }
   return out;
 }
@@ -108,7 +109,7 @@ export async function auditDaily({ text, brands, postText }) {
       try {
         const s = await dailySignals(b.host, false);
         const n = (x) => (Array.isArray(x) ? x.length : 0);
-        factsByBrand.push({ name: b.name, host: b.host, sale: s.sale || '', products: n(s.products), staleOffers: n(s.staleOffer), funnels: n(s.funnel), newAds: n(s.activity && s.activity.ads), newEmails: n(s.activity && s.activity.emails), postsSeen: s.postsSeen || 0 });
+        factsByBrand.push({ name: b.name, host: b.host, sale: s.sale || '', products: n(s.products), staleOffers: n(s.staleOffer), funnels: n(s.funnel), newAds: n(s.activity && s.activity.ads), newEmails: n(s.activity && s.activity.emails), postsSeen: s.postsSeen || 0, emailsSeen: s.emailsSeen || 0 });
         // The same stored read the app renders — congruence is only judged against a FRESH
         // read (a stale one means the brief used deterministic lines, a different, honest path).
         try {

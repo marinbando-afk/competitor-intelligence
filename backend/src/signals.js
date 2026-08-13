@@ -367,6 +367,8 @@ export async function dailySignals(host, commit) {
   try {
     const eSnaps = await recentSnapshots(host, 'email', 6);
     const cur = (eSnaps[0] && eSnaps[0].data && eSnaps[0].data.emails) || [];
+    out.emailsSeen = cur.length;   // captured emails exist → the app shows this channel (R-CHANNEL-ROW)
+    if (cur.length) out.latestEmailSubject = clip((cur[0] && cur[0].subject) || '', 70);
     // prev = most recent EARLIER capture that actually held emails (skip an empty/failed one).
     const prevSnap = eSnaps.slice(1).find((s) => s.data && Array.isArray(s.data.emails) && s.data.emails.length);
     if (cur.length && prevSnap) {
