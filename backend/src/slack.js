@@ -90,6 +90,10 @@ export function relativizeDay(s, capDay, sendDay) {
   const word = capDay === prev ? 'yesterday' : 'on ' + capDay;
   const poss = capDay === prev ? 'yesterday’s' : 'that day’s';
   return s
+    // TENSE GUARD (founder, 13 Aug — "is running no promotion … yesterday" reads like a
+    // broken tool): a present-tense clause needs no day word at all; drop "today" there
+    // instead of substituting "yesterday" into ungrammatical company.
+    .replace(/\b(is|are|remains?|stays?|keeps?)\b([^.!?\n]{0,80}?)\s+today\b/gi, '$1$2')
     .replace(/\btoday\s*\(\s*\d{4}-\d{2}-\d{2}\s*\)/gi, word)     // "today (2026-08-09)"
     .replace(new RegExp('\\s*\\(\\s*' + capDay + '\\s*\\)', 'g'), '')  // bare "(2026-08-09)" = clutter
     .replace(new RegExp('\\bon\\s+' + capDay + '\\b', 'g'), word)

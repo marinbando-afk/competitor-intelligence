@@ -168,6 +168,7 @@ misses to the founder's Slack.
 - [findings.js + rulecheck.js R-PROV-01] [ENFORCED] NEVER state the comparison window in the brief ("Storefront compared 2026-08-11 → 2026-08-12", any date→date range) — briefs are DAILY, so "vs yesterday" is implicit and stating it only confuses. Change/no-change lines read absolutely ("Storefront unchanged — same prices, products and sale."); provenance dates live in evidence fields, never prose (founder, 12 Aug: "Slack messages are being sent daily!!!")
 - [insights.js + claims.js] [BOTH] Never count captures — use dates or "since monitoring began on <date>"
 - [insights.js] [PROMPT] Newsroom order: event first, plain words, then interpretation; plain language a marketer uses; split sentences needing semicolon+dash (founder, 22 Jul)
+- [slack.js + insights.js + qa.js R-PROSE-01] [BOTH] Reads sound like a proficient reporter, never a broken tool: no tense clashes (the relativizer DROPS "today" inside present-tense clauses instead of swapping in "yesterday"), never the same fact twice in one line ("No change — … unchanged"), no orphan punctuation, varied sentence openings; the nightly judge flags prose artifacts (founder, 13 Aug)
 - [insights.js] [PROMPT] Brand-initials pages ("BF USA") are the brand's own page, never whitelisting (founder, 6 Aug)
 - [insights.js] [PROMPT] Name the channel inside the sentence, naturally
 - [insights.js] [PROMPT] English only; non-English only as verbatim competitor quotes (17 Jul)

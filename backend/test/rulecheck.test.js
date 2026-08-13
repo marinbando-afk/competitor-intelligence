@@ -51,6 +51,11 @@ const luxeFoot = adsFindings([
 ], 50).find((f) => f.key === 'ads.footprint');
 ok(luxeFoot && luxeFoot.text.indexOf('Recent ads run to ') === 0, '"Recent ads run to" — no capture-scope jargon (Luxe, 13 Aug)');
 
+console.log('\nPROSE — the relativizer cannot create tense clashes (founder, 13 Aug):');
+const { relativizeDay } = await import('../src/slack.js');
+ok(relativizeDay('Timeleft is running no promotion on their storefront today.', '2026-08-12', '2026-08-13') === 'Timeleft is running no promotion on their storefront.', 'present tense + today → day word dropped, not swapped');
+ok(relativizeDay('A new funnel appeared today.', '2026-08-12', '2026-08-13') === 'A new funnel appeared yesterday.', 'past-tense events still relativize to yesterday');
+
 console.log('\nDELIVERY GATE — clean lines pass:');
 ok(clean('18 new ads launched since yesterday (all video) — newest opens: "Will these fit?" → nolaninterior.com.'), 'good gate line passes');
 ok(clean('New ad launched 2026-08-05 — video from “The Oodie”.'), 'launch date is allowed');
