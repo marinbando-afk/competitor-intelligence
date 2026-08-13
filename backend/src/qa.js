@@ -37,7 +37,7 @@ export function checkMisses(text, factsByBrand) {
     if (f.staleOffers > 0 && !/fake sale|out of season|stale|pretext/i.test(block)) out.push({ brand: f.name, rule: 'R-MISS-03', why: 'fake/stale offer flagged but not mentioned' });
     // R-MISS-04 (Pacific Foods, 12 Aug): posts are captured (the app shows the channel) but
     // the brief block has no Social row — an empty AI read silently dropped a channel.
-    if (f.postsSeen > 0 && block.indexOf('📱 Social') < 0) out.push({ brand: f.name, rule: 'R-MISS-04', why: f.postsSeen + ' captured post(s) but no Social row in the brief' });
+    if (f.postsSeen > 0 && block.indexOf('Social:') < 0) out.push({ brand: f.name, rule: 'R-MISS-04', why: f.postsSeen + ' captured post(s) but no Social row in the brief' });
   }
   return out;
 }
@@ -49,7 +49,7 @@ export function checkMisses(text, factsByBrand) {
 export function checkCongruence(block, appRead, f) {
   const out = [];
   if (!block || !appRead) return out;
-  const rowFor = { ads: '📣 Ads', social: '📱 Social', website: '🛒 Website', email: '✉️ Email' };
+  const rowFor = { ads: 'Ads:', social: 'Social:', website: 'Website:', email: 'Email:' };
   const shows = {
     ads: !!(appRead.ads && appRead.ads.summary),
     social: !!((appRead.social && appRead.social.summary) || (f.postsSeen || 0) > 0),

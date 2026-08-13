@@ -77,8 +77,8 @@ ok(g3.downgraded && g3.text.indexOf('ads') < 0, 'violating fallback is rejected 
 
 console.log('\nSELF-AUDIT — the Seranova class of miss:');
 const facts = [{ name: 'Seranova', host: 'seranova.com', sale: 'Sale live: Back to School Sale: up to 58% off', products: 0, staleOffers: 0 }];
-const briefMissing = '*Seranova* 🔹 routine activity\n   📣 Ads: 24 new ads launched since yesterday (18 video, 6 image).';
-const briefOk = '*Seranova* 💡\n   🛒 Website: Back to School Sale live — up to 58% off.';
+const briefMissing = '*Seranova* 🔹 routine activity\n   Ads: 24 new ads launched since yesterday (18 video, 6 image).';
+const briefOk = '*Seranova* 💡\n   Website: Back to School Sale live — up to 58% off.';
 ok(checkMisses(briefMissing, facts).some((v) => v.rule === 'R-MISS-01'), 'live sale absent from brief → R-MISS-01 fires');
 ok(checkMisses(briefOk, facts).length === 0, 'sale mentioned → no miss');
 ok(checkMisses('*Other* block only', facts).some((v) => v.rule === 'R-MISS-00'), 'brand with signals but no block → R-MISS-00');
@@ -167,20 +167,20 @@ ok(socialRowText('', 2, 9) === '2 new posts captured — details in the app.', '
 ok(socialRowText('', 0, 9) === 'No new posts on the tracked profiles.', 'empty read + captured posts → honest no-new-posts row');
 ok(socialRowText('', 0, 0) === '', 'nothing captured → row omitted (never padded)');
 const pfFacts = [{ name: 'Pacific Foods', host: 'pacificfoods.com', sale: '', products: 0, staleOffers: 0, postsSeen: 9 }];
-ok(checkMisses('*Pacific Foods* 🔹\n   📣 Ads: something.', pfFacts).some((v) => v.rule === 'R-MISS-04'), 'posts captured + no Social row → R-MISS-04');
-ok(checkMisses('*Pacific Foods* 🔹\n   📱 Social: No new posts on the tracked profiles.', pfFacts).length === 0, 'Social row present → clean');
+ok(checkMisses('*Pacific Foods* 🔹\n   Ads: something.', pfFacts).some((v) => v.rule === 'R-MISS-04'), 'posts captured + no Social row → R-MISS-04');
+ok(checkMisses('*Pacific Foods* 🔹\n   Social: No new posts on the tracked profiles.', pfFacts).length === 0, 'Social row present → clean');
 
 console.log('\nCONGRUENCE — app, Slack and admin surfaces tell one story (founder, 12 Aug):');
 const { checkCongruence } = await import('../src/qa.js');
 const appRead = { ads: { summary: 'Discount-led video push.' }, social: { summary: 'IP collabs dominate.' }, website: { summary: 'Back to School Sale live, up to 58% off.' }, email: { summary: 'Latest: SPF launch email.' } };
-const fullBlock = '*X* 💡\n   📣 Ads: a.\n   📱 Social: b.\n   🛒 Website: c.\n   ✉️ Email: d.';
-const noSocial = '*X* 💡\n   📣 Ads: a.\n   🛒 Website: c.\n   ✉️ Email: d.';
+const fullBlock = '*X* 💡\n   Ads: a.\n   Social: b.\n   Website: c.\n   Email: d.';
+const noSocial = '*X* 💡\n   Ads: a.\n   Website: c.\n   Email: d.';
 const fx = { name: 'X', sale: '', postsSeen: 0 };
 ok(checkCongruence(fullBlock, appRead, fx).length === 0, 'all four rows match the app → congruent');
 ok(checkCongruence(noSocial, appRead, fx).some((v) => v.rule === 'R-SYNC-01'), 'app shows social, brief lacks the row → R-SYNC-01');
 ok(checkCongruence(fullBlock, { ads: appRead.ads, website: appRead.website, email: appRead.email }, fx).some((v) => v.rule === 'R-SYNC-02'), 'brief row without an app read → R-SYNC-02');
 ok(checkCongruence(fullBlock, { ...appRead, website: { summary: 'Storefront unchanged — same prices.' } }, { name: 'X', sale: 'New sale live', postsSeen: 0 }).some((v) => v.rule === 'R-SYNC-03'), 'sale fired but app read silent → R-SYNC-03');
-const bbBlock = '*X* 💡\n   📣 Ads: a.\n   📱 Social: b.\n   🛒 Website: *New sale live* — \u201cBuy More, Save up to 20%\u201d.\n   ✉️ Email: d.';
+const bbBlock = '*X* 💡\n   Ads: a.\n   Social: b.\n   Website: *New sale live* — \u201cBuy More, Save up to 20%\u201d.\n   Email: d.';
 const bbApp = { ...appRead, website: { summary: 'Bare Bones running unchanged volume discount — Buy More, Save up to 20%, no code needed.' } };
 ok(checkCongruence(bbBlock, bbApp, { name: 'X', sale: 'x', postsSeen: 0 }).some((v) => v.rule === 'R-SYNC-04'), 'brief says NEW, app says unchanged → R-SYNC-04 (Bare Bones, 13 Aug)');
 ok(!checkCongruence(fullBlock, bbApp, { name: 'X', sale: '', postsSeen: 0 }).some((v) => v.rule === 'R-SYNC-04'), 'no NEW claim → no contradiction');

@@ -242,6 +242,7 @@ View the full dashboard →
 - [signals.js] [ENFORCED] Priority order: sale change → funnel → new FB page → products → ad angle; conservative (unsure → silent); ONE definition of new (findings engine is sole authority, 6 Aug)
 - [signals.js] [ENFORCED] New funnel = first appearance since Monday, labelled "(first seen <day>, still new this week)" (founder, 24 Jul)
 - [signals.js] [ENFORCED] Same-type signals merge into one line (founder, 22 Jul); spare formatting (badge carries status)
+- [slack.js R-EMOJI-01] [ENFORCED] No decorative emojis anywhere in the brief — channel rows are plain labels ("Ads:", "Social:", "Website:", "Email:"), no header satellite. Only FUNCTIONAL markers survive: ❗ new-signal, 💡/🔹/✅ status badge, 🧯 QA pings ("this update looks like a joke" — founder, 13 Aug)
 - [slack.js] [ENFORCED] Badges: 💡 priority / 🔹 routine / ✅ quiet; stale reads (>2 days) never quoted as fresh; missing reads → deterministic lines so news is never dropped
 - [slack.js] [ENFORCED] Demo brands appended and labelled, never mixed in (founder, 6 Aug)
 - [signals.js] [ENFORCED] Only REAL deliveries commit announce-once state — previews never consume it

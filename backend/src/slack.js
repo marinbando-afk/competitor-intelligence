@@ -38,7 +38,7 @@ export function slackEnabled() { return !!process.env.SLACK_WEBHOOK_URL; }
 // Build the Slack message (mrkdwn): a header, then one line per channel per brand.
 export async function buildDigest(brands) {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-  const out = ['*🛰️ WatchBack — Daily competitor brief* · ' + today];
+  const out = ['*WatchBack — Daily competitor brief* · ' + today];
   for (const b of (brands || [])) {
     let ins = null;
     try { ins = await getInsights(b.host, b.name); } catch (e) { /* skip this brand */ }
@@ -166,7 +166,7 @@ export function socialRowText(read, newPosts, postsSeen) {
 // access as much as to content, or a social-only client reads about a sale they cannot open.
 export async function buildDailyBrief(brands, viewUrl, commit, channels) {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-  const head = '🛰️ *WatchBack daily* · ' + today;
+  const head = '*WatchBack daily* · ' + today;
   if (!(brands || []).length) return head + '\nNo competitors on the watchlist yet.';
   const link = viewUrl || await founderShareUrl();
   const on = (k) => !channels || channels.includes(k);
@@ -215,11 +215,11 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     };
     const gated = (raw, channel) => gateLine(line(raw), line(fb[channel]), { surface: 'slack', qa: qaNotes, brand: b.name, channel }).text;
     const rows = [];
-    if (on('ads') && ch('ads')) rows.push('   ' + mark(adsNew) + '📣 Ads: ' + gated(adsRecapLine(ins), 'ads'));
+    if (on('ads') && ch('ads')) rows.push('   ' + mark(adsNew) + 'Ads: ' + gated(adsRecapLine(ins), 'ads'));
     const socialTxt = socialRowText(social, n(A.posts), (s && s.postsSeen) || 0);
-    if (on('social') && socialTxt) rows.push('   ' + mark(!!n(A.posts)) + '📱 Social: ' + gated(socialTxt, 'social'));
-    if (on('website') && (ch('website') || (s && s.sale))) rows.push('   ' + mark(webNew) + '🛒 Website: ' + gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website'));
-    if (on('email') && ch('email')) rows.push('   ' + mark(!!n(A.emails)) + '✉️ Email: ' + gated(ins.email.summary, 'email'));
+    if (on('social') && socialTxt) rows.push('   ' + mark(!!n(A.posts)) + 'Social: ' + gated(socialTxt, 'social'));
+    if (on('website') && (ch('website') || (s && s.sale))) rows.push('   ' + mark(webNew) + 'Website: ' + gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website'));
+    if (on('email') && ch('email')) rows.push('   ' + mark(!!n(A.emails)) + 'Email: ' + gated(ins.email.summary, 'email'));
     // The badge summarises only the channels this reader actually gets — a 💡 earned by a
     // website sale a social-only client cannot open is a promise the brief never keeps.
     const pri = !!(s && ((on('website') && (s.sale || n(s.products))) || (on('ads') && (n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.angle)))));
