@@ -64,6 +64,12 @@ export function checkCongruence(block, appRead, f) {
   if (f.sale && appRead.website && appRead.website.summary && !/sale|%\s*off|discount|bogo|clearance/i.test(appRead.website.summary)) {
     out.push({ brand: f.name, rule: 'R-SYNC-03', why: 'sale signal fired but the app website read does not mention it' });
   }
+  // R-SYNC-04 (Bare Bones, 13 Aug): Slack called a standing volume discount "New sale live"
+  // while the app read said "running unchanged" — presence matched, the CLAIM contradicted.
+  const appW = (appRead.website && appRead.website.summary) || '';
+  if (/New sale live/i.test(block) && /unchanged|already running|still (running|live)/i.test(appW)) {
+    out.push({ brand: f.name, rule: 'R-SYNC-04', why: 'brief calls the sale NEW while the app read says it is unchanged/already running' });
+  }
   return out;
 }
 

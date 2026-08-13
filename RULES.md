@@ -40,6 +40,7 @@ misses to the founder's Slack.
 - [qa.js R-SYNC-01] [ENFORCED] The app shows a channel read (or captured posts) but the brief block lacks that row → audit ping
 - [qa.js R-SYNC-02] [ENFORCED] The brief carries a row for a channel the app shows no read or capture for → audit ping
 - [qa.js R-SYNC-03] [ENFORCED] A sale signal fired but the app's website read doesn't mention the sale → audit ping (the app-side twin of R-MISS-01)
+- [qa.js R-SYNC-04] [ENFORCED] Newness claims must AGREE across surfaces: the brief saying "New sale live" while the app read says unchanged/already running is a contradiction → audit ping (Bare Bones, 13 Aug)
 - [qa.js] [ENFORCED] The full audit (miss-checks R-MISS-00..04, hard rulecheck, congruence R-SYNC-01..03, model judge) runs automatically after every real daily delivery; findings arrive as 🧯 messages in the founder's Slack
 
 ## Ads
@@ -116,6 +117,7 @@ misses to the founder's Slack.
 - [insights.js] [ENFORCED] Products in ANY earlier capture can never be "new" (founder, 6 Aug)
 - [website.js] [BOTH] Banner reader reports only what is visible; named occasions kept exactly; non-answers coerced to empty; read from the rendered screenshot, not raw HTML
 - [website.js] [ENFORCED] Change-gated screenshots; quiet days labelled "unchanged since <day>" (founder, 20 Jul)
+- [app.html] [ENFORCED] The unchanged-day screenshot caption says "showing the last stored frame (<day>)" — never "when it last changed": a stored frame can come from banner-rotation noise or the weekly heartbeat, so the frame date is not proof of a visible change (Bare Bones, 13 Aug)
 
 ## Email
 
@@ -150,7 +152,7 @@ misses to the founder's Slack.
 - [signals.js] [ENFORCED] Slack sale trigger: product-feed transition primary; banner fallback rotation-safe; sale→non-sale slide rotation is never "sale ended" (founder, 17 Jul)
 - [signals.js R-SALE-NEW] [ENFORCED] "New" ONLY when the banner genuinely first appeared within the last ~2 days of capture history; an OLDER never-announced sale is reported as `*Sale live (already running)* — “…”` — announcing late never makes an old offer new (Ancestral lip-balm GWP, 13 Aug). A first-ever sale announcement says NEW in the text itself — `*New sale live* — “…”` (bold in Slack, banner quoted verbatim) — so it is 100% clear it was not there before (founder, 12 Aug)
 - [signals.js] [ENFORCED] CATCH-UP: captured ≠ announced — a live sale banner never through a DELIVERED brief fires once (_salestate) (founder, 12 Aug — Seranova Back-to-School)
-- [slack.js R-SALE-LEADS] [ENFORCED] When a sale signal fires (transition or catch-up), the website row IS the announcement (`*New sale live* — “Back to School Sale: up to 58% off”` — bold status, em-dash, banner quoted verbatim) — never an "active and unchanged" read with an ❗ on it; the ❗ and the sentence must agree (founder, 12 Aug — Seranova)
+- [slack.js R-ONE-SOURCE] [ENFORCED] **SINGLE SOURCE (supersedes R-SALE-LEADS, 12 Aug):** every Slack row quotes the app's stored read VERBATIM; deterministic signal text only fills an ABSENT read, never replaces a present one — congruence by construction, not by checking (founder, 13 Aug — Froya: Slack said "New sale live" while the app said "sale unchanged"). The ❗ mark and 💡 badge still flag sale days; if the app read fails to name a fired sale, R-SYNC-03/R-MISS-01 ping the founder rather than Slack inventing its own text
 - [qa.js R-MISS-01..03] [ENFORCED] Self-audit: a computed sale / new-product / stale-offer signal missing from the delivered brief pings the founder (12 Aug)
 - [occasions.js] [ENFORCED] One meaning-based "same banner" definition shared by all surfaces
 

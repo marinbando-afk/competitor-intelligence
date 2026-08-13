@@ -133,14 +133,16 @@ function balanceQuotes(t) {
 }
 const sentSplit = (t) => String(t || '').trim().split(/(?<=[.!?])\s+/).filter(Boolean);
 
-// R-SALE-LEADS (founder, 12 Aug — Seranova): when a sale signal fires (transition day OR
-// the one-time catch-up for a never-announced sale), the website row must READ as the
-// announcement itself. The stored AI read is built from the capture pair and truthfully
-// says "active and unchanged" on a catch-up day — shipping that next to an ❗ is a
-// contradiction that buries the news. The deterministic sale line wins; the fuller AI
-// read still lives in the app. Exported for test/rulecheck.test.js.
+// R-ONE-SOURCE (founder, 13 Aug — Froya said "New sale live" in Slack while the app said
+// "sale unchanged": "where are you getting Slack insights? it should be from the
+// platform/app insights, so that way all is congruent"). This SUPERSEDES the 12 Aug
+// substitution approach: the brief quotes the app's stored read VERBATIM, always. The
+// deterministic sale announcement is a FALLBACK for an ABSENT read — it never replaces a
+// present one, so the two surfaces cannot diverge by construction. The app read names any
+// active sale per its own rules; the ❗ mark still flags sale days. Exported for tests.
 export function websiteRowText(sale, summary) {
-  return sale ? String(sale) : String(summary || '');
+  const read = String(summary || '').trim();
+  return read || (sale ? String(sale) : '');
 }
 
 // R-SOCIAL-ROW (founder, 12 Aug — Pacific Foods): the app showed 9 captured Instagram posts

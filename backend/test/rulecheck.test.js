@@ -109,13 +109,14 @@ const twoAds = adsFindings([
 ], 50).find((f) => f.key === 'ads.launches');
 ok(twoAds && /\(all video\)/.test(twoAds.text), 'two uniform ads → "(all video)"');
 
-console.log('\nWEBSITE ROW — a fired sale signal IS the line, never an "unchanged" read (founder, 12 Aug):');
+console.log('\nWEBSITE ROW — single source: the app read is quoted verbatim, sale text only fills absence (founder, 13 Aug):');
 const { websiteRowText } = await import('../src/slack.js');
 const { saleAnnouncement } = await import('../src/signals.js');
 ok(saleAnnouncement('Back to School Sale: up to 58% off') === '*New sale live* — \u201cBack to School Sale: up to 58% off\u201d', 'announcement: bold status, em-dash, banner quoted verbatim');
 const { saleCatchupAnnouncement } = await import('../src/signals.js');
 ok(saleCatchupAnnouncement('Spend $97 and get a FREE lip balm') === '*Sale live (already running)* — \u201cSpend $97 and get a FREE lip balm\u201d', 'old never-announced sale says already running, never New (Ancestral, 13 Aug)');
-ok(websiteRowText(saleAnnouncement('Back to School Sale: up to 58% off'), 'Back to School Sale, up to 58% off, is active and unchanged.').indexOf('*New sale live*') === 0, 'sale signal replaces the unchanged read');
+ok(websiteRowText(saleAnnouncement('Back to School Sale: up to 58% off'), 'Back to School Sale, up to 58% off, is active and unchanged.') === 'Back to School Sale, up to 58% off, is active and unchanged.', 'app read wins over the sale signal — Slack can never tell a different story (Froya, 13 Aug)');
+ok(websiteRowText(saleAnnouncement('Back to School Sale: up to 58% off'), '').indexOf('*New sale live*') === 0, 'absent read → sale announcement fills the gap');
 ok(websiteRowText('', 'Storefront unchanged — same prices, products and sale.') === 'Storefront unchanged — same prices, products and sale.', 'no sale signal → AI read ships as before');
 ok(websiteRowText(null, '') === '', 'nothing → empty (row skipped)');
 
@@ -151,6 +152,10 @@ ok(checkCongruence(fullBlock, appRead, fx).length === 0, 'all four rows match th
 ok(checkCongruence(noSocial, appRead, fx).some((v) => v.rule === 'R-SYNC-01'), 'app shows social, brief lacks the row → R-SYNC-01');
 ok(checkCongruence(fullBlock, { ads: appRead.ads, website: appRead.website, email: appRead.email }, fx).some((v) => v.rule === 'R-SYNC-02'), 'brief row without an app read → R-SYNC-02');
 ok(checkCongruence(fullBlock, { ...appRead, website: { summary: 'Storefront unchanged — same prices.' } }, { name: 'X', sale: 'New sale live', postsSeen: 0 }).some((v) => v.rule === 'R-SYNC-03'), 'sale fired but app read silent → R-SYNC-03');
+const bbBlock = '*X* 💡\n   📣 Ads: a.\n   📱 Social: b.\n   🛒 Website: *New sale live* — \u201cBuy More, Save up to 20%\u201d.\n   ✉️ Email: d.';
+const bbApp = { ...appRead, website: { summary: 'Bare Bones running unchanged volume discount — Buy More, Save up to 20%, no code needed.' } };
+ok(checkCongruence(bbBlock, bbApp, { name: 'X', sale: 'x', postsSeen: 0 }).some((v) => v.rule === 'R-SYNC-04'), 'brief says NEW, app says unchanged → R-SYNC-04 (Bare Bones, 13 Aug)');
+ok(!checkCongruence(fullBlock, bbApp, { name: 'X', sale: '', postsSeen: 0 }).some((v) => v.rule === 'R-SYNC-04'), 'no NEW claim → no contradiction');
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);
