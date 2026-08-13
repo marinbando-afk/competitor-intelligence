@@ -128,7 +128,7 @@ function balanceQuotes(t) {
   if ((t.match(/“/g) || []).length > (t.match(/”/g) || []).length && t.includes('“')) {
     t = t.slice(0, t.lastIndexOf('“')).replace(/[\s—–\-:,;]+$/, '');
   }
-  if (t && !/[.!?…]$/.test(t)) t += '.';
+  if (t && !/[.!?…]$/.test(t)) t = t.replace(/[\s,;:—–-]+$/, '') + '.';   // 'positioning,.' — strip orphan punctuation before closing (13 Aug)
   return t;
 }
 const sentSplit = (t) => String(t || '').trim().split(/(?<=[.!?])\s+/).filter(Boolean);
