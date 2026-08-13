@@ -231,7 +231,7 @@ const pfAds = [
 const pfOut = adsFindings([row('2026-08-12', { ads: pfAds })], 500);
 const foot = pfOut.find((f) => f.key === 'ads.footprint');
 check('destination + origin are ONE finding', !!foot);
-check('reads as one sentence', !!foot && foot.text === 'Every captured ad runs to shop.mikmak.ai and from "Pacific Foods" handle.', foot && foot.text);
+check('reads as one sentence', !!foot && foot.text === 'Recent ads run to shop.mikmak.ai and from "Pacific Foods" handle.', foot && foot.text);
 check('the split findings are gone', !pfOut.some((f) => f.key === 'ads.destinations' || f.key === 'ads.pages'));
 check('still no capture counts in the footprint', !!foot && !/\b\d+\s+ads?\b/.test(foot.text));
 

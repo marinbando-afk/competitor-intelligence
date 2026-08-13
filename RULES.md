@@ -95,6 +95,8 @@ misses to the founder's Slack.
 
 - [insights.js GUIDE.website] [PROMPT] A SALE = discount/named event/BOGO/GWP/promo code. Free shipping, free returns, new arrivals are OPERATIONAL — never a sale (founder, 17 Jul)
 - [occasions.js] [ENFORCED] isSaleBanner encodes the above deterministically
+- [findings.js R-BANNER-OPS] [ENFORCED] An operational banner (free shipping / returns / new arrivals) is NEVER reader-visible on any surface — the finding is typed context (machinery-only, keeps banner continuity); "don't report free shipping offers" (founder, 13 Aug — Bonafide)
+- [findings.js R-ADS-RECENT] [ENFORCED] The ad footprint reads "Recent ads run to X and from Y handle" — never "Every captured ad", which leans on a capture size the client doesn't know or remember (founder, 13 Aug — Luxe)
 - [insights.js GUIDE.website] [PROMPT] ALWAYS lead with whether a genuine sale is active right now — an ongoing unchanged sale must still be named, by its EXACT occasion name and headline discount
 - [insights.js + website.js] [BOTH] NEVER cite a count of discounted products — describe a sale only by occasion + headline discount (founder, 18 Jul)
 - [website.js] [ENFORCED] diffWebsite emits only sale STATE transitions; widened/narrowed discounts are churn

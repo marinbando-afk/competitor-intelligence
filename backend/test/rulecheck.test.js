@@ -37,6 +37,20 @@ const wf = windowFindings([
 ], 'TikTok', (d) => d && d.posts).find((f) => f.type === 'new');
 ok(wf && wf.text.indexOf('New TikTok post: ') === 0 && wf.text.indexOf('since') < 0, 'feed finding reads "New TikTok post:" — no date, no "item" (13 Aug)');
 
+console.log('\nOPERATIONAL BANNERS — free shipping is never reader-visible (Bonafide, 13 Aug):');
+const { websiteFindings } = await import('../src/findings.js');
+const wfeed = { onSale: 0, items: { p1: { title: 'Thing', price: 30 } } };
+const opsB = websiteFindings([
+  { day: '2026-08-13', data: { banner: 'FREE SHIPPING ON ALL ORDERS!', summary: wfeed } },
+  { day: '2026-08-12', data: { banner: 'FREE SHIPPING ON ALL ORDERS!', summary: wfeed } },
+]).find((f) => f.key === 'web.banner');
+ok(opsB && opsB.type === 'context', 'operational banner typed context — machinery only, never phrased to a reader');
+const luxeFoot = adsFindings([
+  { day: '2026-08-13', data: { ads: [ { id: 'x1', landing: 'https://try.luxe.com/lp', page: 'Korean Beauty Insider', started: '2026-08-01' } ] } },
+  { day: '2026-08-12', data: { ads: [ { id: 'x1', landing: 'https://try.luxe.com/lp', page: 'Korean Beauty Insider', started: '2026-08-01' } ] } },
+], 50).find((f) => f.key === 'ads.footprint');
+ok(luxeFoot && luxeFoot.text.indexOf('Recent ads run to ') === 0, '"Recent ads run to" — no capture-scope jargon (Luxe, 13 Aug)');
+
 console.log('\nDELIVERY GATE — clean lines pass:');
 ok(clean('18 new ads launched since yesterday (all video) — newest opens: "Will these fit?" → nolaninterior.com.'), 'good gate line passes');
 ok(clean('New ad launched 2026-08-05 — video from “The Oodie”.'), 'launch date is allowed');

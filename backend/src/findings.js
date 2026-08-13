@@ -85,19 +85,21 @@ export function adsFindings(rows, capN) {
   // fact about one set of ads, so it is one sentence.
   // R-ADS-HANDLE (founder, 12 Aug): quoted page names alone read ambiguously — say what they
   // ARE by appending "handle"/"handles".
+  // R-ADS-RECENT (founder, 13 Aug — Luxe): "Every captured ad" leans on a capture size the
+  // client doesn't know or remember; "Recent ads" carries the same scope in reader terms.
   const domList = [...domNow.keys()].join(', ');
   const pageList = [...pageNow.keys()].map((p) => '"' + String(p).trim() + '"').join(', ') + (pageNow.size > 1 ? ' handles' : ' handle');
   if (domNow.size && pageNow.size) {
     out.push({
       // No counts (founder, 10-11 Aug): capture arithmetic here would reach Slack verbatim.
       type: 'state', key: 'ads.footprint',
-      text: 'Every captured ad runs to ' + domList + ' and from ' + pageList + '.',
+      text: 'Recent ads run to ' + domList + ' and from ' + pageList + '.',
       evidence: { domains: [...domNow.entries()], pages: [...pageNow.entries()] },
     });
   } else if (domNow.size) {
-    out.push({ type: 'state', key: 'ads.destinations', text: 'Every captured ad runs to ' + domList + '.', evidence: { domains: [...domNow.entries()] } });
+    out.push({ type: 'state', key: 'ads.destinations', text: 'Recent ads run to ' + domList + '.', evidence: { domains: [...domNow.entries()] } });
   } else if (pageNow.size) {
-    out.push({ type: 'state', key: 'ads.pages', text: 'The captured ads run from ' + pageList + '.', evidence: { pages: [...pageNow.entries()] } });
+    out.push({ type: 'state', key: 'ads.pages', text: 'Recent ads run from ' + pageList + '.', evidence: { pages: [...pageNow.entries()] } });
   }
 
   if (ads.length) {
@@ -381,11 +383,16 @@ export function websiteFindings(rows) {
     else if (renamed) when = ' — a NEW SALE: it replaced "' + renamed.from + '" (last captured '
       + renamed.lastSeen + ') and was first captured ' + renamed.since + '. Same headline discount under a new occasion, so the economics are unchanged, but this is a distinct sale. We know when we first SAW it, not when they published it.';
     else when = ' — unchanged across recent captures.';
+    // R-BANNER-OPS (founder, 13 Aug — Bonafide: "this is fucking standard in ecomm, don't
+    // report free shipping offers"): an operational banner (free shipping/returns/new
+    // arrivals) is NEVER reader-visible — typed 'context' so the machinery keeps banner
+    // continuity but no surface ever phrases it. Only genuine promos ship as state/new.
+    const opsBanner = !isSaleBanner(bannerNow);
     out.push({
-      type: (isNew || recentSwap || renamed) ? 'new' : 'state', key: 'web.banner',
-      text: isSaleBanner(bannerNow)
-        ? ('Storefront promo: "' + quote + '"' + (tm ? ' — with a COUNTDOWN TIMER' + (seenBefore ? ' that keeps resetting day after day (evergreen urgency, not a real deadline)' : '') : '') + when)
-        : ('Storefront announcement bar shows operational messaging (not a promo): "' + quote + '".'),
+      type: opsBanner ? 'context' : ((isNew || recentSwap || renamed) ? 'new' : 'state'), key: 'web.banner',
+      text: opsBanner
+        ? ('Announcement bar holds operational messaging only ("' + quote + '") — standard ecommerce, not reportable.')
+        : ('Storefront promo: "' + quote + '"' + (tm ? ' — with a COUNTDOWN TIMER' + (seenBefore ? ' that keeps resetting day after day (evergreen urgency, not a real deadline)' : '') : '') + when),
       evidence: { banner: bannerNow, since, replaced: prevBanner || undefined, renamed: renamed || undefined, sameDiscount: sameDiscount || undefined, timer: tm || undefined },
     });
   }

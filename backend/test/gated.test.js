@@ -30,7 +30,7 @@ check('surviving model text passes through untouched', gated({ text: 'Kept read.
 
 // Only inventory lines exist → they still ship (better than an empty read).
 const inv = gated({ text: '' }, FINDS.filter((f) => f.key === 'ads.domains' || f.key === 'ads.pages'));
-check('inventory-only day still produces a read', inv.includes('Every captured ad runs to nolaninterior.com.'));
+check('inventory-only day still produces a read', inv.includes('Every captured ad runs to nolaninterior.com.') || inv.includes('Recent ads run to nolaninterior.com.'));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);
