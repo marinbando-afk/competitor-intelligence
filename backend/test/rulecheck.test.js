@@ -27,6 +27,15 @@ ok(fires('runs from a third-party page', 'R-PHRASE-02'), 'R-PHRASE-02 vague thir
 ok(fires('Ad landing domain x.com now redirects to y.com', 'R-CLAIM-01'), 'R-CLAIM-01 domain-wide redirect claim');
 ok(fires('Storefront promo first seen 2026-08-11 on the banner', 'R-DATE-01'), 'R-DATE-01 raw ISO date in brief');
 ok(fires('(One ad URL tested, not the whole go.seranovabeauty.com domain.) Every captured ad runs to go.seranovabeauty.com.', 'R-TEXT-04'), 'R-TEXT-04 orphaned leading parenthetical (Seranova, 13 Aug)');
+ok(fires('New email item since 2026-08-11: \u201csmile, you\u2019re on camera\u201d.', 'R-DATE-01'), 'R-DATE-01 blanket-since exemption closed (Tallowed Truth, 13 Aug)');
+ok(fires('New TikTok item since 2026-08-11: \u201cReduce widening partings\u201d.', 'R-DATE-01'), 'R-DATE-01 fires on dated social items too (CurrentBody, 13 Aug)');
+ok(clean('1 new ad launched since 2026-08-08 (video) \u2014 newest opens: \u201cWinter is not over\u201d.'), 'launched-since keeps its date (genuine launch window)');
+const { windowFindings } = await import('../src/findings.js');
+const wf = windowFindings([
+  { day: '2026-08-13', data: { posts: [ { id: 'p1', text: 'Reduce widening partings and support new growth with daily red light therapy' }, { id: 'p0', text: 'old post' } ] } },
+  { day: '2026-08-12', data: { posts: [ { id: 'p0', text: 'old post' } ] } },
+], 'TikTok', (d) => d && d.posts).find((f) => f.type === 'new');
+ok(wf && wf.text.indexOf('New TikTok post: ') === 0 && wf.text.indexOf('since') < 0, 'feed finding reads "New TikTok post:" — no date, no "item" (13 Aug)');
 
 console.log('\nDELIVERY GATE — clean lines pass:');
 ok(clean('18 new ads launched since yesterday (all video) — newest opens: "Will these fit?" → nolaninterior.com.'), 'good gate line passes');

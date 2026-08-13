@@ -161,7 +161,8 @@ misses to the founder's Slack.
 - [insights.js + occasions.js] [ENFORCED] The model is always told today's date
 - [insights.js + claims.js + rulecheck.js R-DATE-02] [BOTH] Time-anchor every state as NEW or UNCHANGED; never "live/running since <date>", never durations
 - [insights.js + slack.js] [BOTH] "Today" is written bare; delivery re-anchors to the reader's clock ("today"→"yesterday"); genuine earlier dates stay dates (founder, 10 Aug)
-- [rulecheck.js R-DATE-01] [ENFORCED] Raw ISO dates in the brief only for genuine launch/check dates; everything else relativized (founder, 12 Aug)
+- [rulecheck.js R-DATE-01] [ENFORCED] Raw ISO dates in the brief ONLY after "launched", "launched since", "checked on" or "began on" — the blanket "since <date>" exemption let "New email item since 2026-08-11" ship (tightened 13 Aug); everything else relativized (founder, 12-13 Aug)
+- [findings.js windowFindings] [ENFORCED] New email/social findings read "New email: \u201c\u2026\u201d" / "New TikTok post: \u201c\u2026\u201d" — no "item", no date (daily cadence makes "since yesterday" implicit), quotes clipped on word boundaries (founder, 13 Aug — Tallowed Truth, CurrentBody)
 - [findings.js + rulecheck.js R-PROV-01] [ENFORCED] NEVER state the comparison window in the brief ("Storefront compared 2026-08-11 → 2026-08-12", any date→date range) — briefs are DAILY, so "vs yesterday" is implicit and stating it only confuses. Change/no-change lines read absolutely ("Storefront unchanged — same prices, products and sale."); provenance dates live in evidence fields, never prose (founder, 12 Aug: "Slack messages are being sent daily!!!")
 - [insights.js + claims.js] [BOTH] Never count captures — use dates or "since monitoring began on <date>"
 - [insights.js] [PROMPT] Newsroom order: event first, plain words, then interpretation; plain language a marketer uses; split sentences needing semicolon+dash (founder, 22 Jul)

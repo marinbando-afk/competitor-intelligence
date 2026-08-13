@@ -76,8 +76,9 @@ function isoDateViolation(t) {
   while ((m = re.exec(t))) {
     const before = t.slice(Math.max(0, m.index - 24), m.index);
     const after = t.slice(m.index + 10, m.index + 14);
-    if (/launch(ed)?\s*$|checked on\s*$|since\s*$|between\s*$|and\s*$|→\s*$|\(\s*$/i.test(before)) continue;
-    if (/^\s*(→|to\b)/.test(after)) continue;
+    // Tightened 13 Aug: the old blanket "since" exemption let "New email item since
+    // 2026-08-11" ship. Only genuine launch/check/monitoring anchors keep their dates.
+    if (/launch(ed)?(\s+since)?\s*$|checked on\s*$|began on\s*$/i.test(before)) continue;
     return true;
   }
   return false;

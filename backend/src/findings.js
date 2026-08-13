@@ -434,8 +434,15 @@ export function windowFindings(rows, label, itemsOf) {
   if (prev) {
     const seen = new Set((itemsOf(prev.data) || []).map((p) => p.id || p.link || p.text));
     const fresh = now.filter((p) => !seen.has(p.id || p.link || p.text));
+    // Daily cadence makes "since <date>" pure noise — a NEW item in a daily report is
+    // implicitly since yesterday (founder, 13 Aug: "New email item since 2026-08-11" /
+    // "New TikTok item since 2026-08-11" — "we spoke about this already"). Name the thing
+    // plainly and clip the quote on a word boundary.
     for (const p of fresh.slice(0, 4)) {
-      out.push({ type: 'new', key: label + '.new:' + (p.id || p.link || String(p.text || '').slice(0, 20)), text: 'New ' + label + ' item since ' + prev.day + ': "' + String(p.text || p.subject || '').replace(/\s+/g, ' ').slice(0, 110) + '"', evidence: { link: p.link || '', views: p.views || null, date: p.date || null } });
+      const noun = /email/i.test(label) ? 'email' : label + ' post';
+      let q = String(p.text || p.subject || '').replace(/\s+/g, ' ').trim();
+      if (q.length > 110) q = q.slice(0, 110).replace(/\s+\S*$/, '') + '…';
+      out.push({ type: 'new', key: label + '.new:' + (p.id || p.link || String(p.text || '').slice(0, 20)), text: 'New ' + noun + ': "' + q + '"', evidence: { link: p.link || '', views: p.views || null, date: p.date || null } });
     }
   }
   return out;
