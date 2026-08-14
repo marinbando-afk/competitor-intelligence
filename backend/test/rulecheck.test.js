@@ -183,6 +183,11 @@ ok(emailRowText('', 0, 0, '') === '', 'nothing captured → row omitted');
 const smFacts = [{ name: 'Smooche', host: 'smooche.com', sale: '', products: 0, staleOffers: 0, postsSeen: 0, emailsSeen: 16 }];
 ok(checkMisses('*Smooche* 💡\n   Ads: a.', smFacts).some((v) => v.rule === 'R-MISS-05'), 'captured emails + no Email row → R-MISS-05');
 
+console.log('\nMARK SYNC — the ❗ follows the sentence it decorates (Ancestral, 14 Aug):');
+const { textClaimsLaunches } = await import('../src/slack.js');
+ok(textClaimsLaunches('16 new ads launched yesterday (12 video, 4 image) — newest opens: "x".'), 'launch sentence → mark required');
+ok(!textClaimsLaunches('Recent ads run to x.com and from "X" handle.'), 'standing footprint → no forced mark');
+
 console.log('\nCONGRUENCE — app, Slack and admin surfaces tell one story (founder, 12 Aug):');
 const { checkCongruence } = await import('../src/qa.js');
 const appRead = { ads: { summary: 'Discount-led video push.' }, social: { summary: 'IP collabs dominate.' }, website: { summary: 'Back to School Sale live, up to 58% off.' }, email: { summary: 'Latest: SPF launch email.' } };

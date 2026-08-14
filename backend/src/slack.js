@@ -67,6 +67,10 @@ export async function buildDigest(brands) {
 // never re-derives). On launch days the stored summary leads with the launches; on quiet
 // days it states the standing core message — either way the client learns what the
 // competitor's ads are SAYING, every single morning. Exported for test/slack.test.js.
+// A row's own words assert newness → it must carry the ❗ regardless of which engine
+// produced the text. Exported for tests (R-MARK-SYNC).
+export const textClaimsLaunches = (t) => /\b\d+\s+new\s+ads?\s+launched\b/i.test(String(t || ''));
+
 export function adsRecapLine(ins) {
   const a = ins && ins.ads;
   if (!a || !a.summary) return '';
@@ -225,7 +229,11 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     };
     const gated = (raw, channel) => gateLine(line(raw), line(fb[channel]), { surface: 'slack', qa: qaNotes, brand: b.name, channel }).text;
     const rows = [];
-    if (on('ads') && ch('ads')) rows.push('   ' + mark(adsNew) + 'Ads: ' + gated(adsRecapLine(ins), 'ads'));
+    // R-MARK-SYNC (founder, 14 Aug — Ancestral: "16 new ads launched yesterday" with no ❗
+    // while Social had one): the mark and the sentence come from different derivations, so
+    // the mark must FOLLOW the sentence it decorates — a row asserting launches is new.
+    const adsText = ch('ads') ? gated(adsRecapLine(ins), 'ads') : '';
+    if (on('ads') && adsText) rows.push('   ' + mark(adsNew || textClaimsLaunches(adsText)) + 'Ads: ' + adsText);
     const socialTxt = socialRowText(social, n(A.posts), (s && s.postsSeen) || 0);
     if (on('social') && socialTxt) rows.push('   ' + mark(!!n(A.posts)) + 'Social: ' + gated(socialTxt, 'social'));
     if (on('website') && (ch('website') || (s && s.sale))) rows.push('   ' + mark(webNew) + 'Website: ' + gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website'));
