@@ -20,6 +20,9 @@ ok(fires('all 98 ads in today’s capture push merch', 'R-ADS-01'), 'R-ADS-01 ca
 ok(fires('The offer has been live since 2026-07-15.', 'R-DATE-02'), 'R-DATE-02 live-since dating');
 ok(fires('subject =E2=80=8C=C2=A0 preheader junk', 'R-TEXT-01'), 'R-TEXT-01 undecoded QP');
 ok(fires('24 new ads launched; newest opens.', 'R-TEXT-02'), 'R-TEXT-02 dangling clause label');
+ok(fires('Latest email.', 'R-TEXT-02'), 'R-TEXT-02 label-only survivor (Ancestral, 14 Aug)');
+ok(fires('New email:', 'R-TEXT-02'), 'R-TEXT-02 bare label with colon');
+ok(clean('Latest email: \u2018The full routine that closes out the month\u2019 — habit angle.'), 'full email line passes');
 ok(fires('their best seller is undefined this week', 'R-TEXT-03'), 'R-TEXT-03 placeholder junk');
 ok(fires('hook: "Will these fit my couch — plus more', 'R-QUOTE-01'), 'R-QUOTE-01 unbalanced quote');
 ok(fires('the ads send traffic to Facebook’s login page', 'R-PHRASE-01'), 'R-PHRASE-01 banned login-page phrasing');

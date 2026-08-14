@@ -34,7 +34,10 @@ const CHECKS = [
   // R-TEXT-02 (founder, 12 Aug): no dangling clause labels from truncation
   // ("…; newest opens." with the payload gone, a trailing colon, an orphan dash).
   { id: 'R-TEXT-02', why: 'dangling clause label / truncation artifact',
-    test: (t) => /(opens|opening|reads|hook|latest|newest)[:.]?\s*$/i.test(t.replace(/["'”’)\]]+$/, '').trim()) || /[;:—–]\s*$/.test(t.trim()) || /\bthe\s+\d+…$/.test(t.trim()) },
+    test: (t) => /(opens|opening|reads|hook|latest|newest)[:.]?\s*$/i.test(t.replace(/["'”’)\]]+$/, '').trim()) || /[;:—–]\s*$/.test(t.trim()) || /\bthe\s+\d+…$/.test(t.trim())
+      // label-only survivors: the clip landed inside the quote, the balancer removed it,
+      // and a sentence about nothing remained ("Latest email." — Ancestral, 14 Aug).
+      || /^\s*(latest|new|newest)\s+(email|post|ad|item)s?\s*[.:]?\s*$/i.test(t.trim()) },
 
   // R-TEXT-03: no template/JS junk ever reaches a user surface.
   { id: 'R-TEXT-03', why: 'placeholder junk (undefined/null/NaN/[object)',
