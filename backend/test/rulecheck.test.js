@@ -191,6 +191,14 @@ const { textClaimsLaunches } = await import('../src/slack.js');
 ok(textClaimsLaunches('16 new ads launched yesterday (12 video, 4 image) — newest opens: "x".'), 'launch sentence → mark required');
 ok(!textClaimsLaunches('Recent ads run to x.com and from "X" handle.'), 'standing footprint → no forced mark');
 
+console.log('\nANNOUNCE STATE — survives timer and read variance (Casa & UKLASH, 14 Aug):');
+const { stripTimer, saleAnnouncedBefore } = await import('../src/signals.js');
+ok(stripTimer('50% OFF CLEARANCE SALE ENDS IN 12:16:41') === stripTimer('50% OFF CLEARANCE SALE ENDS IN 14:27:10'), 'countdown values stripped → one identity across days');
+const state = { banners: [{ b: '50% OFF CLEARANCE SALE', day: '2026-08-13' }] };
+ok(saleAnnouncedBefore(state, '50% OFF CLEARANCE SALE ENDS IN 09:41:03', '2026-08-14'), 'timer variant of an announced sale → recognised, no re-fire');
+ok(saleAnnouncedBefore({ banners: [{ b: 'Subscribe & Save 20% on every order', day: '2026-08-13' }] }, 'Save 20% with a subscription', '2026-08-14'), 'reworded read of the announced offer → recognised (UKLASH)');
+ok(!saleAnnouncedBefore({ banners: [{ b: 'Summer Sale 40% off', day: '2026-08-13' }] }, 'Black Friday 70% off everything', '2026-08-14'), 'a genuinely different sale still fires');
+
 console.log('\nCONGRUENCE — app, Slack and admin surfaces tell one story (founder, 12 Aug):');
 const { checkCongruence } = await import('../src/qa.js');
 const appRead = { ads: { summary: 'Discount-led video push.' }, social: { summary: 'IP collabs dominate.' }, website: { summary: 'Back to School Sale live, up to 58% off.' }, email: { summary: 'Latest: SPF launch email.' } };

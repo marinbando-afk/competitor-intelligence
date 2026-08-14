@@ -14,7 +14,7 @@
 import { recentSnapshots, allSnapshots, latestSnapshot, saveSnapshot } from './snapshots.js';
 import { diffWebsite } from './website.js';
 import { adsChanges, adDomain, isFunnelUrl } from './ads.js';
-import { offerFlags, isSaleBanner, sameBannerText } from './occasions.js';
+import { offerFlags, isSaleBanner, sameBannerText, TIMER_RE } from './occasions.js';
 import { resolveCapture } from './capture.js';
 import { computeFindings } from './findings.js';
 
@@ -52,6 +52,20 @@ export const saleAnnouncement = (banner) => '*New sale live* — \u201c' + Strin
 // since late July; the brief called it "New" on 13 Aug — a false claim). An old,
 // never-announced sale is reported as already running, never as new.
 export const saleCatchupAnnouncement = (banner) => '*Sale live (already running)* — \u201c' + String(banner || '').trim() + '\u201d';
+// Announce-state identity must survive DAILY TEXT VARIANCE (founder, 14 Aug): Casa's
+// countdown timer changes the banner string every day, and UKLASH's one offer is read
+// four different ways in four days — exact-text fingerprints never match, so the
+// catch-up fired forever (❗ on unchanged rows). Identity = timer-stripped text,
+// matched with the meaning-based sameBannerText. Exported for tests.
+export const stripTimer = (b) => String(b || '').replace(TIMER_RE, '').replace(/\s{2,}/g, ' ').trim();
+export function saleAnnouncedBefore(state, banner, todayStr) {
+  const bStr = stripTimer(banner);
+  const prior = (state && Array.isArray(state.banners)) ? state.banners : [];
+  if (prior.some((x) => x && x.b && x.day !== todayStr && sameBannerText(x.b, bStr))) return true;
+  const legacy = (state && state.seen && typeof state.seen === 'object') ? state.seen : {};
+  const fp = normBanner(bStr);
+  return !!(fp && legacy[fp] && legacy[fp] !== todayStr);
+}
 const OFFER_STATE_TTL_DAYS = 400;    // forget a fingerprint long after its ad can plausibly still run
 
 // A real promo banner is a short headline. Older snapshots may hold a model's non-answer
@@ -225,9 +239,7 @@ export async function dailySignals(host, commit) {
           // at all). Captured is NOT announced: a live sale banner whose fingerprint has
           // never been through a DELIVERED brief still fires, once.
           const st2 = await latestSnapshot(host, SALE_STATE);
-          const seen2 = (st2 && st2.seen && typeof st2.seen === 'object') ? st2.seen : {};
-          const fp2 = normBanner(saleB);
-          if (fp2 && (!seen2[fp2] || seen2[fp2] === todayStr)) {
+          if (!saleAnnouncedBefore(st2, saleB, todayStr)) {
             // "New" only if this banner genuinely first appeared within the last 2 days —
             // an older never-announced sale ships as already running (R-SALE-NEW, 13 Aug).
             let firstSeen = todayStr;
@@ -253,9 +265,12 @@ export async function dailySignals(host, commit) {
           const cutS = new Date(Date.parse(todayStr) - 180 * 864e5).toISOString().slice(0, 10);
           const nextS = {};
           for (const [fp, day] of Object.entries(seenS)) if (typeof day === 'string' && day >= cutS) nextS[fp] = day;
-          const fpS = normBanner((bannerOk(cur.banner) && isSaleBanner(cur.banner) ? cur.banner : '') || out.sale);
+          const bStrS = stripTimer((bannerOk(cur.banner) && isSaleBanner(cur.banner) ? cur.banner : '') || out.sale);
+          const fpS = normBanner(bStrS);
           if (fpS && !nextS[fpS]) nextS[fpS] = todayStr;
-          await saveSnapshot(host, SALE_STATE, { seen: nextS });
+          const listS = ((stS && Array.isArray(stS.banners)) ? stS.banners : []).filter((x) => x && typeof x.day === 'string' && x.day >= cutS);
+          if (bStrS && !listS.some((x) => sameBannerText(x.b, bStrS))) listS.push({ b: bStrS, day: todayStr });
+          await saveSnapshot(host, SALE_STATE, { seen: nextS, banners: listS.slice(-40) });
         } catch (e) { /* announce state is best-effort */ }
       }
       out.products = diffs.filter((d) => /new product/i.test(d));

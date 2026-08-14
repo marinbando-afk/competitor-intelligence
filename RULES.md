@@ -158,6 +158,7 @@ misses to the founder's Slack.
 - [slack.js R-ONE-SOURCE] [ENFORCED] **SINGLE SOURCE (supersedes R-SALE-LEADS, 12 Aug):** every Slack row quotes the app's stored read VERBATIM; deterministic signal text only fills an ABSENT read, never replaces a present one — congruence by construction, not by checking (founder, 13 Aug — Froya: Slack said "New sale live" while the app said "sale unchanged"). The ❗ mark and 💡 badge still flag sale days; if the app read fails to name a fired sale, R-SYNC-03/R-MISS-01 ping the founder rather than Slack inventing its own text
 - [qa.js R-MISS-01..03] [ENFORCED] Self-audit: a computed sale / new-product / stale-offer signal missing from the delivered brief pings the founder (12 Aug)
 - [occasions.js] [ENFORCED] One meaning-based "same banner" definition shared by all surfaces
+- [signals.js R-SALE-ID] [ENFORCED] Sale announce-state identity survives daily text variance: countdown values are stripped before fingerprinting (Casa's timer changed the string every day) and announced banners are matched with the meaning-based sameBannerText (UKLASH's offer is read differently day to day) — otherwise the catch-up re-fires ❗ forever on unchanged sales (founder, 14 Aug)
 
 ## Dates & Language
 
