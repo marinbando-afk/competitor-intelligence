@@ -184,6 +184,7 @@ misses to the founder's Slack.
 - [findings.js] [ENFORCED] Dead landing (404/410) reported with check date, "Do not link it"; zero-width-space de-linkification (founder, 9 & 10 Aug)
 - [findings.js + rulecheck.js R-CLAIM-01] [ENFORCED] Same-brand redirects (incl. hyphen variants) are storefront hops, never retired funnels; redirect findings name the exact probed URL, never "domain X redirects" (founder, 12 Aug)
 - [findings.js + claims.js + rulecheck.js R-TEXT-04] [ENFORCED] A caveat lives INSIDE the sentence it qualifies, never as its own sentence — a stripped claim must take its caveat with it. The claims gate drops any survivor opening with "("; the delivery gate rejects lines that lead with a parenthetical ("(One ad URL tested…)" led Seranova's ads row context-free — founder, 13 Aug)
+- [rulecheck.js R-TEXT-02] [ENFORCED] Label-only rows ("Latest email.", "New email:") are truncation corpses — the clip landed inside the quote and the balancer removed it; the gate rejects them and the deterministic fallback (carrying the real latest subject) ships instead (founder, 14 Aug — Ancestral)
 - [findings.js] [ENFORCED] Landing-health findings (DEAD, redirect) are typed CHANGE, not state — they trace as change findings so the claims gate can never strip the engine's own ground truth (the strip is what orphaned the Seranova caveat)
 - [insights.js] [BOTH] Cite funnels by FULL working URL; PAGE NOT LOADING pages named plainly, never linked
 - [ads.js] [ENFORCED] App deep-links/shorteners/social redirects never surfaced as funnels
