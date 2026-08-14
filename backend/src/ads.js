@@ -424,7 +424,14 @@ async function filterToBrand(brand, ads, hostDom, desc) {
     const pageFold = foldTxt(a.page || a.advertiser || '').replace(/[^a-z0-9]/g, '');
     if (bylineFold && pageFold && bylineFold === pageFold) return false;
     const w = new Set(wordsOf(raw));
-    return [...keys].some((k) => k.length >= 5 && w.has(k));
+    if (![...keys].some((k) => k.length >= 5 && w.has(k))) return false;
+    // The pairing NAMES the brand — but a name in a pairing is not proof (name twins exist).
+    // If the ad lands on the ADVERTISER'S OWN commercial domain, this is the partner page
+    // promoting ITS OWN product with a same-named partner attached — Liliana Electrodomésticos
+    // × the ARGENTINE Bonafide sold a milk frother into the US broth brand's report
+    // (founder, 14 Aug: "completely wrong product and brand"). Genuine brand advertorials
+    // land on neutral/publisher domains or the brand's own — never on the advertiser's store.
+    return !pairingIsAdvertisersOwnPromo(a.page || a.advertiser || '', a.landing);
   };
   // The brand's OWN alt domains a strict host match misses: a DISTINCTIVE (>=7-char) brand name as a
   // whole domain label (regional site seranova.co.za) or a label = brand + a common descriptor
@@ -645,6 +652,17 @@ export function adDomain(u) { try { return new URL(u).hostname.replace(/^www\./,
 // A competitor's own host (e.g. "campbells.com" or "https://campbells.com/x") → bare domain.
 function hostToDomain(h) { h = String(h || '').trim(); if (!h) return ''; return adDomain(/^https?:\/\//i.test(h) ? h : ('https://' + h)); }
 function fmtOf(a) { return a.hasVideo ? 'video' : (a.format && /carousel/i.test(a.format) ? 'carousel' : 'image'); }
+
+// R-TWIN-PAIR (founder, 14 Aug): does a branded-content ad land on the advertiser page's
+// own commercial domain? Then the pairing partner is decoration, not attribution — the ad
+// belongs to the advertiser (Liliana × the Argentine Bonafide). Pure; tested.
+export function pairingIsAdvertisersOwnPromo(page, landing) {
+  const ld = adDomain(landing);
+  if (!ld) return false;
+  const ldLabel = String(ld.split('.')[0] || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const pgLabel = String(page || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+  return ldLabel.length >= 5 && pgLabel.indexOf(ldLabel) >= 0;
+}
 
 // A "landing" worth surfacing as a clickable funnel: a real, openable web page —
 // NOT an app deep-link, link-shortener, social/click redirect or other non-page URL

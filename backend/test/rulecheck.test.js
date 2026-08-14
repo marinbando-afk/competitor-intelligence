@@ -199,6 +199,12 @@ ok(saleAnnouncedBefore(state, '50% OFF CLEARANCE SALE ENDS IN 09:41:03', '2026-0
 ok(saleAnnouncedBefore({ banners: [{ b: 'Subscribe & Save 20% on every order', day: '2026-08-13' }] }, 'Save 20% with a subscription', '2026-08-14'), 'reworded read of the announced offer → recognised (UKLASH)');
 ok(!saleAnnouncedBefore({ banners: [{ b: 'Summer Sale 40% off', day: '2026-08-13' }] }, 'Black Friday 70% off everything', '2026-08-14'), 'a genuinely different sale still fires');
 
+console.log('\nPAIRING TWINS — a name in a pairing is not attribution (Bonafide × Liliana, 14 Aug):');
+const { pairingIsAdvertisersOwnPromo } = await import('../src/ads.js');
+ok(pairingIsAdvertisersOwnPromo('Liliana Electrodomésticos', 'https://www.liliana.com.ar/espumador-de-leche-milkmaster-1/p'), 'advertiser promoting its own store with a same-named partner → rejected');
+ok(!pairingIsAdvertisersOwnPromo('Non-Woke Daily', 'https://7news.com.au/advertorial/oodie'), 'brand advertorial on a neutral publisher → kept');
+ok(!pairingIsAdvertisersOwnPromo('Beauty Persona', 'https://theoodie.com/products/x'), 'persona ad landing on the brand domain → kept');
+
 console.log('\nCONGRUENCE — app, Slack and admin surfaces tell one story (founder, 12 Aug):');
 const { checkCongruence } = await import('../src/qa.js');
 const appRead = { ads: { summary: 'Discount-led video push.' }, social: { summary: 'IP collabs dominate.' }, website: { summary: 'Back to School Sale live, up to 58% off.' }, email: { summary: 'Latest: SPF launch email.' } };
