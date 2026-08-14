@@ -244,6 +244,7 @@ View the full dashboard →
 - [slack.js + rulecheck.js] [ENFORCED] DELIVERY GATE: every line passes rulecheck after scrubbing; violations → deterministic fallback text + QA ping to founder (12 Aug)
 - [qa.js] [ENFORCED] SELF-AUDIT after real sends: deterministic miss-checks + model judge over delivered text vs computed facts; issues ping the founder's Slack (12 Aug)
 - [signals.js] [ENFORCED] Priority order: sale change → funnel → new FB page → products → ad angle; conservative (unsure → silent); ONE definition of new (findings engine is sole authority, 6 Aug)
+- [slack.js] [ENFORCED] **DECIDED (founder, 14 Aug): ad launches stay ROUTINE regardless of batch size** — even a 16-launch day is creative rotation, not a 💡 priority move; the 💡 set stays sale change / funnel / new page / products / new angle. Do not re-litigate by adding a launch-count threshold
 - [signals.js] [ENFORCED] New funnel = first appearance since Monday, labelled "(first seen <day>, still new this week)" (founder, 24 Jul)
 - [signals.js] [ENFORCED] Same-type signals merge into one line (founder, 22 Jul); spare formatting (badge carries status)
 - [slack.js R-EMOJI-01] [ENFORCED] No decorative emojis anywhere in the brief — channel rows are plain labels ("Ads:", "Social:", "Website:", "Email:"), no header satellite. Only FUNCTIONAL markers survive: ❗ new-signal, 💡/🔹/✅ status badge, 🧯 QA pings ("this update looks like a joke" — founder, 13 Aug)
