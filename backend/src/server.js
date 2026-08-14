@@ -602,16 +602,6 @@ app.get('/api/quality', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// One-off (6 Aug — delete once logged): regenerate the brands whose reads carried the
-// invented-news failures, so the first findings-derived output can be checked directly.
-setTimeout(async () => {
-  try {
-    for (const h of ['bonafideprovisions.com', 'casaandbeyond.com.au', 'thetallowedtruth.com']) {
-      try { const t = (await allBrands()).find((b) => b.host === h); await generateInsights(t ? t.name : h, h); console.log('✓ findings-first regen: ' + h); }
-      catch (e) { console.warn('regen ' + h + ':', e.message); }
-    }
-  } catch (e) { console.warn('findings-first regen:', e.message); }
-}, 55000);
 
 // One-off (6 Aug — delete once logged): strip Bona Fide (clothing, bonafide.us) ads from
 // Bonafide Provisions' (bone broth) stored captures — they arrived via a wrong pinned page id.
