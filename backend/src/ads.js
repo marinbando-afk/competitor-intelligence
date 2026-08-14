@@ -504,7 +504,18 @@ async function filterToBrand(brand, ads, hostDom, desc) {
     // the brand's advertorials that send traffic to a 3rd-party domain); other off-domain ads
     // follow the AI verdict — so a same-name ad on a DIFFERENT registrable domain (brodo.ma vs
     // brodo.com) is dropped, while the brand's own funnels (drink.brodo.com) always survive.
-    return ads.filter((a) => { if (onOwnDomain(a) || brandPageSafe(a) || onBrandedContent(a) || onAliasDomain(a)) return true; if (nameTwin(a)) return false; const v = verdict.get(idOf(a)); return v === undefined ? stringKeep(a) : v; });
+    // R-PAIR-JUDGE (founder, 14 Aug: "other Bonafide companies, that clearly don't sell
+    // bone broth, should be excluded immediately"): a branded-content pairing is a
+    // CANDIDATE, never attribution — the product-sense judge (which knows what the site
+    // sells and fails closed) outranks it. Pairing breaks the tie only when the judge
+    // returned no verdict for that advertiser.
+    return ads.filter((a) => {
+      if (onOwnDomain(a) || brandPageSafe(a) || onAliasDomain(a)) return true;
+      if (nameTwin(a)) return false;
+      const v = verdict.get(idOf(a));
+      if (v !== undefined) return v;
+      return onBrandedContent(a) || stringKeep(a);
+    });
   } catch (e) {
     // AI error → be CONSERVATIVE when we know the brand's domain: keep only its own-domain
     // ads + ads from its own pages (whole-word name matching is unreliable for a generic name

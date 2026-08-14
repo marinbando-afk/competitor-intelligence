@@ -204,6 +204,9 @@ const { pairingIsAdvertisersOwnPromo } = await import('../src/ads.js');
 ok(pairingIsAdvertisersOwnPromo('Liliana Electrodomésticos', 'https://www.liliana.com.ar/espumador-de-leche-milkmaster-1/p'), 'advertiser promoting its own store with a same-named partner → rejected');
 ok(!pairingIsAdvertisersOwnPromo('Non-Woke Daily', 'https://7news.com.au/advertorial/oodie'), 'brand advertorial on a neutral publisher → kept');
 ok(!pairingIsAdvertisersOwnPromo('Beauty Persona', 'https://theoodie.com/products/x'), 'persona ad landing on the brand domain → kept');
+const fs = await import('fs');
+const adsSrc = fs.readFileSync(new URL('../src/ads.js', import.meta.url), 'utf8');
+ok(/R-PAIR-JUDGE/.test(adsSrc) && /if \(onOwnDomain\(a\) \|\| brandPageSafe\(a\) \|\| onAliasDomain\(a\)\) return true;/.test(adsSrc), 'pairing door no longer bypasses the product-sense judge (source pin)');
 
 console.log('\nCONGRUENCE — app, Slack and admin surfaces tell one story (founder, 12 Aug):');
 const { checkCongruence } = await import('../src/qa.js');

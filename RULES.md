@@ -87,6 +87,7 @@ misses to the founder's Slack.
 - [ads.js] [ENFORCED] Newest first — every "first N" surface shows the newest launches (founder, 29 Jul)
 - [ads.js] [ENFORCED] Every launched ad counts — no dedup of launch batches (founder, 20 Jul)
 - [ads.js] [ENFORCED] Precision-first attribution: never show a random business's ads; name-twin advertisers with different domains are DIFFERENT; unsure → skip (founder, 24 Jul)
+- [ads.js R-PAIR-JUDGE] [ENFORCED] **The product is the disambiguator** — "it's not a high-risk name if they sell bone broth." An advertiser whose ad content clearly doesn't match what the brand's site sells is excluded immediately: the product-sense judge (site descriptor, fail-closed) OUTRANKS every soft attribution door incl. branded-content pairings; only own-domain/own-page/alias landings bypass it (founder, 14 Aug)
 - [ads.js R-TWIN-PAIR] [ENFORCED] A brand-name match in a Meta branded-content PAIRING is NOT definitive — name twins exist as partners too. If the ad lands on the advertiser page's own commercial domain, the pairing partner is decoration and the ad belongs to the advertiser; reject (founder, 14 Aug — Liliana Electrodomésticos × Argentine Bonafide sold a milk frother into the US broth brand's report)
 - [insights.js] [ENFORCED] Any ad flagged by OFFER TIMING FACTS is pinned into the model's sample so the finding's ad can be identified, not guessed (founder, 24 Jul)
 - [signals.js] [ENFORCED] "New ad angle" only when not run in last 14 days; max 2 per brand; brief dedupes variants sharing a hook (founder, 29 Jul)
