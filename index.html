@@ -73,6 +73,8 @@ a{color:inherit; text-decoration:none}
 .btn-ghost:hover{border-color:var(--sage-d); color:var(--sage)}
 .btn-red{background:#e2554f; color:#fff; border-color:#e2554f; font-weight:700}
 .btn-red:hover{background:#ff6b5e; border-color:#ff6b5e; box-shadow:0 0 26px rgba(226,85,79,.38)}
+.lbl-s{display:none}
+@media(max-width:640px){.nav .btn-ghost{display:none}.nav .btn{padding:7px 9px; font-size:10px; letter-spacing:.05em}.nav-in{padding:0 14px}.brand b{font-size:16px}.brand{gap:8px}.lbl-l{display:none}.lbl-s{display:inline}}
 .nav .btn{padding:9px 16px}
 
 /* ── hero ── */
@@ -294,7 +296,8 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <a class="btn btn-ghost" href="app.html?signin=1">Sign in</a>
-      <a class="btn btn-primary" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Create free account</a>
+      <a class="btn btn-red" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}"><span class="lbl-l">Book a demo call</span><span class="lbl-s">Demo call</span></a>
+      <a class="btn btn-primary" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}"><span class="lbl-l">Create free account</span><span class="lbl-s">Free account</span></a>
     </div>
   </div>
 </nav>

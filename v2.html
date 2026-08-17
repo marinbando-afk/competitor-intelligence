@@ -36,6 +36,8 @@ h2{font-size:clamp(26px,4vw,38px);margin-bottom:14px}
 .btn-solid{background:var(--sage);color:#06282a;font-weight:700}
 .btn-red{background:#e2554f;color:#fff;font-weight:700}
 .btn-red:hover{background:#ff6b5e;box-shadow:0 0 26px rgba(226,85,79,.38)}
+.lbl-s{display:none}
+@media(max-width:640px){nav .btn-ghost{display:none}nav .btn{padding:7px 9px;font-size:10px;letter-spacing:.05em}.logo{font-size:17px}.lbl-l{display:none}.lbl-s{display:inline}}
 .btn-solid:hover{background:#7de4e1;transform:translateY(-1px)}
 .btn-ghost{color:var(--sage)}
 .btn-ghost:hover{background:var(--sage-soft)}
@@ -163,7 +165,11 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
 <div class="wrap">
 <nav>
   <div class="logo">WATCH<b>BACK</b></div>
-  <a class="btn btn-ghost" style="padding:10px 18px;font-size:11.5px" href="app.html?signin=1">Sign in</a>
+  <div style="display:flex;align-items:center;gap:9px">
+    <a class="btn btn-ghost" style="padding:10px 18px;font-size:11.5px" href="app.html?signin=1">Sign in</a>
+    <a class="btn btn-red" style="padding:10px 18px;font-size:11.5px" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}"><span class="lbl-l">Book a demo call</span><span class="lbl-s">Demo call</span></a>
+    <a class="btn btn-solid" style="padding:10px 18px;font-size:11.5px" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}"><span class="lbl-l">Create free account</span><span class="lbl-s">Free account</span></a>
+  </div>
 </nav>
 </div>
 

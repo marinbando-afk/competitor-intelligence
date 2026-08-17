@@ -43,6 +43,10 @@ a{color:inherit; text-decoration:none}
 .btn-primary:hover{background:#6fe0dd; box-shadow:0 0 26px rgba(87,210,207,.34)}
 .btn-ghost{background:transparent; color:var(--text); border-color:var(--line2)}
 .btn-ghost:hover{border-color:var(--sage-d); color:var(--sage)}
+.btn-red{background:#e2554f; color:#fff; border-color:#e2554f; font-weight:700}
+.btn-red:hover{background:#ff6b5e; border-color:#ff6b5e; box-shadow:0 0 26px rgba(226,85,79,.38)}
+.lbl-s{display:none}
+@media(max-width:640px){.nav .btn-ghost{display:none}.nav .btn{padding:7px 9px; font-size:10px; letter-spacing:.05em}.lbl-l{display:none}.lbl-s{display:inline}}
 
 .nav{position:sticky; top:0; z-index:50; background:rgba(8,11,13,.82); backdrop-filter:blur(10px); border-bottom:1px solid var(--line2)}
 .nav-in{display:flex; align-items:center; justify-content:space-between; height:62px; max-width:1080px; margin:0 auto; padding:0 24px}
@@ -156,8 +160,8 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
       <b>WatchBack</b>
     </a>
     <div style="display:flex;align-items:center;gap:10px">
-      <a class="btn btn-ghost" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}">Book a call</a>
-      <a class="btn btn-primary" href="app.html?trial=1" onclick="try{fbq('track','StartTrial')}catch(e){}">Start free trial</a>
+      <a class="btn btn-red" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}"><span class="lbl-l">Book a demo call</span><span class="lbl-s">Demo call</span></a>
+      <a class="btn btn-primary" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}"><span class="lbl-l">Create free account</span><span class="lbl-s">Free account</span></a>
     </div>
   </div>
 </nav>
@@ -167,10 +171,10 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
   <h1>Four channels. Every rival. <span class="hl">Every morning.</span></h1>
   <p class="lede">Every screenshot below is the <b>live product</b> reading real brands — this morning.</p>
   <div class="cta-row">
-    <a class="btn btn-primary" href="app.html?trial=1" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
-    <a class="btn btn-ghost" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}">Book a 30-min call</a>
+    <a class="btn btn-primary" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Create free account →</a>
+    <a class="btn btn-red" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}">Book a demo call</a>
   </div>
-  <div class="hero-note">$0 today · card required · cancel anytime</div>
+  <div class="hero-note">Free account: browse 3 live demo dossiers instantly · no card · your 30-day trial starts only when you add your own competitors</div>
   <div class="statband" id="statband" style="display:none">
     <span><b id="pr-signals">0</b> signals intercepted</span>
     <span class="st-sep">·</span>
@@ -186,57 +190,8 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
   <div class="surface reveal">
     <div class="s-txt">
       <span class="s-code">WB·01</span>
-      <h3>The threat assessment — read for you, daily</h3>
-      <p>Opens with the three things that matter today, then the counter-move. This capture: <b>"Afterpay Day sale went live today — 41 new Meta ads and a dedicated email all push 30% off."</b> Ninety seconds, fully briefed.</p>
-    </div>
-    <div class="s-vis">
-      <div class="frame drift">
-        <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — subject file</span></div>
-        <div class="frame-view"><img src="case/01-dossier-overview.jpg" alt="WatchBack dossier for The Oodie: threat assessment and four channels" loading="lazy"/></div>
-        <div class="cap"><span class="c1">Subject file · The Oodie — captured this morning</span><span class="c2">WB·01</span></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="surface flip reveal">
-    <div class="s-txt">
-      <span class="s-code">WB·02</span>
-      <h3>Every ad decoded</h3>
-      <p><b>41 new ads flagged overnight</b> — video scripts transcribed, hooks named, variant tests counted. Not thumbnails in a grid: you know <b>which angle they just started scaling</b>.</p>
-    </div>
-    <div class="s-vis">
-      <div class="frame drift">
-        <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — ads channel</span></div>
-        <div class="frame-view"><img src="case/02-ads.jpg" alt="WatchBack ads channel: 41 new ads decoded, hooks named" loading="lazy"/></div>
-        <div class="cap"><span class="c1">41 new launches decoded · 10 variant tests flagged</span><span class="c2">WB·02</span></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="midcta">
-    <a class="btn btn-primary" href="app.html?trial=1" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','StartTrial')}catch(e){}">Get this on your competitors — free for 30 days</a>
-  </div>
-
-  <div class="surface reveal">
-    <div class="s-txt">
-      <span class="s-code">WB·03</span>
-      <h3>Prices to the cent, with receipts</h3>
-      <p><b>44 price changes itemised</b> and a draggable before/after screenshot, dated to the day. "When did they start that sale?" is never a guess again.</p>
-    </div>
-    <div class="s-vis">
-      <div class="frame drift">
-        <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — storefront intercept</span></div>
-        <div class="frame-view"><img src="case/02-website.jpg" alt="WatchBack storefront channel: before/after comparison and price changes" loading="lazy"/></div>
-        <div class="cap"><span class="c1">Before/after capture + 44 price changes itemised</span><span class="c2">WB·03</span></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="surface flip reveal">
-    <div class="s-txt">
-      <span class="s-code">WB·04</span>
       <h3>The brief comes to you — in Slack</h3>
-      <p>One message every morning. This real brief caught a fake-sale pattern: <b>"unchanged since 15 Jul — looks like their real price."</b> Ten seconds and you know if anything needs you.</p>
+      <p>One message every morning — one line per channel, <b>❗ on anything new</b>. This real brief caught a fake-sale pattern: <b>"active and unchanged — looks like their real price."</b> Ten seconds and you know if anything needs you.</p>
     </div>
     <div class="s-vis">
       <div class="frame">
@@ -247,18 +202,67 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
             <div class="sm-body">
               <div class="sm-head"><b>incoming-webhook</b> <span class="sm-app">APP</span> <span class="sm-time">8:00 AM</span></div>
               <div class="sm-title">🛰️ <b>WatchBack daily</b> · Fri, 31 Jul</div>
-              <div class="sm-brand"><b>The Tallowed Truth</b> 🔷 routine activity</div>
-              <div class="sm-read">Three new whitelisted Facebook pages launched today, shifting dark-post reach from one page to at least four overnight.</div>
-              <div class="sm-li">• Website change — 1 product removed: “F-Balm Whipped Body Butter”</div>
-              <div class="sm-brand"><b>Froya</b> 🔷 routine activity</div>
-              <div class="sm-read">'Up to 40% off' milestone sale live on the website, unchanged since 15 Jul — looks like their real price given rotating-pretext discounting seen across their ads.</div>
-              <div class="sm-li">• New email — “Your scalp needs some love too ;)”</div>
-              <div class="sm-li">• 2 new Instagram posts, latest: “Bold headline 'JUST EAT THIS FOR 1 WEEK AND SEE THE DIFFERENCE' over woman in kitchen” — <span class="sm-link">view ↗</span></div>
+              <div class="sm-brand"><b>The Tallowed Truth</b> 🔹 routine activity</div>
+              <div class="sm-li">❗📣 Ads: Three new whitelisted Facebook pages launched yesterday — dark-post reach spread from one page to four overnight.</div>
+              <div class="sm-li">🛒 Website: 1 product removed — “F-Balm Whipped Body Butter”.</div>
+              <div class="sm-brand"><b>Froya</b> 💡</div>
+              <div class="sm-li">🛒 Website: ‘Up to 40% off’ milestone sale active and unchanged — looks like their real price given the rotating-pretext discounting in their ads.</div>
+              <div class="sm-li">❗✉️ Email: Latest: “Your scalp needs some love too ;)” — scalp-care angle, no discount push.</div>
+              <div class="sm-li">📱 Social: 2 new Instagram posts, latest hook: “JUST EAT THIS FOR 1 WEEK AND SEE THE DIFFERENCE” — <span class="sm-link">view ↗</span></div>
               <div class="sm-li sm-linkline">🔗 <span class="sm-link">View the full dashboard &amp; signals →</span></div>
             </div>
           </div>
         </div>
-        <div class="cap"><span class="c1">A real morning brief · one line per channel</span><span class="c2">WB·04</span></div>
+        <div class="cap"><span class="c1">A real morning brief · one line per channel, ❗ = new signal</span><span class="c2">WB·01</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="surface flip reveal">
+    <div class="s-txt">
+      <span class="s-code">WB·02</span>
+      <h3>The threat assessment — read for you, daily</h3>
+      <p>Opens with the three things that matter today, then the counter-move. This capture: <b>"Afterpay Day sale went live today — 41 new Meta ads and a dedicated email all push 30% off."</b> Ninety seconds, fully briefed.</p>
+    </div>
+    <div class="s-vis">
+      <div class="frame drift">
+        <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — subject file</span></div>
+        <div class="frame-view"><img src="case/01-dossier-overview.jpg" alt="WatchBack dossier for The Oodie: threat assessment and four channels" loading="lazy"/></div>
+        <div class="cap"><span class="c1">Subject file · The Oodie — captured this morning</span><span class="c2">WB·04</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="surface reveal">
+    <div class="s-txt">
+      <span class="s-code">WB·03</span>
+      <h3>Every ad decoded</h3>
+      <p><b>41 new ads flagged overnight</b> — video scripts transcribed, hooks named, variant tests counted. Not thumbnails in a grid: you know <b>which angle they just started scaling</b>.</p>
+    </div>
+    <div class="s-vis">
+      <div class="frame drift">
+        <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — ads channel</span></div>
+        <div class="frame-view"><img src="case/02-ads.jpg" alt="WatchBack ads channel: 41 new ads decoded, hooks named" loading="lazy"/></div>
+        <div class="cap"><span class="c1">41 new launches decoded · 10 variant tests flagged</span><span class="c2">WB·04</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="midcta">
+    <a class="btn btn-primary" href="app.html#signup" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Get this on your competitors — start free</a>
+  </div>
+
+  <div class="surface flip reveal">
+    <div class="s-txt">
+      <span class="s-code">WB·04</span>
+      <h3>Prices to the cent, with receipts</h3>
+      <p><b>44 price changes itemised</b> and a draggable before/after screenshot, dated to the day. "When did they start that sale?" is never a guess again.</p>
+    </div>
+    <div class="s-vis">
+      <div class="frame drift">
+        <div class="frame-bar"><i></i><i></i><i></i><span class="fb-url">watchback.ai/app — storefront intercept</span></div>
+        <div class="frame-view"><img src="case/02-website.jpg" alt="WatchBack storefront channel: before/after comparison and price changes" loading="lazy"/></div>
+        <div class="cap"><span class="c1">Before/after capture + 44 price changes itemised</span><span class="c2">WB·04</span></div>
       </div>
     </div>
   </div>
@@ -294,8 +298,8 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
     <h2>Get this running on your competitors.</h2>
     <p>$0 today, card required, cancel anytime. First dossier within 24 hours.</p>
     <div style="display:flex; gap:13px; justify-content:center; flex-wrap:wrap">
-      <a class="btn btn-primary" href="app.html?trial=1" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
-      <a class="btn btn-ghost" href="https://cal.com/marin-bando/30min" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','Schedule')}catch(e){}">Book a 30-min call</a>
+      <a class="btn btn-primary" href="app.html#signup" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Create free account →</a>
+      <a class="btn btn-red" href="https://cal.com/marin-bando/30min" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','Schedule')}catch(e){}">Book a demo call</a>
     </div>
   </div>
 </section>
