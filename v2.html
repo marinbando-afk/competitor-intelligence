@@ -34,6 +34,8 @@ h2{font-size:clamp(26px,4vw,38px);margin-bottom:14px}
 .sec-tight{padding:48px 0}
 .btn{display:inline-block;font-family:var(--mono);font-size:13px;letter-spacing:.08em;text-transform:uppercase;padding:15px 28px;border-radius:10px;border:1.5px solid var(--sage-d);cursor:pointer;transition:.18s}
 .btn-solid{background:var(--sage);color:#06282a;font-weight:700}
+.btn-red{background:#e2554f;color:#fff;font-weight:700}
+.btn-red:hover{background:#ff6b5e;box-shadow:0 0 26px rgba(226,85,79,.38)}
 .btn-solid:hover{background:#7de4e1;transform:translateY(-1px)}
 .btn-ghost{color:var(--sage)}
 .btn-ghost:hover{background:var(--sage-soft)}
@@ -171,8 +173,9 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
   <h1>Your competitor replaced their whole funnel <em>three weeks ago.</em><br/>You'll find out from their Q4 numbers.</h1>
   <p class="sub">WatchBack watches every ad, funnel, sale and email your competitors run — and briefs you <b>every morning in Slack.</b> Nothing to check. Nothing to miss.</p>
   <div style="margin-top:30px">
-    <a class="btn btn-solid" href="app.html?trial=1">Start your 30-day free trial</a>
-    <div class="under">$0 today · card required · cancel anytime · set up in 3 minutes · <a href="#demo" style="color:var(--sage)">▶ watch the full demo</a></div>
+    <a class="btn btn-solid" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Create free account →</a>
+    <a class="btn btn-red" href="https://cal.com/marin-bando/30min" style="margin-left:10px" onclick="try{fbq('track','Schedule')}catch(e){}">Book a demo call</a>
+    <div class="under">Free account: browse 3 live demo dossiers — no card. Your 30-day trial ($0 today) starts when you add your own competitors · <a href="#demo" style="color:var(--sage)">▶ watch the full demo</a></div>
   </div>
 
   <!-- YOUR ACTUAL MORNING BRIEF — a real Slack message, real format -->
@@ -303,7 +306,7 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
     <div class="price-sub">2 competitors fully monitored</div>
     <div class="price-trial"><b>30-day free trial</b> — $0 today, card required, converts to $197/mo on day 30. Cancel anytime, one click.</div>
     <div class="price-add">+ $47/mo per additional competitor · founding price locked for life for the first 100 accounts</div>
-    <div style="margin-top:22px"><a class="btn btn-solid" href="app.html?trial=1">Start your 30-day free trial</a></div>
+    <div style="margin-top:22px"><a class="btn btn-solid" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Start with a free account →</a></div>
   </div>
 
   <div class="guarantee reveal"><b>The first-catch guarantee:</b> if your 30-day trial doesn't surface at least one competitor move you didn't know about, cancel and pay nothing.</div>
@@ -330,8 +333,9 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
   <h2 style="margin-top:18px">They're watching you, too.</h2>
   <p style="max-width:520px;margin:18px auto 0;color:var(--muted);font-size:16px">Once you've read your market every morning, running without it feels naked.</p>
   <div style="margin-top:28px">
-    <a class="btn btn-solid" href="app.html?trial=1">Start your 30-day free trial</a>
-    <div class="under">$0 today · $197/mo after the trial · 2 competitors included · cancel anytime</div>
+    <a class="btn btn-solid" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Create free account →</a>
+    <a class="btn btn-red" href="https://cal.com/marin-bando/30min" style="margin-left:10px" onclick="try{fbq('track','Schedule')}catch(e){}">Book a demo call</a>
+    <div class="under">Free account first — no card · trial starts when you add your competitors · $197/mo after 30 days · cancel anytime</div>
   </div>
 </section>
 

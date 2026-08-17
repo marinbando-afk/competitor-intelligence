@@ -71,6 +71,8 @@ a{color:inherit; text-decoration:none}
 .btn-primary:hover{background:#6fe0dd; box-shadow:0 0 26px rgba(87,210,207,.34)}
 .btn-ghost{background:transparent; color:var(--text); border-color:var(--line2)}
 .btn-ghost:hover{border-color:var(--sage-d); color:var(--sage)}
+.btn-red{background:#e2554f; color:#fff; border-color:#e2554f; font-weight:700}
+.btn-red:hover{background:#ff6b5e; border-color:#ff6b5e; box-shadow:0 0 26px rgba(226,85,79,.38)}
 .nav .btn{padding:9px 16px}
 
 /* ── hero ── */
@@ -292,7 +294,7 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <a class="btn btn-ghost" href="app.html?signin=1">Sign in</a>
-      <a class="btn btn-primary" href="app.html?trial=1" onclick="try{fbq('track','StartTrial')}catch(e){}">Start free trial</a>
+      <a class="btn btn-primary" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Create free account</a>
     </div>
   </div>
 </nav>
@@ -304,10 +306,10 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
   <h1>Never get blindsided by a <span class="hl">competitor</span> again.</h1>
   <p class="lede">An AI analyst that watches your competitors' <b>ads, prices, emails and socials</b> every day — and hands you <b>the exact counter-move</b> every morning.</p>
   <div class="cta-row">
-    <a class="btn btn-primary" href="app.html?trial=1" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
-    <a class="btn btn-ghost" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}">Book a 30-min call</a>
+    <a class="btn btn-primary" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Create free account →</a>
+    <a class="btn btn-red" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}">Book a demo call</a>
   </div>
-  <div class="hero-note">$0 today · card required · cancel anytime · nothing to install · first dossier within 24 hours</div>
+  <div class="hero-note">Free account: browse 3 live demo dossiers instantly · no card · your 30-day trial starts only when you add your own competitors</div>
 
   <div class="demo-cta reveal">
     <span class="demo-tag"><span class="dcdot"></span>Live demo · no sign-up</span>
@@ -428,7 +430,7 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
 <!-- mid-page CTA -->
 <section class="wrap" style="padding:26px 0">
   <div style="text-align:center">
-    <a class="btn btn-primary" href="app.html?trial=1" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
+    <a class="btn btn-primary" href="app.html#signup" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Create free account →</a>
     <div class="hero-note" style="margin-top:12px">$0 today · card required · first dossier within 24 hours</div>
   </div>
 </section>
@@ -501,7 +503,7 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
         <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Ask-anything analyst — every answer with receipts linked</li>
         <li><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6"/></svg>Morning brief in Slack + dated before/after screenshots for any deck</li>
       </ul>
-      <a class="btn btn-primary" href="app.html?trial=1" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
+      <a class="btn btn-primary" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Create free account →</a>
       <div class="pl-foot">$197/mo after the trial · 2 competitors included · +$47/mo per extra · cancel anytime</div>
     </div>
   </div>
@@ -561,8 +563,8 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
     <h2>Try it free for 30 days</h2>
     <p>$0 today — card required, cancel anytime. Name your competitors and your first dossier lands within 24 hours. Prefer to talk it through first? Grab 30 minutes with the founder.</p>
     <div class="cta-row" style="margin-top:6px">
-      <a class="btn btn-primary" href="app.html?trial=1" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
-      <a class="btn btn-ghost" href="https://cal.com/marin-bando/30min" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','Schedule')}catch(e){}">Book a 30-min call</a>
+      <a class="btn btn-primary" href="app.html#signup" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Create free account →</a>
+      <a class="btn btn-red" href="https://cal.com/marin-bando/30min" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','Schedule')}catch(e){}">Book a demo call</a>
     </div>
     <div class="al-note">$197/mo after the trial · 2 competitors included · +$47/mo per extra</div>
   </div>
@@ -575,7 +577,7 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
     <h2>They're watching you, too.</h2>
     <p>The sharpest brands in your category already track every move you make. Watch back — and stop being the last to find out.</p>
     <div class="cta-row" style="margin-top:6px">
-      <a class="btn btn-primary" href="app.html?trial=1" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','StartTrial')}catch(e){}">Start your 30-day free trial</a>
+      <a class="btn btn-primary" href="app.html#signup" style="padding:15px 30px; font-size:13px" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Create free account →</a>
     </div>
   </div>
 </section>

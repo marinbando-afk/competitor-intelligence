@@ -1061,10 +1061,33 @@ var PAYWALL_HOLD=/[?&]billing=success/.test(location.search);
 function loadBilling(){
   if(!TOKEN||RO)return;
   fetch(API+'/api/billing/status',{headers:authH()}).then(function(r){return r.ok?r.json():null;}).then(function(d){
-    if(!d)return;BILLING=d;paintBilling();paintAuth();
-    if(d.status==='locked'&&!PAYWALL_HOLD)openPaywall();
+    if(!d)return;BILLING=d;paintBilling();paintAuth();billingGate();
   }).catch(function(){});
 }
+/* FREE-ACCOUNT DEMO MODE (founder, 12 Aug): a locked account with no competitors of its
+   own is a prospect browsing the 3 demo dossiers — welcome them, never paywall them on
+   login. The trial gate lives where the intent is: the add button and the demo bar. A
+   locked account WITH competitors (spent trial) still gets the paywall immediately. */
+function demoMode(){return !!(TOKEN&&BILLING&&BILLING.status==='locked'&&USERCOMPS.length===0);}
+function billingGate(){
+  if(!(BILLING&&BILLING.status==='locked')||PAYWALL_HOLD||RO){paintDemoBar();return;}
+  if(USERCOMPS.length){if(!document.getElementById('payOv'))openPaywall();}
+  else paintDemoBar();
+}
+function paintDemoBar(){
+  var el=document.getElementById('demoBar');
+  if(!demoMode()){if(el)el.style.display='none';syncAddLabel();return;}
+  if(!el){el=document.createElement('div');el.id='demoBar';document.body.insertBefore(el,document.body.firstChild);}
+  el.innerHTML='🔭 You’re browsing <b>live demo dossiers</b> — real brands, watched daily. Ready to watch yours?'
+    +'<button class="db-cta" onclick="openPaywall()">+ Add your competitors — start free 30-day trial</button>';
+  el.style.display='flex';syncAddLabel();
+}
+function syncAddLabel(){var s=document.querySelector('.add-btn .abl');if(s)s.textContent=demoMode()?'Add — start free trial':'Add';}
+(function(){var st=document.createElement('style');st.textContent=
+  '#demoBar{position:sticky;top:0;z-index:60;display:none;align-items:center;gap:14px;justify-content:center;flex-wrap:wrap;padding:9px 16px;background:linear-gradient(90deg,rgba(87,210,207,.16),rgba(87,210,207,.05));border-bottom:1px solid var(--sage-d);font-size:12px;letter-spacing:.04em;color:var(--text)}'
+  +'#demoBar b{color:var(--sage)}'
+  +'#demoBar .db-cta{cursor:pointer;background:var(--sage);color:#06231f;border:none;border-radius:5px;font-weight:700;font-size:11px;letter-spacing:.09em;text-transform:uppercase;padding:8px 14px;transition:.15s}'
+  +'#demoBar .db-cta:hover{background:#6fe0dd}';document.head.appendChild(st);})();
 function closePaywall(){var ov=document.getElementById('payOv');if(ov)ov.remove();}
 // Ask the server to reconcile with Stripe using the checkout-session id, then repaint.
 // Retries briefly: Stripe can take a moment to attach the subscription to the session.
@@ -1072,7 +1095,7 @@ function confirmCheckout(sid,tries){
   tries=tries||0;
   fetch(API+'/api/billing/confirm',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({sid:sid||''})})
     .then(function(r){return r.ok?r.json():null;}).then(function(d){
-      if(d&&d.status&&d.status!=='locked'){BILLING=d;PAYWALL_HOLD=false;closePaywall();paintBilling();paintAuth();return;}
+      if(d&&d.status&&d.status!=='locked'){BILLING=d;PAYWALL_HOLD=false;closePaywall();paintBilling();paintAuth();paintDemoBar();return;}
       if(tries<6){setTimeout(function(){confirmCheckout(sid,tries+1);},2000);return;}
       // ~12s and Stripe still shows nothing on this account. Do NOT reopen the paywall —
       // that is exactly how the double charge happened. Say what we know, point at support.
@@ -1143,7 +1166,7 @@ function openPaywall(){
     +'<div class="pay-price">$197<span>/mo</span></div>'
     +'<div class="pay-sub">2 competitors included \u00b7 +$47/mo each additional \u00b7 cancel anytime</div>'
     +'<button class="pay-cta" onclick="startCheckout(this)">'+(fresh?'Start '+days+'-day free trial':'Subscribe \u00b7 $197/mo')+'</button>'
-    +'<div class="pay-foot">Questions? Use the feedback button \u2014 we answer personally.</div>'
+    +'<div class="pay-foot">'+(fresh?'Browsing the demo dossiers stays free \u2014 the trial is for watching <b>your</b> competitors. ':'')+'Questions? Use the feedback button \u2014 we answer personally.</div>'
     +'</div>';
   ov.style.display='flex';
 }
@@ -1185,7 +1208,7 @@ function loadUserComps(cb){
     .then(function(r){if(r.status===401){doSignout(true);throw 0;}return r.json();})
     .then(function(d){USERCOMPS=(d.competitors||[]).map(mapServerComp);
       if(autoSel){state.sel=null;autoSel=false;}   // now that YOUR competitors are in, land on the first one
-      registerCompetitors();render();USERCOMPS.forEach(function(x){loadInsights(x);});if(cb)cb();})
+      registerCompetitors();render();billingGate();USERCOMPS.forEach(function(x){loadInsights(x);});if(cb)cb();})
     .catch(function(){if(cb)cb();});
 }
 // Read-only shared view: load the client's competitors via their public share token.
@@ -2883,6 +2906,7 @@ function lockedComp(c){return !ADMIN && !!(c&&!c.demo&&!c.account);}  // your ow
 function addOrUpgrade(){
   if(RO)return;                                                               // read-only shared view: no editing
   if(!loggedIn()){openAuth('signup',openModal);return;}                       // need an account to add your own
+  if(demoMode()){openPaywall();return;}                                       // free account: adding YOUR competitors IS the trial — say so before any form
   if(!ADMIN&&USERCOMPS.length>=planLimit()){showUpgrade();return;}             // per-account limit on your own competitors
   openModal();
 }
@@ -3487,6 +3511,9 @@ if(!RO&&!TOKEN&&/[?&]signin=1/.test(location.search))openAuth('signin');  // arr
 // Already-signed-in visitors skip the modal — loadBilling()'s paywall takes over if they
 // still need a plan, and paying users just land in their app.
 if(!RO&&!TOKEN&&/[?&]trial=1/.test(location.search))openAuth('signup',function(){startCheckout();});
+// Free-account funnel (founder, 12 Aug): landing pages send prospects to #signup — an
+// account first, demos to browse, and the trial gate only when they add their own.
+if(!RO&&!TOKEN&&location.hash==='#signup')openAuth('signup');
 // Deep link from the landing page: app.html?c=theoodie.com opens that dossier directly.
 (function(){try{
   var qc=(new URLSearchParams(location.search).get('c')||'').toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*$/,'').replace(/^www\./,'');
