@@ -1492,7 +1492,12 @@ app.delete('/api/competitors/:id', requireAuth, async (req, res) => {
 const PORT = process.env.PORT || 3000;
 function start() {
   if (JWT_IS_DEFAULT) console.warn('ℹ JWT_SECRET env is not set — using the persistent DB-generated secret (safe). Set JWT_SECRET in Railway to pin it explicitly.');
-  app.listen(PORT, () => { console.log('✓ API listening on :' + PORT); startScheduler(); });
+  app.listen(PORT, () => {
+    console.log('✓ API listening on :' + PORT);
+    startScheduler();
+    // Declared data retractions (retract.js) — idempotent, marker-guarded, logged.
+    setTimeout(() => { import('./retract.js').then((m) => m.runRetractions()).catch((e) => console.warn('retractions:', e.message)); }, 20000);
+  });
   // Idempotent history scrub: removes rate-limit error frames stored in recent days (vision-
   // verified one by one; real frames get stamped and never re-checked, so this is ~free after
   // the first pass).

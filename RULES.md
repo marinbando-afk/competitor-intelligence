@@ -34,6 +34,10 @@ misses to the founder's Slack.
 - [snapshots.js R-DAYLOCK] [ENFORCED] A capture-channel day row that already holds real data is IMMUTABLE until tomorrow — admin refreshes, brief re-runs, chat questions and view-time re-checks recompute from stored data, never re-scrape into today. Exception: a FAILED capture (empty) may be completed later — filling a hole is repair, not a boundary shift. Insight/read/weekly channels are never locked (recomputing phrasing from stored captures is always allowed)
 - [slack.js] [ENFORCED] Re-running the daily brief at any hour produces the identical comparison and identical content — the pair cannot shift intra-day
 
+## Retractions
+
+- [retract.js R-RETRACT] [ENFORCED] Provably-misattributed content is RETRACTED from stored captures — it does not live on as "history" while the app renders it and reads/FOR-YOU tips quote it. A retraction is a data correction, exempt from R-DAYLOCK (which stops partial-today data, never preserves known-wrong data); each is declared with evidence in retract.js, applied once (marker state), logged, and followed by an insights regeneration (founder, 14 Aug — the Liliana × Argentine-Bonafide ad)
+
 ## Congruence — one story on every surface
 
 - [qa.js R-SYNC-01/02/03] [ENFORCED] **The app dossier, the Slack brief and the admin roll-up must be congruent** — all derive from the same day-locked snapshots, so any disagreement is a pipeline bug, flagged by the daily audit, never rationalised (founder, 12 Aug)

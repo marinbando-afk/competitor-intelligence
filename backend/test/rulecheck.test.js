@@ -208,6 +208,13 @@ const fs = await import('fs');
 const adsSrc = fs.readFileSync(new URL('../src/ads.js', import.meta.url), 'utf8');
 ok(/R-PAIR-JUDGE/.test(adsSrc) && /if \(onOwnDomain\(a\) \|\| brandPageSafe\(a\) \|\| onAliasDomain\(a\)\) return true;/.test(adsSrc), 'pairing door no longer bypasses the product-sense judge (source pin)');
 
+console.log('\nRETRACTIONS — provably-wrong data is removed, narrowly (14 Aug):');
+const { RETRACTIONS } = await import('../src/retract.js');
+const lil = RETRACTIONS.find((r) => r.id === 'liliana-bonafide-2026-08');
+ok(!!lil && lil.host === 'bonafideprovisions.com', 'Liliana retraction declared for the broth brand');
+ok(lil.dropAd({ page: 'Liliana Electrodomésticos', landing: 'https://www.liliana.com.ar/x' }), 'the misattributed ad is dropped');
+ok(!lil.dropAd({ page: 'Bonafide Provisions', landing: 'https://bonafideprovisions.com/broth' }), 'the brand\u2019s own ads are untouched');
+
 console.log('\nCONGRUENCE — app, Slack and admin surfaces tell one story (founder, 12 Aug):');
 const { checkCongruence } = await import('../src/qa.js');
 const appRead = { ads: { summary: 'Discount-led video push.' }, social: { summary: 'IP collabs dominate.' }, website: { summary: 'Back to School Sale live, up to 58% off.' }, email: { summary: 'Latest: SPF launch email.' } };
