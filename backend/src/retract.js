@@ -16,12 +16,16 @@ import { pool } from './db.js';
 // evidence-backed — a retraction is a scalpel, never a filter.
 export const RETRACTIONS = [
   {
-    id: 'liliana-bonafide-2026-08',
+    // v2: v1 purged the captures but the regenerated read MERGED the old summary back
+    // (the generator keeps a previous channel read when the new one is empty) — a
+    // retraction must scrub tainted READS too, or the ghost outlives its ad.
+    id: 'liliana-bonafide-2026-08-v2',
     host: 'bonafideprovisions.com',
     // The Argentine Bonafide (chocolate) as branded-content partner on Liliana
     // Electrodomésticos' own MilkMaster ad — entered the Aug 12 capture through the
     // pairing door closed by R-TWIN-PAIR/R-PAIR-JUDGE.
     dropAd: (a) => /liliana/i.test(String((a && a.page) || '') + ' ' + String((a && a.landing) || '')),
+    taint: /liliana|milkmaster|merienda/i,
   },
 ];
 
@@ -46,10 +50,25 @@ export async function runRetractions() {
           await pool.query(`UPDATE snapshots SET data = $3 WHERE host = $1 AND channel = 'ads' AND day = $2::date`, [r.host, row.day, JSON.stringify(next)]);
         }
       }
-      done[r.id] = new Date().toISOString().slice(0, 10) + ' — removed ' + removed + ' ad(s)';
+      // Scrub TAINTED READS: any stored insights key whose content still quotes the
+      // retracted material is deleted, so the regeneration cannot merge the ghost back.
+      let scrubbed = 0;
+      if (r.taint) {
+        const insRows = (await pool.query(`SELECT to_char(day,'YYYY-MM-DD') AS day, data FROM snapshots WHERE host = $1 AND channel = 'insights'`, [r.host])).rows;
+        for (const row of insRows) {
+          const d = row.data || {};
+          let dirty = false;
+          for (const k of Object.keys(d)) {
+            if (k === 'generatedAt') continue;
+            if (r.taint.test(JSON.stringify(d[k]) || '')) { delete d[k]; dirty = true; scrubbed++; }
+          }
+          if (dirty) await pool.query(`UPDATE snapshots SET data = $3 WHERE host = $1 AND channel = 'insights' AND day = $2::date`, [r.host, row.day, JSON.stringify(d)]);
+        }
+      }
+      done[r.id] = new Date().toISOString().slice(0, 10) + ' — removed ' + removed + ' ad(s), scrubbed ' + scrubbed + ' tainted read key(s)';
       changed = true;
-      console.log('✓ retraction ' + r.id + ': removed ' + removed + ' misattributed ad(s) from ' + r.host);
-      if (removed) {
+      console.log('✓ retraction ' + r.id + ': removed ' + removed + ' ad(s), scrubbed ' + scrubbed + ' read key(s) from ' + r.host);
+      if (removed || scrubbed) {
         // Regenerate the read so no surface still quotes the retracted ad (incl. FOR YOU).
         try {
           const { generateInsights } = await import('./insights.js');

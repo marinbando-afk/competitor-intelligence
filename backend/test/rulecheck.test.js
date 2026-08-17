@@ -210,10 +210,12 @@ ok(/R-PAIR-JUDGE/.test(adsSrc) && /if \(onOwnDomain\(a\) \|\| brandPageSafe\(a\)
 
 console.log('\nRETRACTIONS — provably-wrong data is removed, narrowly (14 Aug):');
 const { RETRACTIONS } = await import('../src/retract.js');
-const lil = RETRACTIONS.find((r) => r.id === 'liliana-bonafide-2026-08');
+const lil = RETRACTIONS.find((r) => r.id === 'liliana-bonafide-2026-08-v2');
 ok(!!lil && lil.host === 'bonafideprovisions.com', 'Liliana retraction declared for the broth brand');
 ok(lil.dropAd({ page: 'Liliana Electrodomésticos', landing: 'https://www.liliana.com.ar/x' }), 'the misattributed ad is dropped');
 ok(!lil.dropAd({ page: 'Bonafide Provisions', landing: 'https://bonafideprovisions.com/broth' }), 'the brand\u2019s own ads are untouched');
+ok(lil.taint.test('Bonafide runs a partnership ad with Liliana Electrodomésticos promoting a co-branded merienda moment.'), 'tainted read text is scrubbed too — the ghost cannot merge back');
+ok(!lil.taint.test('Bonafide Provisions leads with chicken bone broth UGC.'), 'clean broth reads are untouched');
 
 console.log('\nCONGRUENCE — app, Slack and admin surfaces tell one story (founder, 12 Aug):');
 const { checkCongruence } = await import('../src/qa.js');

@@ -36,7 +36,7 @@ misses to the founder's Slack.
 
 ## Retractions
 
-- [retract.js R-RETRACT] [ENFORCED] Provably-misattributed content is RETRACTED from stored captures — it does not live on as "history" while the app renders it and reads/FOR-YOU tips quote it. A retraction is a data correction, exempt from R-DAYLOCK (which stops partial-today data, never preserves known-wrong data); each is declared with evidence in retract.js, applied once (marker state), logged, and followed by an insights regeneration (founder, 14 Aug — the Liliana × Argentine-Bonafide ad)
+- [retract.js R-RETRACT] [ENFORCED] Provably-misattributed content is RETRACTED from stored captures — it does not live on as "history" while the app renders it and reads/FOR-YOU tips quote it. A retraction is a data correction, exempt from R-DAYLOCK (which stops partial-today data, never preserves known-wrong data); each is declared with evidence in retract.js, applied once (marker state), logged, scrubs TAINTED READS as well as captures (the generator merges a previous channel read back when the new one is empty — the ghost outlives its ad otherwise), and ends with an insights regeneration (founder, 14 Aug — the Liliana × Argentine-Bonafide ad)
 
 ## Congruence — one story on every surface
 
