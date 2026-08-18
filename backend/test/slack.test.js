@@ -2,7 +2,7 @@
 // next level if they said the core message in the ads". The row quotes the stored ads read
 // (SYNC RULE — recap, never re-derive), so this pins the pure assembly helper.
 // Run: node test/slack.test.js
-import { adsRecapLine, relativizeDay } from '../src/slack.js';
+import { adsRecapLine, relativizeDay, briefBlocks } from '../src/slack.js';
 
 let pass = 0, fail = 0;
 function check(name, cond, extra) {
@@ -38,6 +38,21 @@ check('earlier news dates untouched', R('Launched 2026-08-05, still leading with
 check('same-day send → unchanged', relativizeDay('launched today', '2026-08-10', '2026-08-10') === 'launched today');
 check('older read keeps its date', relativizeDay('sent today', '2026-08-08', '2026-08-10') === 'sent on 2026-08-08');
 check('no double yesterday', !R('captured today on 2026-08-09').includes('yesterday yesterday'));
+
+// BLOCK-KIT RENDERING — founder, 18 Aug: "text heavy… add some spacing". The text stays
+// canonical; blocks add dividers between brands and trim the indents.
+console.log('\nBLOCK-KIT RENDERING:');
+const sample = '🛰️ *WatchBack daily* · Tue, 18 Aug\n\n*Nolan* 💡\n   ❗*Ads:* six new videos.\n   *Website:* sale active.\n\n*Casa* ✅ no new moves\n   *Ads:* standing message.\n\n🔗 <https://watchback.ai|View the full dashboard →>';
+const chunks = briefBlocks(sample);
+check('one chunk for a small brief', Array.isArray(chunks) && chunks.length === 1);
+const bl = chunks[0];
+check('header renders as context', bl[0].type === 'context');
+check('a divider precedes every brand', bl.filter((x) => x.type === 'divider').length === 2);
+check('brand rows lose their indent', bl.some((x) => x.type === 'section' && x.text.text.includes('\n❗*Ads:* six new videos.')));
+check('footer link is a context block', bl[bl.length - 1].type === 'context' && bl[bl.length - 1].elements[0].text.includes('watchback.ai'));
+const big = ['head'].concat(Array.from({ length: 40 }, (_, i) => '*B' + i + '* ✅\n   *Ads:* x.')).join('\n\n');
+check('40 brands chunk under the 50-block cap', briefBlocks(big).every((c) => c.length <= 48) && briefBlocks(big).length > 1);
+check('unexpected shape falls back to null (plain text)', briefBlocks('just one line') === null);
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

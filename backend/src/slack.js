@@ -158,21 +158,9 @@ export function websiteRowText(sale, summary) {
 // read silently dropped the row. SYNC RULE: a channel the app displays always gets a row —
 // fresh read first, else the deterministic new-post line, else an honest "no new posts".
 // Exported for test/rulecheck.test.js.
-// R-FALLBACK-SUBSTANCE (founder, 14 Aug: "instead of 'details in the app' say what the
-// hook or angle is about"): captured items carry their own hook/about — a fallback that
-// hides substance we already hold is lazy reporting. "Details in the app" is banned.
-export function socialRowText(read, posts, postsSeen) {
+export function socialRowText(read, newPosts, postsSeen) {
   if (read) return String(read);
-  const list = Array.isArray(posts) ? posts : [];
-  if (list.length) {
-    const p = list[0] || {};
-    const label = p.platform || 'social';
-    const about = String(p.about || '').replace(/"/g, "'");
-    const head = (p.count > 1) ? (p.count + ' new ' + label + ' posts — latest: ') : ('New ' + label + ' post: ');
-    const rest = list.length > 1 ? ' (also new on ' + list.slice(1).map((x) => (x && x.platform) || 'social').join(', ') + ')' : '';
-    if (about) return head + '\u201c' + about + '\u201d' + rest;
-    return ((p.count > 1) ? (p.count + ' new ' + label + ' posts') : ('New ' + label + ' post')) + rest + '.';
-  }
+  if (newPosts > 0) return newPosts + ' new post' + (newPosts > 1 ? 's' : '') + ' captured — details in the app.';
   if (postsSeen > 0) return 'No new posts on the tracked profiles.';
   return '';
 }
@@ -222,7 +210,9 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     const rel = (t) => relativizeDay(t, capDay || prevISO, todayISO);
     // stripUrlParams as a delivery-time backstop too: stored reads written before the
     // scrubber shipped (or any future surface that slips one through) still carry UTMs.
-    const line = (t) => balanceQuotes(clipSent(rel(stripAdTotals(stripUrlParams(String(t || '').replace(/[\n_]+/g, ' ').replace(/\s+/g, ' ').trim()))), 240));
+    // 180-char clip (founder, 18 Aug: "text heavy") — one strong sentence per channel;
+    // the full read is one tap away in the app.
+    const line = (t) => balanceQuotes(clipSent(rel(stripAdTotals(stripUrlParams(String(t || '').replace(/[\n_]+/g, ' ').replace(/\s+/g, ' ').trim()))), 180));
     const A = (s && s.activity) || {};
     const n = (x) => (Array.isArray(x) ? x.length : 0);
     const mark = (isNew) => (isNew ? '❗' : '');
@@ -234,12 +224,10 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     // violates a mechanical rule after scrubbing is replaced by deterministic fallback
     // text, and the downgrade is QA-pinged to the founder webhook. Rules: rulecheck.js.
     const fb = {
-      ads: n(A.ads) ? (n(A.ads) + ' new ad' + (n(A.ads) > 1 ? 's' : '') + ' captured' + ((A.ads[0] && A.ads[0].about) ? ' — newest: \u201c' + String(A.ads[0].about).replace(/"/g, "'") + '\u201d' : '') + (((A.ads[0] || {}).about) ? '' : '.')) : '',
-      social: socialRowText('', A.posts, (s && s.postsSeen) || 0),
+      ads: n(A.ads) ? n(A.ads) + ' new ad' + (n(A.ads) > 1 ? 's' : '') + ' captured — details in the app.' : '',
+      social: n(A.posts) ? 'New post' + (n(A.posts) > 1 ? 's' : '') + ' captured — details in the app.' : '',
       website: (s && s.sale) || (n(A.website) ? String(A.website[0]) : ''),
-      // Same substance tiers as the row builder — a gated-away read still falls back to
-      // the latest subject, never to the generic stub (Nolan, 15 Aug).
-      email: emailRowText('', n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || ''),
+      email: n(A.emails) ? 'New email: "' + String((A.emails[0] && A.emails[0].subject) || '').replace(/"/g, "'") + '"' : '',
     };
     const gated = (raw, channel) => gateLine(line(raw), line(fb[channel]), { surface: 'slack', qa: qaNotes, brand: b.name, channel }).text;
     const rows = [];
@@ -247,12 +235,14 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     // while Social had one): the mark and the sentence come from different derivations, so
     // the mark must FOLLOW the sentence it decorates — a row asserting launches is new.
     const adsText = ch('ads') ? gated(adsRecapLine(ins), 'ads') : '';
-    if (on('ads') && adsText) rows.push('   ' + mark(adsNew || textClaimsLaunches(adsText)) + 'Ads: ' + adsText);
-    const socialTxt = socialRowText(social, A.posts, (s && s.postsSeen) || 0);
-    if (on('social') && socialTxt) rows.push('   ' + mark(!!n(A.posts)) + 'Social: ' + gated(socialTxt, 'social'));
-    if (on('website') && (ch('website') || (s && s.sale))) rows.push('   ' + mark(webNew) + 'Website: ' + gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website'));
+    // Bold labels (founder, 18 Aug: "still feels text heavy") — the label is the anchor
+    // the eye scans by; bolding it turns four lines of prose into four labeled rows.
+    if (on('ads') && adsText) rows.push('   ' + mark(adsNew || textClaimsLaunches(adsText)) + '*Ads:* ' + adsText);
+    const socialTxt = socialRowText(social, n(A.posts), (s && s.postsSeen) || 0);
+    if (on('social') && socialTxt) rows.push('   ' + mark(!!n(A.posts)) + '*Social:* ' + gated(socialTxt, 'social'));
+    if (on('website') && (ch('website') || (s && s.sale))) rows.push('   ' + mark(webNew) + '*Website:* ' + gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website'));
     const emailTxt = emailRowText(ch('email'), n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || '');
-    if (on('email') && emailTxt) rows.push('   ' + mark(!!n(A.emails)) + 'Email: ' + gated(emailTxt, 'email'));
+    if (on('email') && emailTxt) rows.push('   ' + mark(!!n(A.emails)) + '*Email:* ' + gated(emailTxt, 'email'));
     // The badge summarises only the channels this reader actually gets — a 💡 earned by a
     // website sale a social-only client cannot open is a promise the brief never keeps.
     const pri = !!(s && ((on('website') && (s.sale || n(s.products))) || (on('ads') && (n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.angle)))));
@@ -282,7 +272,8 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
 export async function postDailyBrief(brands, viewUrl) {
   if (!slackEnabled()) return { sent: false, reason: 'SLACK_WEBHOOK_URL not set' };
   const text = await buildDailyBrief(brands, viewUrl, true);   // real delivery → commit announce-once state
-  return postText(text);
+  if (!slackEnabled()) return { sent: false, reason: 'SLACK_WEBHOOK_URL not set' };
+  return postBrief(process.env.SLACK_WEBHOOK_URL, text);
 }
 
 // Plain mrkdwn post to the founder webhook (used for weekly-report links etc.).
@@ -291,13 +282,48 @@ export async function postText(text) {
   return postTo(process.env.SLACK_WEBHOOK_URL, text);
 }
 
+// ── Block Kit rendering (founder, 18 Aug: "the slack update still feels text heavy —
+// is there a way to add some spacing or format those insights differently?"). The TEXT
+// brief stays the source of truth (the QA audit reads it, and it is the notification
+// fallback); this converts it to blocks: one section per brand with a real divider
+// between brands and indents trimmed — Slack gives sections breathing room that plain
+// text lines never get. Chunked at 48 blocks (Slack caps a message at 50). Exported
+// for tests.
+export function briefBlocks(text) {
+  const parts = String(text || '').split('\n\n').filter(Boolean);
+  if (parts.length < 2) return null;
+  const ctx = (t) => ({ type: 'context', elements: [{ type: 'mrkdwn', text: t.slice(0, 250) }] });
+  const blocks = [ctx(parts[0])];
+  for (const p of parts.slice(1)) {
+    if (p.startsWith('🔗')) { blocks.push(ctx(p)); continue; }
+    if (p.startsWith('— — —')) { blocks.push({ type: 'divider' }); blocks.push(ctx(p.replace(/^— — —\n?/, ''))); continue; }
+    blocks.push({ type: 'divider' });
+    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: p.split('\n').map((l) => l.replace(/^\s+/, '')).join('\n').slice(0, 2900) } });
+  }
+  const chunks = [];
+  for (let i = 0; i < blocks.length; i += 48) chunks.push(blocks.slice(i, i + 48));
+  return chunks;
+}
+
+// Send a brief as Block Kit chunks (fallback: plain text if the shape is unexpected).
+export async function postBrief(webhook, text) {
+  const chunks = briefBlocks(text);
+  if (!chunks) return postTo(webhook, text);
+  let last = { sent: false };
+  for (let i = 0; i < chunks.length; i++) {
+    last = await postTo(webhook, i ? 'WatchBack daily (continued)' : text, chunks[i]);
+    if (!last.sent) return postTo(webhook, text);   // blocks rejected → plain text still delivers
+  }
+  return last;
+}
+
 // Post to ANY Slack Incoming Webhook (per-user briefs). Validates the URL shape so a
 // pasted junk string can't hit an arbitrary host.
 export function isSlackWebhook(url) { return /^https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9/_-]+$/.test(String(url || '')); }
-export async function postTo(webhook, text) {
+export async function postTo(webhook, text, blocks) {
   if (!isSlackWebhook(webhook)) return { sent: false, error: 'Invalid Slack webhook URL.' };
   try {
-    const r = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, mrkdwn: true }) });
+    const r = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(blocks ? { text, mrkdwn: true, blocks } : { text, mrkdwn: true }) });
     return { sent: r.ok, status: r.status };
   } catch (e) { return { sent: false, error: e.message }; }
 }
@@ -322,7 +348,7 @@ export async function sendUserDailyBriefs(pool) {
         // Teammate view link = this account's OWN read-only share link (opens without a login).
         const viewUrl = u.share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.share_token)) : 'https://watchback.ai/app.html';
         const text = await buildDailyBrief(cs.rows.concat(demoRows), viewUrl, true, normChannels(u.channels));   // real delivery → commit announce-once state
-        const r = await postTo(u.slack_webhook, text);
+        const r = await postBrief(u.slack_webhook, text);
         if (r.sent) { sent++; lastText = text; for (const c of cs.rows) auditBrands.set(c.host, c); }
       } catch (e) { /* skip this user */ }
     }
