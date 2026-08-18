@@ -345,6 +345,33 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
   </div>
 </section>
 
+<section class="wrap" id="contact" style="padding:8px 0 64px;text-align:center">
+  <div style="max-width:640px;margin:0 auto;border:1.5px solid var(--sage-d);border-radius:16px;background:linear-gradient(180deg,rgba(87,210,207,.09),var(--panel));padding:30px 26px 24px">
+    <span class="k" style="color:var(--sage)">STAY ON THE WIRE</span>
+    <h3 style="font-size:24px;margin:10px 0 6px">Get product updates — or just talk to us</h3>
+    <p style="color:var(--muted);font-size:14.5px;max-width:46ch;margin:0 auto">Drop your email and we’ll keep you posted. Add a note if you want a reply — it lands straight in the founder’s inbox.</p>
+    <form onsubmit="return ctSend(this)" style="margin:18px auto 0;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <input id="ctE" type="email" required placeholder="you@yourbrand.com" style="flex:1;min-width:210px;background:var(--bg);border:1px solid var(--line2);border-radius:7px;padding:12px 14px;color:var(--text);font-family:inherit;font-size:14px;outline:none"/>
+        <button class="btn btn-solid" type="submit" style="padding:12px 22px">Keep me posted</button>
+      </div>
+      <textarea id="ctM" rows="2" placeholder="Optional — a question, feedback, anything…" style="background:var(--bg);border:1px solid var(--line2);border-radius:7px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:13.5px;resize:vertical;outline:none"></textarea>
+      <div id="ctOk" style="display:none;color:var(--quiet);font-family:var(--mono);font-size:12px;letter-spacing:.06em">✓ GOT IT — WE READ EVERYTHING, PERSONALLY.</div>
+    </form>
+    <div style="margin-top:14px;font-family:var(--mono);font-size:11.5px;color:var(--faint)">or email us directly — <a href="mailto:info@watchback.ai">info@watchback.ai</a></div>
+  </div>
+</section>
+<script>
+function ctSend(f){
+  var e=document.getElementById('ctE').value.trim(), m=document.getElementById('ctM').value.trim();
+  fetch('https://competitor-intelligence-production-2629.up.railway.app/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e,name:'[contact box]',message:m||'Subscribed for product updates.'})})
+    .then(function(){document.getElementById('ctOk').style.display='block';f.reset();})
+    .catch(function(){document.getElementById('ctOk').style.display='block';});
+  try{fbq('track','Contact',{content_name:'contact-box'})}catch(x){}
+  return false;
+}
+</script>
+
 <footer><div class="wrap">WATCHBACK © 2026 · watchback.ai · <a href="index.html">home</a> · <a href="privacy.html">privacy</a> · <a href="terms.html">terms</a></div></footer>
 
 <script>

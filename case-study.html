@@ -114,6 +114,21 @@ section{padding:44px 0; position:relative}
 @media(max-width:520px){.slackmsg{font-size:12.5px}}
 
 .midcta{text-align:center; padding:34px 0 6px}
+/* full demo video — click-to-play, YouTube loads only on click (ported from v2) */
+.yt{position:relative;max-width:760px;margin:30px auto 0;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid var(--line2);cursor:pointer;background:#000;box-shadow:0 24px 70px rgba(0,0,0,.5)}
+.yt-poster{position:absolute;inset:0;background:radial-gradient(640px 320px at 72% 14%,rgba(87,210,207,.16),transparent 60%),radial-gradient(500px 260px at 12% 96%,rgba(226,85,79,.10),transparent 60%),linear-gradient(160deg,#0e161c,#080b0d)}
+.yt-poster:after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(120,170,180,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(120,170,180,.05) 1px,transparent 1px);background-size:44px 44px}
+.yt-stamp{position:absolute;top:20px;left:22px;font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--clay);border:1.5px solid var(--clay);border-radius:5px;padding:4px 10px;transform:rotate(-1.4deg);z-index:1}
+.yt-title{position:absolute;left:22px;bottom:20px;z-index:1;text-align:left}
+.yt-title .t1{font-family:var(--disp);font-weight:700;font-size:clamp(22px,3.4vw,34px);color:#e8eef0;letter-spacing:.03em}
+.yt-title .t1 b{color:var(--sage)}
+.yt-title .t2{font-family:var(--mono);font-size:clamp(10px,1.4vw,12px);color:var(--muted);margin-top:5px;letter-spacing:.06em}
+.yt-badge{position:absolute;right:22px;bottom:20px;z-index:1;font-size:26px;opacity:.9}
+.yt iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.yt-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.yt-play span{width:76px;height:76px;border-radius:50%;background:rgba(87,210,207,.92);color:#06282a;display:flex;align-items:center;justify-content:center;font-size:26px;padding-left:6px;box-shadow:0 10px 34px rgba(0,0,0,.5);transition:.15s}
+.yt:hover .yt-play span{transform:scale(1.07)}
+.yt-cap{font-family:var(--mono);font-size:11px;color:var(--faint);text-align:center;margin-top:12px}
 .livebadge{display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--clay); border:1px solid rgba(226,85,79,.4); padding:5px 13px; border-radius:3px; background:rgba(226,85,79,.07)}
 .livebadge .dot{width:6px; height:6px; border-radius:50%; background:var(--clay); box-shadow:0 0 8px var(--clay); animation:dotpulse 1.2s ease-in-out infinite}
 @media(prefers-reduced-motion:reduce){.livebadge .dot{animation:none}}
@@ -151,7 +166,17 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
 <!-- End Meta Pixel -->
 </head>
 <body>
-<script>document.documentElement.className='js';</script>
+<script>document.documentElement.className='js';
+// Demo video: swap the poster for the player only on click (privacy-enhanced embed);
+// demo-watchers are the warmest retargeting audience on this page.
+function playDemo(){
+  var el=document.getElementById('ytDemo');
+  if(!el||el.dataset.on)return;
+  el.dataset.on='1';
+  try{fbq('track','ViewContent',{content_name:'full-demo-video'})}catch(e){}
+  el.innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/ccMLzvpD9ig?autoplay=1&rel=0" title="WatchBack full demo" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+}
+</script>
 
 <nav class="nav">
   <div class="nav-in">
@@ -280,6 +305,19 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
         <div class="cap"><span class="c1">The whole battlefield in one file</span><span class="c2">WB·05 · live</span></div>
       </div>
     </div>
+  </div>
+
+  <div id="demo" style="margin-top:56px">
+    <div style="text-align:center"><span class="s-code">WB·06</span><h3 style="font-size:24px;margin-top:12px">Watch the full demo — start to finish</h3></div>
+    <!-- click-to-play: YouTube only loads after the click, so the page stays fast -->
+    <div class="yt reveal" id="ytDemo" onclick="playDemo()" title="Play the full demo">
+      <div class="yt-poster"></div>
+      <span class="yt-stamp">LIVE PRODUCT WALKTHROUGH</span>
+      <div class="yt-title"><div class="t1">WATCH<b>BACK</b> — FULL DEMO</div><div class="t2">dossiers · morning briefs · ask-anything chat</div></div>
+      <div class="yt-badge">🛰️</div>
+      <div class="yt-play"><span>▶</span></div>
+    </div>
+    <div class="yt-cap">The whole product, start to finish — dossiers, morning briefs, the ask-anything chat.</div>
   </div>
 
   <div style="text-align:center; margin-top:50px">
