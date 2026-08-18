@@ -1338,7 +1338,10 @@ function submitAuth(){
         return;
       }
       TOKEN=x.d.token;USER=x.d.user;try{localStorage.setItem('ci_token',TOKEN);localStorage.setItem('ci_user',JSON.stringify(USER));}catch(e){}
-      if(authMode==='signup'){fbTrack('CompleteRegistration',{content_name:'account',status:true});fbTrack('StartTrial',{value:0.00,currency:'USD',predicted_ltv:197.00});}
+      // Signup = FREE account only (funnel change, 12 Aug) — StartTrial moved to the
+      // server-side checkout webhook; firing it here counted every free account as a
+      // trial and would poison ads optimization.
+      if(authMode==='signup'){fbTrack('CompleteRegistration',{content_name:'free-account',status:true});}
       paintAuth();closeAuth();document.getElementById('aP').value='';
       loadBilling();   // trial banner / paywall on THIS sign-in — boot's call ran before we had a token
       insightsCache={};angleCache={};clearMyBrandLocal();loadMyBrand();   // this account's own brand + tailored tips, never a previous session's

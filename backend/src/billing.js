@@ -309,6 +309,8 @@ export async function handleWebhook(rawBody, signature) {
           const email = (sess.customer_details && sess.customer_details.email) || '';
           capiEvent({ name: 'Purchase', value: monthly, currency: 'usd', email, eventId: sess.id }).catch(() => {});
           capiEvent({ name: 'Subscribe', value: monthly, currency: 'usd', email, eventId: sess.id + '-sub' }).catch(() => {});
+          // The card-required trial STARTS here, not at signup (free-account funnel, 12 Aug).
+          capiEvent({ name: 'StartTrial', value: 0, currency: 'usd', email, eventId: sess.id + '-trial' }).catch(() => {});
         } catch (e) { /* tracking only */ }
       }
       break;
