@@ -68,6 +68,11 @@ const CHECKS = [
   // and meaningless to the reader.
   { id: 'R-TEXT-04', why: 'orphaned parenthetical caveat leads the line',
     test: (t) => /^\s*\(/.test(t) },
+
+  // R-PHRASE-03 (founder, 14 Aug): "details in the app" is lazy reporting — the captured
+  // item carries its own hook/subject; say it instead of pointing at another surface.
+  { id: 'R-PHRASE-03', why: 'deflects to the app instead of stating the substance',
+    test: (t) => /details in the app|see the app|check the app for/i.test(t) },
 ];
 
 // ISO dates in the SLACK BRIEF specifically: allowed only for genuine launch/check dates
@@ -115,7 +120,7 @@ export function gateLine(text, fallback, opts = {}) {
   if (qa) qa.push({ brand: opts.brand || '', channel: opts.channel || '', rules: v1.map((x) => x.id), sample: String(text || '').slice(0, 140) });
   const fb = String(fallback || '').trim();
   if (fb && !checkText(fb, opts).length) return { text: fb, downgraded: true };
-  return { text: 'update captured — open the dashboard for the full read.', downgraded: true };
+  return { text: 'New activity captured on this channel.', downgraded: true };   // last resort: neutral fact, no deflection (R-PHRASE-03)
 }
 
 export const RULE_IDS = CHECKS.map((c) => c.id).concat(['R-DATE-01', 'R-PROV-01']);

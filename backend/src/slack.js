@@ -158,9 +158,21 @@ export function websiteRowText(sale, summary) {
 // read silently dropped the row. SYNC RULE: a channel the app displays always gets a row —
 // fresh read first, else the deterministic new-post line, else an honest "no new posts".
 // Exported for test/rulecheck.test.js.
-export function socialRowText(read, newPosts, postsSeen) {
+// R-FALLBACK-SUBSTANCE (founder, 14 Aug: "instead of 'details in the app' say what the
+// hook or angle is about"): captured items carry their own hook/about — a fallback that
+// hides substance we already hold is lazy reporting. "Details in the app" is banned.
+export function socialRowText(read, posts, postsSeen) {
   if (read) return String(read);
-  if (newPosts > 0) return newPosts + ' new post' + (newPosts > 1 ? 's' : '') + ' captured — details in the app.';
+  const list = Array.isArray(posts) ? posts : [];
+  if (list.length) {
+    const p = list[0] || {};
+    const label = p.platform || 'social';
+    const about = String(p.about || '').replace(/"/g, "'");
+    const head = (p.count > 1) ? (p.count + ' new ' + label + ' posts — latest: ') : ('New ' + label + ' post: ');
+    const rest = list.length > 1 ? ' (also new on ' + list.slice(1).map((x) => (x && x.platform) || 'social').join(', ') + ')' : '';
+    if (about) return head + '\u201c' + about + '\u201d' + rest;
+    return ((p.count > 1) ? (p.count + ' new ' + label + ' posts') : ('New ' + label + ' post')) + rest + '.';
+  }
   if (postsSeen > 0) return 'No new posts on the tracked profiles.';
   return '';
 }
@@ -222,8 +234,8 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     // violates a mechanical rule after scrubbing is replaced by deterministic fallback
     // text, and the downgrade is QA-pinged to the founder webhook. Rules: rulecheck.js.
     const fb = {
-      ads: n(A.ads) ? n(A.ads) + ' new ad' + (n(A.ads) > 1 ? 's' : '') + ' captured — details in the app.' : '',
-      social: n(A.posts) ? 'New post' + (n(A.posts) > 1 ? 's' : '') + ' captured — details in the app.' : '',
+      ads: n(A.ads) ? (n(A.ads) + ' new ad' + (n(A.ads) > 1 ? 's' : '') + ' captured' + ((A.ads[0] && A.ads[0].about) ? ' — newest: \u201c' + String(A.ads[0].about).replace(/"/g, "'") + '\u201d' : '') + (((A.ads[0] || {}).about) ? '' : '.')) : '',
+      social: socialRowText('', A.posts, (s && s.postsSeen) || 0),
       website: (s && s.sale) || (n(A.website) ? String(A.website[0]) : ''),
       email: n(A.emails) ? 'New email: "' + String((A.emails[0] && A.emails[0].subject) || '').replace(/"/g, "'") + '"' : '',
     };
@@ -234,7 +246,7 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     // the mark must FOLLOW the sentence it decorates — a row asserting launches is new.
     const adsText = ch('ads') ? gated(adsRecapLine(ins), 'ads') : '';
     if (on('ads') && adsText) rows.push('   ' + mark(adsNew || textClaimsLaunches(adsText)) + 'Ads: ' + adsText);
-    const socialTxt = socialRowText(social, n(A.posts), (s && s.postsSeen) || 0);
+    const socialTxt = socialRowText(social, A.posts, (s && s.postsSeen) || 0);
     if (on('social') && socialTxt) rows.push('   ' + mark(!!n(A.posts)) + 'Social: ' + gated(socialTxt, 'social'));
     if (on('website') && (ch('website') || (s && s.sale))) rows.push('   ' + mark(webNew) + 'Website: ' + gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website'));
     const emailTxt = emailRowText(ch('email'), n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || '');

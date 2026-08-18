@@ -172,10 +172,12 @@ ok(!hasSubstantiveData('weekly', { report: {} }), 'weekly never locked');
 
 console.log('\nSOCIAL ROW — a channel the app shows always gets a row (Pacific Foods, 12 Aug):');
 const { socialRowText } = await import('../src/slack.js');
-ok(socialRowText('IP collabs dominate the feed.', 2, 9) === 'IP collabs dominate the feed.', 'fresh read wins');
-ok(socialRowText('', 2, 9) === '2 new posts captured — details in the app.', 'empty read + new posts → deterministic line');
-ok(socialRowText('', 0, 9) === 'No new posts on the tracked profiles.', 'empty read + captured posts → honest no-new-posts row');
-ok(socialRowText('', 0, 0) === '', 'nothing captured → row omitted (never padded)');
+ok(socialRowText('IP collabs dominate the feed.', [{ platform: 'Instagram', count: 2, about: 'x' }], 9) === 'IP collabs dominate the feed.', 'fresh read wins');
+ok(socialRowText('', [{ platform: 'Instagram', count: 1, about: 'Play your comfort card with UNO' }], 9) === 'New Instagram post: \u201cPlay your comfort card with UNO\u201d', 'empty read + new post → the HOOK ships, never \u201cdetails in the app\u201d (founder, 14 Aug)');
+ok(socialRowText('', [{ platform: 'TikTok', count: 3, about: 'wash your Oodie' }, { platform: 'Facebook', count: 1, about: 'y' }], 9) === '3 new TikTok posts — latest: \u201cwash your Oodie\u201d (also new on Facebook)', 'multi-platform fallback names the latest hook');
+ok(socialRowText('', [], 9) === 'No new posts on the tracked profiles.', 'empty read + captured posts → honest no-new-posts row');
+ok(socialRowText('', [], 0) === '', 'nothing captured → row omitted (never padded)');
+ok(fires('1 new post captured — details in the app.', 'R-PHRASE-03'), 'R-PHRASE-03 the deflection phrase itself is now a gate violation');
 const pfFacts = [{ name: 'Pacific Foods', host: 'pacificfoods.com', sale: '', products: 0, staleOffers: 0, postsSeen: 9 }];
 ok(checkMisses('*Pacific Foods* 🔹\n   Ads: something.', pfFacts).some((v) => v.rule === 'R-MISS-04'), 'posts captured + no Social row → R-MISS-04');
 ok(checkMisses('*Pacific Foods* 🔹\n   Social: No new posts on the tracked profiles.', pfFacts).length === 0, 'Social row present → clean');
