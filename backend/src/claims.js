@@ -80,6 +80,18 @@ const RULES = [
     why: 'reports a channel as quiet when no account is connected for it — we never looked, so we cannot say they did not post',
   },
   {
+    // Founder HARD RULE, 13 Aug: "you only say no new posts, ads or emails if it's been
+    // more than 7 days without something new; within 7d say — no new xyz yesterday, most
+    // recent one xyz." Callers pass daysSinceNew (from the channel's .lastNew finding).
+    id: 'bareQuiet',
+    re: /\bno new (ads?|posts?|emails?|creatives?|launches?|content|activity)\b/i,
+    allow: (f, sentence) => {
+      if (/\b(most recent|latest|last (new|one|post|ad|email|launch))\b/i.test(String(sentence || ''))) return true;
+      return f.daysSinceNew != null && f.daysSinceNew > 7;
+    },
+    why: 'bare "no new X" is only allowed after 7+ quiet days; within a week write "no new X yesterday — most recent: …" (founder hard rule, 13 Aug)',
+  },
+  {
     id: 'ended',
     // a page/tactic/campaign stopped
     // "dropped" is ambiguous in English: a page can drop OUT (stopped) and a collab can

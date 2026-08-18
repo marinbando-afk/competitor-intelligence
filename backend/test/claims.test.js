@@ -60,6 +60,13 @@ t('capture volume', "All 98 ads in today's capture run to thedrmlab.com.", { can
 t('launch dressed in capture arithmetic', 'Casa & Beyond launched all 16 ads captured today.', { canJudgeAbsence: true, hasEarlier: true }, true);
 t('typical-capture aside', 'An unusually high volume for them (typical capture is around 4).', { canJudgeAbsence: true, hasEarlier: true }, true, 'adCount');
 t('launch counts stay allowed', 'Six new ads launched this week, mostly UGC video.', { canJudgeAbsence: true, hasEarlier: true }, false);
+
+// Founder HARD RULE, 13 Aug: bare "no new X" only after 7+ quiet days; within a week the
+// sentence must carry the most recent item.
+t('bare quiet within a week is blocked', 'No new ads this week from their page.', { channelConnected: true, hasEarlier: true, daysSinceNew: 3 }, true, 'bareQuiet');
+t('quiet with most-recent context passes', 'No new ads yesterday — most recent launched 2026-08-08.', { channelConnected: true, hasEarlier: true, daysSinceNew: 3 }, false);
+t('bare quiet after 8 dry days passes', 'No new emails in over a week.', { channelConnected: true, hasEarlier: true, daysSinceNew: 9 }, false);
+t('bare quiet with unknown recency is blocked', 'No new posts from their Instagram.', { channelConnected: true, hasEarlier: true }, true, 'bareQuiet');
 t('guessed identity', "The Valentine's ad is most likely from Nordic Wellness Secrets.", { hasEarlier: true }, true, 'guessIdentity');
 
 // Tallowed Truth, 2 Aug — caught by the validator itself during a routine audit. Their

@@ -173,6 +173,24 @@ export function adsFindings(rows, capN) {
     }
   }
 
+  // HARD QUIET RULE support (founder, 13 Aug): the most recent ad LAUNCH ever captured
+  // (max Meta start date), so a quiet day reads "no new ads yesterday — most recent
+  // launched <date>" instead of a bare "no new ads" (bare allowed only past 7 days).
+  let lastAd = null;
+  for (const r of rows) for (const a of ((r.data && r.data.ads) || [])) {
+    const st = String(a.started || '');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(st) && (!lastAd || st > lastAd.started)) lastAd = { started: st, a };
+  }
+  if (lastAd) {
+    const days = Math.round((Date.parse(today.day) - Date.parse(lastAd.started)) / 864e5);
+    const hook = String(lastAd.a.text || lastAd.a.title || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    out.push({
+      type: 'context', key: 'ads.lastNew',
+      text: 'Most recent ad launch: ' + lastAd.started + ' (' + days + ' days before this capture)' + (hook ? ' — opening: "' + hook + '"' : '') + '. QUIET RULE: within 7 days of it, never a bare "no new ads" — write "no new ads yesterday — most recent launched ' + lastAd.started + '". The bare phrasing is allowed only past 7 days.',
+      evidence: { day: lastAd.started, days },
+    });
+  }
+
   // ABSENCE is only evidence from a complete capture.
   if (earlier.length && !thin && !capped && ads.length) {
     const prev = earlier[0];
@@ -451,6 +469,29 @@ export function windowFindings(rows, label, itemsOf) {
       if (q.length > 110) q = q.slice(0, 110).replace(/\s+\S*$/, '') + '…';
       out.push({ type: 'new', key: label + '.new:' + (p.id || p.link || String(p.text || '').slice(0, 20)), text: 'New ' + noun + ': "' + q + '"', evidence: { link: p.link || '', views: p.views || null, date: p.date || null } });
     }
+  }
+  // HARD QUIET RULE (founder, 13 Aug): a bare "no new posts/emails" may only be written
+  // after 7+ quiet days; within the week the read must carry the most recent item.
+  // Deterministic support: the last day a genuinely FRESH item appeared in the window.
+  let lastNew = null;
+  for (let i = 0; i < rows.length - 1 && !lastNew; i++) {
+    const cur = itemsOf(rows[i].data) || [];
+    if (!cur.length) continue;
+    const older = rows.slice(i + 1).find((r) => (itemsOf(r.data) || []).length);
+    if (!older) break;                                     // appeared before monitoring — age unknowable
+    const seenO = new Set((itemsOf(older.data) || []).map((p) => p.id || p.link || p.text));
+    const f2 = cur.filter((p) => !seenO.has(p.id || p.link || p.text));
+    if (f2.length) lastNew = { day: rows[i].day, item: f2[0] };
+  }
+  if (lastNew) {
+    const days = Math.round((Date.parse(today.day) - Date.parse(lastNew.day)) / 864e5);
+    let q = String(lastNew.item.text || lastNew.item.subject || '').replace(/\s+/g, ' ').trim();
+    if (q.length > 90) q = q.slice(0, 90).replace(/\s+\S*$/, '') + '…';
+    out.push({
+      type: 'context', key: label + '.lastNew',
+      text: 'Most recent new ' + label + ' item appeared ' + lastNew.day + ' (' + days + ' days before this capture): "' + q + '". QUIET RULE: within 7 days of it, never a bare "no new …" — write "no new ' + label + ' yesterday — most recent: …". The bare phrasing is allowed only once the last new item is MORE than 7 days old.',
+      evidence: { day: lastNew.day, days },
+    });
   }
   return out;
 }

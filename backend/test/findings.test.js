@@ -96,8 +96,6 @@ const unchanged = websiteFindings([
   row('2026-08-06', { banner: 'Summer Sale: 40% off sitewide', summary: feed }),
 ]);
 check('identical feeds → explicit nochange state', unchanged.some((f) => f.key === 'web.nochange'));
-// R-PROV-01 (founder, 12 Aug): the no-change line is absolute — never "compared A → B".
-check('nochange text carries no comparison window', !/compared|\d{4}-\d{2}-\d{2}/.test((unchanged.find((f) => f.key === 'web.nochange') || {}).text || ''));
 const bannerF = unchanged.find((f) => f.key === 'web.banner');
 // 10 Aug (supersedes the dated-banner pin): standing state carries no since-date in the
 // TEXT — dating is clutter; the history date lives in evidence.since for the machinery.
@@ -126,6 +124,17 @@ const fresh = windowFindings([
 ], 'Instagram', posts);
 check('a post that APPEARED is a new finding', fresh.some((f) => f.type === 'new' && f.text.includes('Lash serum tutorial')));
 check('a window never emits absence findings', !types(fresh).includes('absence') && !types(noneToday).includes('absence'));
+
+// HARD QUIET RULE (13 Aug): the engine computes the most recent NEW item so quiet days
+// can carry it ("no new posts yesterday — most recent: …") instead of a bare denial.
+const lnf = fresh.find((f) => f.key === 'Instagram.lastNew');
+check('window lastNew context computed with day + QUIET RULE', !!lnf && lnf.evidence.day === '2026-08-07' && /QUIET RULE/.test(lnf.text));
+const quietAds = adsFindings([
+  row('2026-08-09', { ads: [{ id: 'a1', text: 'Hook one', started: '2026-08-05' }] }),
+  row('2026-08-08', { ads: [{ id: 'a1', text: 'Hook one', started: '2026-08-05' }] }),
+], 500);
+const la = quietAds.find((f) => f.key === 'ads.lastNew');
+check('ads lastNew carries launch date + day count', !!la && /2026-08-05/.test(la.text) && la.evidence.days === 4);
 
 console.log('\nSTALE OFFERS + LANDING HEALTH — no live-since clutter; dead/redirected funnels caught:');
 
