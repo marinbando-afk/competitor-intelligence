@@ -300,7 +300,13 @@ export function briefBlocks(text) {
     if (p.startsWith('🔗')) { blocks.push(ctx(p)); continue; }
     if (p.startsWith('— — —')) { blocks.push({ type: 'divider' }); blocks.push(ctx(p.replace(/^— — —\n?/, ''))); continue; }
     blocks.push({ type: 'divider' });
-    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: p.split('\n').map((l) => l.replace(/^\s+/, '')).join('\n').slice(0, 2900) } });
+    const lines = p.split('\n').map((l) => l.replace(/^\s+/, ''));
+    // VARIANT C (founder-approved, 19 Aug): one breath between what the competitor is
+    // SAYING (Ads·Social) and what they are DOING (Website·Email). Render-time only —
+    // the canonical text (QA audit + fallback) stays gap-free.
+    const wi = lines.findIndex((l) => /^\*(Website|Email):\*/.test(l));
+    if (wi >= 2) lines.splice(wi, 0, '');
+    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: lines.join('\n').slice(0, 2900) } });
   }
   const chunks = [];
   for (let i = 0; i < blocks.length; i += 48) chunks.push(blocks.slice(i, i + 48));

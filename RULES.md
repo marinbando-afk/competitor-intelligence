@@ -200,46 +200,38 @@ misses to the founder's Slack.
 
 ## Slack brief composition
 
-The agreed layout (founder, 12 Aug — "format it somehow so it's readable and not a pile
-of text"). One block per brand, one row per channel, dividers between brands:
+The agreed layout (founder, 12 Aug "format it somehow so it's readable and not a pile
+of text"; refined 18-19 Aug: Block Kit, bold colon labels, ❗ after the label, variant-C
+gap). One block per brand, one row per channel, real dividers between brands:
 
 ```
-WatchBack daily · Wed 13 Aug
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛰️ WatchBack daily · Wed 19 Aug        (small context caption)
+──────────────────────────────         (Block Kit divider)
+*Nolan Interior* 💡
+*Ads:* ❗ Six new videos launched yesterday on the Miracle Sofa Cover — spec,
+objection and budget angles at once.
+*Social:* New Instagram post doubles down on washable covers with a 'mess
+happens' spill-life hook.
 
-*Seranova*
+*Website:* Back to School Sale — up to 50% off — active and unchanged.
+*Email:* ❗ Latest: "Your $10 off expires soon" — a $10-off push via expiry reminder.
+──────────────────────────────
+*Casa & Beyond* ✅ no new moves
+*Ads:* Standing message: cozy-home value kits, all branded video.
 
-❗  *Website* — New sale: "Back to School Sale: up to 58% off" replaced
-     "SUMMER SALE: UP TO 58% OFF", first captured yesterday. Same headline
-     discount, new occasion — the economics are unchanged.
-
-❗  *Ads* — 6 new ads launched yesterday, all video. Newest opens
-     "Doctors are begging you to stop" → seranova.com, from "Seranova"
-     and "Daily Discounts Online" handles.
-
-     *Social* — No new posts since 9 Aug. Latest is still the founder-story
-     Reel on TikTok.
-
-     *Email* — No sends since 7 Aug. Last was "Your 58% is ending".
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-*Pacific Foods*
-
-     *Ads* — No new ads since 5 Aug. Longest-running is still "Real
-     ingredients, real simple" → shop.mikmak.ai, from "Pacific Foods" handle.
-
-     *Social* — Not checked: no handles confirmed yet.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-View the full dashboard →
+*Website:* 50% off Clearance Sale active — with a countdown timer that resets daily.
+──────────────────────────────
+🔗 View the full dashboard & signals →   (context caption)
 ```
 
+- [slack.js briefBlocks] [ENFORCED] The brief renders as Slack Block Kit: one section per brand, a real divider between brands, header/footer as small context captions; the plain-text brief stays CANONICAL (the QA audit reads it, and it is the notification fallback) and any Block Kit rejection redelivers as plain text (founder, 18 Aug — "still feels text heavy")
+- [slack.js] [ENFORCED] Channel labels are BOLD with a colon ("*Ads:*"), and ❗ sits AFTER the label so labels form one aligned scannable column (founder, 18 Aug — supersedes the 12 Aug left-gutter ❗ position)
+- [slack.js briefBlocks] [ENFORCED] VARIANT C spacing: ONE blank row between the SAYING group (Ads·Social) and the DOING group (Website·Email) inside each brand block — render-time only, never in the canonical text (founder-approved from preview, 19 Aug — supersedes the 12 Aug blank-line-between-every-row)
+- [slack.js] [ENFORCED] Channel lines clip at 180 chars, always at a sentence boundary — one strong sentence per channel, the full read lives in the app (founder, 18 Aug)
 - [slack.js R-BRIEF-FORMAT] [ENFORCED] NO decorative emoji: no channel glyphs (📣📱🛒✉️), no status badges (💡/🔹/✅) — the labels already say it. The ONLY emoji is ❗, marking a channel with news, hanging in the LEFT GUTTER so every move is scannable down one edge without reading a word (founder, 12 Aug)
 - [slack.js R-BRIEF-FORMAT] [ENFORCED] EVERY subscribed channel gets its OWN ROW, every day — never collapsed into a shared "quiet" line. A brand is a predictable block of rows, so the reader's eye finds Social in the same place every morning (founder, 12 Aug)
 - [slack.js R-BRIEF-FORMAT] [ENFORCED] Rows sort NEWS FIRST within each brand, so the ❗ rows cluster at the top instead of scattering
-- [slack.js R-BRIEF-FORMAT] [ENFORCED] Blank line between rows and a divider between brands — a brief must never read as a wall of text. Each row opens with ONE clause before its detail
+- [slack.js R-BRIEF-FORMAT] [ENFORCED] Each row opens with ONE clause before its detail (blank-line-between-every-row superseded 19 Aug by the variant-C group gap above)
 - [slack.js R-BRIEF-FORMAT] [ENFORCED] A QUIET row states how long the channel has been quiet AND what still stands: "No new ads since 5 Aug. Longest-running is still X" / "No new posts since 9 Aug. Latest is still X" — the age is the intelligence (founder, 12 Aug)
 - [slack.js R-BRIEF-FORMAT] [ENFORCED] Three states, never two: news · checked-and-quiet (with the date it went quiet) · NOT CHECKED (capture failed or channel not connected — said plainly, never dressed as quiet). Once a row prints every day, a failed capture would otherwise read as "the competitor is quiet", which is a false claim (Pannonian Padel, 5 Aug)
 - [slack.js R-BRIEF-FORMAT] [ENFORCED] A brand with nothing anywhere still gets its rows — silence must never look like a failure

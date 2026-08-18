@@ -42,13 +42,18 @@ check('no double yesterday', !R('captured today on 2026-08-09').includes('yester
 // BLOCK-KIT RENDERING — founder, 18 Aug: "text heavy… add some spacing". The text stays
 // canonical; blocks add dividers between brands and trim the indents.
 console.log('\nBLOCK-KIT RENDERING:');
-const sample = '🛰️ *WatchBack daily* · Tue, 18 Aug\n\n*Nolan* 💡\n   ❗*Ads:* six new videos.\n   *Website:* sale active.\n\n*Casa* ✅ no new moves\n   *Ads:* standing message.\n\n🔗 <https://watchback.ai|View the full dashboard →>';
+const sample = '🛰️ *WatchBack daily* · Tue, 18 Aug\n\n*Nolan* 💡\n   *Ads:* ❗ six new videos.\n   *Website:* sale active.\n\n*Casa* ✅ no new moves\n   *Ads:* standing message.\n\n🔗 <https://watchback.ai|View the full dashboard →>';
 const chunks = briefBlocks(sample);
 check('one chunk for a small brief', Array.isArray(chunks) && chunks.length === 1);
 const bl = chunks[0];
 check('header renders as context', bl[0].type === 'context');
 check('a divider precedes every brand', bl.filter((x) => x.type === 'divider').length === 2);
-check('brand rows lose their indent', bl.some((x) => x.type === 'section' && x.text.text.includes('\n❗*Ads:* six new videos.')));
+check('brand rows lose their indent', bl.some((x) => x.type === 'section' && x.text.text.includes('\n*Ads:* ❗ six new videos.')));
+// VARIANT C (19 Aug): a blank row splits saying (Ads·Social) from doing (Website·Email)…
+check('gap inserted before the doing group', bl.some((x) => x.type === 'section' && x.text.text.includes('six new videos.\n\n*Website:*')));
+// …but never when the brand has no saying rows above (nothing to split from).
+const soloWeb = briefBlocks('head\n\n*Brand* ✅\n   *Website:* sale active.\n\n🔗 <https://x|y>');
+check('no gap for a website-only block', soloWeb[0].some((x) => x.type === 'section' && !x.text.text.includes('\n\n*Website:*')));
 check('footer link is a context block', bl[bl.length - 1].type === 'context' && bl[bl.length - 1].elements[0].text.includes('watchback.ai'));
 const big = ['head'].concat(Array.from({ length: 40 }, (_, i) => '*B' + i + '* ✅\n   *Ads:* x.')).join('\n\n');
 check('40 brands chunk under the 50-block cap', briefBlocks(big).every((c) => c.length <= 48) && briefBlocks(big).length > 1);
