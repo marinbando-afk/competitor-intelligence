@@ -723,6 +723,15 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
 </head>
 <body>
 
+<!-- Desktop-first note (founder, 14 Aug): mobile works, but the full dossier experience
+     is built for a bigger screen — say so plainly, in one slim static strip. -->
+<div id="dtNote">🖥️ WatchBack is designed <b>desktop-first</b> — everything works here, but dossiers are best on a bigger screen.</div>
+<style>
+#dtNote{display:none;padding:7px 14px;text-align:center;font-size:11.5px;letter-spacing:.03em;color:var(--muted);background:rgba(227,169,44,.08);border-bottom:1px solid rgba(227,169,44,.25)}
+#dtNote b{color:var(--gold, #e3a92c)}
+@media(max-width:760px){#dtNote{display:block}}
+</style>
+
 <div class="top">
   <a class="brand" href="index.html" title="Back to site">
     <span class="crest"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 12C6.6 6.7 17.4 6.7 21 12C17.4 17.3 6.6 17.3 3 12Z" stroke="#57d2cf" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="3.5" stroke="#57d2cf" stroke-width="1.6"/><path d="M12 8.5v7M8.5 12h7" stroke="#57d2cf" stroke-width="1.1"/><circle cx="12" cy="12" r="1.1" fill="#e2554f"/></svg></span>
