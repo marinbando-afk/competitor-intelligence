@@ -215,7 +215,9 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     const line = (t) => balanceQuotes(clipSent(rel(stripAdTotals(stripUrlParams(String(t || '').replace(/[\n_]+/g, ' ').replace(/\s+/g, ' ').trim()))), 180));
     const A = (s && s.activity) || {};
     const n = (x) => (Array.isArray(x) ? x.length : 0);
-    const mark = (isNew) => (isNew ? '❗' : '');
+    // ❗ sits AFTER the label (founder, 18 Aug): labels stay in one aligned column and
+    // the mark reads as part of the news itself.
+    const mark = (isNew) => (isNew ? '❗ ' : '');
     const ch = (k) => (fresh && ins[k] && ins[k].summary) ? String(ins[k].summary) : '';
     const social = ch('instagram') || ch('tiktok') || ch('facebook') || ch('social');
     const adsNew = !!(n(A.ads) || (s && (n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.angle))));
@@ -237,12 +239,12 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     const adsText = ch('ads') ? gated(adsRecapLine(ins), 'ads') : '';
     // Bold labels (founder, 18 Aug: "still feels text heavy") — the label is the anchor
     // the eye scans by; bolding it turns four lines of prose into four labeled rows.
-    if (on('ads') && adsText) rows.push('   ' + mark(adsNew || textClaimsLaunches(adsText)) + '*Ads:* ' + adsText);
+    if (on('ads') && adsText) rows.push('   *Ads:* ' + mark(adsNew || textClaimsLaunches(adsText)) + adsText);
     const socialTxt = socialRowText(social, n(A.posts), (s && s.postsSeen) || 0);
-    if (on('social') && socialTxt) rows.push('   ' + mark(!!n(A.posts)) + '*Social:* ' + gated(socialTxt, 'social'));
-    if (on('website') && (ch('website') || (s && s.sale))) rows.push('   ' + mark(webNew) + '*Website:* ' + gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website'));
+    if (on('social') && socialTxt) rows.push('   *Social:* ' + mark(!!n(A.posts)) + gated(socialTxt, 'social'));
+    if (on('website') && (ch('website') || (s && s.sale))) rows.push('   *Website:* ' + mark(webNew) + gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website'));
     const emailTxt = emailRowText(ch('email'), n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || '');
-    if (on('email') && emailTxt) rows.push('   ' + mark(!!n(A.emails)) + '*Email:* ' + gated(emailTxt, 'email'));
+    if (on('email') && emailTxt) rows.push('   *Email:* ' + mark(!!n(A.emails)) + gated(emailTxt, 'email'));
     // The badge summarises only the channels this reader actually gets — a 💡 earned by a
     // website sale a social-only client cannot open is a promise the brief never keeps.
     const pri = !!(s && ((on('website') && (s.sale || n(s.products))) || (on('ads') && (n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.angle)))));
