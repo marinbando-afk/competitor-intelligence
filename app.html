@@ -1346,7 +1346,7 @@ function submitAuth(){
     .then(function(x){go.disabled=false;go.textContent=was;
       if(!x.ok){er.textContent=(x.d&&x.d.error)||'Something went wrong.';er.style.color='';er.style.display='block';return;}
       if(x.d&&x.d.pending){
-        er.textContent='✓ Account created. During the private beta every account is activated personally — you’ll get an email as soon as yours is live.';
+        er.textContent='✓ Account created. If you aren’t signed in automatically, use “Have an account? Sign in” with your new details.';
         er.style.color='var(--quiet)';er.style.display='block';
         document.getElementById('aP').value='';
         return;
