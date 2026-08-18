@@ -29,6 +29,8 @@ ok(fires('Storefront promo first seen 2026-08-11 on the banner', 'R-DATE-01'), '
 
 console.log('\nDELIVERY GATE — clean lines pass:');
 ok(clean('18 new ads launched since yesterday (all video) — newest opens: "Will these fit?" → nolaninterior.com.'), 'good gate line passes');
+ok(fires('21 new ads launched since 2026-08-13 (18 video, 3 image).', 'R-DATE-01'), 'launched-since-ISO fires — the launch line is a one-day window (R-LAUNCH-WINDOW; Nolan, 15 Aug)');
+ok(clean('6 new ads launched since yesterday (all video) — newest opens: "Tired of pet hair" → casaandbeyond.com.au.'), 'the Casa format is the spec and passes clean');
 ok(clean('New ad launched 2026-08-05 — video from “The Oodie”.'), 'launch date is allowed');
 ok(clean('Ad landing page x.com/lp redirected to y.com/p when checked on 2026-08-11 — that ad’s traffic ends up on y.com, a different site. (One ad URL tested, not the whole x.com domain.)'), 'scoped redirect claim passes');
 // Flipped 13 Aug: R-PROV-01 + R-DATE-01 now deliberately ban comparison windows and raw

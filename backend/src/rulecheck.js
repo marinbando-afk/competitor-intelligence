@@ -86,7 +86,10 @@ function isoDateViolation(t) {
     const after = t.slice(m.index + 10, m.index + 14);
     // Tightened 13 Aug: the old blanket "since" exemption let "New email item since
     // 2026-08-11" ship. Only genuine launch/check/monitoring anchors keep their dates.
-    if (/launch(ed)?(\s+since)?\s*$|checked on\s*$|began on\s*$/i.test(before)) continue;
+    // Tightened again 15 Aug (R-LAUNCH-WINDOW): the launch line is a ONE-DAY window
+    // ("since yesterday"), so "launched since <ISO>" is itself a violation now. Only a
+    // bare launch date ("launched 2026-08-05") and check/monitoring anchors keep dates.
+    if (/launch(ed)?\s*$|checked on\s*$|began on\s*$/i.test(before)) continue;
     return true;
   }
   return false;

@@ -146,30 +146,35 @@ export function adsFindings(rows, capN) {
       });
     }
     if (fresh.length) {
-      const nVid = fresh.filter((a) => a.hasVideo).length;
-      const nImg = fresh.length - nVid;
-      const since = fresh[fresh.length - 1].started;
-      // Founder, 12 Aug: the gate line was drowning in bookkeeping ("since 2026-08-10
-      // (Meta start dates; 18 video, 0 image/carousel)"). Human dates ("yesterday"),
-      // "all video" when the mix is uniform, and no trailing itemisation note — the
-      // items are already listed above.
+      // R-LAUNCH-WINDOW (founder, 15 Aug — Nolan said "21 new ads launched since
+      // 2026-08-13" while Casa correctly said "6 new ads launched since yesterday"; "do
+      // everything like casa and beyond"): the BRIEF's launch line covers ONE day — ads
+      // whose Meta start date is today or yesterday. Older never-before-captured
+      // stragglers (capped windows surface them late) keep their per-ad findings for the
+      // app but never inflate the daily count or stretch the window into ISO dates.
       const dayMinus1 = new Date(Date.parse(today.day + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10);
-      const when = since === today.day ? 'today' : (since === dayMinus1 ? 'since yesterday' : 'since ' + since);
+      const daily = fresh.filter((a) => a.started === today.day || a.started === dayMinus1);
+      if (daily.length) {
+      const nVid = daily.filter((a) => a.hasVideo).length;
+      const nImg = daily.length - nVid;
+      const since = daily[daily.length - 1].started;
+      const when = since === today.day ? 'today' : 'since yesterday';
       // "all video" needs a plural to make sense — one ad is just "(video)" (founder, 12 Aug:
       // "what do you mean by all if you said it's 1 ad?").
-      const mix = nImg === 0 ? (fresh.length === 1 ? 'video' : 'all video') : (nVid === 0 ? (fresh.length === 1 ? 'image' : 'all image') : nVid + ' video, ' + nImg + ' image');
+      const mix = nImg === 0 ? (daily.length === 1 ? 'video' : 'all video') : (nVid === 0 ? (daily.length === 1 ? 'image' : 'all image') : nVid + ' video, ' + nImg + ' image');
       // Carry the CREATIVE SUBSTANCE, not just the count (founder, 9 Aug) — the newest
       // opening line and where the batch drives. Inner double quotes become singles so
       // a hook that opens with a quotation never renders as ""nested"" garbage, and the
       // clip lands on a word boundary instead of mid-sentence mush.
-      let hook = String(fresh[0].text || fresh[0].title || '').replace(/["“”]/g, "'").replace(/\s+/g, ' ').trim();
+      let hook = String(daily[0].text || daily[0].title || '').replace(/["“”]/g, "'").replace(/\s+/g, ' ').trim();
       if (hook.length > 90) hook = hook.slice(0, 90).replace(/\s+\S*$/, '') + '…';
-      const doms = [...new Set(fresh.map((a) => domOf(a.landing)).filter(Boolean))].slice(0, 2);
+      const doms = [...new Set(daily.map((a) => domOf(a.landing)).filter(Boolean))].slice(0, 2);
       out.push({
         type: 'new', key: 'ads.launches',
-        text: fresh.length + ' new ad' + (fresh.length > 1 ? 's' : '') + ' launched ' + when + ' (' + mix + ')' + (hook ? ' — newest opens: "' + hook + '"' : '') + (doms.length ? ' → ' + doms.join(', ') : '') + '.',
-        evidence: { count: fresh.length, video: nVid, since, hook, landing: doms.join(', ') },
+        text: daily.length + ' new ad' + (daily.length > 1 ? 's' : '') + ' launched ' + when + ' (' + mix + ')' + (hook ? ' — newest opens: "' + hook + '"' : '') + (doms.length ? ' → ' + doms.join(', ') : '') + '.',
+        evidence: { count: daily.length, video: nVid, since, hook, landing: doms.join(', ') },
       });
+      }
     }
   }
 

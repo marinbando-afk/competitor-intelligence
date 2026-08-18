@@ -237,7 +237,9 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
       ads: n(A.ads) ? (n(A.ads) + ' new ad' + (n(A.ads) > 1 ? 's' : '') + ' captured' + ((A.ads[0] && A.ads[0].about) ? ' — newest: \u201c' + String(A.ads[0].about).replace(/"/g, "'") + '\u201d' : '') + (((A.ads[0] || {}).about) ? '' : '.')) : '',
       social: socialRowText('', A.posts, (s && s.postsSeen) || 0),
       website: (s && s.sale) || (n(A.website) ? String(A.website[0]) : ''),
-      email: n(A.emails) ? 'New email: "' + String((A.emails[0] && A.emails[0].subject) || '').replace(/"/g, "'") + '"' : '',
+      // Same substance tiers as the row builder — a gated-away read still falls back to
+      // the latest subject, never to the generic stub (Nolan, 15 Aug).
+      email: emailRowText('', n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || ''),
     };
     const gated = (raw, channel) => gateLine(line(raw), line(fb[channel]), { surface: 'slack', qa: qaNotes, brand: b.name, channel }).text;
     const rows = [];
