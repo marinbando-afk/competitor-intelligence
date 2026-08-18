@@ -9,6 +9,8 @@
 <meta property="og:title" content="How one makeup brand made $50K by spotting a competitor's strategy early"/>
 <meta property="og:description" content="A competitor quietly rebuilt their Q4 playbook. This brand read the move 10 days early — and got there first."/>
 <meta property="og:image" content="https://watchback.ai/og.png"/>
+<meta property="og:url" content="https://watchback.ai/case-50k.html"/>
+<meta property="og:type" content="article"/>
 <link rel="icon" href="favicon.svg"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -52,6 +54,11 @@ nav .nbtns{display:flex;align-items:center;gap:9px}
 nav .btn{padding:10px 16px;font-size:11px;margin-left:0}
 .logo{font-family:var(--disp);font-size:19px;font-weight:700;letter-spacing:.04em;white-space:nowrap}
 .logo b{color:var(--sage)}
+.crest{width:32px;height:32px;border-radius:50%;border:1px solid var(--sage-d);background:var(--sage-soft);display:flex;align-items:center;justify-content:center;flex:none}
+.crest svg{transform-origin:center;animation:blink 8.4s ease-in-out infinite}
+@keyframes blink{0%,94%,100%{transform:scaleY(1)} 96%{transform:scaleY(.08)} 98%{transform:scaleY(1)}}
+@media(prefers-reduced-motion:reduce){.crest svg{animation:none}}
+@media(max-width:640px){.crest{width:26px;height:26px}.crest svg{width:14px;height:14px}}
 @media(max-width:640px){nav .btn-ghost{display:none}nav .btn{padding:7px 9px;font-size:10px;letter-spacing:.05em}.logo{font-size:17px}.lbl-l{display:none}.lbl-s{display:inline}}
 .stamp{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--clay);border:1.5px solid var(--clay);border-radius:5px;padding:4px 11px;transform:rotate(-1.4deg)}
 .hero{padding:44px 0 20px;text-align:center}
@@ -93,7 +100,10 @@ article h2{font-size:25px;margin:38px 0 14px;color:#eef3f4}
 <body>
 <div class="wrap">
 <nav>
-  <div class="logo">WATCH<b>BACK</b></div>
+  <a class="logo" href="index.html" style="display:flex;align-items:center;gap:10px;color:var(--text)">
+    <span class="crest"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 12C6.6 6.7 17.4 6.7 21 12C17.4 17.3 6.6 17.3 3 12Z" stroke="#57d2cf" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="3.5" stroke="#57d2cf" stroke-width="1.6"/><path d="M12 8.5v7M8.5 12h7" stroke="#57d2cf" stroke-width="1.1"/><circle cx="12" cy="12" r="1.1" fill="#e2554f"/></svg></span>
+    <span>WATCH<b>BACK</b></span>
+  </a>
   <div class="nbtns">
     <a class="btn btn-ghost" href="app.html?signin=1">Sign in</a>
     <a class="btn btn-red" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}"><span class="lbl-l">Book a demo call</span><span class="lbl-s">Demo call</span></a>
