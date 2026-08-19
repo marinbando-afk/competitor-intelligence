@@ -2796,6 +2796,21 @@ function openConfirmPages(id){
   document.getElementById('cfFb').value=h.fb?('facebook.com/'+h.fb):'';
   document.getElementById('cfIg').value=h.ig?('instagram.com/'+h.ig):'';
   document.getElementById('cfTt').value=h.tt?('tiktok.com/@'+h.tt):'';
+  // A tracked brand already has CONFIRMED handles driving its scrapes — surface them
+  // (founder, 19 Aug: "if the brand has been tracked the social media handles should
+  // populate here"). Fills only the fields this user's own record left empty.
+  if(!h.fb||!h.ig||!h.tt){
+    fetch(API+'/api/resolve-handles?host='+encodeURIComponent(c.host||''),{headers:authH()})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(!editingComp||editingComp.id!==c.id)return;   // modal moved on meanwhile
+        var k=(d&&d.handles)||{};
+        var fb=document.getElementById('cfFb'),ig=document.getElementById('cfIg'),tt=document.getElementById('cfTt');
+        if(fb&&!fb.value&&k.fb)fb.value='facebook.com/'+k.fb;
+        if(ig&&!ig.value&&k.ig)ig.value='instagram.com/'+k.ig;
+        if(tt&&!tt.value&&k.tt)tt.value='tiktok.com/@'+k.tt;
+      }).catch(function(){});
+  }
   document.getElementById('cfFbFind').href='https://www.google.com/search?q='+q('facebook.com '+(c.name||''));
   document.getElementById('cfIgFind').href='https://www.google.com/search?q='+q('site:instagram.com '+(c.name||''));
   document.getElementById('cfTtFind').href='https://www.google.com/search?q='+q('site:tiktok.com '+(c.name||''));
