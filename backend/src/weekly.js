@@ -190,6 +190,29 @@ export async function generateWeekly(host, name, weekStart) {
     }
   } catch (e) { /* never lose the report to the gate */ }
 
+  // R-WEEKLY-GATE (19 Aug audit): the weekly passes the same MECHANICAL gate as the daily
+  // — ad totals, meta-commentary, truncation corpses, unbalanced quotes, performance
+  // claims. The daily got the whole enforcement spine; the weekly could silently drift,
+  // and a client reads them side by side. Violating bullets are dropped; a violating
+  // headline/summary is kept (a report needs one) but QA-pinged either way.
+  try {
+    const { checkText } = await import('./rulecheck.js');
+    const bad = [];
+    const flag = (t, lb) => { const v = checkText(String(t || ''), { surface: 'weekly' }); if (v.length) bad.push(lb + ' [' + v.map((x) => x.id).join(',') + ']: ' + String(t).slice(0, 90)); return v.length > 0; };
+    flag(report.headline, 'headline');
+    if (Array.isArray(report.summary)) report.summary = report.summary.filter((x, i) => !flag(x, 'summary.' + i));
+    for (const ch of ['ads', 'social', 'website', 'email']) {
+      const c = report.channels && report.channels[ch];
+      if (!c) continue;
+      flag(c.summary, ch + '.summary');
+      if (Array.isArray(c.bullets)) c.bullets = c.bullets.filter((x, i) => !flag(x, ch + '.b' + i));
+    }
+    if (bad.length) {
+      console.warn('weekly gate ' + name + ': ' + bad.join(' | '));
+      try { const { postText } = await import('./slack.js'); postText('🧯 *Weekly gate* [' + name + ']: ' + bad.slice(0, 5).join('\n')).catch(() => {}); } catch (e) { /* ping best-effort */ }
+    }
+  } catch (e) { /* the gate must never lose the report */ }
+
   const data = { brand: name, host, week: { start: weekStart, end, label: fmtDay(weekStart) + ' – ' + fmtDay(end) }, stats: digest.stats, report, generatedAt: new Date().toISOString() };
   await pool.query(
     `INSERT INTO snapshots(host, channel, day, data) VALUES($1, 'weekly', $2, $3)

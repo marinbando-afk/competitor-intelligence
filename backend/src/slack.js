@@ -8,7 +8,8 @@ import { getInsights } from './insights.js';
 import { dailySignals, signalLines, activityLines } from './signals.js';
 import { latestSnapshot } from './snapshots.js';
 import { stripUrlParams, stripAdTotals } from './adsguard.js';
-import { gateLine } from './rulecheck.js';
+import { gateLine, checkText } from './rulecheck.js';
+import { hasEmailOffer } from './findings.js';
 import { pool } from './db.js';
 import { normChannels } from './channels.js';
 
@@ -90,6 +91,16 @@ export const textClaimsLaunches = (t) => /\b\d+\s+new\s+ads?\s+launched\b/i.test
 // the ❗ must follow the sentence even when the signal engine has already consumed the
 // announce-once state (the read is generated the evening before the brief quotes it).
 export const textClaimsFunnel = (t) => /\bnew (?:ad )?funnel\b|\bfunnel live\b|\bfunnel began\b/i.test(String(t || ''));
+
+// R-MARK-TEXT completed for ALL rows (19 Aug audit): every ❗ derives from the sentence
+// it decorates — Ads/Social/Email used to keep signal-engine marks, the same asymmetry
+// that produced Glov's ❗-on-unchanged and Ancestral's ✅-above-❗. "No new …" phrasing is
+// stripped first so quiet rows can never false-positive.
+const stripQuiet = (t) => String(t || '').replace(/\b(?:no|nothing)\s+new\b[^.!?]*/gi, '');
+export const textClaimsSocialNews = (t) => /\bnew\b[^.!?]{0,40}\bposts?\b|\bnew (?:instagram|tiktok|facebook|youtube) /i.test(stripQuiet(t));
+export const textClaimsEmailNews = (t) => /\bnew email/i.test(stripQuiet(t));
+export const textClaimsAdsNews = (t) => textClaimsLaunches(t) || textClaimsFunnel(t)
+  || /\bfor the first time\b|\bnew facebook page\b|\bnew landing domain\b|\bnew (?:ad )?angle\b|\bout[- ]of[- ]season\b|\bfake sale\b|\bis DEAD\b|\bredirected to\b/i.test(stripQuiet(t));
 
 // R-MARK-TEXT for the BADGE (founder, 19 Aug — Ancestral shipped "✅ no new moves" one
 // line above an ❗ funnel row): the badge must agree with the rows it crowns. The signal
@@ -256,7 +267,9 @@ export function socialRowText(read, posts, postsSeen, latestAbout) {
 export function emailRowText(read, newEmails, emailsSeen, latestSubject) {
   if (read) return String(read);
   const subj = safeQuote(latestSubject);
-  if (newEmails > 0) return 'New email: \u201c' + subj + '\u201d';
+  // R-EMAIL-OFFER (founder, 19 Aug): a code/discount in an email is list-only offer
+  // pressure \u2014 flagged even on the deterministic fallback path.
+  if (newEmails > 0) return 'New email: \u201c' + subj + '\u201d' + (hasEmailOffer(latestSubject) ? ' \u2014 carries a discount offer' : '');
   if (emailsSeen > 0) return 'No new emails — latest: \u201c' + subj + '\u201d.';
   return '';
 }
@@ -271,6 +284,12 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
   const link = viewUrl || await founderShareUrl();
   const on = (k) => !channels || channels.includes(k);
   const todayISO = new Date().toISOString().slice(0, 10);
+  // R-NAME-01 (19 Aug audit): ONE canonical display name per host on every surface. The
+  // stored reads are generated with the tracked-list name, so the brief header must use
+  // it too — "Current Body" over the header and "CurrentBody" inside the read look like
+  // two different brands to a client.
+  const canon = {};
+  try { const t = await latestSnapshot('__tracked__', 'list'); for (const it of ((t && t.items) || [])) if (it && it.host && it.name) canon[it.host] = it.name; } catch (e) { /* per-user names stand */ }
   const blocks = [];
   const qaNotes = [];   // delivery-gate downgrades, QA-pinged to the founder after a real send
   let demoHeaderWritten = false;
@@ -306,7 +325,6 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     const mark = (isNew) => (isNew ? '❗ ' : '');
     const ch = (k) => (fresh && ins[k] && ins[k].summary) ? String(ins[k].summary) : '';
     const social = ch('instagram') || ch('tiktok') || ch('facebook') || ch('social');
-    const adsNew = !!(n(A.ads) || (s && (n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.angle))));
     // DELIVERY GATE (founder, 12 Aug): no AI-written line ships unverified. A line that
     // violates a mechanical rule after scrubbing is replaced by deterministic fallback
     // text, and the downgrade is QA-pinged to the founder webhook. Rules: rulecheck.js.
@@ -324,10 +342,10 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     const adsText = ch('ads') ? gated(adsRecapLine(ins), 'ads') : '';
     // Bold labels (founder, 18 Aug: "still feels text heavy") — the label is the anchor
     // the eye scans by; bolding it turns four lines of prose into four labeled rows.
-    if (on('ads') && adsText) rows.push('   *Ads:* ' + mark(adsNew || textClaimsLaunches(adsText) || textClaimsFunnel(adsText)) + adsText);
+    if (on('ads') && adsText) rows.push('   *Ads:* ' + mark(textClaimsAdsNews(adsText)) + adsText);
     const socialTxt = socialRowText(social, A.posts, (s && s.postsSeen) || 0, (s && s.latestPostAbout) || '');
     if (on('social')) {
-      if (socialTxt) rows.push('   *Social:* ' + mark(!!n(A.posts)) + gated(socialTxt, 'social'));
+      if (socialTxt) { const soTx = gated(socialTxt, 'social'); rows.push('   *Social:* ' + mark(textClaimsSocialNews(soTx)) + soTx); }
       // R-NOT-CHECKED (founder rule 12 Aug, implemented 19 Aug — Pannonian Padel):
       // connected profiles that yielded NOTHING in the last scan are said plainly.
       // "Nothing captured" is the exact truth whether the scrape failed or the profiles
@@ -352,21 +370,30 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
       }
     }
     const emailTxt = emailRowText(ch('email'), n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || '');
-    if (on('email') && emailTxt) rows.push('   *Email:* ' + mark(!!n(A.emails)) + gated(emailTxt, 'email'));
+    if (on('email') && emailTxt) { const emTx = gated(emailTxt, 'email'); rows.push('   *Email:* ' + mark(textClaimsEmailNews(emTx)) + emTx); }
+    // R-CAMPAIGN (founder, 19 Aug — "do all of them"): when the stored brief carries a
+    // cross-channel campaign synthesis (2+ channels moving on one theme), it LEADS the
+    // block — the connection is the intelligence. Gate-checked; a violating line is
+    // dropped, never replaced (there is no honest deterministic fallback for synthesis).
+    const camp = (fresh && ins.brief && typeof ins.brief.campaign === 'string') ? ins.brief.campaign.trim() : '';
+    if (camp && rows.length >= 2) {
+      const cl = line(camp);
+      if (cl && !checkText(cl, { surface: 'slack' }).length) rows.unshift('   *Campaign:* ' + cl);
+    }
     // The badge summarises only the channels this reader actually gets — a 💡 earned by a
     // website sale a social-only client cannot open is a promise the brief never keeps.
     const pri = !!(s && ((on('website') && (s.sale || n(s.products))) || (on('ads') && (n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.angle)))));
     const anyAct = !!((on('ads') && n(A.ads)) || (on('social') && n(A.posts)) || (on('email') && n(A.emails)) || (on('website') && n(A.website)));
     const badge = badgeFor(pri, anyAct, rows.join('\n'));
     if (rows.length) {
-      blocks.push('*' + b.name + '* ' + badge + '\n' + rows.join('\n'));
+      blocks.push('*' + (canon[b.host] || b.name) + '* ' + badge + '\n' + rows.join('\n'));
     } else {
       // No fresh stored read (rebuild missed the brand) — the deterministic signal lines
       // still carry the block, old-style bullets, so news is never dropped. Those bullets
       // are cross-channel and carry no channel tag, so a restricted reader gets the brand
       // line only: dropping news is recoverable, leaking a channel they don't have is not.
       const ls = channels ? [] : (signalLines(s).length ? signalLines(s) : activityLines(s)).map(rel);
-      blocks.push('*' + b.name + '* ' + badge + (ls.length ? '\n' + ls.map((l) => '   • ' + l).join('\n') : ''));
+      blocks.push('*' + (canon[b.host] || b.name) + '* ' + badge + (ls.length ? '\n' + ls.map((l) => '   • ' + l).join('\n') : ''));
     }
   }
   // QA ping — founder webhook only, only on REAL deliveries. Every downgraded line is a

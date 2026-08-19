@@ -381,7 +381,12 @@ export function diffWebsite(a, b) {
       // mean?"). A product gaining its first real price is a LAUNCH, and the new-products
       // line below carries launches by NAME.
       if (!(am[h].price > 0 && bm[h].price > 0)) continue;
-      if (priceChanges < 4) out.push('“' + (bm[h].title || h) + '”  ' + money(am[h].price) + ' → ' + money(bm[h].price));
+      // R-PRICE-CONTEXT (founder, 19 Aug): a bare "$44 → $39" hides the meaning — carry
+      // the % move so the reader sees the size of the cut/raise without doing math.
+      if (priceChanges < 4) {
+        const pcT = (am[h].price > 0) ? Math.round(((bm[h].price - am[h].price) / am[h].price) * 100) : 0;
+        out.push('“' + (bm[h].title || h) + '”  ' + money(am[h].price) + ' → ' + money(bm[h].price) + (pcT ? ' (' + (pcT > 0 ? '+' : '') + pcT + '%)' : ''));
+      }
       priceChanges++;
     }
   }

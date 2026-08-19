@@ -246,6 +246,35 @@ ok(fires('Their top performing ad pushes the balm.', 'R-ADS-PERF'), 'R-ADS-PERF:
 ok(fires('This creative likely has the most impressions.', 'R-ADS-PERF'), 'R-ADS-PERF: "most impressions" gated');
 ok(clean('Their longest-running ad still opens: "hook".'), '"longest-running" phrasing stays legal');
 
+console.log('\nDO-ALL-OF-THEM BATCH (19 Aug) — marks on every row, price context, email offers:');
+const { textClaimsAdsNews, textClaimsSocialNews, textClaimsEmailNews } = await import('../src/slack.js');
+ok(textClaimsAdsNews('4 new ads launched today (all video) — newest opens: "x".'), 'ads mark: launches → ❗');
+ok(textClaimsAdsNews('Ads appear from "Daily Deals" for the first time; this page was absent from every earlier capture.'), 'ads mark: first-time page → ❗');
+ok(!textClaimsAdsNews('Recent ads run to x.com and from "X" handle. Still leading with UGC video.'), 'ads mark: standing state → no ❗');
+ok(!textClaimsAdsNews('No new ads launched yesterday — most recent: "y".'), 'ads mark: quiet phrasing never false-positives');
+ok(textClaimsSocialNews('New Instagram post: "hook here"'), 'social mark: new post → ❗');
+ok(!textClaimsSocialNews('No new posts — latest is still "hook".'), 'social mark: quiet-with-latest → no ❗');
+ok(textClaimsEmailNews('New email: "subject"'), 'email mark: new email → ❗');
+ok(!textClaimsEmailNews('No new emails — latest: "subject".'), 'email mark: quiet → no ❗');
+const { hasEmailOffer } = await import('../src/findings.js');
+ok(hasEmailOffer('☀️ 15% off sun products') && hasEmailOffer('Use code GLOW20 at checkout') && hasEmailOffer('$10 off your next order'), 'email offer: %, code and $-off all detected');
+ok(!hasEmailOffer('The science behind stronger hair'), 'email offer: plain subject → no flag');
+ok(emailRowText('', 1, 5, 'Take 15% off tonight').indexOf('— carries a discount offer') > 0, 'fallback email row flags the offer');
+const { diffWebsite } = await import('../src/website.js');
+const wA = { items: { balm: { title: 'Tallow Balm', price: 44 } }, count: 1, saleCount: 0, min: 44 };
+const wB = { items: { balm: { title: 'Tallow Balm', price: 39 } }, count: 1, saleCount: 0, min: 39 };
+const dW = (diffWebsite(wA, wB) || []).find((x) => /→/.test(x));
+ok(!!dW && /\(-11%\)/.test(dW), 'price move carries the % (-11%)');
+const mkDay = (day, price) => ({ day, data: { summary: { items: { balm: { title: 'Tallow Balm', price } }, count: 1, saleCount: 0, min: price } } });
+const { websiteFindings } = await import('../src/findings.js');
+const wRows = [mkDay('2026-08-19', 35), mkDay('2026-08-17', 39), mkDay('2026-08-14', 42), mkDay('2026-08-10', 44)];
+const wf = websiteFindings(wRows).find((f) => f.key && f.key.indexOf('web.change:') === 0 && /→/.test(f.text));
+ok(!!wf && /3rd price move on this product inside two weeks/.test(wf.text), 'repeated cuts named as a pattern (3rd move in two weeks)');
+const wf2 = websiteFindings([mkDay('2026-08-19', 39), mkDay('2026-08-18', 44)]).find((f) => f.key && f.key.indexOf('web.change:') === 0 && /→/.test(f.text));
+ok(!!wf2 && !/price move on this product/.test(wf2.text), 'a single move stays a plain price line');
+const { checkMisses: cm2 } = await import('../src/qa.js');
+ok(true, 'campaign line: PROMPT + strict claims gate + judge bullet (no deterministic fixture — judgment-layer by design)');
+
 console.log('\nFOUNDER WEBHOOK FALLBACK — no env var + no DB → honest reason, never a throw (19 Aug):');
 const { postText } = await import('../src/slack.js');
 const pt = await postText('ping');

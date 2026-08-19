@@ -27,6 +27,9 @@ import { sameBannerText, isSaleBanner, cleanBannerText, offerFlags, timerIn, TIM
 
 const dOf = (v) => String(v instanceof Date ? v.toISOString() : v || '').slice(0, 10);
 const domOf = (u) => String(u || '').replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '').toLowerCase();
+// R-EMAIL-OFFER: percent-off, dollar/currency-off or an explicit code in email copy.
+export const hasEmailOffer = (s) => /\b\d{1,2}\s*%\s*off\b|(?:[$€£]\s?\d+|\b\d+\s*(?:USD|EUR|GBP))\s*off\b|\b(?:use |with )?code[:\s]+[A-Z0-9]{3,}\b|\bdiscount code\b/i.test(String(s || ''));
+
 // domain + path, query/fragment stripped, no trailing slash — the identity of a LANDING
 // PAGE rather than a landing site. '' for bare-domain landings (the domain check owns those).
 const pathOf = (u) => {
@@ -532,7 +535,27 @@ export function websiteFindings(rows) {
         const named = [...known].filter((k) => k.length >= 5 && c.toLowerCase().indexOf(k) >= 0);
         if (named.length) { out.push({ type: 'state', key: 'web.relisting', text: 'Storefront listing change involves products already on their site (' + named.slice(0, 3).join(', ') + ') — a re-listing or variant, not a new product.', evidence: { known: named.slice(0, 5) } }); continue; }
       }
-      out.push({ type: isAdd ? 'new' : 'change', key: 'web.change:' + c.slice(0, 40), text: c + ' (' + prev.day + ' → ' + today.day + ')', evidence: { change: c } });
+      // R-PRICE-CONTEXT (founder, 19 Aug): repeated moves are the story — "3rd price move
+      // on this product inside two weeks" reads as margin pressure or clearance, and it is
+      // computable from the day rows we already hold. Counted over distinct consecutive
+      // price values for the SAME titled product across the 14-day window.
+      let cText = c;
+      const tm = /→/.test(c) && c.match(/^“(.+?)”/);
+      if (tm && tm[1]) {
+        const cutoff14 = new Date(Date.parse(today.day) - 14 * 864e5).toISOString().slice(0, 10);
+        const seq = [];
+        for (const r of [...rows].reverse()) {   // oldest → newest
+          if (!r.day || r.day < cutoff14) continue;
+          const items = (r.data && r.data.summary && r.data.summary.items) || {};
+          for (const h of Object.keys(items)) {
+            if (String((items[h] && items[h].title) || h) === tm[1] && items[h] && items[h].price != null) { seq.push(items[h].price); break; }
+          }
+        }
+        let moves = 0;
+        for (let i = 1; i < seq.length; i++) if (Math.abs(seq[i] - seq[i - 1]) >= 0.01) moves++;
+        if (moves >= 3) cText += ' — their ' + (moves === 3 ? '3rd' : moves + 'th') + ' price move on this product inside two weeks';
+      }
+      out.push({ type: isAdd ? 'new' : 'change', key: 'web.change:' + c.slice(0, 40), text: cText + ' (' + prev.day + ' → ' + today.day + ')', evidence: { change: c } });
     }
   }
   return out;
@@ -560,7 +583,11 @@ export function windowFindings(rows, label, itemsOf) {
       const noun = /email/i.test(label) ? 'email' : label + ' post';
       let q = String(p.text || p.subject || '').replace(/\s+/g, ' ').trim();
       if (q.length > 110) q = q.slice(0, 110).replace(/\s+\S*$/, '') + '…';
-      out.push({ type: 'new', key: label + '.new:' + (p.id || p.link || String(p.text || '').slice(0, 20)), text: 'New ' + noun + ': "' + q + '"', evidence: { link: p.link || '', views: p.views || null, date: p.date || null } });
+      // R-EMAIL-OFFER (founder, 19 Aug): a discount/code inside an email is the aggressive
+      // retention play, invisible on the storefront — flagged deterministically so the
+      // signal survives even when the model read gates away.
+      const offer = /email/i.test(label) && hasEmailOffer(String(p.subject || '') + ' ' + String(p.preview || p.text || ''));
+      out.push({ type: 'new', key: label + '.new:' + (p.id || p.link || String(p.text || '').slice(0, 20)), text: 'New ' + noun + ': "' + q + '"' + (offer ? ' — carries a discount offer (list-only pressure, not shown as a site sale).' : ''), evidence: { link: p.link || '', views: p.views || null, date: p.date || null, offer: offer || undefined } });
     }
   }
   // HARD QUIET RULE (founder, 13 Aug): a bare "no new posts/emails" may only be written

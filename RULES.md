@@ -28,6 +28,29 @@ misses to the founder's Slack.
 
 ---
 
+## Thresholds — every magic number in one place (19 Aug audit)
+
+| Number | What it governs | Where |
+|---|---|---|
+| 23:00 | authoritative nightly capture; 08:00 brief reads it | refresh.js R-DAYLOCK |
+| 2 days | a sale banner counts as genuinely NEW (older → "already running") | signals.js R-SALE-NEW |
+| 6 days | a sale RENAME stays news, then reverts to unchanged | findings.js R-SALE-RENAME |
+| 7 days | a launched ad counts as new ("new" means this week); bare "no new X" allowed only after 7+ quiet days | findings.js / claims.js |
+| 3 days | Tier-2 "new ad" Meta start-date window | signals.js |
+| 3 ads | first-seen landing PATH becomes a NEW FUNNEL | findings.js R-FUNNEL-PATH |
+| 14 days | never-announced funnel still fires once (catch-up window) | findings.js R-FUNNEL-CATCHUP |
+| 14 days | "new ad angle" = not run within this window (max 2/brand) | signals.js |
+| 3 mornings | persistent alert repeat cap, then 30-day mute, then one reminder | findings.js R-REPEAT |
+| 5 days | launch-quiet days before the longest-running ad may surface | findings.js R-ADS-LEADING |
+| 30 days | leading-ad cadence (at most once per) | findings.js R-ADS-LEADING |
+| 2 days | a stored read older than this is stale — never quoted as fresh; website "last captured N days ago" row appears past it | slack.js |
+| 45 days | an occasion is STALE only when farther than this in both directions | occasions.js |
+| 180 / 280 chars | brief row clip target / whole-first-sentence hard ceiling | slack.js clipSent |
+
+The asymmetries are deliberate: a sale is "new" for 2 days because banners are noisy and
+rotation-prone; a funnel catch-up gets 14 because a funnel is a durable strategic asset,
+not a slide. Changing any number = a founder decision recorded here.
+
 ## Data boundary — the reporting day
 
 - [snapshots.js + refresh.js R-DAYLOCK] [ENFORCED] **One authoritative capture per brand per day, taken NIGHTLY at 23:00 — each snapshot holds a complete calendar day, and the 08:00 brief reads last night's capture** ("we need a full day to end, otherwise there is always a gap from the moment you reported until the day finished" — founder 12 Aug; nightly-vs-morning re-confirmed by founder in the 19 Aug audit). WatchBack never reports partial-today data
@@ -125,10 +148,12 @@ misses to the founder's Slack.
 - [insights.js + website.js] [BOTH] A NEW PRODUCT LAUNCH is the top website signal — lead with it and NAME the product(s); never just a number; variants collapse to "Name — N variants" (founder, 18 & 22 Jul, 1 Aug)
 - [website.js + claims.js] [BOTH] A new LISTING is not a new PRODUCT (-1/-2 handles, shared base names = re-listings); zero-price "FREE gift" SKUs are a promo mechanic; laddered duplicate prices are PRICE TESTING (founder, 1 & 6 Aug)
 - [website.js] [ENFORCED] A 0-price placeholder is never a price move (founder, 22 Jul)
+- [website.js + findings.js R-PRICE-CONTEXT] [ENFORCED] **A price move carries its meaning, not just the numbers**: every price-change line states the % ("$44 → $39 (-11%)"), and a product's 3rd+ move inside 14 days is named as a pattern ("their 3rd price move on this product inside two weeks") — margin pressure and clearance are the story, computed from stored day rows, never model arithmetic (founder, 19 Aug)
 - [website.js R-CURRENCY-01] [ENFORCED] Price-move evidence captions state the numbers in the STORE'S OWN currency and label them "(store currency)" — the paired screenshot may render geo-converted prices (Casa & Beyond: A$119.99 feed vs $96 USD page). Never guess or convert a currency; precision-first (founder, 13 Aug)
 - [insights.js + findings.js] [BOTH] ANNOUNCEMENT BARS ROTATE: a slide missing ≠ sale ended; a slide seen ≠ sale started; sale start/end comes ONLY from the ACTIVE SALE facts (founder, 6 Aug)
 - [insights.js] [ENFORCED] SALE TIMELINE dates computed in code, quoted verbatim — never model arithmetic (founder, 24 Jul)
 - [insights.js] [ENFORCED] Baseline day: promo "already running when monitoring began" — never "launched today" (founder, 30 Jul)
+- [insights.js R-BASELINE] [PROMPT] **A new competitor's FIRST report is the standing-state dossier, not a caveat litany**: the live sale (as already-running), the core ad message and funnel map, the banner, the latest email and post — framed once as "monitoring begins — this is where they stand today". The no-earlier-capture limits still bind every claim; they just don't get to BE the story (founder, 19 Aug)
 - [insights.js + claims.js + rulecheck.js R-DATE-02] [BOTH] Already-running promo: ACTIVE and unchanged; no start date, no "live/running since", no day counts; wording variance of the same banner (rephrasing, partial reads) is never a new sale (founder, 9 Aug) — but an OCCASION change is, see R-SALE-RENAME
 - [findings.js R-SALE-RENAME] [ENFORCED] **A RENAMED SALE IS A NEW SALE.** A change of OCCASION ("Summer Sale" → "Back to School Sale") is a new sale even when the headline discount is identical — the occasion IS the sale. Report it as a new sale, name what it replaced and when that was last captured, and add that the economics are unchanged. Never "renamed, not new"; never "active and unchanged" (Seranova, 12 Aug)
 - [findings.js R-SALE-RENAME] [ENFORCED] A rename is dated to the capture that first SAW the new wording, never to a publish date we cannot know — say so explicitly ("we know when we first saw it")
@@ -146,6 +171,7 @@ misses to the founder's Slack.
 ## Email
 
 - [insights.js GUIDE.email] [PROMPT] The LATEST email leads (subject, core message, what it pushes) — never open with cadence arithmetic (founder, 10 Aug)
+- [findings.js + slack.js + insights.js R-EMAIL-OFFER] [BOTH] **A discount or code inside an email is a first-class signal** — the aggressive retention play, invisible on the storefront. Deterministically flagged in findings ("New email: … — carries a discount offer (list-only pressure, not shown as a site sale)"), carried by the fallback row, and the read is instructed to lead with it — never buried in a cadence bullet (founder, 19 Aug)
 - [insights.js] [BOTH] Sender-domain alias = deliberate deliverability firewall — bullet-worthy signal; the alias fact is injected by code
 - [insights.js] [ENFORCED] Opt-in confirmation emails are never analysed; honest fixed summary when only a confirmation exists
 - [insights.js] [ENFORCED] Email absence is never evidence (suppression/scroll-out) — canJudgeAbsence hard-false
@@ -253,6 +279,9 @@ happens' spill-life hook.
 - [slack.js] [ENFORCED] SYNC RULE: brand blocks mirror the app's per-channel summaries; the brief can never contradict the app (founder, 10 Aug — the intent; the MECHANISM is R-ONE-SOURCE for text and R-MARK-TEXT for the ❗/badge, which supersede this entry's "❗ marks new signals" derivation)
 - [slack.js R-MARK-SYNC] [ENFORCED] The ❗ must agree with the sentence it decorates: a row asserting launches ("N new ads launched") always carries the new-signal mark, even when the signals engine missed it — marks follow words, never a second derivation (founder, 14 Aug — Ancestral)
 - [slack.js R-MARK-TEXT] [ENFORCED] **R-MARK-SYNC in BOTH directions for the Website row: the ❗ derives from the shipped sentence itself (textClaimsWebNews), never from the signal engine** — s.sale stays truthy on every standing-sale day (catch-up refires, wording drift) and decorated "Summer Sale unchanged — prices steady" as news; an "unchanged" row can never carry ❗ (founder, 19 Aug — Glov: "why an exclamation mark if nothing happened")
+- [slack.js R-MARK-TEXT] [ENFORCED] **Mark-follows-text on ALL FOUR rows (completed 19 Aug audit):** the Ads/Social/Email ❗ now derive from the shipped sentence too (textClaimsAdsNews/SocialNews/EmailNews, quiet-phrase-stripped) — the signal-engine marks were the same asymmetry that produced Glov's ❗-on-unchanged
+- [slack.js + insights.js + qa.js R-CAMPAIGN] [BOTH] **Cross-channel campaign synthesis: when 2+ channels move on the SAME theme within ~2 days, one "Campaign:" line LEADS the brand block** ("Coordinated push on the tallow balm: new advertorial funnel, fresh ad batch and a 15%-off email inside 48h") — the connection is the intelligence. Generated in the brief (empty string when no genuine connection — NEVER manufactured), gated by the strictest claims facts, delivery-checked by rulecheck (violations drop the line, no fallback), and the QA judge flags any campaign line supported by fewer than two rows in the block (founder, 19 Aug)
+- [slack.js R-NAME-01] [ENFORCED] **One canonical display name per host on every surface** — reads are generated with the tracked-list name, so brief headers resolve through it too; "Current Body" over "CurrentBody" reads as two different brands (19 Aug audit)
 - [slack.js badgeFor R-MARK-TEXT] [ENFORCED] **The brand badge must agree with the rows it crowns** — "✅ no new moves" shipped one line above an ❗ funnel row (Ancestral, 19 Aug) because the badge came from the signal engine while the row came from the read. ❗ + a priority claim (funnel/new sale/new product) → 💡; any ❗ or activity → 🔹; ✅ only when every row is quiet
 - [slack.js clipSent + rulecheck.js R-TEXT-02] [ENFORCED] **The 180-char row clip may never amputate the news**: an oversize FIRST sentence ships whole (hard ceiling 280) — the funnel callout was clipped to "…running from the." (Ancestral, 19 Aug); clip fallbacks strip dangling articles before the ellipsis, and R-TEXT-02 now fires on any line ending in an article/conjunction
 - [slack.js + rulecheck.js R-FALLBACK-SUBSTANCE / R-PHRASE-03] [ENFORCED] **"Details in the app" is banned on every surface** — captured items carry their own hook/subject/about, so deterministic fallbacks quote them: `New Instagram post: "Play your comfort card…"`, `2 new ads captured — newest: "…"`. Deflecting to another surface instead of stating substance we already hold is lazy reporting; the gate rejects the phrase outright (founder, 14 Aug)
@@ -273,6 +302,7 @@ happens' spill-life hook.
 ## Weekly report
 
 - [weekly.js] [ENFORCED] Findings-first; headline/summary/channel text passes the claims gate; no active-ad or product totals; only genuinely-launched ads and this-week posts/emails cited
+- [weekly.js R-WEEKLY-GATE] [ENFORCED] **The weekly passes the same MECHANICAL gate as the daily** (rulecheck: totals, meta-commentary, truncation corpses, unbalanced quotes, performance claims) — a client reads daily and weekly side by side, so the weekly may never drift below the daily's floor. Violating bullets are dropped; a violating headline is kept (a report needs one) but every violation QA-pings the founder (19 Aug audit)
 - [weekly.js] [ENFORCED] Every launched ad counts, no dedup (founder, 20 Jul); sale STATUS never discounted-product counts
 - [weekly.js] [PROMPT] Channel inactivity only when data explicitly says nothing was published; engagement is lifetime; materiality filter; output-shape limits (headline ≤14 words, etc.)
 - [weekly.js] [ENFORCED] Served weekly = most recent COMPLETED Mon–Sun week; social aggregated across daily captures deduped by URL

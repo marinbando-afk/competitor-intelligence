@@ -97,6 +97,7 @@ const JUDGE_RULES = `You are auditing a competitor-intelligence daily brief agai
 - No truncated or dangling sentences, no encoding garbage, no unbalanced quotes.
 - A line must never contradict another line about the same brand.
 - PROSE QUALITY — flag anything that reads like a broken tool: tense clashes ("is running ... yesterday"), the same fact stated twice in one line ("No change — ... unchanged"), dangling fragments, robotic repetition of an identical sentence pattern across many brands, orphaned punctuation.
+- A "Campaign:" line is a cross-channel synthesis — it is only legitimate when AT LEAST TWO channel rows in the SAME brand block tell the same story; flag any campaign line whose theme is supported by fewer than two rows (a manufactured synthesis is the worst possible over-claim).
 Report ONLY real violations — an empty list is the expected outcome. Be precise and quote the offending text.`;
 
 async function judgeText(text, factsByBrand) {
