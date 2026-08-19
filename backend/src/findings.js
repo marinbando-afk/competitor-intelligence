@@ -77,7 +77,7 @@ export function adsFindings(rows, capN) {
     for (const a of ((r.data && r.data.ads) || [])) {
       const d = domOf(a.landing); if (d && !seenDom.has(d)) seenDom.set(d, r.day);
       if (a.page && !seenPage.has(a.page)) seenPage.set(a.page, r.day);
-      const pp = pathOf(a.landing); if (pp && !seenPath.has(pp)) seenPath.set(pp, r.day);
+      const pp = pathOf(a.landing); if (pp) seenPath.set(pp, r.day);   // overwritten newest→oldest, so the final value is the FIRST day the path was captured
     }
   }
 
@@ -132,14 +132,36 @@ export function adsFindings(rows, capN) {
     // threshold keeps one-off tracking variants and typo'd URLs out.
     for (const [pp, info] of pathNow) {
       const dm = domOf('https://' + pp);
-      if (seenPath.has(pp) || info.n < 3) continue;
-      if (!seenDom.has(dm)) continue;   // a brand-new DOMAIN already gets its own finding above
+      if (info.n < 3 || !seenDom.has(dm)) continue;   // a brand-new DOMAIN already gets its own finding above
       const handles = [...info.pages].filter(Boolean).slice(0, 2).map((x) => '"' + x + '"').join(' and ');
-      out.push({
-        type: 'new', key: 'ads.newPath:' + pp,
-        text: 'New ad funnel live: multiple ads now drive to ' + pp + ' — a landing page absent from every earlier capture that held ads' + (handles ? ', running from the ' + handles + ' handle' + (info.pages.size > 1 ? 's' : '') : '') + '.',
-        evidence: { path: pp, url: info.url, count: info.n, pages: [...info.pages].filter(Boolean) },
-      });
+      const hTail = handles ? ', running from the ' + handles + ' handle' + (info.pages.size > 1 ? 's' : '') : '';
+      if (!seenPath.has(pp)) {
+        out.push({
+          type: 'new', key: 'ads.newPath:' + pp,
+          text: 'New ad funnel live: multiple ads now drive to ' + pp + ' — a landing page absent from every earlier capture that held ads' + hTail + '.',
+          evidence: { path: pp, url: info.url, count: info.n, pages: [...info.pages].filter(Boolean) },
+        });
+      } else {
+        // CATCH-UP (same doctrine as R-SALE-NEW, "captured is NOT announced"): a funnel
+        // that began before this check shipped — or on a day whose brief never delivered —
+        // would otherwise NEVER be reported (Ancestral's beef-fat advertorial, live since
+        // 13 Aug, was the founding case). A recently-started path fires once; the
+        // announce-once state in computeFindings keeps it from repeating, and anything
+        // older than the window is established scenery, not missed news.
+        const firstDay = seenPath.get(pp);
+        const age = Math.round((Date.parse(today.day) - Date.parse(firstDay)) / 864e5);
+        // Proof of absence (same doctrine as newDomain): "began on firstDay" is only true
+        // if an ads-holding capture OLDER than firstDay lacks the path — otherwise the
+        // path may simply be as old as our history and its "beginning" is our window edge.
+        const beganProven = earlier.length && earlier[earlier.length - 1].day < firstDay;
+        if (beganProven && age >= 1 && age <= FUNNEL_CATCHUP_DAYS) {
+          out.push({
+            type: 'new', key: 'ads.funnelCatchup:' + pp,
+            text: 'Ad funnel live (already running): multiple ads drive to ' + pp + hTail + ' — the funnel began on ' + firstDay + '.',
+            evidence: { path: pp, url: info.url, count: info.n, firstDay, pages: [...info.pages].filter(Boolean) },
+          });
+        }
+      }
     }
   }
 
@@ -538,6 +560,41 @@ export function windowFindings(rows, label, itemsOf) {
 // reminder and the cycle restarts. Applies to persistent-ALERT findings only — daily
 // heartbeat lines the founder explicitly wants every day (live sale, storefront
 // unchanged, ad footprint) are exempt by design. Pure decision exported for tests.
+// R-FUNNEL-CATCHUP window: a path first captured within this many days that was never
+// announced still fires once; older paths are established scenery, not missed news.
+export const FUNNEL_CATCHUP_DAYS = 14;
+
+// Pure announce-once decision for funnel catch-ups, exported for tests: emit when never
+// announced, or when announced TODAY (same-day reruns stay idempotent, like repeatCapNext).
+export function funnelCatchupNext(prevAnnouncedDay, todayStr) {
+  return !prevAnnouncedDay || prevAnnouncedDay === todayStr;
+}
+
+// Drop funnel catch-up findings already announced on an earlier day; record today's.
+// State lives beside the repeat-cap's in _findstate ({ repeat, funnels }).
+async function applyFunnelCatchup(host, todayStr, list) {
+  try {
+    if (!list.some((f) => String(f.key || '').indexOf('ads.funnelCatchup:') === 0)) return list;
+    const st = await latestSnapshot(host, '_findstate');
+    const funnels = (st && st.funnels && typeof st.funnels === 'object') ? st.funnels : {};
+    const out = [];
+    let dirty = false;
+    for (const f of list) {
+      if (String(f.key || '').indexOf('ads.funnelCatchup:') !== 0) { out.push(f); continue; }
+      const path = f.key.slice('ads.funnelCatchup:'.length);
+      if (!funnelCatchupNext(funnels[path], todayStr)) continue;
+      if (funnels[path] !== todayStr) { funnels[path] = todayStr; dirty = true; }
+      out.push(f);
+    }
+    if (dirty) {
+      const cutoff = new Date(Date.parse(todayStr) - 90 * 864e5).toISOString().slice(0, 10);
+      for (const k of Object.keys(funnels)) if (funnels[k] < cutoff) delete funnels[k];
+      await saveSnapshot(host, '_findstate', { repeat: (st && st.repeat) || {}, funnels });
+    }
+    return out;
+  } catch (e) { return list; }   // the catch-up must never break findings
+}
+
 export const REPEAT_CAPPED = [/^ads\.landRedirect:/, /^ads\.landDown:/];
 export function repeatCapNext(prev, todayStr) {
   const p = prev || { streak: 0, last: '', mutedUntil: '' };
@@ -568,7 +625,8 @@ async function applyRepeatCap(host, todayStr, list) {
     if (dirty) {
       const cutoff = new Date(Date.parse(todayStr) - 60 * 864e5).toISOString().slice(0, 10);
       for (const k of Object.keys(seen)) { const r = seen[k] || {}; if ((!r.mutedUntil || r.mutedUntil < todayStr) && (!r.last || r.last < cutoff)) delete seen[k]; }
-      await saveSnapshot(host, '_findstate', { repeat: seen });
+      // _findstate is shared with the funnel-catchup announce-once map — preserve it.
+      await saveSnapshot(host, '_findstate', { repeat: seen, funnels: (st && st.funnels) || {} });
     }
     return out;
   } catch (e) { return list; }   // the cap must never break findings
@@ -583,7 +641,7 @@ export async function computeFindings(host, opts = {}) {
   const todayStr = (ads[0] && ads[0].day) || (web[0] && web[0].day) || new Date().toISOString().slice(0, 10);
   return {
     host,
-    ads: await applyRepeatCap(host, todayStr, adsFindings(ads, capN)),
+    ads: await applyFunnelCatchup(host, todayStr, await applyRepeatCap(host, todayStr, adsFindings(ads, capN))),
     website: websiteFindings(web),
     social: [].concat(
       windowFindings(ig, 'Instagram', (d) => d && d.posts),

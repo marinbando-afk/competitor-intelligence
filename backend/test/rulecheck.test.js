@@ -173,5 +173,28 @@ const oneOff = [mkAd('https://ancestralcosmetics.com/pages/typo-variant', 'Ances
 const fOut3 = adsFindings([{ day: '2026-08-13', data: { ads: [...oldAds, ...oneOff] } }, { day: '2026-08-12', data: { ads: oldAds } }], 100);
 ok(!fOut3.some((f) => f.key && f.key.indexOf('ads.newPath:') === 0), 'a single-ad path stays below the 3-ad threshold');
 
+console.log('\nFUNNEL CATCH-UP — captured is NOT announced (Ancestral beef-fat funnel, live since 13 Aug):');
+const { funnelCatchupNext } = await import('../src/findings.js');
+// Today is Aug 19; the funnel path has been in captures since Aug 13 — 6 days, inside the window.
+const cuRows = [
+  { day: '2026-08-19', data: { ads: [...oldAds, ...newLP] } },
+  { day: '2026-08-14', data: { ads: [...oldAds, ...newLP] } },
+  { day: '2026-08-13', data: { ads: [...oldAds, ...newLP] } },
+  { day: '2026-08-12', data: { ads: oldAds } },
+];
+const cu = adsFindings(cuRows, 100).find((f) => f.key && f.key.indexOf('ads.funnelCatchup:') === 0);
+ok(!!cu, 'a running-but-never-announced recent funnel fires as catch-up');
+ok(cu && /already running/.test(cu.text) && /began on 2026-08-13/.test(cu.text), 'catch-up says already running + when it began');
+ok(cu && !fires(cu.text, 'R-DATE-01'), '"began on <date>" phrasing is gate-exempt');
+const oldRows = [
+  { day: '2026-08-19', data: { ads: [...oldAds, ...newLP] } },
+  { day: '2026-07-01', data: { ads: [...oldAds, ...newLP] } },
+  { day: '2026-06-30', data: { ads: oldAds } },
+];
+ok(!adsFindings(oldRows, 100).some((f) => f.key && f.key.indexOf('ads.funnelCatchup:') === 0), 'a funnel older than the window is scenery, not missed news');
+ok(funnelCatchupNext(undefined, '2026-08-19'), 'never announced → emit');
+ok(funnelCatchupNext('2026-08-19', '2026-08-19'), 'announced today (same-day rerun) → still emits, idempotent');
+ok(!funnelCatchupNext('2026-08-18', '2026-08-19'), 'announced yesterday → never repeats');
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);
