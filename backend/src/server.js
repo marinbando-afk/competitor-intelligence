@@ -632,6 +632,10 @@ setTimeout(async () => {
 // concluded nothing had been applied (6 Aug).
 let _regenRunning = false, _regenState = null;
 app.get('/api/regen-all', async (req, res) => {
+  // STATUS by default. This used to START a full paid rebuild on a bare GET — so every
+  // status poll re-triggered it the moment the previous run finished (19 Aug: a monitor
+  // loop chained whole-fleet rebuilds). Only ?start=1 starts one now.
+  if (req.query.start !== '1') return res.json({ running: _regenRunning, state: _regenState });
   if (_regenRunning) return res.json({ started: false, alreadyRunning: true, state: _regenState });
   _regenRunning = true;
   _regenState = { started: new Date().toISOString(), done: 0, total: 0, failed: [] };

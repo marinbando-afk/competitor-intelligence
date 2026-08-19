@@ -941,6 +941,12 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
             <div class="ap-st" id="sendBriefSt"></div>
           </div>
           <div class="ap-card">
+            <h3>📨 Post full brief to my Slack</h3>
+            <p class="ap-grow">Rebuilds the all-brands daily brief with the current logic and posts it to your own channel (the 08:00 destination) — every client brand in one message. Clients get nothing.</p>
+            <div class="ap-btnrow"><button class="btn btn-g" id="sendMineBtn" onclick="apSendMine()">📨 Post to my Slack</button></div>
+            <div class="ap-st" id="sendMineSt"></div>
+          </div>
+          <div class="ap-card">
             <h3>📢 Announcement</h3>
             <p class="ap-grow">Write one message — or load and edit today’s brief — and post it to selected clients’ Slack channels, with a per-client preview before anything sends.</p>
             <div class="ap-btnrow"><button class="btn btn-g" onclick="openAnn()">📢 Compose…</button></div>
@@ -3108,6 +3114,21 @@ function apArmBrief(){
   c.classList.add('on');
   // A brief sent mid-rebuild quotes half-updated reports (it happened 8 Aug) — warn first.
   fetch(API+'/api/health').then(function(r){return r.json();}).then(function(h){var w=document.getElementById('apBriefWarn');if(w&&h&&h.running)w.innerHTML='<div style="color:var(--gold);margin-bottom:6px">⚠ A report rebuild is running right now — a brief sent now may quote half-updated reports. Better to wait for it to finish (see Health).</div>';}).catch(function(){});
+}
+// Fire the full all-brands brief to the FOUNDER's channel (the 08:00 destination) on
+// demand — /api/slack-test rebuilds it with whatever logic is deployed right now, so it's
+// the fastest way to see today's fixes as a real Slack message (founder, 19 Aug).
+function apSendMine(){
+  if(!ADMIN)return;
+  var btn=document.getElementById('sendMineBtn'),st=document.getElementById('sendMineSt');
+  if(btn&&btn.disabled)return;
+  if(btn){btn.disabled=true;btn.textContent='Building + posting…';}
+  if(st)st.textContent='Rebuilding the brief and posting to your channel…';
+  fetch(API+'/api/slack-test?key='+encodeURIComponent(adminKey()||''),{headers:authH()})
+    .then(function(r){return r.json();})
+    .then(function(d){if(st)st.textContent=(d&&(d.sent||d.ok)&&!d.error)?'✓ Posted to your Slack channel.':('✗ '+((d&&(d.error||d.reason))||'Send failed — check SLACK_WEBHOOK_URL.'));})
+    .catch(function(e){if(st)st.textContent='✗ '+e.message;})
+    .then(function(){setTimeout(function(){if(btn){btn.disabled=false;btn.textContent='📨 Post to my Slack';}},30000);});
 }
 function apArmRefresh(){
   if(!ADMIN)return;

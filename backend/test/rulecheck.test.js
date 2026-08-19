@@ -209,6 +209,22 @@ ok(missF.some((v) => v.rule === 'R-MISS-06'), 'computed funnel absent from the b
 const missOK = checkMisses('*Brand X*\n   *Ads:* 4 new ads launched — all driving to the NEW funnel x.com/pages/lp.', [{ name: 'Brand X', funnels: 1, sale: '', products: 0, staleOffers: 0, postsSeen: 0, emailsSeen: 0 }]);
 ok(!missOK.some((v) => v.rule === 'R-MISS-06'), 'funnel named in the block → no ping');
 
+console.log('\nCLIP + BADGE — the funnel callout ships whole and the badge agrees with the rows (Ancestral, 19 Aug):');
+const { clipSent, badgeFor } = await import('../src/slack.js');
+const funnelLine = 'Ad funnel live (already running): multiple ads drive to ancestralcosmetics.com/pages/we-made-face-cream-from-beef-fat, running from the "Mihael Sanko Founder of Ancestral Cosmetics" and "Ancestral Cosmetics" handles — the funnel began on 2026-08-13.';
+ok(clipSent(funnelLine, 180) === funnelLine.slice(0, funnelLine.length), 'an oversize FIRST sentence ships whole, never "…running from the."');
+ok(!fires(clipSent(funnelLine, 180), 'R-TEXT-02'), 'the shipped funnel line passes the truncation gate');
+const twoSent = 'Short opener sentence that is comfortably under the budget and reads fine. ' + 'x'.repeat(200);
+ok(/fine\.$/.test(clipSent(twoSent, 180)), 'multi-sentence text still clips at the sentence boundary');
+const monster = 'A '.repeat(200) + 'end';
+ok(/…$/.test(clipSent(monster, 180)) && !/\s(the|a|an)…$/i.test(clipSent(monster, 180)), 'a 280+ single sentence clips with … and no dangling article');
+ok(fires('20 new ads launched — newest opens: "x" running from the.', 'R-TEXT-02'), 'R-TEXT-02 catches a line ending on a dangling article');
+ok(!fires('That is what their audience is known for.', 'R-TEXT-02'), '"known for." stays legal');
+ok(badgeFor(false, false, '   *Ads:* ❗ Ad funnel live (already running): multiple ads drive to x.com/pages/lp.') === '💡', '❗ funnel row → 💡 badge, never "✅ no new moves"');
+ok(badgeFor(false, false, '   *Ads:* Recent ads run to x.com.') === '✅ no new moves', 'genuinely quiet rows keep ✅');
+ok(badgeFor(false, true, '   *Social:* New post.') === '🔹 routine activity', 'activity without priority → routine');
+ok(badgeFor(false, false, '   *Email:* ❗ New email: "subject"') === '🔹 routine activity', '❗ without a priority claim → routine, not ✅');
+
 console.log('\nSENSE-CHECK FACTS — the checker sees everything the writer saw (Ancestral splice, 19 Aug):');
 const { senseFacts } = await import('../src/insights.js');
 const sf = senseFacts([{ text: 'Ad funnel live (already running): multiple ads drive to x.com/pages/lp — the funnel began on 2026-08-13.' }], 'RAW ADS FACTS HERE');

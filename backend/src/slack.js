@@ -75,6 +75,20 @@ export const textClaimsLaunches = (t) => /\b\d+\s+new\s+ads?\s+launched\b/i.test
 // announce-once state (the read is generated the evening before the brief quotes it).
 export const textClaimsFunnel = (t) => /\bnew (?:ad )?funnel\b|\bfunnel live\b|\bfunnel began\b/i.test(String(t || ''));
 
+// R-MARK-TEXT for the BADGE (founder, 19 Aug — Ancestral shipped "✅ no new moves" one
+// line above an ❗ funnel row): the badge must agree with the rows it crowns. The signal
+// engine can be quiet (a failed dailySignals call, consumed announce state) while the
+// shipped rows still carry news — the words win. ❗ + priority claim → 💡; any ❗ or
+// activity → routine; ✅ only when every row is genuinely quiet.
+export function badgeFor(pri, anyAct, rowsText) {
+  const t = String(rowsText || '');
+  const marked = t.indexOf('❗') >= 0;
+  const priText = textClaimsFunnel(t) || /New sale live|Sale live \(already running\)|new product/i.test(t);
+  if (pri || (marked && priText)) return '💡';
+  if (anyAct || marked) return '🔹 routine activity';
+  return '✅ no new moves';
+}
+
 // R-MARK-TEXT (founder, 19 Aug — Glov Beauty: "why glow beauty has an exclamation mark if
 // nothing happened under Website"). The website ❗ used to come from the SIGNAL engine
 // (s.sale is truthy on any active-sale day — catch-up refires, wording drift) while the
@@ -126,19 +140,27 @@ export function relativizeDay(s, capDay, sendDay) {
 
 // Clip at a SENTENCE boundary — a mid-quote chop ("...spec-led hooks (':rotating_light:
 // BEST SELLER…") reads as a glitch — and close anything the model's own clipping left open.
-function clipSent(t, n) {
+export function clipSent(t, n) {
   t = String(t || '').trim();
   if (t.length <= n) return t;
   const cut = t.slice(0, n);
   const b = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
   if (b > n * 0.4) return cut.slice(0, b + 1);
+  // PRIORITY SENTENCES SURVIVE WHOLE (founder, 19 Aug — the funnel callout clipped to
+  // "…running from the."): when the FIRST sentence alone overflows the budget, ship it
+  // complete up to a hard ceiling instead of amputating the news mid-clause. The 180
+  // budget fights text walls, not a single 240-char sentence that carries the story.
+  const fe = t.search(/[.!?](\s|$)/);
+  if (fe > n * 0.4 && fe <= 280) return t.slice(0, fe + 1);
   // Next best: a clause boundary. Cutting mid-clause left dangling labels in the brief
   // ("…; newest opens." with the quote gone — founder, 12 Aug); dropping the whole
   // unfinished clause keeps every surviving clause complete.
   const c = Math.max(cut.lastIndexOf('; '), cut.lastIndexOf(' — '));
   if (c > n * 0.4) return cut.slice(0, c).replace(/[\s.,;:—–-]+$/, '') + '.';
   const sp = cut.lastIndexOf(' ');
-  return (sp > 0 ? cut.slice(0, sp) : cut).replace(/[\s.,;:—–-]+$/, '') + '…';
+  // Never end on a dangling article/connective ("…running from the…").
+  return (sp > 0 ? cut.slice(0, sp) : cut).replace(/[\s.,;:—–-]+$/, '')
+    .replace(/(\s+(?:the|a|an|and|or|of|to|from|with|for|in|on|at|by|their|its))+$/i, '') + '…';
 }
 function balanceQuotes(t) {
   t = String(t || '').trim();
@@ -297,7 +319,7 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     // website sale a social-only client cannot open is a promise the brief never keeps.
     const pri = !!(s && ((on('website') && (s.sale || n(s.products))) || (on('ads') && (n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.angle)))));
     const anyAct = !!((on('ads') && n(A.ads)) || (on('social') && n(A.posts)) || (on('email') && n(A.emails)) || (on('website') && n(A.website)));
-    const badge = pri ? '💡' : anyAct ? '🔹 routine activity' : '✅ no new moves';
+    const badge = badgeFor(pri, anyAct, rows.join('\n'));
     if (rows.length) {
       blocks.push('*' + b.name + '* ' + badge + '\n' + rows.join('\n'));
     } else {
