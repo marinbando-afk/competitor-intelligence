@@ -78,6 +78,12 @@ const CHECKS = [
   { id: 'R-PHRASE-03', why: 'deflects to the app instead of stating the substance',
     test: (t) => /details in the app|see the app|check the app for/i.test(t) },
 
+  // R-ADS-PERF (founder rule 12 Aug, gate added 19 Aug audit): Meta publishes impressions
+  // and spend only for political ads — "top performing" / "most impressions" / "highest
+  // spend" about commercial ads is unknowable. Say "their longest-running ad".
+  { id: 'R-ADS-PERF', why: 'performance claim Meta never publishes for commercial ads',
+    test: (t) => /\b(top|best)[- ]perform\w*|\bmost impressions\b|\bhighest[- ]spend\w*\b|\bbiggest spender\b/i.test(t) },
+
   // R-META-01 (founder, 19 Aug — CurrentBody): a capture model wrote its own caveat INTO
   // the banner field and Slack shipped it verbatim: 'Storefront promo: "… - Grazia" (This
   // is a press quote, not a promotional offer/sale.)'. Model self-talk — disclaimers,

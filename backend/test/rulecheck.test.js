@@ -225,6 +225,27 @@ ok(badgeFor(false, false, '   *Ads:* Recent ads run to x.com.') === '✅ no new 
 ok(badgeFor(false, true, '   *Social:* New post.') === '🔹 routine activity', 'activity without priority → routine');
 ok(badgeFor(false, false, '   *Email:* ❗ New email: "subject"') === '🔹 routine activity', '❗ without a priority claim → routine, not ✅');
 
+console.log('\nRULES AUDIT FIXES (19 Aug) — quiet-latest, leading ad cadence, perf-claim gate:');
+ok(socialRowText('', [], 9, 'Anxiety diagnoses have exploded over the last 30 years') === 'No new posts — latest is still “Anxiety diagnoses have exploded over the last 30 years”.', 'quiet social row always names the latest post');
+ok(socialRowText('', [], 9, '') === 'No new posts on the tracked profiles.', 'no latest hook stored → plain quiet line, no empty quotes');
+const { leadingDueNext } = await import('../src/findings.js');
+ok(leadingDueNext('', '2026-08-19') && leadingDueNext('2026-08-19', '2026-08-19'), 'leading ad: never shown / shown today → due (idempotent)');
+ok(!leadingDueNext('2026-08-01', '2026-08-19'), 'shown 18 days ago → not due yet');
+ok(leadingDueNext('2026-07-19', '2026-08-19'), 'shown 31 days ago → due again');
+const quietAds = Array.from({ length: 4 }, (x, i) => ({ id: 'q' + i, landing: 'https://ancestralcosmetics.com/products/balm', page: 'Ancestral Cosmetics', started: i === 0 ? '2026-06-01' : '2026-08-10', text: 'oldest survivor hook here' }));
+const qRows = [
+  { day: '2026-08-19', data: { ads: quietAds } },
+  { day: '2026-08-18', data: { ads: quietAds } },
+];
+const lead = adsFindings(qRows, 100).find((f) => f.key === 'ads.leading');
+ok(!!lead && /longest-running ad, launched 2026-06-01/.test(lead.text), '5+ quiet days → longest-running ad finding with its launch date');
+ok(clean(lead ? lead.text.replace(/\s+/g, ' ') : '', 'app'), 'leading-ad line is gate-clean');
+const busyAds = quietAds.map((a, i) => (i === 1 ? { ...a, started: '2026-08-19' } : a));
+ok(!adsFindings([{ day: '2026-08-19', data: { ads: busyAds } }, qRows[1]], 100).some((f) => f.key === 'ads.leading'), 'a launch within 5 days → no leading-ad line');
+ok(fires('Their top performing ad pushes the balm.', 'R-ADS-PERF'), 'R-ADS-PERF: "top performing" gated');
+ok(fires('This creative likely has the most impressions.', 'R-ADS-PERF'), 'R-ADS-PERF: "most impressions" gated');
+ok(clean('Their longest-running ad still opens: "hook".'), '"longest-running" phrasing stays legal');
+
 console.log('\nFOUNDER WEBHOOK FALLBACK — no env var + no DB → honest reason, never a throw (19 Aug):');
 const { postText } = await import('../src/slack.js');
 const pt = await postText('ping');

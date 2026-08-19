@@ -307,6 +307,27 @@ export function adsFindings(rows, capN) {
       }
     }
   }
+  // R-ADS-LEADING (founder, 19 Aug audit — was specified 12 Aug, marked ENFORCED, and
+  // never actually built; rediscovered as a phantom rule): when the brand has launched
+  // NOTHING for 5+ days, surface the longest continuously-running ad — survival is the
+  // only performance proxy Meta lets us see. Cadence (once per 30 days) is applied in
+  // computeFindings via _findstate, same announce-once pattern as funnel catch-ups.
+  if (earlier.length && ads.length) {
+    const started = ads.filter((a) => /^\d{4}-\d{2}-\d{2}$/.test(String(a.started || '')));
+    const newest = started.length ? started.reduce((m, a) => (a.started > m ? a.started : m), '0000') : '';
+    const quietDays = newest ? Math.round((Date.parse(today.day) - Date.parse(newest)) / 864e5) : 0;
+    if (newest && quietDays >= 5) {
+      const lead = started.reduce((m, a) => (a.started < m.started ? a : m), started[0]);
+      let lh = String(lead.text || lead.title || '').replace(/["“”]/g, "'").replace(/\s+/g, ' ').trim();
+      if (lh.length > 90) lh = lh.slice(0, 90).replace(/\s+\S*$/, '') + '…';
+      out.push({
+        type: 'state', key: 'ads.leading',
+        text: 'No ads launched in the last ' + quietDays + ' days — their longest-running ad, launched ' + lead.started + ', still opens: "' + lh + '"' + (domOf(lead.landing) ? ' → ' + domOf(lead.landing) : '') + '. Advertisers kill losers within days, so survival is the closest public proxy for what works.',
+        evidence: { id: lead.id, started: lead.started, quietDays, page: lead.page || '' },
+      });
+    }
+  }
+
   // R-FUNNEL-LEAD (founder, 19 Aug — "new funnels should get the biggest priority when
   // reporting insights"): order conveys priority to the reader model, so new-funnel
   // findings move to the FRONT of the ads list — above the footprint, above launches.
@@ -585,6 +606,14 @@ export function funnelCatchupNext(prevAnnouncedDay, todayStr) {
   return !prevAnnouncedDay || prevAnnouncedDay === todayStr;
 }
 
+// R-ADS-LEADING cadence (founder, 19 Aug: "mention it once a month, when no new ads have
+// been published for 5 days") — the 5-day quiet test lives in adsFindings; this is the
+// once-per-30-days part. Same-day reruns idempotent.
+export function leadingDueNext(prevShownDay, todayStr) {
+  if (!prevShownDay || prevShownDay === todayStr) return true;
+  return (Date.parse(todayStr) - Date.parse(prevShownDay)) >= 30 * 864e5;
+}
+
 // Drop funnel catch-up findings already announced on an earlier day; record today's ONLY
 // on a commit — "previews must not consume the once-only state", the same rule the sale
 // announce state follows (a view/API rebuild consuming the state would silently eat the
@@ -608,10 +637,25 @@ async function applyFunnelCatchup(host, todayStr, list, commit) {
     if (dirty) {
       const cutoff = new Date(Date.parse(todayStr) - 90 * 864e5).toISOString().slice(0, 10);
       for (const k of Object.keys(funnels)) if (funnels[k] < cutoff) delete funnels[k];
-      await saveSnapshot(host, '_findstate', { repeat: (st && st.repeat) || {}, funnelsAnnounced: funnels });
+      await saveSnapshot(host, '_findstate', { repeat: (st && st.repeat) || {}, funnelsAnnounced: funnels, leadingAt: (st && st.leadingAt) || '' });
     }
     return out;
   } catch (e) { return list; }   // the catch-up must never break findings
+}
+
+// R-ADS-LEADING monthly cadence: drop the ads.leading finding when it was shown within
+// the last 30 days; record only on commit (previews never consume the cadence).
+async function applyLeadingCadence(host, todayStr, list, commit) {
+  try {
+    if (!list.some((f) => f.key === 'ads.leading')) return list;
+    const st = await latestSnapshot(host, '_findstate');
+    const prev = (st && st.leadingAt) || '';
+    if (!leadingDueNext(prev, todayStr)) return list.filter((f) => f.key !== 'ads.leading');
+    if (commit && prev !== todayStr) {
+      await saveSnapshot(host, '_findstate', { repeat: (st && st.repeat) || {}, funnelsAnnounced: (st && st.funnelsAnnounced) || {}, leadingAt: todayStr });
+    }
+    return list;
+  } catch (e) { return list; }   // cadence must never break findings
 }
 
 export const REPEAT_CAPPED = [/^ads\.landRedirect:/, /^ads\.landDown:/];
@@ -644,8 +688,8 @@ async function applyRepeatCap(host, todayStr, list) {
     if (dirty) {
       const cutoff = new Date(Date.parse(todayStr) - 60 * 864e5).toISOString().slice(0, 10);
       for (const k of Object.keys(seen)) { const r = seen[k] || {}; if ((!r.mutedUntil || r.mutedUntil < todayStr) && (!r.last || r.last < cutoff)) delete seen[k]; }
-      // _findstate is shared with the funnel-catchup announce-once map — preserve it.
-      await saveSnapshot(host, '_findstate', { repeat: seen, funnelsAnnounced: (st && st.funnelsAnnounced) || {} });
+      // _findstate is shared with the funnel-catchup + leading-ad state — preserve them.
+      await saveSnapshot(host, '_findstate', { repeat: seen, funnelsAnnounced: (st && st.funnelsAnnounced) || {}, leadingAt: (st && st.leadingAt) || '' });
     }
     return out;
   } catch (e) { return list; }   // the cap must never break findings
@@ -660,7 +704,7 @@ export async function computeFindings(host, opts = {}) {
   const todayStr = (ads[0] && ads[0].day) || (web[0] && web[0].day) || new Date().toISOString().slice(0, 10);
   return {
     host,
-    ads: await applyFunnelCatchup(host, todayStr, await applyRepeatCap(host, todayStr, adsFindings(ads, capN)), !!opts.commit),
+    ads: await applyLeadingCadence(host, todayStr, await applyFunnelCatchup(host, todayStr, await applyRepeatCap(host, todayStr, adsFindings(ads, capN)), !!opts.commit), !!opts.commit),
     website: websiteFindings(web),
     social: [].concat(
       windowFindings(ig, 'Instagram', (d) => d && d.posts),

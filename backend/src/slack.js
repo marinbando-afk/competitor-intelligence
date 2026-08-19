@@ -230,7 +230,7 @@ export function safeQuote(sIn, max) {
   return q;
 }
 
-export function socialRowText(read, posts, postsSeen) {
+export function socialRowText(read, posts, postsSeen, latestAbout) {
   if (read) return String(read);
   const list = Array.isArray(posts) ? posts : [];
   if (list.length) {
@@ -241,7 +241,12 @@ export function socialRowText(read, posts, postsSeen) {
     if (about) return ((p.count > 1) ? (p.count + ' new ' + label + ' posts — latest: ') : ('New ' + label + ' post: ')) + '\u201c' + about + '\u201d' + rest;
     return ((p.count > 1) ? (p.count + ' new ' + label + ' posts') : ('New ' + label + ' post')) + rest + '.';
   }
-  if (postsSeen > 0) return 'No new posts on the tracked profiles.';
+  if (postsSeen > 0) {
+    // Quiet rows always name the latest item (founder, 19 Aug audit: keep the simple
+    // format "but always mention the latest") — a bare quiet line taught nothing.
+    const la = safeQuote(latestAbout);
+    return la ? 'No new posts — latest is still “' + la + '”.' : 'No new posts on the tracked profiles.';
+  }
   return '';
 }
 
@@ -307,7 +312,7 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     // text, and the downgrade is QA-pinged to the founder webhook. Rules: rulecheck.js.
     const fb = {
       ads: n(A.ads) ? (n(A.ads) + ' new ad' + (n(A.ads) > 1 ? 's' : '') + ' captured' + (safeQuote(A.ads[0] && A.ads[0].about) ? ' — newest: \u201c' + safeQuote(A.ads[0] && A.ads[0].about) + '\u201d' : '.')) : '',
-      social: socialRowText('', A.posts, (s && s.postsSeen) || 0),
+      social: socialRowText('', A.posts, (s && s.postsSeen) || 0, (s && s.latestPostAbout) || ''),
       website: (s && s.sale) || (n(A.website) ? String(A.website[0]) : ((s && s.webComparable) ? 'Storefront unchanged — same prices, products and sale.' : '')),
       email: emailRowText('', n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || ''),
     };
@@ -320,14 +325,31 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     // Bold labels (founder, 18 Aug: "still feels text heavy") — the label is the anchor
     // the eye scans by; bolding it turns four lines of prose into four labeled rows.
     if (on('ads') && adsText) rows.push('   *Ads:* ' + mark(adsNew || textClaimsLaunches(adsText) || textClaimsFunnel(adsText)) + adsText);
-    const socialTxt = socialRowText(social, A.posts, (s && s.postsSeen) || 0);
-    if (on('social') && socialTxt) rows.push('   *Social:* ' + mark(!!n(A.posts)) + gated(socialTxt, 'social'));
+    const socialTxt = socialRowText(social, A.posts, (s && s.postsSeen) || 0, (s && s.latestPostAbout) || '');
+    if (on('social')) {
+      if (socialTxt) rows.push('   *Social:* ' + mark(!!n(A.posts)) + gated(socialTxt, 'social'));
+      // R-NOT-CHECKED (founder rule 12 Aug, implemented 19 Aug — Pannonian Padel):
+      // connected profiles that yielded NOTHING in the last scan are said plainly.
+      // "Nothing captured" is the exact truth whether the scrape failed or the profiles
+      // are empty — never dressed as "no new posts", never silently dropped.
+      else if (b.handles && Object.values(b.handles).some(Boolean)) rows.push('   *Social:* Nothing captured from the tracked profiles in the last scan.');
+    }
     // R-MARK-TEXT (founder, 19 Aug — Glov): the website ❗ derives from the shipped
     // sentence itself, never from the parallel signal engine (s.sale is truthy on every
     // standing-sale day and decorated "Summer Sale unchanged" as news).
-    if (on('website') && (ch('website') || (s && s.sale))) {
-      const webText = gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website');
-      rows.push('   *Website:* ' + mark(textClaimsWebNews(webText)) + webText);
+    if (on('website')) {
+      if (ch('website') || (s && s.sale)) {
+        const webText = gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website');
+        rows.push('   *Website:* ' + mark(textClaimsWebNews(webText)) + webText);
+      } else if (s && s.webComparable) {
+        // R-CHANNEL-ROW for website: a good comparable capture with no read and no sale
+        // still gets its row — the honest no-change line, never silence.
+        rows.push('   *Website:* Storefront unchanged — same prices, products and sale.');
+      } else if (s && s.captureDay && (Date.parse(todayISO) - Date.parse(s.captureDay)) / 864e5 > 2) {
+        // R-NOT-CHECKED (founder rule 12 Aug, implemented 19 Aug): a stale capture is
+        // said plainly — a missing row reads as "competitor quiet", a claim we can't make.
+        rows.push('   *Website:* Last captured ' + Math.round((Date.parse(todayISO) - Date.parse(s.captureDay)) / 864e5) + ' days ago — capture is retrying.');
+      }
     }
     const emailTxt = emailRowText(ch('email'), n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || '');
     if (on('email') && emailTxt) rows.push('   *Email:* ' + mark(!!n(A.emails)) + gated(emailTxt, 'email'));

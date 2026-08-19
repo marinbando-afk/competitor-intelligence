@@ -373,6 +373,14 @@ export async function dailySignals(host, commit) {
       const cur = (snaps[0] && snaps[0].data && snaps[0].data.posts) || [];
       if (!cur.length) continue;
       out.postsSeen = (out.postsSeen || 0) + cur.length;   // captured posts exist → the app shows this channel (R-SOCIAL-ROW)
+      // Quiet rows always name the latest item (founder, 19 Aug audit: "always mention
+      // the latest") — keep the newest captured post's hook across all platforms.
+      const newestCur = cur.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0];
+      if (newestCur && (!out.latestPostDate || String(newestCur.date || '') > out.latestPostDate)) {
+        out.latestPostDate = String(newestCur.date || '');
+        out.latestPostAbout = postAbout(newestCur) || '';
+        out.latestPostPlatform = label;
+      }
       // prev = the most recent EARLIER capture that actually returned posts — skip a failed/empty
       // scrape, which would otherwise make every current post look "new".
       const prevSnap = snaps.slice(1).find((s) => s.data && Array.isArray(s.data.posts) && s.data.posts.length);

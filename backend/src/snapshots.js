@@ -39,6 +39,15 @@ export function hasSubstantiveData(channel, data) {
   return false;   // insights, weekly, lists…: recomputation is always allowed
 }
 
+// R-DAYLOCK-NIGHTLY (founder decision, 19 Aug audit): the 23:00 nightly capture is the
+// AUTHORITATIVE end-of-day snapshot — it may overwrite a same-day row that a deploy-time
+// boot warm captured earlier (otherwise the day-lock froze the day at deploy time and the
+// "each snapshot holds a complete day" contract was silently false on every deploy day).
+// The overwrite happens ONLY when the nightly data is itself substantive — a rate-limited
+// error capture never clobbers a good earlier row, which is why the day-lock exists.
+let _nightlyAuthoritative = false;
+export function setNightlyAuthoritative(on) { _nightlyAuthoritative = !!on; }
+
 export async function saveSnapshot(host, channel, data) {
   if (!ok() || !host || !data) return;
   try {
@@ -49,8 +58,12 @@ export async function saveSnapshot(host, channel, data) {
       );
       const existing = r.rows[0] && r.rows[0].data;
       if (existing && hasSubstantiveData(channel, existing)) {
-        console.log('[daylock] ' + host + '/' + channel + ' already captured today — write skipped (R-DAYLOCK)');
-        return;
+        if (_nightlyAuthoritative && hasSubstantiveData(channel, data)) {
+          console.log('[daylock] ' + host + '/' + channel + ' overwritten by the authoritative nightly capture (R-DAYLOCK-NIGHTLY)');
+        } else {
+          console.log('[daylock] ' + host + '/' + channel + ' already captured today — write skipped (R-DAYLOCK)');
+          return;
+        }
       }
     }
     await pool.query(

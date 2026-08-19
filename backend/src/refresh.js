@@ -14,7 +14,7 @@ import { fetchSocial, resolveHandles } from './social.js';
 import { getEmails } from './email.js';
 import { captureWebsiteFull } from './website.js';
 import { generateInsights, enrichCreativeHooks, creditStatus } from './insights.js';
-import { saveSnapshot, latestSnapshot } from './snapshots.js';
+import { saveSnapshot, latestSnapshot, setNightlyAuthoritative } from './snapshots.js';
 import { resolveLandings } from './landcheck.js';
 import { pool } from './db.js';
 import { ensureWeeklies } from './weekly.js';
@@ -173,6 +173,10 @@ export async function refreshAll(force) {
   const t0 = Date.now();
   let ok = 0, fail = 0, skipped = 0, brands = [];
   try {
+    // R-DAYLOCK-NIGHTLY: the forced 23:00 run is the authoritative end-of-day capture and
+    // may overwrite a same-day boot-warm row (with substantive data only). Boot warms and
+    // on-demand runs stay non-authoritative and respect the day-lock as before.
+    if (force) setNightlyAuthoritative(true);
     await syncTracked();
     brands = await allBrands();
     const today = new Date().toISOString().slice(0, 10);
@@ -193,6 +197,7 @@ export async function refreshAll(force) {
     }
     if (skipped) console.log('✓ warm: skipped ' + skipped + ' brand(s) already captured today (deploy re-warm guard)');
   } finally {
+    setNightlyAuthoritative(false);
     running = false;
   }
   lastWarm = Date.now();
