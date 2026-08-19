@@ -123,5 +123,55 @@ console.log('\nWEBSITE FALLBACK TIER — violating read falls to the honest no-c
 const gWeb = gateLine('Storefront promo first seen 2026-08-11 on the banner.', 'Storefront unchanged — same prices, products and sale.', { surface: 'slack' });
 ok(gWeb.downgraded && gWeb.text === 'Storefront unchanged — same prices, products and sale.', 'website stub is unreachable when the pair was comparable');
 
+console.log('\nBANNER HYGIENE — model commentary in a data field can never ship (CurrentBody Grazia, 19 Aug):');
+const { cleanBannerText, isPressQuoteBanner, isSaleBanner } = await import('../src/occasions.js');
+const poisoned = 'Beauty technology at its finest." - Grazia" (This is a press quote, not a promotional offer/sale.)';
+ok(cleanBannerText(poisoned) === 'Beauty technology at its finest." - Grazia', 'cleanBannerText strips the meta-caveat and the orphan quote');
+ok(!isSaleBanner(poisoned), 'poisoned banner: the word "sale" inside the model caveat no longer flips isSaleBanner');
+ok(!isSaleBanner('Beauty technology at its finest." - Grazia'), 'clean press quote is never a sale banner (R-BANNER-PRESS)');
+ok(isPressQuoteBanner('"The best balm we tested" — Vogue'), 'quote + dash-attributed source detected as press quote');
+ok(isSaleBanner('SUMMER SALE — up to 40% off'), 'a real sale banner still classifies as a sale');
+ok(isSaleBanner('Back to School Sale, up to 58% off'), 'occasion-named sale still classifies');
+ok(fires('Storefront promo: "Beauty technology at its finest." - Grazia" (This is a press quote, not a promotional offer/sale.)" — unchanged across recent captures.', 'R-META-01'), 'R-META-01 gates model self-talk out of any surface');
+ok(clean('Storefront promo: "Back to School Sale, up to 58% off" — unchanged across recent captures.'), 'a genuine promo line still passes the gate');
+
+console.log('\nMARK FOLLOWS TEXT — the website ❗ derives from the shipped sentence (Glov, 19 Aug):');
+const { textClaimsWebNews } = await import('../src/slack.js');
+ok(!textClaimsWebNews("Summer Sale unchanged — 'Shop Summer Sale' still promoted, prices steady."), 'standing sale + steady prices → no mark');
+ok(!textClaimsWebNews('Storefront unchanged — same prices, products and sale.'), 'no-change line → no mark');
+ok(textClaimsWebNews('*New sale live* — “Back to School Sale, up to 58% off”'), 'new sale announcement → mark');
+ok(textClaimsWebNews('*Sale live (already running)* — “Subscribe & save 20%”'), 'catch-up announcement (first report) → mark');
+ok(textClaimsWebNews('“Original Tallow Balm”  $44 → $39'), 'price move → mark');
+ok(textClaimsWebNews('Storefront: 2 new products listed — Dry Body Oil, Honey Balm'), 'new products → mark');
+ok(!textClaimsWebNews('No new products; catalogue steady.'), '"no new …" phrasing never false-positives');
+
+console.log('\nCONGRUENCE R-SYNC-05 — a promo announced in the brief must exist in the app read (CurrentBody, 19 Aug):');
+const { checkCongruence } = await import('../src/qa.js');
+const blockCB = '*Current Body*\n   *Website:* Storefront promo: "Beauty technology at its finest." - Grazia — unchanged across recent captures.';
+const readCB = { website: { summary: 'Storefront unchanged — same prices, products and sale.' } };
+ok(checkCongruence(blockCB, readCB, { name: 'Current Body' }).some((v) => v.rule === 'R-SYNC-05'), 'Slack promo vs app "unchanged" → R-SYNC-05 ping');
+const readOK = { website: { summary: 'Back to School Sale live, up to 58% off — unchanged.' } };
+ok(!checkCongruence('*X*\n   *Website:* *New sale live* — “Back to School Sale”', readOK, { name: 'X' }).some((v) => v.rule === 'R-SYNC-05'), 'promo present in both surfaces → no ping');
+
+console.log('\nNEW FUNNEL PATH — a first-seen landing PATH with 3+ ads is news even on the own domain (Ancestral, 19 Aug):');
+const mkAd = (landing, page) => ({ id: Math.random().toString(36).slice(2), landing, page, started: '2026-08-13' });
+const oldAds = Array.from({ length: 5 }, () => mkAd('https://ancestralcosmetics.com/products/original-tallow-honey-balm', 'Ancestral Cosmetics'));
+const newLP = Array.from({ length: 4 }, () => mkAd('https://ancestralcosmetics.com/pages/we-made-face-cream-from-beef-fat', 'Mihael Sanko Founder of Ancestral Cosmetics'));
+const fRows = [
+  { day: '2026-08-13', data: { ads: [...oldAds, ...newLP] } },
+  { day: '2026-08-12', data: { ads: oldAds } },
+  { day: '2026-08-11', data: { ads: oldAds } },
+];
+const fOut = adsFindings(fRows, 100);
+const fp = fOut.find((f) => f.key && f.key.indexOf('ads.newPath:') === 0);
+ok(!!fp, 'R-FUNNEL-PATH: new own-domain landing path with 4 ads → new-funnel finding');
+ok(fp && /we-made-face-cream-from-beef-fat/.test(fp.text) && /Mihael Sanko/.test(fp.text), 'finding names the path and the handle');
+ok(fp && !/\b\d+\s+ads\b/i.test(fp.text), 'finding text carries no ad count (sample-size rule)');
+const fOut2 = adsFindings([{ day: '2026-08-14', data: { ads: [...oldAds, ...newLP] } }, ...fRows], 100);
+ok(!fOut2.some((f) => f.key && f.key.indexOf('ads.newPath:') === 0), 'the same path the next day is no longer new');
+const oneOff = [mkAd('https://ancestralcosmetics.com/pages/typo-variant', 'Ancestral Cosmetics')];
+const fOut3 = adsFindings([{ day: '2026-08-13', data: { ads: [...oldAds, ...oneOff] } }, { day: '2026-08-12', data: { ads: oldAds } }], 100);
+ok(!fOut3.some((f) => f.key && f.key.indexOf('ads.newPath:') === 0), 'a single-ad path stays below the 3-ad threshold');
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);

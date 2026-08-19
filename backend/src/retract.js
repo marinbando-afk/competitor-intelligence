@@ -27,6 +27,17 @@ export const RETRACTIONS = [
     dropAd: (a) => /liliana/i.test(String((a && a.page) || '') + ' ' + String((a && a.landing) || '')),
     taint: /liliana|milkmaster|merienda/i,
   },
+  {
+    // The Aug-18 banner capture stored the reader model's own caveat INSIDE the data field
+    // ('… - Grazia" (This is a press quote, not a promotional offer/sale.)'); the word
+    // "sale" in that caveat flipped isSaleBanner and "Storefront promo" shipped for a
+    // press quote. No ads involved — this retraction only scrubs the poisoned reads;
+    // cleanBannerText/R-BANNER-PRESS keep the underlying capture row inert.
+    id: 'currentbody-grazia-2026-08-19',
+    host: 'currentbody.com',
+    dropAd: () => false,
+    taint: /grazia|press quote/i,
+  },
 ];
 
 const MARKER_HOST = '__retract__';

@@ -73,6 +73,13 @@ const CHECKS = [
   // item carries its own hook/subject; say it instead of pointing at another surface.
   { id: 'R-PHRASE-03', why: 'deflects to the app instead of stating the substance',
     test: (t) => /details in the app|see the app|check the app for/i.test(t) },
+
+  // R-META-01 (founder, 19 Aug — CurrentBody): a capture model wrote its own caveat INTO
+  // the banner field and Slack shipped it verbatim: 'Storefront promo: "… - Grazia" (This
+  // is a press quote, not a promotional offer/sale.)'. Model self-talk — disclaimers,
+  // classifications of its own answer, AI-speak — must never reach a customer surface.
+  { id: 'R-META-01', why: 'model meta-commentary shipped as if it were competitor copy',
+    test: (t) => /\(this is (?:a|not)\b[^)]*\)|\bpress quote, not a promo|\bas an ai\b|\bi cannot (?:see|access|verify)\b|\bbased on the (?:data|capture) provided\b/i.test(t) },
 ];
 
 // ISO dates in the SLACK BRIEF specifically: allowed only for genuine launch/check dates

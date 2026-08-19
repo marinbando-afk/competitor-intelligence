@@ -14,7 +14,7 @@
 import { recentSnapshots, allSnapshots, latestSnapshot, saveSnapshot } from './snapshots.js';
 import { diffWebsite } from './website.js';
 import { adsChanges, adDomain, isFunnelUrl } from './ads.js';
-import { offerFlags, isSaleBanner, sameBannerText, TIMER_RE } from './occasions.js';
+import { offerFlags, isSaleBanner, cleanBannerText, sameBannerText, TIMER_RE } from './occasions.js';
 import { resolveCapture } from './capture.js';
 import { computeFindings } from './findings.js';
 
@@ -230,7 +230,7 @@ export async function dailySignals(host, commit) {
         //  • the SAME sale seen on some days and not others (rotation) must not re-fire.
         // So: only a genuine SALE banner, and only if it hasn't shown in the recent capture
         // window (i.e. it's actually new, not just the sale slide coming back around).
-        const saleB = bannerOk(cur.banner) && isSaleBanner(cur.banner) ? String(cur.banner).trim() : '';
+        const saleB = bannerOk(cur.banner) && isSaleBanner(cur.banner) ? cleanBannerText(cur.banner) : '';
         if (saleB && !(await saleBannerSeenRecently(host, saleB, todayStr))) {
           out.sale = saleAnnouncement(saleB);
         } else if (saleB) {

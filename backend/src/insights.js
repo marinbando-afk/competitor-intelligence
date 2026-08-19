@@ -218,12 +218,19 @@ export function funnelFacts(ads, brand) {
     const isOwn = own(pg);
     if (bcl && byC && byC.indexOf(bcl) >= 0 && (/\swith\s/i.test(rawBy) || (!isOwn && clp(a.partner || '').indexOf(bcl) >= 0))) return 'partner';
     if (bcl && /\swith\s/i.test(pg) && clp(pg).indexOf(bcl) >= 0 && clp(pg) !== bcl) return 'partner';
+    // R-HANDLE-CREATOR (founder, 19 Aug — Ancestral): "Mihael Sanko Founder of Ancestral
+    // Cosmetics" is a PERSON's page carrying the brand's ads. The brand token in its name
+    // made own() true and the read then claimed "no whitelisting pages" — wrong: a page
+    // named after a person with a founder/creator role IS the brand advertising through a
+    // personal identity (founder-handle whitelisting), never a plain brand page.
+    if (/\b(founder|co-?founder|owner|creator|ceo)\b/i.test(pg)) return 'creator';
     return isOwn ? 'own' : 'white';
   };
   const kindByPage = {};
   ads.forEach((a) => { const p = oneLine(a.page); if (!p) return; const k = kindOf(a); if (k !== 'own' && !kindByPage[p]) kindByPage[p] = k; });
   const partnerPages = pages.filter(([p]) => kindByPage[p] === 'partner');
   const whitePages = pages.filter(([p]) => kindByPage[p] === 'white');
+  const creatorPages = pages.filter(([p]) => kindByPage[p] === 'creator');
   const thirdDoms = doms.filter(([dm]) => !own(dm));
   const ownDoms = doms.filter(([dm]) => own(dm));
   // INTERNATIONAL ADVERTISING (founder, 22 Jul — bonafide.com.ar): a brand's own-name domain
@@ -247,7 +254,8 @@ export function funnelFacts(ads, brand) {
     `  Advertiser FACEBOOK PAGES (most-used first): ${pages.slice(0, 8).map(([p]) => `"${p}"`).join(', ')}.`,
     partnerPages.length ? `  >> PARTNERSHIP Facebook pages (Meta's official "X with ${brand}" branded-content pairing — call these PARTNERSHIP ads): ${partnerPages.map(([p]) => `"${p}"`).join(', ')}.` : '',
     whitePages.length ? `  >> WHITELISTED Facebook pages (3rd-party pages running the brand's ads with NO partnership label — call these WHITELISTING ads, a deliberate creator/persona whitelisting a.k.a. dark-posting tactic; ${shareWord} of their ad mix runs off the brand page): ${whitePages.map(([p]) => `"${p}"`).join(', ')}.` : '',
-    (!partnerPages.length && !whitePages.length) ? `  All ads run from the brand's own Facebook page(s) — BRANDED ads only.` : '',
+    creatorPages.length ? `  >> FOUNDER-HANDLE Facebook pages (a PERSON's page — the founder/creator — running the brand's ads; whitelisting through a personal identity, so NEVER claim "no whitelisting pages" while one of these is active): ${creatorPages.map(([p]) => `"${p}"`).join(', ')}.` : '',
+    (!partnerPages.length && !whitePages.length && !creatorPages.length) ? `  All ads run from the brand's own Facebook page(s) — BRANDED ads only.` : '',
     `  LANDING-PAGE domains (most-used first): ${doms.slice(0, 10).map(([dm]) => dm).join(', ')}.`,
     thirdDoms.length ? `  >> THIRD-PARTY landing-page domains (off the brand's own sites): ${thirdDoms.map(([dm]) => dm).join(', ')} — they're sending traffic off-domain.` : `  All landing pages on the brand's own domain(s)${ownDoms.length > 1 ? ` (multiple regional sites: ${ownDoms.map(([dm]) => dm).join(', ')})` : ''}.`,
     intlLine,
@@ -589,7 +597,7 @@ export const NEWS_RULE =
   `A LAUNCH IS A BIG CLAIM (founder rule): never say a product "launched", is "new" or is their "first new product" unless the FACTS show the product itself was absent from earlier captures. A new LISTING of something already on their site — an extra size, scent or colour, a re-listing, a handle ending in -1/-2/-3 — is NOT a launch; call it a new variant or listing of an existing product. If the facts label a line as a variant/re-listing, you must not upgrade it to a launch.\n` +
   `ANNOUNCEMENT BARS ROTATE (founder rule, 6 Aug): an ecommerce storefront bar cycles several slides — a SALE, social proof ("Loved by 500,000+ customers"), a USP ("free shipping") — and the little ‹ › arrows give it away. Our screenshot catches ONE slide at random, so it is a sample of the bar, never the whole bar. A sale slide missing today does NOT mean the sale ended, and a sale slide seen today does NOT mean it started; the other slides are almost certainly still rotating. Speak about the bar as rotating, and date any promo from its own history across days — never from one capture.\n` +
   `USE EACH PLATFORM'S OWN WORDS (founder rule, 5 Aug): a REEL is Instagram (and Facebook) only. TikTok has VIDEOS — never call a TikTok post a Reel. Instagram: Reel, post, Story, carousel. TikTok: video. Facebook: post, Reel, video. YouTube: video, Short. Getting this wrong tells a marketer immediately that we don't know their world.\n` +
-  `THE BRAND'S OWN PAGES INCLUDE ITS ABBREVIATIONS (founder rule, 6 Aug): a Facebook page named with the brand's INITIALS or a shortened form — "BF USA" and "BF 2027" for BonaFide, "CB Skin" for CurrentBody — plus a country, region, year or market suffix is the BRAND'S OWN page. It is NOT a persona, creator or whitelisting page, and running ads from it is ordinary brand advertising, not a third-party tactic. Only call a page a persona/whitelisting page when its name is a PERSON or an unrelated publication with no connection to the brand name.\n` +
+  `THE BRAND'S OWN PAGES INCLUDE ITS ABBREVIATIONS (founder rule, 6 Aug): a Facebook page named with the brand's INITIALS or a shortened form — "BF USA" and "BF 2027" for BonaFide, "CB Skin" for CurrentBody — plus a country, region, year or market suffix is the BRAND'S OWN page. It is NOT a persona, creator or whitelisting page, and running ads from it is ordinary brand advertising, not a third-party tactic. Call a page a persona/whitelisting page when its name is a PERSON or an unrelated publication — and a person's name STAYS a persona page even when the brand appears in it ("Mihael Sanko Founder of Ancestral Cosmetics" is founder-handle whitelisting, not a brand page; founder rule, 19 Aug). NEVER claim there are "no whitelisting or partnership pages" when the FUNNEL FACTS list any WHITELISTED, PARTNERSHIP or FOUNDER-HANDLE page.\n` +
   `NAME THE CREATOR (founder rule, 2 Aug): when a post or ad is INFLUENCER/creator content rather than the brand's own, say WHOSE it is — the handle or name exactly as the captured data gives it ("@jenna's Reel for them hit 136K views"), never a faceless "influencer Reel". The identity is the useful part: it tells the reader who to approach or counter. If the data does not carry a name or handle, say "a creator post" and stop — never guess whose it is.\n` +
   `NAME THE CHANNEL (founder rule): a reader cannot tell whether "Freedom Field Balm launched today" means it appeared on their WEBSITE, in their ADS, in an EMAIL or on SOCIAL. Every finding must make the source obvious in the sentence itself — "listed on their site", "in a new ad", "in today's email", "posted on Instagram". Say it naturally as part of the sentence, never as a bracketed tag.\n` +
   `NEVER COUNT CAPTURES (founder rule): "2+ consecutive captures", "since the last capture", "in the previous capture" is our internal plumbing, meaningless to a marketer. Use DATES instead — "no Meta ads since 22 Jul", or when it spans the whole monitored history, "no Meta ads since monitoring began on 18 Jul" (use the MONITORING WINDOW fact). For day-over-day comparisons say "since yesterday" or name the date.\n` +

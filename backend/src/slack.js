@@ -71,6 +71,18 @@ export async function buildDigest(brands) {
 // produced the text. Exported for tests (R-MARK-SYNC).
 export const textClaimsLaunches = (t) => /\b\d+\s+new\s+ads?\s+launched\b/i.test(String(t || ''));
 
+// R-MARK-TEXT (founder, 19 Aug — Glov Beauty: "why glow beauty has an exclamation mark if
+// nothing happened under Website"). The website ❗ used to come from the SIGNAL engine
+// (s.sale is truthy on any active-sale day — catch-up refires, wording drift) while the
+// row's words came from the app read — so "Summer Sale unchanged" shipped decorated as
+// news. The mark now derives from the SENTENCE THAT SHIPS, in both directions (extends
+// R-MARK-SYNC): an "unchanged" row can never carry ❗, a row announcing news always does.
+// "No new products …" phrasing is stripped before matching so it can't false-positive.
+export const textClaimsWebNews = (t) => {
+  const s = String(t || '').replace(/\b(?:no|nothing)\s+new\b[^.!?]*/gi, '');
+  return /(\bnew sale\b|\bsale (?:started|ended|live)\b|\bnew product|\bnew listing|\bnew funnel\b|\bprice (?:rise|rose|drop|fell|cut|change)|\blowest price\b|\d\s*→|\bremoved\b|\bfirst seen\b|\breplaced\b|\bnow listed\b|\bprice moved\b)/i.test(s);
+};
+
 export function adsRecapLine(ins) {
   const a = ins && ins.ads;
   if (!a || !a.summary) return '';
@@ -147,7 +159,8 @@ const sentSplit = (t) => String(t || '').trim().split(/(?<=[.!?])\s+/).filter(Bo
 // substitution approach: the brief quotes the app's stored read VERBATIM, always. The
 // deterministic sale announcement is a FALLBACK for an ABSENT read — it never replaces a
 // present one, so the two surfaces cannot diverge by construction. The app read names any
-// active sale per its own rules; the ❗ mark still flags sale days. Exported for tests.
+// active sale per its own rules; the ❗ mark follows the shipped words (R-MARK-TEXT, 19
+// Aug — a standing sale day is not news). Exported for tests.
 export function websiteRowText(sale, summary) {
   const read = String(summary || '').trim();
   return read || (sale ? String(sale) : '');
@@ -247,7 +260,6 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     const ch = (k) => (fresh && ins[k] && ins[k].summary) ? String(ins[k].summary) : '';
     const social = ch('instagram') || ch('tiktok') || ch('facebook') || ch('social');
     const adsNew = !!(n(A.ads) || (s && (n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.angle))));
-    const webNew = !!((s && s.sale) || (s && n(s.products)) || n(A.website));
     // DELIVERY GATE (founder, 12 Aug): no AI-written line ships unverified. A line that
     // violates a mechanical rule after scrubbing is replaced by deterministic fallback
     // text, and the downgrade is QA-pinged to the founder webhook. Rules: rulecheck.js.
@@ -268,7 +280,13 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     if (on('ads') && adsText) rows.push('   *Ads:* ' + mark(adsNew || textClaimsLaunches(adsText)) + adsText);
     const socialTxt = socialRowText(social, A.posts, (s && s.postsSeen) || 0);
     if (on('social') && socialTxt) rows.push('   *Social:* ' + mark(!!n(A.posts)) + gated(socialTxt, 'social'));
-    if (on('website') && (ch('website') || (s && s.sale))) rows.push('   *Website:* ' + mark(webNew) + gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website'));
+    // R-MARK-TEXT (founder, 19 Aug — Glov): the website ❗ derives from the shipped
+    // sentence itself, never from the parallel signal engine (s.sale is truthy on every
+    // standing-sale day and decorated "Summer Sale unchanged" as news).
+    if (on('website') && (ch('website') || (s && s.sale))) {
+      const webText = gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website');
+      rows.push('   *Website:* ' + mark(textClaimsWebNews(webText)) + webText);
+    }
     const emailTxt = emailRowText(ch('email'), n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || '');
     if (on('email') && emailTxt) rows.push('   *Email:* ' + mark(!!n(A.emails)) + gated(emailTxt, 'email'));
     // The badge summarises only the channels this reader actually gets — a 💡 earned by a

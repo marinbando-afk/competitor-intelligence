@@ -7,6 +7,7 @@
 //     -> { after:{day,shot,summary}, before:{day,shot,summary}|null, changes:[...] }
 
 import { saveSnapshot, recentSnapshots, latestSnapshot, saveSnapshotDay } from './snapshots.js';
+import { cleanBannerText } from './occasions.js';
 import { pool } from './db.js';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -55,7 +56,12 @@ export function bannerLooksLikeError(s) {
   return /\berrorpage\b|rate.?limit|local[_\s-]?rate|_limited\b|too many requests|\b429\b|screenshot(one)?|mshots|try again|temporarily unavailable|\berror\b|forbidden|blocked/i.test(String(s || ''));
 }
 function cleanBanner(s) {
-  const t = oneLine(s || '').replace(/^["'\s]+|["'\s.]+$/g, '');
+  // R-BANNER-VERBATIM (founder, 19 Aug — CurrentBody): the reader model appended
+  // "(This is a press quote, not a promotional offer/sale.)" to its answer and the caveat
+  // landed IN the stored banner — 16 words, exactly at the length cap, so it slipped
+  // through. Strip meta-commentary BEFORE any other check; a data field is verbatim page
+  // text or nothing.
+  const t = cleanBannerText(oneLine(s || '')).replace(/^["'\s]+|["'\s.]+$/g, '');
   if (!t) return '';
   if (bannerLooksLikeError(t)) return '';   // a screenshot-service error page, not a promo
   if (/^(i (don'?t|do not|can'?t|cannot)\b|there (is|are) no\b|no (active|visible|current)?\s*(promotion|promo|sale|offer|banner)|none\b|n\/?a\b|empty\b|not\b|unable\b)/i.test(t)) return '';

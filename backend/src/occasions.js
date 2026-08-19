@@ -120,9 +120,37 @@ export function occasionsIn(text) {
 // returns, "new arrivals" or "shop now".
 const OPERATIONAL_FREE = /\bfree\s+(worldwide\s+|international\s+|express\s+|standard\s+|2[\s-]?day\s+|next[\s-]?day\s+|fast\s+)*(shipping|delivery|deliveries|returns?|exchanges?|ship)\b/i;
 const SALE_RE = /(\d{1,3}\s*%\s*(off|discount)|\bup\s*to\s*\d{1,3}\s*%|\$\s?\d+\s*off\b|\bsave\s+(up\s+to\s+)?(\d{1,3}\s*%|\$\s?\d+)|\bsale\b|\bbogo\b|\bbuy\s*one\b|\b2\s*for\s*1\b|\bclearance\b|\bgift\s+with\s+(any\s+)?purchase\b|\bfree\s+gift\b|\bpromo\s*code\b|\bdiscount\b)/i;
+
+// R-BANNER-VERBATIM (founder, 19 Aug — CurrentBody): the banner reader appended its own
+// caveat INSIDE the data field ('… - Grazia" (This is a press quote, not a promotional
+// offer/sale.)') and the word "sale" in that caveat flipped isSaleBanner — the model's
+// disclaimer CREATED the promo it was denying. A data field holds verbatim page text,
+// never commentary — strip meta-parentheticals and the orphan quote they leave behind at
+// every READ, because poisoned rows already exist in history and must stay inert.
+const META_PAREN = /\s*\((?:this is\b|note[:,]?\b|n\.?b\.?\b|i\.e\.|not a\b|likely\b|appears\b|possibly\b|seems\b)[^)]*\)/gi;
+export function cleanBannerText(s) {
+  let t = String(s || '').replace(META_PAREN, ' ').replace(/\s{2,}/g, ' ').trim();
+  if ((t.match(/"/g) || []).length % 2) t = t.replace(/\s*"\s*$/, '').trim();
+  // the extraction's stray closer after a dash-attributed source ('… - Grazia"') — both
+  // quotes in that string are closers, so parity alone can't see it
+  t = t.replace(/([-–—]\s*[A-Z][\w&.'’ ]{1,30})["”]\s*$/, '$1').trim();
+  return t;
+}
+
+// R-BANNER-PRESS (founder, 19 Aug — CurrentBody: "Beauty technology at its finest." -
+// Grazia): a press/award quote in the announcement bar is credibility messaging, not an
+// offer — it must NEVER surface as "Storefront promo" or fire the sale machinery.
+export function isPressQuoteBanner(s) {
+  const raw = String(s || '');
+  if (/\bpress quote\b|\baward[- ]?win/i.test(raw)) return true;
+  // quoted copy followed by a dash-attributed Title-case source ("…" - Grazia / — Vogue)
+  return /["“”'’][.\s]*[-–—]\s*[A-Z][\w&.'’ ]{1,30}$/.test(cleanBannerText(raw));
+}
+
 export function isSaleBanner(text) {
-  const t = String(text || '').trim();
+  const t = cleanBannerText(text);
   if (!t) return false;
+  if (isPressQuoteBanner(text)) return false;
   if (SALE_RE.test(t) || occasionsIn(t).length) return true;
   // "free <something that isn't shipping/returns>" is a gift/product offer → promotional.
   if (/\bfree\b/i.test(t) && !OPERATIONAL_FREE.test(t)) return true;

@@ -23,10 +23,18 @@
 import { pool } from './db.js';
 import { latestSnapshot, saveSnapshot } from './snapshots.js';
 import { diffWebsite } from './website.js';
-import { sameBannerText, isSaleBanner, offerFlags, timerIn, TIMER_RE } from './occasions.js';
+import { sameBannerText, isSaleBanner, cleanBannerText, offerFlags, timerIn, TIMER_RE } from './occasions.js';
 
 const dOf = (v) => String(v instanceof Date ? v.toISOString() : v || '').slice(0, 10);
 const domOf = (u) => String(u || '').replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '').toLowerCase();
+// domain + path, query/fragment stripped, no trailing slash — the identity of a LANDING
+// PAGE rather than a landing site. '' for bare-domain landings (the domain check owns those).
+const pathOf = (u) => {
+  const s = String(u || '').replace(/^https?:\/\//, '').split(/[?#]/)[0].replace(/\/+$/, '');
+  const i = s.indexOf('/');
+  if (i < 0 || i === s.length - 1) return '';
+  return (s.slice(0, i).replace(/^www\./, '') + s.slice(i)).toLowerCase();
+};
 
 async function history(host, channel, days = 45) {
   const r = await pool.query(
@@ -64,18 +72,20 @@ export function adsFindings(rows, capN) {
   }
 
   // What we have EVER seen before today.
-  const seenDom = new Map(), seenPage = new Map();
+  const seenDom = new Map(), seenPage = new Map(), seenPath = new Map();
   for (const r of earlier) {
     for (const a of ((r.data && r.data.ads) || [])) {
       const d = domOf(a.landing); if (d && !seenDom.has(d)) seenDom.set(d, r.day);
       if (a.page && !seenPage.has(a.page)) seenPage.set(a.page, r.day);
+      const pp = pathOf(a.landing); if (pp && !seenPath.has(pp)) seenPath.set(pp, r.day);
     }
   }
 
-  const domNow = new Map(), pageNow = new Map();
+  const domNow = new Map(), pageNow = new Map(), pathNow = new Map();
   for (const a of ads) {
     const d = domOf(a.landing); if (d) domNow.set(d, (domNow.get(d) || 0) + 1);
     if (a.page) pageNow.set(a.page, (pageNow.get(a.page) || 0) + 1);
+    const pp = pathOf(a.landing); if (pp) pathNow.set(pp, { n: ((pathNow.get(pp) || {}).n || 0) + 1, url: a.landing, pages: ((pathNow.get(pp) || {}).pages || new Set()).add(String(a.page || '').trim()) });
   }
 
   // Present-tense facts are always safe to state.
@@ -114,6 +124,22 @@ export function adsFindings(rows, capN) {
     }
     for (const [p] of pageNow) {
       if (!seenPage.has(p)) out.push({ type: 'new', key: 'ads.newPage:' + p, text: 'Ads appear from "' + String(p).trim() + '" for the first time; this page was absent from every earlier capture that held ads.', evidence: { page: p } });
+    }
+    // R-FUNNEL-PATH (founder, 19 Aug — Ancestral): a NEW LANDING PAGE on the brand's own
+    // domain is a new funnel too. /pages/we-made-face-cream-from-beef-fat went 0 → 16 ads
+    // in one day and the domain-level check above saw nothing, so the launch of a whole
+    // advertorial funnel was never reported. First-seen PATH backed by 3+ ads = news; the
+    // threshold keeps one-off tracking variants and typo'd URLs out.
+    for (const [pp, info] of pathNow) {
+      const dm = domOf('https://' + pp);
+      if (seenPath.has(pp) || info.n < 3) continue;
+      if (!seenDom.has(dm)) continue;   // a brand-new DOMAIN already gets its own finding above
+      const handles = [...info.pages].filter(Boolean).slice(0, 2).map((x) => '"' + x + '"').join(' and ');
+      out.push({
+        type: 'new', key: 'ads.newPath:' + pp,
+        text: 'New ad funnel live: multiple ads now drive to ' + pp + ' — a landing page absent from every earlier capture that held ads' + (handles ? ', running from the ' + handles + ' handle' + (info.pages.size > 1 ? 's' : '') : '') + '.',
+        evidence: { path: pp, url: info.url, count: info.n, pages: [...info.pages].filter(Boolean) },
+      });
     }
   }
 
@@ -262,7 +288,10 @@ export function websiteFindings(rows) {
   if (!today) return out;
   const cur = today.data || {};
   const prev = rows.slice(1).find((r) => r.data && r.data.summary);
-  const bannerNow = cur.banner || '';
+  // R-BANNER-VERBATIM: strip any model commentary a past capture baked into the field —
+  // history holds poisoned rows (CurrentBody, 18 Aug) and quoting them verbatim ships the
+  // model's own caveat as if it were the competitor's storefront copy.
+  const bannerNow = cleanBannerText(cur.banner || '');
 
   // ROTATION IS THE NORM (founder, 6 Aug — Glov). Announcement bars cycle sale + social
   // proof + USP slides, so one capture is a SAMPLE of the bar, not the bar. Surface the other

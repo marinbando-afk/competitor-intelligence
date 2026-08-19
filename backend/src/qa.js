@@ -71,6 +71,18 @@ export function checkCongruence(block, appRead, f) {
   if (/New sale live/i.test(block) && /unchanged|already running|still (running|live)/i.test(appW)) {
     out.push({ brand: f.name, rule: 'R-SYNC-04', why: 'brief calls the sale NEW while the app read says it is unchanged/already running' });
   }
+  // R-SYNC-05 (CurrentBody, 19 Aug): the brief announced "Storefront promo: …Grazia…"
+  // while the app's read said "Storefront unchanged" — presence matched (both had a
+  // Website row) but the brief asserted a PROMO the app never showed. A promo/sale claim
+  // in the brief must exist in the app read too, or the surfaces have split.
+  // The app's honest no-change line itself contains the word "sale" ("same prices,
+  // products and sale"), so the test is: the read asserts no change AND names no actual
+  // offer (no discount %, no promo mechanic) while the brief announces one.
+  const briefPromo = /Storefront promo|New sale live|Sale live \(already running\)/i.test(block);
+  const appNoPromo = /unchanged|no changes?\b/i.test(appW) && !/\d{1,3}\s*%|bogo|clearance|free gift|promo code|gift with purchase/i.test(appW);
+  if (briefPromo && appNoPromo) {
+    out.push({ brand: f.name, rule: 'R-SYNC-05', why: 'brief announces a storefront promo/sale that the app website read does not contain' });
+  }
   return out;
 }
 
