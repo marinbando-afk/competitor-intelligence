@@ -225,6 +225,11 @@ ok(badgeFor(false, false, '   *Ads:* Recent ads run to x.com.') === '✅ no new 
 ok(badgeFor(false, true, '   *Social:* New post.') === '🔹 routine activity', 'activity without priority → routine');
 ok(badgeFor(false, false, '   *Email:* ❗ New email: "subject"') === '🔹 routine activity', '❗ without a priority claim → routine, not ✅');
 
+console.log('\nFOUNDER WEBHOOK FALLBACK — no env var + no DB → honest reason, never a throw (19 Aug):');
+const { postText } = await import('../src/slack.js');
+const pt = await postText('ping');
+ok(pt && pt.sent === false && /no Slack destination/i.test(pt.reason || ''), 'postText degrades to a clear reason when no destination resolves');
+
 console.log('\nSENSE-CHECK FACTS — the checker sees everything the writer saw (Ancestral splice, 19 Aug):');
 const { senseFacts } = await import('../src/insights.js');
 const sf = senseFacts([{ text: 'Ad funnel live (already running): multiple ads drive to x.com/pages/lp — the funnel began on 2026-08-13.' }], 'RAW ADS FACTS HERE');

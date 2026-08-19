@@ -496,7 +496,14 @@ app.get('/api/shot-usage', async (req, res) => {
 app.get('/api/slack-test', async (req, res) => {
   if (!(await isAdminReq(req))) return res.status(403).json({ error: 'Admin only.' });
   const clientBrands = (await allBrands()).filter((b) => !TRACKED.some((t) => t.host === b.host));
-  res.json(await postDailyBrief(clientBrands.length ? clientBrands : await allBrands()));
+  // The founder's own channel: SLACK_WEBHOOK_URL when set, else the signed-in admin
+  // account's connected Slack — the pipe their 08:00 briefs actually arrive through.
+  let mine = '';
+  try {
+    const uid = optionalUid(req);
+    if (uid) { const r = await pool.query('SELECT slack_webhook FROM users WHERE id = $1', [uid]); mine = (r.rows[0] && r.rows[0].slack_webhook) || ''; }
+  } catch (e) { /* fall through to env */ }
+  res.json(await postDailyBrief(clientBrands.length ? clientBrands : await allBrands(), null, isSlackWebhook(mine) ? mine : ''));
 });
 
 // Preview today's daily brief without posting (same text the Slack message carries).

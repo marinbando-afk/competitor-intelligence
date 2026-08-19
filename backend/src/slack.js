@@ -35,6 +35,22 @@ const LBL = { ads: 'Ads', social: 'Social', website: 'Website', email: 'Email' }
 
 export function slackEnabled() { return !!process.env.SLACK_WEBHOOK_URL; }
 
+// The founder's channel: SLACK_WEBHOOK_URL when set, else the oldest admin account's
+// connected Slack (the nav's SLACK ✓ pipe). SLACK_WEBHOOK_URL was never set on this
+// deployment, so every postText — 🧯 QA pings, weekly links, credit alerts — was being
+// silently dropped while the founder assumed the audit channel worked (found 19 Aug via
+// "why it says the slack webhook is not set up while it is???"). Cached 10 min.
+let _fhook = { at: 0, val: '' };
+export async function founderWebhook() {
+  if (process.env.SLACK_WEBHOOK_URL) return process.env.SLACK_WEBHOOK_URL;
+  if (Date.now() - _fhook.at < 10 * 60 * 1000) return _fhook.val;
+  try {
+    const r = await pool.query(`SELECT slack_webhook FROM users WHERE admin = TRUE AND slack_webhook IS NOT NULL AND slack_webhook <> '' ORDER BY created_at ASC LIMIT 1`);
+    _fhook = { at: Date.now(), val: (r.rows[0] && r.rows[0].slack_webhook) || '' };
+  } catch (e) { _fhook = { at: Date.now(), val: '' }; }
+  return _fhook.val;
+}
+
 // Build the Slack message (mrkdwn): a header, then one line per channel per brand.
 export async function buildDigest(brands) {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -341,17 +357,23 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
   return head + '\n\n' + blocks.join('\n\n') + '\n\n🔗 <' + link + '|View the full dashboard & signals →>';
 }
 
-export async function postDailyBrief(brands, viewUrl) {
-  if (!slackEnabled()) return { sent: false, reason: 'SLACK_WEBHOOK_URL not set' };
+// webhook: optional override — the founder's briefs arrive through their ACCOUNT's
+// connected Slack (users.slack_webhook, the nav's SLACK ✓), and SLACK_WEBHOOK_URL may
+// legitimately be unset on the server (founder, 19 Aug: "why it says the slack webhook
+// is not set up while it is???" — two different pipes). Callers pass the account webhook
+// as the fallback destination.
+export async function postDailyBrief(brands, viewUrl, webhook) {
+  const dest = process.env.SLACK_WEBHOOK_URL || webhook || (await founderWebhook()) || '';
+  if (!dest) return { sent: false, reason: 'no Slack destination — set SLACK_WEBHOOK_URL or connect Slack on your account' };
   const text = await buildDailyBrief(brands, viewUrl, true);   // real delivery → commit announce-once state
-  if (!slackEnabled()) return { sent: false, reason: 'SLACK_WEBHOOK_URL not set' };
-  return postBrief(process.env.SLACK_WEBHOOK_URL, text);
+  return postBrief(dest, text);
 }
 
-// Plain mrkdwn post to the founder webhook (used for weekly-report links etc.).
+// Plain mrkdwn post to the founder webhook (used for weekly-report links, 🧯 QA pings…).
 export async function postText(text) {
-  if (!slackEnabled()) return { sent: false, reason: 'SLACK_WEBHOOK_URL not set' };
-  return postTo(process.env.SLACK_WEBHOOK_URL, text);
+  const dest = await founderWebhook();
+  if (!dest) return { sent: false, reason: 'no Slack destination — set SLACK_WEBHOOK_URL or connect Slack on the admin account' };
+  return postTo(dest, text);
 }
 
 // ── Block Kit rendering (founder, 18 Aug: "the slack update still feels text heavy —
@@ -466,10 +488,11 @@ export async function sendUserWeeklyLinks(pool, weekLabel) {
 }
 
 export async function postDigest(brands) {
-  if (!slackEnabled()) return { sent: false, reason: 'SLACK_WEBHOOK_URL not set' };
+  const destD = await founderWebhook();
+  if (!destD) return { sent: false, reason: 'no Slack destination — set SLACK_WEBHOOK_URL or connect Slack on the admin account' };
   const text = await buildDigest(brands);
   try {
-    const r = await fetch(process.env.SLACK_WEBHOOK_URL, {
+    const r = await fetch(destD, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, mrkdwn: true }),
