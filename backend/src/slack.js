@@ -158,9 +158,34 @@ export function websiteRowText(sale, summary) {
 // read silently dropped the row. SYNC RULE: a channel the app displays always gets a row —
 // fresh read first, else the deterministic new-post line, else an honest "no new posts".
 // Exported for test/rulecheck.test.js.
-export function socialRowText(read, newPosts, postsSeen) {
+// R-FALLBACK-SUBSTANCE (founder, 14 Aug, RE-APPLIED 18 Aug after a merge clobbered it —
+// the Bare Bones stub): captured items carry their own hook/about — quote it, never
+// "details in the app". safeQuote makes the quoted teaser gate-proof: no URLs, no ISO
+// dates, no quote characters that could unbalance the line — a substance fallback that
+// violates the gate collapses to the stub, defeating its whole purpose.
+export function safeQuote(sIn, max) {
+  let q = String(sIn || '')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '')
+    .replace(/["“”]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+  const m = max || 90;
+  if (q.length > m) q = q.slice(0, m).replace(/\s+\S*$/, '') + '…';
+  return q;
+}
+
+export function socialRowText(read, posts, postsSeen) {
   if (read) return String(read);
-  if (newPosts > 0) return newPosts + ' new post' + (newPosts > 1 ? 's' : '') + ' captured — details in the app.';
+  const list = Array.isArray(posts) ? posts : [];
+  if (list.length) {
+    const p = list[0] || {};
+    const label = p.platform || 'social';
+    const about = safeQuote(p.about);
+    const rest = list.length > 1 ? ' (also new on ' + list.slice(1).map((x) => (x && x.platform) || 'social').join(', ') + ')' : '';
+    if (about) return ((p.count > 1) ? (p.count + ' new ' + label + ' posts — latest: ') : ('New ' + label + ' post: ')) + '\u201c' + about + '\u201d' + rest;
+    return ((p.count > 1) ? (p.count + ' new ' + label + ' posts') : ('New ' + label + ' post')) + rest + '.';
+  }
   if (postsSeen > 0) return 'No new posts on the tracked profiles.';
   return '';
 }
@@ -170,8 +195,9 @@ export function socialRowText(read, newPosts, postsSeen) {
 // social fix, generalised to email: a channel the app displays always gets a row.
 export function emailRowText(read, newEmails, emailsSeen, latestSubject) {
   if (read) return String(read);
-  if (newEmails > 0) return 'New email: "' + String(latestSubject || '').replace(/"/g, "'") + '"';
-  if (emailsSeen > 0) return 'No new emails — latest: "' + String(latestSubject || '').replace(/"/g, "'") + '".';
+  const subj = safeQuote(latestSubject);
+  if (newEmails > 0) return 'New email: \u201c' + subj + '\u201d';
+  if (emailsSeen > 0) return 'No new emails — latest: \u201c' + subj + '\u201d.';
   return '';
 }
 
@@ -226,10 +252,10 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     // violates a mechanical rule after scrubbing is replaced by deterministic fallback
     // text, and the downgrade is QA-pinged to the founder webhook. Rules: rulecheck.js.
     const fb = {
-      ads: n(A.ads) ? n(A.ads) + ' new ad' + (n(A.ads) > 1 ? 's' : '') + ' captured — details in the app.' : '',
-      social: n(A.posts) ? 'New post' + (n(A.posts) > 1 ? 's' : '') + ' captured — details in the app.' : '',
+      ads: n(A.ads) ? (n(A.ads) + ' new ad' + (n(A.ads) > 1 ? 's' : '') + ' captured' + (safeQuote(A.ads[0] && A.ads[0].about) ? ' — newest: \u201c' + safeQuote(A.ads[0] && A.ads[0].about) + '\u201d' : '.')) : '',
+      social: socialRowText('', A.posts, (s && s.postsSeen) || 0),
       website: (s && s.sale) || (n(A.website) ? String(A.website[0]) : ''),
-      email: n(A.emails) ? 'New email: "' + String((A.emails[0] && A.emails[0].subject) || '').replace(/"/g, "'") + '"' : '',
+      email: emailRowText('', n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || ''),
     };
     const gated = (raw, channel) => gateLine(line(raw), line(fb[channel]), { surface: 'slack', qa: qaNotes, brand: b.name, channel }).text;
     const rows = [];
@@ -240,7 +266,7 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     // Bold labels (founder, 18 Aug: "still feels text heavy") — the label is the anchor
     // the eye scans by; bolding it turns four lines of prose into four labeled rows.
     if (on('ads') && adsText) rows.push('   *Ads:* ' + mark(adsNew || textClaimsLaunches(adsText)) + adsText);
-    const socialTxt = socialRowText(social, n(A.posts), (s && s.postsSeen) || 0);
+    const socialTxt = socialRowText(social, A.posts, (s && s.postsSeen) || 0);
     if (on('social') && socialTxt) rows.push('   *Social:* ' + mark(!!n(A.posts)) + gated(socialTxt, 'social'));
     if (on('website') && (ch('website') || (s && s.sale))) rows.push('   *Website:* ' + mark(webNew) + gated(websiteRowText(s && s.sale, ch('website') ? ins.website.summary : ''), 'website'));
     const emailTxt = emailRowText(ch('email'), n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || '');

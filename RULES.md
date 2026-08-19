@@ -47,6 +47,10 @@ misses to the founder's Slack.
 - [qa.js R-SYNC-04] [ENFORCED] Newness claims must AGREE across surfaces: the brief saying "New sale live" while the app read says unchanged/already running is a contradiction → audit ping (Bare Bones, 13 Aug)
 - [qa.js] [ENFORCED] The full audit (miss-checks R-MISS-00..04, hard rulecheck, congruence R-SYNC-01..03, model judge) runs automatically after every real daily delivery; findings arrive as 🧯 messages in the founder's Slack
 
+## Fallback substance
+
+- [slack.js R-FALLBACK-SUBSTANCE + rulecheck.js R-PHRASE-03] [ENFORCED] **"Details in the app" is banned; fallbacks quote the substance we already hold** — the post's hook, the newest ad's opening line, the email subject. Quoted teasers pass through safeQuote (URLs, ISO dates and quote characters stripped) so a hostile hook can never make the substance fallback violate the gate and collapse into the generic stub (founder, 14 Aug; re-applied 18 Aug after a merge clobbered the builders — Bare Bones' "New activity captured" stub; now pinned by tests)
+
 ## Ads
 
 - [insights.js GUIDE.ads] [PROMPT] New ad launches LEAD the ads read: how many, formats, hook/angle of each with Meta start dates — never compress launches into a bare count (founder, 7 Aug)

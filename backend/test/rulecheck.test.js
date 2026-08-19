@@ -95,5 +95,16 @@ const twoAds = adsFindings([
 ], 50).find((f) => f.key === 'ads.launches');
 ok(twoAds && /\(all video\)/.test(twoAds.text), 'two uniform ads → "(all video)"');
 
+console.log('\nFALLBACK SUBSTANCE — pinned so a merge can never clobber it again (18 Aug, Bare Bones stub):');
+const { socialRowText, emailRowText, safeQuote } = await import('../src/slack.js');
+ok(socialRowText('', [{ platform: 'Instagram', count: 1, about: 'Play your comfort card with UNO' }], 9).indexOf('New Instagram post: ') === 0, 'social fallback quotes the hook, never \u201cdetails in the app\u201d');
+ok(socialRowText('', [], 9) === 'No new posts on the tracked profiles.', 'no new posts → honest row');
+ok(emailRowText('', 0, 16, 'Smooche is now on Amazon!').indexOf('No new emails — latest:') === 0, 'email fallback carries the latest subject');
+const nasty = 'Check this \u201cdeal\u201d https://x.com/p?utm_source=fb before 2026-08-11';
+ok(checkText(socialRowText('', [{ platform: 'TikTok', count: 1, about: nasty }], 3), { surface: 'slack' }).length === 0, 'safeQuote makes a hostile hook (curly quote + UTM link + ISO date) gate-clean');
+const chain = gateLine('New Instagram item since 2026-08-11: \u201cx\u201d.', socialRowText('', [{ platform: 'Instagram', count: 1, about: nasty }], 3), { surface: 'slack' });
+ok(chain.downgraded && chain.text.indexOf('New Instagram post: ') === 0, 'violating read → substantive fallback ships, never the stub');
+ok(safeQuote('a  b   c') === 'a b c' && safeQuote('') === '', 'safeQuote basics');
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);
