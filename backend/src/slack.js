@@ -254,7 +254,7 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     const fb = {
       ads: n(A.ads) ? (n(A.ads) + ' new ad' + (n(A.ads) > 1 ? 's' : '') + ' captured' + (safeQuote(A.ads[0] && A.ads[0].about) ? ' — newest: \u201c' + safeQuote(A.ads[0] && A.ads[0].about) + '\u201d' : '.')) : '',
       social: socialRowText('', A.posts, (s && s.postsSeen) || 0),
-      website: (s && s.sale) || (n(A.website) ? String(A.website[0]) : ''),
+      website: (s && s.sale) || (n(A.website) ? String(A.website[0]) : ((s && s.webComparable) ? 'Storefront unchanged — same prices, products and sale.' : '')),
       email: emailRowText('', n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || ''),
     };
     const gated = (raw, channel) => gateLine(line(raw), line(fb[channel]), { surface: 'slack', qa: qaNotes, brand: b.name, channel }).text;

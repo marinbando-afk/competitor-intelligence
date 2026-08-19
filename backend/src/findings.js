@@ -21,6 +21,7 @@
 //   • When nothing is provable, the honest output is an empty list — not a guess.
 
 import { pool } from './db.js';
+import { latestSnapshot, saveSnapshot } from './snapshots.js';
 import { diffWebsite } from './website.js';
 import { sameBannerText, isSaleBanner, offerFlags, timerIn, TIMER_RE } from './occasions.js';
 
@@ -502,15 +503,58 @@ export function windowFindings(rows, label, itemsOf) {
 }
 
 // ── PUBLIC ────────────────────────────────────────────────────────────────────
+// R-REPEAT (founder, 18 Aug): "don't report the same thing more than 3 times in a row" —
+// a persistent alert (a redirect, a dead landing) is news for three mornings, then noise.
+// After 3 consecutive reported days it goes quiet for 30 days, then reappears once as a
+// reminder and the cycle restarts. Applies to persistent-ALERT findings only — daily
+// heartbeat lines the founder explicitly wants every day (live sale, storefront
+// unchanged, ad footprint) are exempt by design. Pure decision exported for tests.
+export const REPEAT_CAPPED = [/^ads\.landRedirect:/, /^ads\.landDown:/];
+export function repeatCapNext(prev, todayStr) {
+  const p = prev || { streak: 0, last: '', mutedUntil: '' };
+  const dayMinus1 = new Date(Date.parse(todayStr + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10);
+  if (p.mutedUntil && todayStr < p.mutedUntil) return { emit: false, next: p };
+  if (p.last === todayStr) return { emit: p.streak <= 3 && p.streak > 0, next: p };   // same-day rerun: idempotent
+  const streak = p.last === dayMinus1 ? p.streak + 1 : 1;
+  if (streak > 3) {
+    const mu = new Date(Date.parse(todayStr + 'T00:00:00Z') + 30 * 864e5).toISOString().slice(0, 10);
+    return { emit: false, next: { streak: 0, last: p.last, mutedUntil: mu } };
+  }
+  return { emit: true, next: { streak, last: todayStr, mutedUntil: '' } };
+}
+
+async function applyRepeatCap(host, todayStr, list) {
+  try {
+    if (!list.some((f) => REPEAT_CAPPED.some((re) => re.test(f.key || '')))) return list;
+    const st = await latestSnapshot(host, '_findstate');
+    const seen = (st && st.repeat && typeof st.repeat === 'object') ? st.repeat : {};
+    const out = [];
+    let dirty = false;
+    for (const f of list) {
+      if (!REPEAT_CAPPED.some((re) => re.test(f.key || ''))) { out.push(f); continue; }
+      const d = repeatCapNext(seen[f.key], todayStr);
+      if (JSON.stringify(d.next) !== JSON.stringify(seen[f.key] || null)) { seen[f.key] = d.next; dirty = true; }
+      if (d.emit) out.push(f);
+    }
+    if (dirty) {
+      const cutoff = new Date(Date.parse(todayStr) - 60 * 864e5).toISOString().slice(0, 10);
+      for (const k of Object.keys(seen)) { const r = seen[k] || {}; if ((!r.mutedUntil || r.mutedUntil < todayStr) && (!r.last || r.last < cutoff)) delete seen[k]; }
+      await saveSnapshot(host, '_findstate', { repeat: seen });
+    }
+    return out;
+  } catch (e) { return list; }   // the cap must never break findings
+}
+
 export async function computeFindings(host, opts = {}) {
   const capN = Number(process.env.ADS_COUNT) || 50;
   const [ads, web, ig, tt, fb, em] = await Promise.all([
     history(host, 'ads'), history(host, 'website'),
     history(host, 'instagram', 8), history(host, 'tiktok', 8), history(host, 'facebook', 8), history(host, 'email', 8),
   ]);
+  const todayStr = (ads[0] && ads[0].day) || (web[0] && web[0].day) || new Date().toISOString().slice(0, 10);
   return {
     host,
-    ads: adsFindings(ads, capN),
+    ads: await applyRepeatCap(host, todayStr, adsFindings(ads, capN)),
     website: websiteFindings(web),
     social: [].concat(
       windowFindings(ig, 'Instagram', (d) => d && d.posts),

@@ -213,6 +213,7 @@ export async function dailySignals(host, commit) {
     // surfaces can no longer describe different days or different comparisons.
     const wc = await resolveCapture(host, 'website', { today: todayStr });
     out.captureDay = wc.day; out.captureProvenance = wc.comparable ? (wc.prevDay + ' → ' + wc.day) : wc.day;
+    out.webComparable = !!wc.comparable;   // fallback tier: 'unchanged' may only be claimed off a comparable pair
     const cur = wc.data;
     const prev = wc.prev;
     if (wc.comparable && cur && cur.summary && prev && prev.summary) {

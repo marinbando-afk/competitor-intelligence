@@ -106,5 +106,22 @@ const chain = gateLine('New Instagram item since 2026-08-11: \u201cx\u201d.', so
 ok(chain.downgraded && chain.text.indexOf('New Instagram post: ') === 0, 'violating read → substantive fallback ships, never the stub');
 ok(safeQuote('a  b   c') === 'a b c' && safeQuote('') === '', 'safeQuote basics');
 
+console.log('\nREPEAT CAP — 3 mornings of news, then 30 days of quiet (founder, 18 Aug):');
+const { repeatCapNext } = await import('../src/findings.js');
+let rc = repeatCapNext(null, '2026-08-18');
+ok(rc.emit && rc.next.streak === 1, 'day 1: emits');
+rc = repeatCapNext({ streak: 2, last: '2026-08-17', mutedUntil: '' }, '2026-08-18');
+ok(rc.emit && rc.next.streak === 3, 'day 3: still emits');
+rc = repeatCapNext({ streak: 3, last: '2026-08-17', mutedUntil: '' }, '2026-08-18');
+ok(!rc.emit && rc.next.mutedUntil === '2026-09-17', 'day 4: muted for 30 days');
+ok(!repeatCapNext({ streak: 0, last: '2026-08-17', mutedUntil: '2026-09-17' }, '2026-09-01').emit, 'mid-mute: stays quiet');
+rc = repeatCapNext({ streak: 0, last: '2026-08-17', mutedUntil: '2026-09-17' }, '2026-09-17');
+ok(rc.emit && rc.next.streak === 1, 'after the mute: reminds once and the cycle restarts');
+ok(repeatCapNext({ streak: 2, last: '2026-08-18', mutedUntil: '' }, '2026-08-18').emit, 'same-day rerun: idempotent, still emits');
+
+console.log('\nWEBSITE FALLBACK TIER — violating read falls to the honest no-change line (Froya, 18 Aug):');
+const gWeb = gateLine('Storefront promo first seen 2026-08-11 on the banner.', 'Storefront unchanged — same prices, products and sale.', { surface: 'slack' });
+ok(gWeb.downgraded && gWeb.text === 'Storefront unchanged — same prices, products and sale.', 'website stub is unreachable when the pair was comparable');
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);

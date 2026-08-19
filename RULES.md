@@ -47,9 +47,13 @@ misses to the founder's Slack.
 - [qa.js R-SYNC-04] [ENFORCED] Newness claims must AGREE across surfaces: the brief saying "New sale live" while the app read says unchanged/already running is a contradiction → audit ping (Bare Bones, 13 Aug)
 - [qa.js] [ENFORCED] The full audit (miss-checks R-MISS-00..04, hard rulecheck, congruence R-SYNC-01..03, model judge) runs automatically after every real daily delivery; findings arrive as 🧯 messages in the founder's Slack
 
+## Repetition cap
+
+- [findings.js R-REPEAT] [ENFORCED] **A persistent alert is reported at most 3 mornings in a row, then goes quiet for 30 days, then reappears once as a reminder and the cycle restarts** ("don't report the same thing more than 3 times in a row" — founder, 18 Aug; the try-derm.com redirect line). Applies at the FINDINGS level (app and Slack mute together) to persistent-alert keys (landing redirects, dead landings — new alert classes must join REPEAT_CAPPED). Daily heartbeat lines the founder explicitly wants every day (live sale, storefront unchanged, ad footprint) are exempt by design; state in _findstate, same-day reruns idempotent
+
 ## Fallback substance
 
-- [slack.js R-FALLBACK-SUBSTANCE + rulecheck.js R-PHRASE-03] [ENFORCED] **"Details in the app" is banned; fallbacks quote the substance we already hold** — the post's hook, the newest ad's opening line, the email subject. Quoted teasers pass through safeQuote (URLs, ISO dates and quote characters stripped) so a hostile hook can never make the substance fallback violate the gate and collapse into the generic stub (founder, 14 Aug; re-applied 18 Aug after a merge clobbered the builders — Bare Bones' "New activity captured" stub; now pinned by tests)
+- [slack.js R-FALLBACK-SUBSTANCE + rulecheck.js R-PHRASE-03] [ENFORCED] **"Details in the app" is banned; fallbacks quote the substance we already hold** — the post's hook, the newest ad's opening line, the email subject. Quoted teasers pass through safeQuote (URLs, ISO dates and quote characters stripped) so a hostile hook can never make the substance fallback violate the gate and collapse into the generic stub. The WEBSITE row has its own substance tier: sale signal → storefront diff → honest 'Storefront unchanged' line (only when the capture pair was comparable) — the generic stub is a last resort on every channel (Froya, 18 Aug) (founder, 14 Aug; re-applied 18 Aug after a merge clobbered the builders — Bare Bones' "New activity captured" stub; now pinned by tests)
 
 ## Ads
 
