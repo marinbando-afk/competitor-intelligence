@@ -1183,6 +1183,9 @@ function openPortal(btn){
 function openPaywall(){
   var ov=document.getElementById('payOv');
   if(!ov){ov=document.createElement('div');ov.id='payOv';ov.className='pay-ov';document.body.appendChild(ov);}
+  // Click outside dismisses and returns to demo browsing (founder, 19 Aug: "when Free
+  // trial pops up I can't exit it") — the demo bar stays as the standing invitation.
+  ov.onclick=function(e){if(e.target===ov){closePaywall();paintDemoBar();}};
   // Two audiences, one gate (rebuilt each open so a late BILLING load still lands right):
   // a FRESH account starts its 30-day card trial at checkout ($0 today); an account whose
   // trial is spent subscribes from day one.
@@ -2810,7 +2813,7 @@ function saveComp(body,after){
     })
     .catch(function(){var eU=document.getElementById('eU');if(eU){eU.textContent='Couldn’t reach the server — check your connection and try again.';eU.style.display='block';}});
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();closeCal();closeAuth();closeShare();closePw();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open')){var _cp=document.getElementById('confirmPanel');(_cp&&_cp.style.display!=='none')?confirmAdd():continueAdd();}if(e.key==='Enter'&&document.getElementById('authOv')&&document.getElementById('authOv').classList.contains('open'))submitAuth();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();closeCal();closeAuth();closeShare();closePw();closePaywall();paintDemoBar();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open')){var _cp=document.getElementById('confirmPanel');(_cp&&_cp.style.display!=='none')?confirmAdd():continueAdd();}if(e.key==='Enter'&&document.getElementById('authOv')&&document.getElementById('authOv').classList.contains('open'))submitAuth();});
 document.addEventListener('click',function(){closeCal();});
 /* ── your brand (apply-to-me knowledge base) ── */
 var myBrand=null;
