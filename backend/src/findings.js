@@ -570,26 +570,30 @@ export function funnelCatchupNext(prevAnnouncedDay, todayStr) {
   return !prevAnnouncedDay || prevAnnouncedDay === todayStr;
 }
 
-// Drop funnel catch-up findings already announced on an earlier day; record today's.
-// State lives beside the repeat-cap's in _findstate ({ repeat, funnels }).
-async function applyFunnelCatchup(host, todayStr, list) {
+// Drop funnel catch-up findings already announced on an earlier day; record today's ONLY
+// on a commit — "previews must not consume the once-only state", the same rule the sale
+// announce state follows (a view/API rebuild consuming the state would silently eat the
+// one announcement the client was ever going to get). The committing act is the stored
+// daily read generation (insights.js), which is what the brief quotes.
+// State lives beside the repeat-cap's in _findstate ({ repeat, funnelsAnnounced }).
+async function applyFunnelCatchup(host, todayStr, list, commit) {
   try {
     if (!list.some((f) => String(f.key || '').indexOf('ads.funnelCatchup:') === 0)) return list;
     const st = await latestSnapshot(host, '_findstate');
-    const funnels = (st && st.funnels && typeof st.funnels === 'object') ? st.funnels : {};
+    const funnels = (st && st.funnelsAnnounced && typeof st.funnelsAnnounced === 'object') ? st.funnelsAnnounced : {};
     const out = [];
     let dirty = false;
     for (const f of list) {
       if (String(f.key || '').indexOf('ads.funnelCatchup:') !== 0) { out.push(f); continue; }
       const path = f.key.slice('ads.funnelCatchup:'.length);
       if (!funnelCatchupNext(funnels[path], todayStr)) continue;
-      if (funnels[path] !== todayStr) { funnels[path] = todayStr; dirty = true; }
+      if (commit && funnels[path] !== todayStr) { funnels[path] = todayStr; dirty = true; }
       out.push(f);
     }
     if (dirty) {
       const cutoff = new Date(Date.parse(todayStr) - 90 * 864e5).toISOString().slice(0, 10);
       for (const k of Object.keys(funnels)) if (funnels[k] < cutoff) delete funnels[k];
-      await saveSnapshot(host, '_findstate', { repeat: (st && st.repeat) || {}, funnels });
+      await saveSnapshot(host, '_findstate', { repeat: (st && st.repeat) || {}, funnelsAnnounced: funnels });
     }
     return out;
   } catch (e) { return list; }   // the catch-up must never break findings
@@ -626,7 +630,7 @@ async function applyRepeatCap(host, todayStr, list) {
       const cutoff = new Date(Date.parse(todayStr) - 60 * 864e5).toISOString().slice(0, 10);
       for (const k of Object.keys(seen)) { const r = seen[k] || {}; if ((!r.mutedUntil || r.mutedUntil < todayStr) && (!r.last || r.last < cutoff)) delete seen[k]; }
       // _findstate is shared with the funnel-catchup announce-once map — preserve it.
-      await saveSnapshot(host, '_findstate', { repeat: seen, funnels: (st && st.funnels) || {} });
+      await saveSnapshot(host, '_findstate', { repeat: seen, funnelsAnnounced: (st && st.funnelsAnnounced) || {} });
     }
     return out;
   } catch (e) { return list; }   // the cap must never break findings
@@ -641,7 +645,7 @@ export async function computeFindings(host, opts = {}) {
   const todayStr = (ads[0] && ads[0].day) || (web[0] && web[0].day) || new Date().toISOString().slice(0, 10);
   return {
     host,
-    ads: await applyFunnelCatchup(host, todayStr, await applyRepeatCap(host, todayStr, adsFindings(ads, capN))),
+    ads: await applyFunnelCatchup(host, todayStr, await applyRepeatCap(host, todayStr, adsFindings(ads, capN)), !!opts.commit),
     website: websiteFindings(web),
     social: [].concat(
       windowFindings(ig, 'Instagram', (d) => d && d.posts),

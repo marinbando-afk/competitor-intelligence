@@ -661,7 +661,9 @@ export async function generateInsights(brand, host) {
   // Anything absent from this list cannot be written, which is what ends the invented-news
   // failures rather than banning each new wording after the fact.
   let FIND = null;
-  try { FIND = await computeFindings(host); } catch (e) { console.warn('findings ' + host + ':', e.message); }
+  // commit: generating the STORED daily read is the announcing act — it consumes
+  // announce-once findings state (funnel catch-ups). View/API rebuilds never do.
+  try { FIND = await computeFindings(host, { commit: true }); } catch (e) { console.warn('findings ' + host + ':', e.message); }
   if (!process.env.ANTHROPIC_API_KEY || !host) return null;
   brand = brand || host;
   const out = {};
