@@ -1444,6 +1444,27 @@ app.post('/api/competitors', requireAuth, async (req, res) => {
     await mirrorToAdmins(req.user.uid, r.rows[0]);
     res.json({ competitor: r.rows[0] });
     syncQuantity(req.user.uid);   // $47 addon follows the competitor count (prorated)
+    // FULL CAPTURE AT ADD TIME (founder, 19 Aug: "2 definitely, run it right away").
+    // A new dossier used to sit empty until the next scheduled warm — up to a day of
+    // "is this broken?". Now ads/social/email are captured within minutes of the add and
+    // a first read generated. Fire-and-forget AFTER the response (the add never waits on
+    // Apify); fires only when today holds no capture beyond the quick website shot, so
+    // re-saving an already-captured brand costs nothing; R-DAYLOCK still guards every
+    // channel captured today.
+    (async () => {
+      try {
+        const r0 = await pool.query(
+          `SELECT COUNT(DISTINCT channel)::int AS n FROM snapshots
+            WHERE host = $1 AND day = CURRENT_DATE AND channel IN ('ads','instagram','tiktok','facebook','email')`, [h]);
+        if (r0.rows[0] && r0.rows[0].n > 0) return;   // already fully captured today
+        console.log('⚡ add-time full capture starting: ' + h);
+        const { warmBrand } = await import('./refresh.js');
+        await warmBrand({ name: r.rows[0].name, host: h, url: r.rows[0].url, country: r.rows[0].country || 'ALL', handles: r.rows[0].handles || {} }, false);
+        const { generateInsights } = await import('./insights.js');
+        await generateInsights(r.rows[0].name, h);
+        console.log('✓ add-time capture + first read ready: ' + h);
+      } catch (e) { console.warn('add-time capture ' + h + ':', (e && e.message) || e); }
+    })();
   } catch (e) {
     res.status(500).json({ error: 'Could not save competitor.' });
   }
