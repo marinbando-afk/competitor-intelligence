@@ -209,5 +209,12 @@ ok(missF.some((v) => v.rule === 'R-MISS-06'), 'computed funnel absent from the b
 const missOK = checkMisses('*Brand X*\n   *Ads:* 4 new ads launched — all driving to the NEW funnel x.com/pages/lp.', [{ name: 'Brand X', funnels: 1, sale: '', products: 0, staleOffers: 0, postsSeen: 0, emailsSeen: 0 }]);
 ok(!missOK.some((v) => v.rule === 'R-MISS-06'), 'funnel named in the block → no ping');
 
+console.log('\nSENSE-CHECK FACTS — the checker sees everything the writer saw (Ancestral splice, 19 Aug):');
+const { senseFacts } = await import('../src/insights.js');
+const sf = senseFacts([{ text: 'Ad funnel live (already running): multiple ads drive to x.com/pages/lp — the funnel began on 2026-08-13.' }], 'RAW ADS FACTS HERE');
+ok(sf.indexOf('funnel began on 2026-08-13') >= 0 && sf.indexOf('RAW ADS FACTS HERE') >= 0, 'computed findings prepend the raw facts for the sense check');
+ok(sf.indexOf('COMPUTED FINDINGS') === 0, 'findings are framed as supported facts, so the checker cannot splice them out');
+ok(senseFacts(null, 'JUST FACTS') === 'JUST FACTS', 'no findings → facts pass through unchanged');
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);

@@ -58,6 +58,14 @@ function client() { if (!_client) _client = new Anthropic(); return _client; }
 // must be at least as sharp as the writer it is checking. Runs only at nightly generation —
 // the app serves stored reads, so no user ever waits on it.
 const VERIFY_MODEL = process.env.VERIFY_MODEL || 'claude-sonnet-4-6';
+// What the sense check verifies AGAINST: the computed findings first (they are the very
+// facts the writer was instructed to lead with), then the raw capture facts. Exported so
+// tests can pin that findings are never absent from the checker's view again.
+export function senseFacts(findList, factsText) {
+  const findFacts = (findList || []).map((x) => x && x.text).filter(Boolean).join('\n');
+  return (findFacts ? 'COMPUTED FINDINGS (established by code from the captures — treat every line as a supported fact):\n' + findFacts + '\n\n' : '') + String(factsText || '');
+}
+
 async function senseCheckUnsupported(body, factsText, label) {
   body = String(body || '').trim();
   if (!body || !String(factsText || '').trim()) return [];
@@ -127,12 +135,18 @@ async function gateSection(section, f, findList, factsText, label) {
   // there (advice: true), but any claim it makes about the competitor still has to hold.
   if (section.apply) section.apply = det(section.apply, label + '.apply', { ...f, advice: true }).text;
   if (factsText) {
+    // The COMPUTED FINDINGS are facts too. The model WRITES from findingsBlock + facts,
+    // but the sense check used to verify against the facts alone — so any claim
+    // established ONLY by a finding (Ancestral, 19 Aug: "Ad funnel live … began on
+    // 2026-08-13", which exists nowhere in the raw ads sample) looked unsupported and was
+    // spliced out of the summary. The checker must see everything the writer saw.
     const bad = await senseCheckUnsupported(
       [section.summary || '', ...(Array.isArray(section.bullets) ? section.bullets : [])].filter(Boolean).join('\n'),
-      factsText, label);
+      senseFacts(findList, factsText), label);
     for (const t of bad) {
       if (section.summary && section.summary.includes(t)) {
-        section.summary = section.summary.replace(t, '').replace(/\s{2,}/g, ' ').trim();
+        // Removal is a splice — never leave a dangling "…: ." fragment behind it.
+        section.summary = section.summary.replace(t, '').replace(/\s{2,}/g, ' ').replace(/\s*[:;,—–-]+\s*\./g, '.').replace(/^\s*\.\s*/, '').trim();
         console.warn('⚠ sense-check removed [' + label + ']: ' + t.slice(0, 150));
       }
       if (Array.isArray(section.bullets)) {
