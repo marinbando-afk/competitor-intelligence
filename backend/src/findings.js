@@ -218,10 +218,16 @@ export function adsFindings(rows, capN) {
       let hook = String(daily[0].text || daily[0].title || '').replace(/["“”]/g, "'").replace(/\s+/g, ' ').trim();
       if (hook.length > 90) hook = hook.slice(0, 90).replace(/\s+\S*$/, '') + '…';
       const doms = [...new Set(daily.map((a) => domOf(a.landing)).filter(Boolean))].slice(0, 2);
+      // R-FUNNEL-LEAD (founder, 19 Aug): when the batch drives to a first-seen funnel,
+      // the launch line itself names it — a bare domain buries the actual story. This
+      // text ships verbatim on every surface, so the funnel is visible even collapsed.
+      const funnelPaths = new Set(out.filter((f) => /^ads\.(newPath|funnelCatchup):/.test(String(f.key || ''))).map((f) => String(f.key).replace(/^ads\.(newPath|funnelCatchup):/, '')));
+      const dailyFunnel = [...new Set(daily.map((a) => pathOf(a.landing)).filter((p) => p && funnelPaths.has(p)))][0] || '';
+      const dest = dailyFunnel ? ' → the NEW funnel ' + dailyFunnel : (doms.length ? ' → ' + doms.join(', ') : '');
       out.push({
         type: 'new', key: 'ads.launches',
-        text: daily.length + ' new ad' + (daily.length > 1 ? 's' : '') + ' launched ' + when + ' (' + mix + ')' + (hook ? ' — newest opens: "' + hook + '"' : '') + (doms.length ? ' → ' + doms.join(', ') : '') + '.',
-        evidence: { count: daily.length, video: nVid, since, hook, landing: doms.join(', ') },
+        text: daily.length + ' new ad' + (daily.length > 1 ? 's' : '') + ' launched ' + when + ' (' + mix + ')' + (hook ? ' — newest opens: "' + hook + '"' : '') + dest + '.',
+        evidence: { count: daily.length, video: nVid, since, hook, landing: dailyFunnel || doms.join(', ') },
       });
       }
     }
@@ -300,6 +306,15 @@ export function adsFindings(rows, capN) {
         }
       }
     }
+  }
+  // R-FUNNEL-LEAD (founder, 19 Aug — "new funnels should get the biggest priority when
+  // reporting insights"): order conveys priority to the reader model, so new-funnel
+  // findings move to the FRONT of the ads list — above the footprint, above launches.
+  const funnelLead = out.filter((f) => /^ads\.(newPath|funnelCatchup):/.test(String(f.key || '')));
+  if (funnelLead.length) {
+    const rest = out.filter((f) => funnelLead.indexOf(f) < 0);
+    out.length = 0;
+    out.push(...funnelLead, ...rest);
   }
   return out;
 }

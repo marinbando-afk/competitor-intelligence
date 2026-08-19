@@ -39,6 +39,9 @@ export function checkMisses(text, factsByBrand) {
     // the brief block has no Social row — an empty AI read silently dropped a channel.
     if (f.postsSeen > 0 && block.indexOf('Social:') < 0) out.push({ brand: f.name, rule: 'R-MISS-04', why: f.postsSeen + ' captured post(s) but no Social row in the brief' });
     if (f.emailsSeen > 0 && block.indexOf('Email:') < 0) out.push({ brand: f.name, rule: 'R-MISS-05', why: f.emailsSeen + ' captured email(s) but no Email row in the brief' });
+    // R-MISS-06 (Ancestral, 19 Aug — "for sure called out in Slack!"): a computed new-funnel
+    // signal is the top ads priority; a brief block that never says "funnel" dropped it.
+    if (f.funnels > 0 && !/funnel/i.test(block)) out.push({ brand: f.name, rule: 'R-MISS-06', why: f.funnels + ' new funnel(s) computed but the brief block never mentions a funnel' });
   }
   return out;
 }

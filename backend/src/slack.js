@@ -70,6 +70,10 @@ export async function buildDigest(brands) {
 // A row's own words assert newness → it must carry the ❗ regardless of which engine
 // produced the text. Exported for tests (R-MARK-SYNC).
 export const textClaimsLaunches = (t) => /\b\d+\s+new\s+ads?\s+launched\b/i.test(String(t || ''));
+// R-FUNNEL-LEAD (founder, 19 Aug): an ads row that names a new/running funnel is news —
+// the ❗ must follow the sentence even when the signal engine has already consumed the
+// announce-once state (the read is generated the evening before the brief quotes it).
+export const textClaimsFunnel = (t) => /\bnew (?:ad )?funnel\b|\bfunnel live\b|\bfunnel began\b/i.test(String(t || ''));
 
 // R-MARK-TEXT (founder, 19 Aug — Glov Beauty: "why glow beauty has an exclamation mark if
 // nothing happened under Website"). The website ❗ used to come from the SIGNAL engine
@@ -277,7 +281,7 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     const adsText = ch('ads') ? gated(adsRecapLine(ins), 'ads') : '';
     // Bold labels (founder, 18 Aug: "still feels text heavy") — the label is the anchor
     // the eye scans by; bolding it turns four lines of prose into four labeled rows.
-    if (on('ads') && adsText) rows.push('   *Ads:* ' + mark(adsNew || textClaimsLaunches(adsText)) + adsText);
+    if (on('ads') && adsText) rows.push('   *Ads:* ' + mark(adsNew || textClaimsLaunches(adsText) || textClaimsFunnel(adsText)) + adsText);
     const socialTxt = socialRowText(social, A.posts, (s && s.postsSeen) || 0);
     if (on('social') && socialTxt) rows.push('   *Social:* ' + mark(!!n(A.posts)) + gated(socialTxt, 'social'));
     // R-MARK-TEXT (founder, 19 Aug — Glov): the website ❗ derives from the shipped

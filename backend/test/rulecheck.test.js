@@ -196,5 +196,18 @@ ok(funnelCatchupNext(undefined, '2026-08-19'), 'never announced → emit');
 ok(funnelCatchupNext('2026-08-19', '2026-08-19'), 'announced today (same-day rerun) → still emits, idempotent');
 ok(!funnelCatchupNext('2026-08-18', '2026-08-19'), 'announced yesterday → never repeats');
 
+console.log('\nFUNNEL LEAD — a new funnel gets the biggest priority on every surface (founder, 19 Aug):');
+ok(fOut[0] && String(fOut[0].key).indexOf('ads.newPath:') === 0, 'the new-funnel finding LEADS the ads findings list');
+const launchF = fOut.find((f) => f.key === 'ads.launches');
+ok(launchF && /the NEW funnel ancestralcosmetics\.com\/pages\/we-made-face-cream-from-beef-fat/.test(launchF.text), 'the launch line itself names the NEW funnel, not just the bare domain');
+const { textClaimsFunnel } = await import('../src/slack.js');
+ok(textClaimsFunnel('4 new ads launched today — all driving to the NEW funnel x.com/pages/lp'), 'ads row naming a new funnel → ❗');
+ok(textClaimsFunnel('Ad funnel live (already running): multiple ads drive to x.com/p — the funnel began on 2026-08-13.'), 'catch-up wording → ❗');
+ok(!textClaimsFunnel('Recent ads run to x.com and from "X" handle.'), 'plain footprint → no ❗ from funnel check');
+const missF = checkMisses('*Brand X*\n   *Ads:* Recent ads run to x.com and from "X" handle.', [{ name: 'Brand X', funnels: 1, sale: '', products: 0, staleOffers: 0, postsSeen: 0, emailsSeen: 0 }]);
+ok(missF.some((v) => v.rule === 'R-MISS-06'), 'computed funnel absent from the brief block → R-MISS-06 ping');
+const missOK = checkMisses('*Brand X*\n   *Ads:* 4 new ads launched — all driving to the NEW funnel x.com/pages/lp.', [{ name: 'Brand X', funnels: 1, sale: '', products: 0, staleOffers: 0, postsSeen: 0, emailsSeen: 0 }]);
+ok(!missOK.some((v) => v.rule === 'R-MISS-06'), 'funnel named in the block → no ping');
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);

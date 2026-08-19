@@ -313,6 +313,13 @@ export async function dailySignals(host, commit) {
           // findings below IS the one-definition-of-new authority; no extra veto needed.
           out.funnel = (out.funnel || []).filter((l) => okDomain.has(String(l.domain).toLowerCase()));
           out.fbPage = (out.fbPage || []).filter((p) => okPage.has(String(p)));
+          // R-FUNNEL-LEAD (founder, 19 Aug): PATH-level funnel findings (a new landing
+          // page on a known domain — Ancestral's beef-fat advertorial) are funnels too;
+          // without this they never reached the 💡 badge, the ❗ mark or the signal lines.
+          const pathFunnels = (F.ads || [])
+            .filter((f) => /^ads\.(newPath|funnelCatchup):/.test(String(f.key || '')) && f.evidence && f.evidence.path)
+            .map((f) => ({ domain: String(f.evidence.path), url: String(f.evidence.url || '') }));
+          for (const l of pathFunnels) if (!(out.funnel || []).some((x) => x.domain === l.domain)) out.funnel.push(l);
         } catch (e) { /* engine unavailable → leave the existing, more cautious signals */ }
         out.fbPageGone = (ch.signals.droppedPages || []).filter(Boolean);         // retired whitelisted/partner pages
         out.angle = await newAngles(host, ch.newAds || [], todayStr);
