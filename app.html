@@ -1627,10 +1627,24 @@ function adsHTML(d){
   if(d.simple){
     if(!d.ads||!d.ads.length)return '<div class="adssum"><b>No new ads detected on this date.</b></div>';
     var shead=d.note?('<div class="adssum">'+d.note+'</div>'):('<div class="adssum"><b>'+(d.active||d.ads.length)+' ad'+((d.active||d.ads.length)===1?'':'s')+'</b></div>');
+    // Handle filter chips on the DATE VIEW too (founder, 19 Aug: "why are you not giving
+    // me whitelisting handles filtering") — this branch never rendered chips at all, so
+    // historical days had no way to isolate a founder/whitelisting handle's ads.
+    var sBrand=d._brand||ADS_BRAND||'';
+    var sPgN={},sPgK={};(d.ads||[]).forEach(function(a){if(!a.page)return;var k=adPageKind(a,sBrand);sPgN[a.page]=(sPgN[a.page]||0)+1;sPgK[a.page]=k;});
+    var sChips='';
+    if(Object.keys(sPgN).length>1){
+      sChips='<div class="adsigs">'+Object.keys(sPgN).sort(function(x,y){return sPgN[y]-sPgN[x];}).map(function(p){
+        var k=sPgK[p];
+        return '<span class="adsig pg click'+(k==='partner'?' pt':'')+(ADS_PGF===p?' on':'')+'" data-pg="'+esc(p)+'" onclick="pgFilter(this.dataset.pg)" title="'+esc(PG_KIND_TITLE[k]||'')+' — click to show only this Facebook page’s ads">'+PG_KIND_ICON[k]+' '+esc(PG_KIND_LBL[k])+' · '+esc(p)+'</span>';
+      }).join('')+'</div>';
+    }
+    var sList=(d.ads||[]).filter(function(a){return !ADS_PGF||String(a.page||'')===ADS_PGF;});
+    ADS_SHOWN=sList;   // openAd(i) indexes the FILTERED strip
     // map(adThumb) passed map's (el, idx, ARRAY) straight through — the array landed in
     // adThumb's `pg` param and every card chip rendered "[object Object],…" (founder
     // screenshot, 19 Aug). Pass only what adThumb means.
-    return shead+'<div class="adstrip">'+d.ads.map(function(a,i){return adThumb(a,i);}).join('')+'</div>';
+    return shead+sChips+'<div class="adstrip">'+sList.map(function(a,i){return adThumb(a,i);}).join('')+'</div>';
   }
   var nc=d.newCount||0,sig=[];
   if(d.signals){
@@ -1725,14 +1739,22 @@ function loadAds(box){
     var sa=(viewSnap&&viewSnap.ads)||{ads:[]};
     var all=sa.ads||[];
     var fa=all.filter(function(a){return String(a.started||'').slice(0,10)===state.day;});
+    // Wire the filter state for the date view too — without ADS_BOX/ADS_DATA a chip click
+    // had nothing to re-render (founder, 19 Aug).
+    if(ADS_BRAND!==brand){ADS_PGF='';ADS_ALL=false;}
+    ADS_BOX=box;ADS_BRAND=brand;
     if(fa.length){
-      box.innerHTML=adsHTML({ads:fa,active:fa.length,simple:true});
+      ADS_DATA={ads:fa,active:fa.length,simple:true,_brand:brand};
+      box.innerHTML=adsHTML(ADS_DATA);
     }else{
       // No ads launched on this date — say so visibly, but still show the most recent ads running.
       var recent=all.slice().sort(function(x,y){return String(y.started||'').localeCompare(String(x.started||''));}).slice(0,10);
-      box.innerHTML=recent.length
-        ? adsHTML({ads:recent,simple:true,note:'<b>No new ads detected on this date.</b> Showing the '+recent.length+' most recent ad'+(recent.length===1?'':'s')+' still running:'})
-        : '<div class="adssum"><b>No new ads detected on this date.</b></div>';
+      if(recent.length){
+        ADS_DATA={ads:recent,simple:true,_brand:brand,note:'<b>No new ads detected on this date.</b> Showing the '+recent.length+' most recent ad'+(recent.length===1?'':'s')+' still running:'};
+        box.innerHTML=adsHTML(ADS_DATA);
+      }else{
+        box.innerHTML='<div class="adssum"><b>No new ads detected on this date.</b></div>';
+      }
     }
     return;
   }
