@@ -17,6 +17,7 @@ import { randomBytes } from 'crypto';
 import { fetchAds, adsChanges, ownPageIdsFor } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
 import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, coverageAudit, coverageAuditAndAlert, qualityAudit, TRACKED, warmErrors } from './refresh.js';
+import { qaEvents } from './qalog.js';
 import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, sendUserWeeklyLinks, sendUserDailyBriefs } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml, reviveSilent } from './email.js';
 import { chat } from './chat.js';
@@ -597,7 +598,7 @@ app.get('/api/coverage', async (req, res) => {
     // readErrors: why a channel is missing from a stored report (in-memory, since last boot)
     // — added 8 Aug after Nolan's ads read died three runs straight with the only evidence
     // being its absence. Railway logs aren't reachable from chat; this is.
-    res.json({ ...out, repairRunning: _auditRunning, readErrors: readErrors.slice(-20), warmErrors: warmErrors.slice(-40) });
+    res.json({ ...out, repairRunning: _auditRunning, readErrors: readErrors.slice(-20), warmErrors: warmErrors.slice(-40), qaEvents: qaEvents.slice(-40) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 let _auditRunning = false, _auditLast = null;

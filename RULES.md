@@ -6,14 +6,28 @@ weekly reports. Marin reviews and edits *this file*; code and prompts implement 
 **The process rule that keeps quality from decaying** (established 12 Aug 2026, after the
 quality plateau post-mortem):
 
-> Every founder correction becomes THREE things in the same commit:
+> Every founder correction becomes FIVE things in the same commit:
 > 1. a rule in this file,
 > 2. a regression test (`backend/test/`, runs on every push via GitHub Actions),
 > 3. an enforcement: a deterministic gate/scrubber if mechanically checkable
 >    (`backend/src/rulecheck.js`, `claims.js`, `adsguard.js`), or a prompt rule + the
->    nightly QA judge (`backend/src/qa.js`) if it needs judgment.
+>    nightly QA judge (`backend/src/qa.js`) if it needs judgment,
+> 4. **a CLASS SWEEP** (added 20 Aug, after the founder tallied ~40 asks across ~10
+>    themes): name the failure CLASS, then fix and test it on EVERY surface and channel
+>    where the same derivation exists — the ❗-mark bug was fixed on Website while
+>    Ads/Social/Email kept the same disease; congruence was fixed for reads while the
+>    compare panel kept its own derivation. An instance fix that leaves siblings is the
+>    reason the founder asked the same question five times,
+> 5. **REAL-SURFACE verification**: a delivery/rendering change is verified against the
+>    actual destination (the founder's Slack via slack-test, the live app), never only a
+>    preview or rebuilt text — the 18 Aug Block Kit layout was approved from a preview
+>    and never once rendered in real Slack.
 >
 > A correction that only lands in a prompt is NOT a fix — prompt-only rules decay.
+> A failure that degrades SILENTLY is not handled — every downgrade anywhere in the
+> pipeline (claim strips, sense-check removals, gate fallbacks, Block Kit rejections,
+> scrape failures) lands in the qalog/warm ledgers and reaches the founder's daily 🧯
+> digest (qalog.js, 20 Aug). The founder must never again be the monitoring system.
 
 Classes: **ENFORCED** = deterministic code · **PROMPT** = AI-prompt instruction only ·
 **BOTH** = prompt rule with a code backstop. Every PROMPT-only rule is a candidate for

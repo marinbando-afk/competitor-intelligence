@@ -10,6 +10,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { pool } from './db.js';
+import { qaLog } from './qalog.js';
 import { urlAlive, foldTxt } from './ads.js';
 import { recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost, allSnapshots, saveSnapshotDay, snapshotForDay } from './snapshots.js';
 import { getEmails } from './email.js';
@@ -148,6 +149,7 @@ async function gateSection(section, f, findList, factsText, label) {
         // Removal is a splice — never leave a dangling "…: ." fragment behind it.
         section.summary = section.summary.replace(t, '').replace(/\s{2,}/g, ' ').replace(/\s*[:;,—–-]+\s*\./g, '.').replace(/^\s*\.\s*/, '').trim();
         console.warn('⚠ sense-check removed [' + label + ']: ' + t.slice(0, 150));
+        qaLog('sense-strip', label, t.slice(0, 120));
       }
       if (Array.isArray(section.bullets)) {
         const n = section.bullets.length;

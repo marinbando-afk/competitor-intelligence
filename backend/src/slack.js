@@ -527,6 +527,7 @@ export async function postBrief(webhook, text) {
     if (!last.sent) {
       // No more SILENT downgrades — the founder spent a day thinking the layout shipped.
       console.warn('postBrief: Block Kit rejected (' + (last.status || last.error || '?') + ') — delivering rendered plain text. A legacy incoming-webhook may not accept blocks; a Slack-app webhook fixes it.');
+      qaLog('blockkit-fallback', '…' + String(webhook).slice(-6), 'status ' + (last.status || last.error || '?') + ' — rendered plain delivered');
       return postTo(webhook, plain);
     }
   }

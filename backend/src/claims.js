@@ -1,4 +1,5 @@
 // CLAIM VALIDATOR — the last gate before a read reaches a customer.
+import { qaLog } from './qalog.js';
 //
 // Every trust failure so far has been the same family: a sentence asserting that something
 // STARTED, ENDED, or is NEW, built on absence or on a diff the data cannot support.
@@ -258,6 +259,9 @@ export function enforceClaims(text, facts = {}, label = '') {
     // A survivor opening with "(" is a parenthetical caveat whose main clause was stripped
     // ("(One ad URL tested…)" led Seranova's ads row, context-free — founder, 13 Aug).
     .filter((x) => /^[A-Z0-9"'“]/.test(x.trim()));
-  for (const v of violations) console.warn('⚠ claim blocked' + (label ? ' [' + label + ']' : '') + ' (' + v.rule + '): ' + v.sentence + ' — ' + v.why);
+  for (const v of violations) {
+    console.warn('⚠ claim blocked' + (label ? ' [' + label + ']' : '') + ' (' + v.rule + '): ' + v.sentence + ' — ' + v.why);
+    qaLog('claim-strip', label, v.rule + ': ' + v.sentence.slice(0, 100));
+  }
   return { text: kept.join(' ').trim(), violations, allStripped: violations.length > 0 && !kept.length };
 }

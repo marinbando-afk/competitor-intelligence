@@ -15,6 +15,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { dailySignals } from './signals.js';
 import { latestSnapshot } from './snapshots.js';
 import { checkText } from './rulecheck.js';
+import { qaDrain } from './qalog.js';
 
 const JUDGE_MODEL = process.env.QA_MODEL || 'claude-sonnet-4-6';
 let _ai; function ai() { if (!_ai) _ai = new Anthropic(); return _ai; }
@@ -142,12 +143,24 @@ export async function auditDaily({ text, brands, postText }) {
     const hard = checkText(text, { surface: 'slack' }).map((v) => ({ brand: '(brief)', rule: v.id, why: v.why }));
     const judged = await judgeText(text, factsByBrand);
     const all = misses.concat(hard, judged);
-    if (all.length && typeof postText === 'function') {
-      const msg = '🧯 *QA audit — ' + all.length + ' issue' + (all.length > 1 ? 's' : '') + ' in today\'s delivered brief:*\n'
-        + all.slice(0, 10).map((v) => '• ' + (v.brand || '') + ' — ' + (v.rule || 'judge') + ': ' + String(v.why).slice(0, 160) + (v.quote ? ' — “' + String(v.quote).slice(0, 80) + '”' : '')).join('\n');
+    // SYSTEM-HEALTH DIGEST (founder, 20 Aug — "how can we fix all of these so I never ask
+    // the same question again"): every silent downgrade anywhere in the pipeline (claim
+    // strips, sense-check removals, Block Kit fallbacks) drains into this one daily
+    // message. The founder was the monitoring system; now decay announces itself.
+    const dq = qaDrain();
+    if ((all.length || dq.total) && typeof postText === 'function') {
+      let msg = all.length
+        ? '🧯 *QA audit — ' + all.length + ' issue' + (all.length > 1 ? 's' : '') + ' in today\'s delivered brief:*\n'
+          + all.slice(0, 10).map((v) => '• ' + (v.brand || '') + ' — ' + (v.rule || 'judge') + ': ' + String(v.why).slice(0, 160) + (v.quote ? ' — “' + String(v.quote).slice(0, 80) + '”' : '')).join('\n')
+        : '🧯 *QA audit — the delivered brief itself is clean.*';
+      if (dq.total) {
+        msg += '\n\n_Pipeline downgrades since the last digest (' + dq.total + '): '
+          + Object.entries(dq.byKind).map(([k, n2]) => k + ' ×' + n2).join(' · ') + '_\n'
+          + dq.events.slice(-5).map((e) => '• [' + e.kind + '] ' + e.label + ': ' + e.detail).join('\n');
+      }
       await postText(msg);
     }
-    console.log('✓ qa audit: ' + all.length + ' issue(s) (' + misses.length + ' misses, ' + hard.length + ' hard, ' + judged.length + ' judged)');
+    console.log('✓ qa audit: ' + all.length + ' issue(s) (' + misses.length + ' misses, ' + hard.length + ' hard, ' + judged.length + ' judged), ' + dq.total + ' pipeline downgrade(s)');
     return all;
   } catch (e) { console.warn('qa audit:', e.message); return []; }
 }

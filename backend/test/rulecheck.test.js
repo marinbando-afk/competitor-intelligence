@@ -309,6 +309,17 @@ ok(!!bcG && bcG.isSale, 'Minions banner → Birthday sale banner = banner change
 ok(!bannerChangeFor('UP TO 40% OFF', 'UP TO 40% OFF 1M JARS SOLD'), 're-worded same bar (containment) → no change (rotation-safe)');
 ok(!bannerChangeFor('', 'Save 55%'), 'no earlier banner → no change verdict (nothing to compare)');
 
+console.log('\nQALOG — every silent downgrade lands in the ledger (20 Aug, "never ask the same question again"):');
+const { qaLog, qaDrain, qaEvents } = await import('../src/qalog.js');
+qaDrain();   // clean slate
+const { enforceClaims } = await import('../src/claims.js');
+enforceClaims('Their brand-new page launched today.', { knownEntities: [], changeFindings: [], hasEarlier: false, canAssertNew: false }, 'TestBrand/ads');
+ok(qaEvents.some((e) => e.kind === 'claim-strip' && e.label === 'TestBrand/ads'), 'a claim strip is ledgered, not just console.warn');
+qaLog('sense-strip', 'X/website', 'removed sentence here');
+const dq = qaDrain();
+ok(dq.total >= 2 && dq.byKind['claim-strip'] >= 1 && dq.byKind['sense-strip'] === 1, 'drain groups by kind for the daily digest');
+ok(qaEvents.length === 0, 'drain resets the ledger — tomorrow reports tomorrow');
+
 console.log('\nFOUNDER WEBHOOK FALLBACK — no env var + no DB → honest reason, never a throw (19 Aug):');
 const { postText } = await import('../src/slack.js');
 const pt = await postText('ping');
