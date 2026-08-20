@@ -1,4 +1,4 @@
-// Stripe billing — the standard offer: $197/mo (2 competitors included) + $47/mo per
+// Stripe billing — the standard offer: $297/mo (raised from $197, 20 Aug) (2 competitors included) + $47/mo per
 // additional competitor. Trial (founder, 8 Aug): 30 days, CARD REQUIRED — the trial
 // starts at Stripe Checkout ($0 today, converts automatically on day 30). Existing beta
 // accounts are comped (users.comp) and admins never pay. Legacy card-free trials granted
@@ -14,13 +14,13 @@
 //   the catalog below is created automatically, so NO dashboard product setup is needed.
 //
 // Prices are found-or-created by lookup_key (idempotent across boots and test/live modes):
-//   wb_base_197  → $197.00/mo, quantity always 1
+//   wb_base_297  → $297.00/mo, quantity always 1
 //   wb_addon_47  → $47.00/mo,  quantity = max(0, competitors - 2)
 
 import { pool } from './db.js';
 import { capiEvent } from './metacapi.js';
 
-const BASE_CENTS = 19700, ADDON_CENTS = 4700, INCLUDED = 2, TRIAL_DAYS = Number(process.env.TRIAL_DAYS) || 30;
+const BASE_CENTS = 29700, ADDON_CENTS = 4700, INCLUDED = 2, TRIAL_DAYS = Number(process.env.TRIAL_DAYS) || 30;
 const APP_URL = (process.env.APP_URL || 'https://watchback.ai').replace(/\/+$/, '');
 
 export function billingEnabled() { return !!process.env.STRIPE_SECRET_KEY; }
@@ -42,12 +42,12 @@ async function prices() {
     return _prices;
   }
   const s = await stripe();
-  const found = await s.prices.list({ lookup_keys: ['wb_base_197', 'wb_addon_47'], limit: 10 });
-  let base = found.data.find((p) => p.lookup_key === 'wb_base_197');
+  const found = await s.prices.list({ lookup_keys: ['wb_base_297', 'wb_addon_47'], limit: 10 });
+  let base = found.data.find((p) => p.lookup_key === 'wb_base_297');
   let addon = found.data.find((p) => p.lookup_key === 'wb_addon_47');
   if (!base || !addon) {
     const prod = await s.products.create({ name: 'WatchBack — Competitor Intelligence' });
-    if (!base) base = await s.prices.create({ product: prod.id, lookup_key: 'wb_base_197', unit_amount: BASE_CENTS, currency: 'usd', recurring: { interval: 'month' }, nickname: 'Base — 2 competitors included' });
+    if (!base) base = await s.prices.create({ product: prod.id, lookup_key: 'wb_base_297', unit_amount: BASE_CENTS, currency: 'usd', recurring: { interval: 'month' }, nickname: 'Base — 2 competitors included' });
     if (!addon) addon = await s.prices.create({ product: prod.id, lookup_key: 'wb_addon_47', unit_amount: ADDON_CENTS, currency: 'usd', recurring: { interval: 'month' }, nickname: 'Additional competitor' });
   }
   _prices = { base: base.id, addon: addon.id };

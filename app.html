@@ -881,12 +881,12 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
     <h2>Add more competitors</h2>
     <p>Your plan includes <b>2 competitors</b>. Add as many more as you want — each additional competitor is <b>$47/mo</b>, billed automatically and prorated from the day you add it.</p>
     <div class="up-rows">
-      <div class="up-row"><span>Included</span><b>2 competitors · $197/mo</b></div>
+      <div class="up-row"><span>Included</span><b>2 competitors · $297/mo</b></div>
       <div class="up-row"><span>Each additional</span><b>+$47/mo</b></div>
       <div class="up-row"><span>How many you can add</span><b>as many as you need</b></div>
       <div class="up-row"><span>Remove one later</span><b>bill drops automatically</b></div>
     </div>
-    <div class="m-act"><button class="btn btn-g" onclick="closeUpgrade()">Maybe later</button><button class="btn btn-p" id="upGo" onclick="upgradeGo(this)">Subscribe · $197/mo</button></div>
+    <div class="m-act"><button class="btn btn-g" onclick="closeUpgrade()">Maybe later</button><button class="btn btn-p" id="upGo" onclick="upgradeGo(this)">Subscribe · $297/mo</button></div>
   </div>
 </div>
 
@@ -1155,7 +1155,7 @@ function paintBilling(){
   if(!BILLING||BILLING.status==='disabled'||BILLING.status==='comp'){dropBanner(el);return;}
   if(BILLING.status==='trialing'){
     if(!el){el=document.createElement('div');el.id='trialbar';document.body.insertBefore(el,document.body.firstChild);}
-    el.innerHTML='<b>Trial — '+BILLING.trialDaysLeft+' day'+(BILLING.trialDaysLeft===1?'':'s')+' left.</b> Keep your competitor intel coming after it ends. <button onclick="startCheckout(this)">Subscribe · $197/mo</button>';
+    el.innerHTML='<b>Trial — '+BILLING.trialDaysLeft+' day'+(BILLING.trialDaysLeft===1?'':'s')+' left.</b> Keep your competitor intel coming after it ends. <button onclick="startCheckout(this)">Subscribe · $297/mo</button>';
     fitBanner(el);
   } else if(BILLING.status==='past_due'){
     if(!el){el=document.createElement('div');el.id='trialbar';document.body.insertBefore(el,document.body.firstChild);}
@@ -1169,16 +1169,16 @@ function startCheckout(btn){
   if(CHECKOUT_INFLIGHT)return;   // a double-click must never mint two checkout sessions
   CHECKOUT_INFLIGHT=true;
   if(btn){btn.disabled=true;btn.textContent='Opening secure checkout…';}
-  fbTrack('InitiateCheckout',{value:197.00,currency:'USD',content_name:'WatchBack subscription',num_items:1});
+  fbTrack('InitiateCheckout',{value:297.00,currency:'USD',content_name:'WatchBack subscription',num_items:1});
   fetch(API+'/api/billing/checkout',{method:'POST',headers:authH()}).then(function(r){return r.json();}).then(function(d){
     if(d&&d.url){location.href=d.url;return;}
     CHECKOUT_INFLIGHT=false;
     // The server found a live subscription already on this account — show the app, never
     // a second payment prompt.
     if(d&&d.code==='already_subscribed'){closePaywall();PAYWALL_HOLD=false;loadBilling();alert('\u2713 You\u2019re already subscribed — no second payment needed.');return;}
-    if(btn){btn.disabled=false;btn.textContent='Subscribe \u00b7 $197/mo';}
+    if(btn){btn.disabled=false;btn.textContent='Subscribe \u00b7 $297/mo';}
     alert((d&&d.error)||'Could not open checkout — please try again.');
-  }).catch(function(){CHECKOUT_INFLIGHT=false;if(btn){btn.disabled=false;btn.textContent='Subscribe \u00b7 $197/mo';}});
+  }).catch(function(){CHECKOUT_INFLIGHT=false;if(btn){btn.disabled=false;btn.textContent='Subscribe \u00b7 $297/mo';}});
 }
 function openPortal(btn){
   if(btn)btn.disabled=true;
@@ -1200,11 +1200,11 @@ function openPaywall(){
   ov.innerHTML='<div class="pay-box">'
     +'<span class="pay-k">'+(fresh?'START YOUR FREE TRIAL':'TRIAL ENDED')+'</span>'
     +(fresh?'<h2>Watch your competitors free for '+days+' days</h2>':'<h2>Your competitors didn\u2019t stop moving</h2>')
-    +(fresh?'<p>Add a card to start \u2014 <b>$0 today</b>, then $197/mo after your '+days+'-day trial. Cancel anytime from the billing portal, one click.</p>'
+    +(fresh?'<p>Add a card to start \u2014 <b>$0 today</b>, then $297/mo after your '+days+'-day trial. Cancel anytime from the billing portal, one click.</p>'
            :'<p>Daily captures for your competitors continue \u2014 subscribe to keep your dossiers, morning briefs and chat.</p>')
-    +'<div class="pay-price">$197<span>/mo</span></div>'
+    +'<div class="pay-price">$297<span>/mo</span></div>'
     +'<div class="pay-sub">2 competitors included \u00b7 +$47/mo each additional \u00b7 cancel anytime</div>'
-    +'<button class="pay-cta" onclick="startCheckout(this)">'+(fresh?'Start '+days+'-day free trial':'Subscribe \u00b7 $197/mo')+'</button>'
+    +'<button class="pay-cta" onclick="startCheckout(this)">'+(fresh?'Start '+days+'-day free trial':'Subscribe \u00b7 $297/mo')+'</button>'
     +'<div class="pay-foot">'+(fresh?'Browsing the demo dossiers stays free \u2014 the trial is for watching <b>your</b> competitors. ':'')+'Questions? Use the feedback button \u2014 we answer personally.</div>'
     +'</div>';
   ov.style.display='flex';
@@ -3025,7 +3025,7 @@ function showUpgrade(){
     var st=BILLING&&BILLING.status;
     if(st==='active'||st==='past_due')b.textContent='Manage subscription';      // already paying — the ceiling is a support question
     else if(!BILLING||st==='disabled'||st==='comp')b.textContent='Talk to us';  // billing off, or a comped account
-    else b.textContent='Subscribe · $197/mo';
+    else b.textContent='Subscribe · $297/mo';
   }
   o.classList.add('open');
 }
@@ -3617,9 +3617,9 @@ if(RO){loadSharedComps();}
 else if(TOKEN){loadUserComps();loadBilling();
   if(/[?&]billing=success/.test(location.search)){
     // Purchase fires ONCE — the URL param is stripped straight after, so a refresh can't
-    // double-count. Value is the true monthly total once billing status loads, else $197.
+    // double-count. Value is the true monthly total once billing status loads, else $297.
     var _sid=(location.search.match(/[?&]sid=([^&]+)/)||[])[1]||'';
-    var _fireBuy=function(){var v=(BILLING&&BILLING.monthly)?BILLING.monthly:197.00;try{if(window.fbq){fbq('track','Purchase',{value:v,currency:'USD',content_name:'WatchBack subscription'},_sid?{eventID:_sid}:undefined);fbq('track','Subscribe',{value:v,currency:'USD',predicted_ltv:v*12},_sid?{eventID:_sid+'-sub'}:undefined);}}catch(e){}};
+    var _fireBuy=function(){var v=(BILLING&&BILLING.monthly)?BILLING.monthly:297.00;try{if(window.fbq){fbq('track','Purchase',{value:v,currency:'USD',content_name:'WatchBack subscription'},_sid?{eventID:_sid}:undefined);fbq('track','Subscribe',{value:v,currency:'USD',predicted_ltv:v*12},_sid?{eventID:_sid+'-sub'}:undefined);}}catch(e){}};
     setTimeout(_fireBuy,1500);   // give loadBilling() a moment so the value is exact
     confirmCheckout(_sid);       // write the subscription from Stripe now — never wait on the webhook
     setTimeout(function(){alert('\u2713 Subscription active — welcome aboard! Your dossiers, briefs and chat continue uninterrupted.');history.replaceState(null,'',location.pathname);},400);
