@@ -1366,10 +1366,20 @@ app.post('/api/slack', requireAuth, async (req, res) => {
   try {
     const url = String((req.body && req.body.webhook) || '').trim();
     if (!isSlackWebhook(url)) return res.status(400).json({ error: 'That doesn’t look like a Slack Incoming Webhook (it should start with https://hooks.slack.com/services/).' });
-    const ping = await postTo(url, '✅ *WatchBack connected.* Your daily competitor brief will land here every morning — plus weekly report links on Mondays.');
+    // BLOCK KIT PROBE (founder, 20 Aug): the rich brief layout depends on the webhook
+    // TYPE — legacy custom-integration webhooks can reject blocks — and the fallback used
+    // to be silent, so the degradation was invisible for days. Detect it at connect time,
+    // the one moment the user is actually looking, and say it in the channel AND the UI.
+    const msg = '✅ *WatchBack connected.* Your daily competitor brief will land here every morning — plus weekly report links on Mondays.';
+    let blocksOk = true;
+    let ping = await postTo(url, '✅ WatchBack connected.', [{ type: 'section', text: { type: 'mrkdwn', text: msg } }]);
+    if (!ping.sent) {
+      blocksOk = false;
+      ping = await postTo(url, msg + '\n⚠️ Heads-up: this webhook rejected rich formatting (it looks like a legacy incoming-webhook integration) — briefs will arrive as structured plain text. For the full layout, create the webhook through a Slack app: api.slack.com → Create App → Incoming Webhooks → Add to channel, and paste that URL here instead.');
+    }
     if (!ping.sent) return res.status(400).json({ error: 'Slack rejected that webhook — double-check you copied the full URL.' });
     await pool.query('UPDATE users SET slack_webhook=$2 WHERE id=$1', [req.user.uid, url]);
-    res.json({ ok: true, connected: true });
+    res.json({ ok: true, connected: true, blocksOk, ...(blocksOk ? {} : { warning: 'Connected — but this webhook rejected rich formatting (legacy integration). Briefs will arrive as structured plain text. A Slack-app webhook (api.slack.com → Create App → Incoming Webhooks) enables the full layout.' }) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.post('/api/slack/test', aiLimit, requireAuth, async (req, res) => {

@@ -1350,8 +1350,15 @@ function slackConnect(){
   er.style.display='none';go.disabled=true;var was=go.textContent;go.textContent='Connecting…';
   fetch(API+'/api/slack',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({webhook:url})}).then(function(r){return r.json();}).then(function(d){
     go.disabled=false;go.textContent=was;
-    if(d&&d.ok){setUserSlack(true);renderSlack(true);}
-    else{er.textContent=(d&&d.error)||'Couldn’t connect.';er.style.display='block';}
+    if(d&&d.ok){
+      setUserSlack(true);renderSlack(true);
+      // Legacy-webhook heads-up (founder, 20 Aug): the connect probe found this webhook
+      // rejects rich formatting — say it HERE, at the one moment the user is looking,
+      // instead of degrading silently for days.
+      if(d.warning){er.textContent='⚠️ '+d.warning;er.style.display='block';er.style.color='var(--gold)';}
+      else{er.style.color='';}
+    }
+    else{er.style.color='';er.textContent=(d&&d.error)||'Couldn’t connect.';er.style.display='block';}
   }).catch(function(){go.disabled=false;go.textContent=was;er.textContent='Network error — try again.';er.style.display='block';});
 }
 function slackTest(btn){btn.disabled=true;var w=btn.textContent;btn.textContent='Sending…';fetch(API+'/api/slack/test',{method:'POST',headers:authH()}).then(function(r){return r.json();}).then(function(d){btn.textContent=(d&&d.sent)?'Sent ✓':'Failed — check Slack';setTimeout(function(){btn.disabled=false;btn.textContent=w;},2000);}).catch(function(){btn.disabled=false;btn.textContent=w;});}
