@@ -86,11 +86,11 @@ export async function buildDigest(brands) {
 // competitor's ads are SAYING, every single morning. Exported for test/slack.test.js.
 // A row's own words assert newness → it must carry the ❗ regardless of which engine
 // produced the text. Exported for tests (R-MARK-SYNC).
-export const textClaimsLaunches = (t) => /\b\d+\s+new\s+ads?\s+launched\b/i.test(String(t || ''));
+export const textClaimsLaunches = (t) => /\b\d+\s+new\s+ads?\s+launched\b|\b\d+\s+ad launches\b|\b\d+\s+new\s+ads?\b/i.test(String(t || ''));
 // R-FUNNEL-LEAD (founder, 19 Aug): an ads row that names a new/running funnel is news —
 // the ❗ must follow the sentence even when the signal engine has already consumed the
 // announce-once state (the read is generated the evening before the brief quotes it).
-export const textClaimsFunnel = (t) => /\bnew (?:ad )?funnel\b|\bfunnel live\b|\bfunnel began\b/i.test(String(t || ''));
+export const textClaimsFunnel = (t) => /\bnew\b[^.!?]{0,40}\bfunnels?\b|\bfunnel live\b|\bfunnel began\b/i.test(String(t || '').replace(/\b(?:no|nothing)\s+new\b[^.!?]*/gi, ''));
 
 // R-MARK-TEXT completed for ALL rows (19 Aug audit): every ❗ derives from the sentence
 // it decorates — Ads/Social/Email used to keep signal-engine marks, the same asymmetry
@@ -408,7 +408,9 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     // website sale a social-only client cannot open is a promise the brief never keeps.
     const pri = !!(s && ((on('website') && (s.sale || n(s.products))) || (on('ads') && (n(s.staleOffer) || n(s.funnel) || n(s.fbPage) || n(s.angle)))));
     const anyAct = !!((on('ads') && n(A.ads)) || (on('social') && n(A.posts)) || (on('email') && n(A.emails)) || (on('website') && n(A.website)));
-    const badge = badgeFor(pri, anyAct, rows.join('\n'));
+    let badge = badgeFor(pri, anyAct, rows.join('\n'));
+    // Baseline days never claim "no new moves" — no comparison exists yet (Bloom, 20 Aug).
+    if (badge === '✅ no new moves' && rows.some((r) => r.indexOf('first capture') >= 0)) badge = '🔹 baseline forming';
     if (rows.length) {
       blocks.push('*' + (canon[b.host] || b.name) + '* ' + badge + '\n' + rows.join('\n'));
     } else {

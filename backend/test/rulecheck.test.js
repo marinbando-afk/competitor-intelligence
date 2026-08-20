@@ -287,6 +287,8 @@ ok(clean(baseRow), 'baseline banner row is gate-clean');
 ok(!textClaimsWebNews(baseRow), 'competitor copy saying NEW inside quotes never earns the ❗');
 ok(clean('Newest ad still running opens: “hook text”.'), 'tier-2 ads fallback is gate-clean');
 ok(!textClaimsAdsNews('Newest ad still running opens: “hook text”.'), 'tier-2 ads fallback claims no newness → no ❗');
+ok(textClaimsAdsNews('Two new immunity-campaign funnels live yesterday — EU and AU — plus a new partnership handle and 26 ad launches.'), 'AG1 phrasing (funnels with words between, "N ad launches") → ❗');
+ok(!textClaimsFunnel('No new funnels this week; same landing pages.'), 'quiet funnel phrasing → no ❗');
 
 console.log('\nFOUNDER WEBHOOK FALLBACK — no env var + no DB → honest reason, never a throw (19 Aug):');
 const { postText } = await import('../src/slack.js');
