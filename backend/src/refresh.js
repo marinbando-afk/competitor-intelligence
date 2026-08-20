@@ -402,9 +402,11 @@ export async function coverageAudit({ repair = true, day, host } = {}) {
         }
       } catch (e) { /* best-effort */ }
     }
-    // A brand with handles but zero stored posts is a SOCIAL gap too — re-warm it even
-    // when its website landed (Bloom/Gruns, 20 Aug: web fine, social silently empty).
-    for (const r of rows.filter((x) => !x.web || !x.shot || (!x.social && host))) {
+    // A brand with zero stored posts is a SOCIAL gap too — re-warm it even when its
+    // website landed (Bloom/Gruns, 20 Aug: web fine, social silently empty — ONE transient
+    // Apify failure on the add-day warm read as "no posts" forever). The daily audit now
+    // self-heals it; brands without handles cost nothing (the fetch resolves to null).
+    for (const r of rows.filter((x) => !x.web || !x.shot || !x.social)) {
       const b = brands.find((x) => x.host === r.host);
       if (!b) continue;
       try {
