@@ -492,13 +492,43 @@ export function briefBlocks(text) {
 }
 
 // Send a brief as Block Kit chunks (fallback: plain text if the shape is unexpected).
+// RENDERED plain-text variant of the brief (founder, 20 Aug — "why you didn't apply new
+// formatting": his channel uses a LEGACY incoming-webhook, which can reject Block Kit,
+// and the silent fallback shipped the gap-free canonical text — so the 18-19 Aug layout
+// may never have rendered in his Slack at all). This carries the layout in plain text:
+// a divider line between brands and the variant-C gap inside each block. The CANONICAL
+// text stays gap-free (the QA audit reads it) — this is render-time only, same doctrine
+// as briefBlocks.
+export function renderPlainBrief(text) {
+  const parts = String(text || '').split('\n\n').filter(Boolean);
+  if (parts.length < 2) return String(text || '');
+  const DIV = '─'.repeat(28);
+  const out = [parts[0]];
+  for (const p of parts.slice(1)) {
+    if (p.startsWith('🔗') || p.startsWith('— — —')) { out.push(p); continue; }
+    const lines = p.split('\n');
+    const wi = lines.findIndex((l) => /^\s*\*(Website|Email):\*/.test(l));
+    if (wi >= 2) lines.splice(wi, 0, '');
+    out.push(DIV + '\n' + lines.join('\n'));
+  }
+  return out.join('\n\n');
+}
+
 export async function postBrief(webhook, text) {
   const chunks = briefBlocks(text);
-  if (!chunks) return postTo(webhook, text);
+  const plain = renderPlainBrief(text);
+  if (!chunks) return postTo(webhook, plain);
+  // Notification fallback is the HEADER line, not the whole 26KB brief — smaller payload,
+  // better acceptance odds, and the preview reads cleanly.
+  const head = String(text).split('\n')[0];
   let last = { sent: false };
   for (let i = 0; i < chunks.length; i++) {
-    last = await postTo(webhook, i ? 'WatchBack daily (continued)' : text, chunks[i]);
-    if (!last.sent) return postTo(webhook, text);   // blocks rejected → plain text still delivers
+    last = await postTo(webhook, i ? 'WatchBack daily (continued)' : head, chunks[i]);
+    if (!last.sent) {
+      // No more SILENT downgrades — the founder spent a day thinking the layout shipped.
+      console.warn('postBrief: Block Kit rejected (' + (last.status || last.error || '?') + ') — delivering rendered plain text. A legacy incoming-webhook may not accept blocks; a Slack-app webhook fixes it.');
+      return postTo(webhook, plain);
+    }
   }
   return last;
 }

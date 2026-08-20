@@ -292,6 +292,16 @@ ok(!textClaimsFunnel('No new funnels this week; same landing pages.'), 'quiet fu
 ok(fires('Storefront promo.', 'R-TEXT-02'), '"Storefront promo." corpse (Gruns, 20 Aug) → gated to fallback');
 ok(clean('Storefront promo: "NEW! Minions Bello Berry Banana" — first seen yesterday.'), 'a real promo line still passes');
 
+console.log('\nRENDERED PLAIN BRIEF — the layout survives a Block Kit rejection (20 Aug):');
+const { renderPlainBrief, briefBlocks } = await import('../src/slack.js');
+const briefText = '*WatchBack daily* · Thu, 20 Aug\n\n*AG1* 💡\n   *Ads:* ❗ Two new funnels.\n   *Social:* Posting daily.\n   *Website:* ❗ Storefront promo: "Welcome Offer".\n   *Email:* Only the confirmation.\n\n*Bloom* 🔹 baseline forming\n   *Social:* Pear Scare push.\n   *Website:* ❗ 3 products removed.\n\n🔗 <https://watchback.ai/app.html|View →>';
+const rp = renderPlainBrief(briefText);
+ok(rp.indexOf('────') > 0, 'plain fallback carries divider lines between brands');
+ok(/\*Social:\* Posting daily\.\n\n {3}\*Website:\*/.test(rp), 'variant-C gap (blank row before Website) present in plain render');
+ok(rp.indexOf('*WatchBack daily*') === 0 && rp.indexOf('🔗') > 0, 'header and link intact');
+ok(briefText.indexOf('────') < 0, 'canonical text stays gap-free and divider-free (QA reads it)');
+ok(Array.isArray(briefBlocks(briefText)) || briefBlocks(briefText) === null, 'briefBlocks unchanged in shape');
+
 console.log('\nFOUNDER WEBHOOK FALLBACK — no env var + no DB → honest reason, never a throw (19 Aug):');
 const { postText } = await import('../src/slack.js');
 const pt = await postText('ping');
