@@ -114,8 +114,8 @@ export async function warmBrand(b, force) {
   const adBudget = { left: Number(process.env.AD_HOOK_CAP) || 40 };
   const socialBudget = { left: Number(process.env.SOCIAL_HOOK_CAP) || 18 };
   const POST_PER = Number(process.env.SOCIAL_HOOK_PER) || 6;
-  try { const a = await fetchAds(b.name, b.country, force, false, b.host); ok++; if (a && a.ads && a.ads.length) { await enrichCreativeHooks(b.host, 'ads', 'ad', a.ads, adBudget); try { const L = await resolveLandings(a.ads); if (L) a.landings = L; } catch (e) { console.warn('[landcheck]', b.host, (e && e.message) || e); } await saveSnapshot(b.host, 'ads', a); } }
-  catch (e) { fail++; console.warn('warm ads ' + b.name + ':', e.message); }
+  try { const a = await fetchAds(b.name, b.country, force, false, b.host); ok++; if (a && a.ads && a.ads.length) { await enrichCreativeHooks(b.host, 'ads', 'ad', a.ads, adBudget); try { const L = await resolveLandings(a.ads); if (L) a.landings = L; } catch (e) { console.warn('[landcheck]', b.host, (e && e.message) || e); } await saveSnapshot(b.host, 'ads', a); } else warmError(b.host, 'ads', 'scrape returned 0 ads — nothing saved'); }
+  catch (e) { fail++; console.warn('warm ads ' + b.name + ':', e.message); warmError(b.host, 'ads', e.message); }
   for (const [pf, hk] of PLATFORMS) {
     try {
       const s = await fetchSocial(pf, b.handles && b.handles[hk], b.host, force); ok++;
@@ -123,11 +123,11 @@ export async function warmBrand(b, force) {
         const top = [...s.posts].sort((x, y) => String(y.date || '').localeCompare(String(x.date || ''))).slice(0, POST_PER);   // enrich the newest posts (refs into s.posts, so hooks land on the saved objects)
         await enrichCreativeHooks(b.host, pf, 'post', top, socialBudget);
         await saveSnapshot(b.host, pf, s);
-      }
-    } catch (e) { fail++; console.warn('warm ' + pf + ' ' + b.name + ':', e.message); }
+      } else warmError(b.host, pf, 'scrape returned 0 posts for handle "' + ((s && s.handle) || (b.handles && b.handles[hk]) || '?') + '" — nothing saved');
+    } catch (e) { fail++; console.warn('warm ' + pf + ' ' + b.name + ':', e.message); warmError(b.host, pf, e.message); }
   }
-  try { const em = await getEmails(b.host, b.name); if (em && em.storage) await saveSnapshot(b.host, 'email', em); } catch (e) { /* best-effort */ }
-  try { await captureWebsiteFull(b.host, b.url || ('https://' + b.host)); ok++; } catch (e) { fail++; console.warn('warm website ' + b.name + ':', e.message); }
+  try { const em = await getEmails(b.host, b.name); if (em && em.storage) await saveSnapshot(b.host, 'email', em); } catch (e) { warmError(b.host, 'email', e.message); }
+  try { await captureWebsiteFull(b.host, b.url || ('https://' + b.host)); ok++; } catch (e) { fail++; console.warn('warm website ' + b.name + ':', e.message); warmError(b.host, 'website', e.message); }
   // Insights live in ONE shared per-host snapshot that every co-watching account (and
   // anonymous demo/report visitors) reads, so they're generated tenant-neutral — the
   // "apply" tips use the default illustrative brand, never a customer's private one.
@@ -165,6 +165,16 @@ async function syncTracked() {
       console.log('✓ syncTracked: warm list reconciled — ' + items.length + ' → ' + next.length + ' user brand(s)');
     }
   } catch (e) { console.warn('syncTracked:', e.message); }
+}
+
+// CAPTURE-ERROR LEDGER (founder, 20 Aug — Bloom/Gruns: their social scrape silently
+// returned nothing while the accounts were clearly active, and the only evidence lived in
+// Railway logs nobody can reach from chat). Every warm failure and every empty-result
+// scrape lands here, served by /api/coverage — a failed capture must be diagnosable.
+export const warmErrors = [];
+function warmError(host, channel, msg) {
+  warmErrors.push({ at: new Date().toISOString().slice(0, 16), host, channel, msg: String(msg || '').slice(0, 200) });
+  if (warmErrors.length > 200) warmErrors.splice(0, warmErrors.length - 200);
 }
 
 export async function refreshAll(force) {
@@ -351,9 +361,11 @@ export async function qualityAudit({ day, alert = false } = {}) {
 // about it" (founder, 1 Aug). Reliability is the product: a silent capture gap becomes a
 // silent wrong insight tomorrow. So every day we VERIFY what actually landed, repair what
 // didn't, and if it still can't be captured we SAY SO instead of pretending.
-export async function coverageAudit({ repair = true, day } = {}) {
+export async function coverageAudit({ repair = true, day, host } = {}) {
   const today = day || new Date().toISOString().slice(0, 10);
-  const brands = await allBrands();
+  // host: repair ONE brand on demand (founder, 20 Aug — Bloom/Gruns needed a targeted
+  // re-scrape, and the only lever was an all-brands warm).
+  const brands = (await allBrands()).filter((b) => !host || b.host === host);
   const rows = [];
   for (const b of brands) {
     let web = false, shot = false, ads = false;
@@ -390,7 +402,9 @@ export async function coverageAudit({ repair = true, day } = {}) {
         }
       } catch (e) { /* best-effort */ }
     }
-    for (const r of rows.filter((x) => !x.web || !x.shot)) {
+    // A brand with handles but zero stored posts is a SOCIAL gap too — re-warm it even
+    // when its website landed (Bloom/Gruns, 20 Aug: web fine, social silently empty).
+    for (const r of rows.filter((x) => !x.web || !x.shot || (!x.social && host))) {
       const b = brands.find((x) => x.host === r.host);
       if (!b) continue;
       try {

@@ -16,7 +16,7 @@ import { signup, login, createUser, setPassword, changePassword, requireAuth, op
 import { randomBytes } from 'crypto';
 import { fetchAds, adsChanges, ownPageIdsFor } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
-import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, coverageAudit, coverageAuditAndAlert, qualityAudit, TRACKED } from './refresh.js';
+import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, coverageAudit, coverageAuditAndAlert, qualityAudit, TRACKED, warmErrors } from './refresh.js';
 import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, sendUserWeeklyLinks, sendUserDailyBriefs } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml, reviveSilent } from './email.js';
 import { chat } from './chat.js';
@@ -587,7 +587,7 @@ app.get('/api/coverage', async (req, res) => {
     if (wantRepair) {
       if (_auditRunning) return res.json({ started: false, alreadyRunning: true });
       _auditRunning = true;
-      (String(req.query.alert || '') === '1' ? coverageAuditAndAlert() : coverageAudit({ repair: true, day: req.query.day }))
+      (String(req.query.alert || '') === '1' ? coverageAuditAndAlert() : coverageAudit({ repair: true, day: req.query.day, host: String(req.query.host || '').toLowerCase() || undefined }))
         .then((r) => { _auditLast = r; })
         .catch((e) => { _auditLast = { error: e.message }; })
         .finally(() => { _auditRunning = false; });
@@ -597,7 +597,7 @@ app.get('/api/coverage', async (req, res) => {
     // readErrors: why a channel is missing from a stored report (in-memory, since last boot)
     // — added 8 Aug after Nolan's ads read died three runs straight with the only evidence
     // being its absence. Railway logs aren't reachable from chat; this is.
-    res.json({ ...out, repairRunning: _auditRunning, readErrors: readErrors.slice(-20) });
+    res.json({ ...out, repairRunning: _auditRunning, readErrors: readErrors.slice(-20), warmErrors: warmErrors.slice(-40) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 let _auditRunning = false, _auditLast = null;
@@ -644,6 +644,17 @@ app.get('/api/regen-all', async (req, res) => {
   // loop chained whole-fleet rebuilds). Only ?start=1 starts one now.
   if (req.query.start !== '1') return res.json({ running: _regenRunning, state: _regenState });
   if (_regenRunning) return res.json({ started: false, alreadyRunning: true, state: _regenState });
+  // ?host= regenerates ONE brand's read synchronously — the cheap lever for "fix this
+  // brand now" (founder, 20 Aug) instead of a 36-brand fleet rebuild.
+  if (req.query.host) {
+    const h = String(req.query.host).toLowerCase();
+    try {
+      const b = (await allBrands()).find((x) => x.host === h);
+      if (!b) return res.status(404).json({ error: 'unknown host' });
+      await generateInsights(b.name || b.host, b.host);
+      return res.json({ done: true, host: h });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
   _regenRunning = true;
   _regenState = { started: new Date().toISOString(), done: 0, total: 0, failed: [] };
   res.json({ started: true, note: 'rebuilding every stored read — poll /api/regen-all for progress' });
