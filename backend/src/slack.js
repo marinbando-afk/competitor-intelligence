@@ -172,7 +172,22 @@ export function clipSent(t, n) {
   if (t.length <= n) return t;
   const cut = t.slice(0, n);
   const b = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
-  if (b > n * 0.4) return cut.slice(0, b + 1);
+  if (b > n * 0.4) {
+    const cand = cut.slice(0, b + 1);
+    // NEVER cut at a boundary INSIDE an open quotation (AG1, 20 Aug: the hook itself
+    // contained ". " — the clip landed mid-quote, R-QUOTE-01 rejected the line and the
+    // whole rich read collapsed into the stub). Odd quote count = we're inside a quote:
+    // extend through the closing quote when the ceiling allows, else retreat to the
+    // previous clean boundary.
+    if (((cand.match(/["“”]/g) || []).length % 2) === 0) return cand;
+    const close = t.slice(b).search(/["”]/);
+    if (close >= 0 && b + close + 1 <= 280) {
+      const end = b + close + 1;
+      return t.slice(0, end) + (/^[.!?]/.test(t.slice(end)) ? t[end] : '');
+    }
+    const b2 = Math.max(cand.lastIndexOf('. ', b - 1), cand.lastIndexOf('! ', b - 1), cand.lastIndexOf('? ', b - 1));
+    if (b2 > 0 && ((cut.slice(0, b2 + 1).match(/["“”]/g) || []).length % 2) === 0) return cut.slice(0, b2 + 1);
+  }
   // PRIORITY SENTENCES SURVIVE WHOLE (founder, 19 Aug — the funnel callout clipped to
   // "…running from the."): when the FIRST sentence alone overflows the budget, ship it
   // complete up to a hard ceiling instead of amputating the news mid-clause. The 180
@@ -329,7 +344,11 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
     // violates a mechanical rule after scrubbing is replaced by deterministic fallback
     // text, and the downgrade is QA-pinged to the founder webhook. Rules: rulecheck.js.
     const fb = {
-      ads: n(A.ads) ? (n(A.ads) + ' new ad' + (n(A.ads) > 1 ? 's' : '') + ' captured' + (safeQuote(A.ads[0] && A.ads[0].about) ? ' — newest: \u201c' + safeQuote(A.ads[0] && A.ads[0].about) + '\u201d' : '.')) : '',
+      // Tier-2 ads substance (AG1, 20 Aug): no NEW-ad activity does not mean no ads —
+      // the newest running ad's hook is honest substance, so a gate-rejected read never
+      // collapses into the stub while 90 captured ads sit in the app.
+      ads: n(A.ads) ? (n(A.ads) + ' new ad' + (n(A.ads) > 1 ? 's' : '') + ' captured' + (safeQuote(A.ads[0] && A.ads[0].about) ? ' — newest: \u201c' + safeQuote(A.ads[0] && A.ads[0].about) + '\u201d' : '.'))
+        : ((s && s.latestAdHook) ? 'Newest ad still running opens: \u201c' + safeQuote(s.latestAdHook) + '\u201d.' : ''),
       social: socialRowText('', A.posts, (s && s.postsSeen) || 0, (s && s.latestPostAbout) || ''),
       website: (s && s.sale) || (n(A.website) ? String(A.website[0]) : ((s && s.webComparable) ? 'Storefront unchanged — same prices, products and sale.' : '')),
       email: emailRowText('', n(A.emails), (s && s.emailsSeen) || 0, (A.emails[0] && A.emails[0].subject) || (s && s.latestEmailSubject) || ''),
@@ -363,6 +382,11 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
         // R-CHANNEL-ROW for website: a good comparable capture with no read and no sale
         // still gets its row — the honest no-change line, never silence.
         rows.push('   *Website:* Storefront unchanged — same prices, products and sale.');
+      } else if (s && s.webBanner) {
+        // R-BASELINE (Bloom/Gruns, 20 Aug): first-capture day — the read gated to empty
+        // (correctly: nothing is provably "new" yet) but the STANDING STATE is real news
+        // to a client who just added the brand. Quote the banner; claim no newness.
+        rows.push('   *Website:* Storefront banner: “' + safeQuote(s.webBanner) + '” — first capture; day-over-day comparison starts tomorrow.');
       } else if (s && s.captureDay && (Date.parse(todayISO) - Date.parse(s.captureDay)) / 864e5 > 2) {
         // R-NOT-CHECKED (founder rule 12 Aug, implemented 19 Aug): a stale capture is
         // said plainly — a missing row reads as "competitor quiet", a claim we can't make.
@@ -393,7 +417,18 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
       // are cross-channel and carry no channel tag, so a restricted reader gets the brand
       // line only: dropping news is recoverable, leaking a channel they don't have is not.
       const ls = channels ? [] : (signalLines(s).length ? signalLines(s) : activityLines(s)).map(rel);
-      blocks.push('*' + (canon[b.host] || b.name) + '* ' + badge + (ls.length ? '\n' + ls.map((l) => '   • ' + l).join('\n') : ''));
+      if (ls.length) {
+        blocks.push('*' + (canon[b.host] || b.name) + '* ' + badge + '\n' + ls.map((l) => '   • ' + l).join('\n'));
+      } else {
+        // R-BASELINE + R-NOT-CHECKED (Bloom/Gruns, 20 Aug: bare "✅ no new moves" with
+        // ZERO rows on a brand added yesterday — a false claim; no comparison exists
+        // yet). Say what is actually true instead of dressing an empty block as quiet.
+        const hasAnyCapture = !!(s && (s.captureDay || s.adsSeen || s.postsSeen || s.emailsSeen));
+        const bl = hasAnyCapture
+          ? 'Baseline day — first capture stored' + (s && s.webBanner ? '; storefront banner: “' + safeQuote(s.webBanner) + '”' : '') + '. The full day-over-day report starts tomorrow morning.'
+          : 'First capture runs tonight — the baseline report lands tomorrow morning.';
+        blocks.push('*' + (canon[b.host] || b.name) + '* 🔹 baseline forming\n   ' + bl);
+      }
     }
   }
   // QA ping — founder webhook only, only on REAL deliveries. Every downgraded line is a

@@ -275,6 +275,19 @@ ok(!!wf2 && !/price move on this product/.test(wf2.text), 'a single move stays a
 const { checkMisses: cm2 } = await import('../src/qa.js');
 ok(true, 'campaign line: PROMPT + strict claims gate + judge bullet (no deterministic fixture — judgment-layer by design)');
 
+console.log('\nBASELINE BRIEF + QUOTE-AWARE CLIP (Bloom/Gruns/AG1, 20 Aug):');
+const ag1 = 'Two new immunity-campaign funnels live yesterday — EU and AU — plus a new partnership handle and 26 ad launches. Newest ad opens: "Your potential is capped by your foundation. If your nutrition is inconsistent, your…".';
+const ag1clip = clipSent(ag1, 180);
+ok(!fires(ag1clip, 'R-QUOTE-01'), 'clip never lands inside an open quotation (AG1: rich read collapsed to the stub)');
+ok(/Newest ad opens: "Your potential/.test(ag1clip), 'the hook survives the clip');
+const noQuote = 'First sentence about the ads here runs a good deal longer so it clears the boundary threshold and ends cleanly. ' + 'Second sentence is long '.repeat(12);
+ok(/cleanly\.$/.test(clipSent(noQuote, 180)), 'normal sentence-boundary clipping unchanged');
+const baseRow = 'Storefront banner: “NEW! Daily Hydration Sticks — Shop Now” — first capture; day-over-day comparison starts tomorrow.';
+ok(clean(baseRow), 'baseline banner row is gate-clean');
+ok(!textClaimsWebNews(baseRow), 'competitor copy saying NEW inside quotes never earns the ❗');
+ok(clean('Newest ad still running opens: “hook text”.'), 'tier-2 ads fallback is gate-clean');
+ok(!textClaimsAdsNews('Newest ad still running opens: “hook text”.'), 'tier-2 ads fallback claims no newness → no ❗');
+
 console.log('\nFOUNDER WEBHOOK FALLBACK — no env var + no DB → honest reason, never a throw (19 Aug):');
 const { postText } = await import('../src/slack.js');
 const pt = await postText('ping');

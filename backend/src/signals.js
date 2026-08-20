@@ -216,6 +216,9 @@ export async function dailySignals(host, commit) {
     out.webComparable = !!wc.comparable;   // fallback tier: 'unchanged' may only be claimed off a comparable pair
     const cur = wc.data;
     const prev = wc.prev;
+    // The captured banner (cleaned, any kind) — baseline-day brands need it for the
+    // standing-state row when no read exists yet (Bloom/Gruns, 20 Aug).
+    out.webBanner = (cur && bannerOk(cur.banner)) ? cleanBannerText(cur.banner) : '';
     if (wc.comparable && cur && cur.summary && prev && prev.summary) {
       const diffs = diffWebsite(prev.summary, cur.summary) || [];
       // The RELIABLE sale event: the count of discounted PRODUCTS changed (from products.json,
@@ -290,6 +293,15 @@ export async function dailySignals(host, commit) {
     const ac = await resolveCapture(host, 'ads', { today: todayStr, cap: Number(process.env.ADS_COUNT) || 50 });
     const adSnap = ac.ok ? { day: ac.day, data: ac.data } : null;
     const todayAds = ac.ok ? (ac.data.ads || []) : [];
+    // Substance for fallback rows (AG1, 20 Aug: a gate-rejected ads read collapsed to the
+    // stub because the brand had no NEW-ad activity to build a fallback from — but 90
+    // captured ads were sitting right there). The newest running ad's hook is always
+    // available substance, no newness claimed.
+    out.adsSeen = todayAds.length;
+    if (todayAds.length) {
+      const newestAd = todayAds.slice().sort((a, b2) => String(b2.started || '').localeCompare(String(a.started || '')))[0];
+      out.latestAdHook = String((newestAd && (newestAd.text || newestAd.title)) || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    }
     if (todayAds.length) {
       // 0) Stale/fake offers — independent of adsChanges: a fake sale is worth announcing
       // even on the baseline capture, when there is no previous day to diff against.
