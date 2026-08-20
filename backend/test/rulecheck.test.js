@@ -302,6 +302,13 @@ ok(rp.indexOf('*WatchBack daily*') === 0 && rp.indexOf('🔗') > 0, 'header and 
 ok(briefText.indexOf('────') < 0, 'canonical text stays gap-free and divider-free (QA reads it)');
 ok(Array.isArray(briefBlocks(briefText)) || briefBlocks(briefText) === null, 'briefBlocks unchanged in shape');
 
+console.log('\nBANNER-AWARE COMPARE PANEL — no contradiction under an announced sale (Grüns, 20 Aug):');
+const { bannerChangeFor } = await import('../src/website.js');
+const bcG = bannerChangeFor('NEW! Minions Bello Berry Banana — grab this iconic, mischievous flavor', "It's Grüns' Birthday! We lowered our price to celebrate — Save 55% + Free Shipping");
+ok(!!bcG && bcG.isSale, 'Minions banner → Birthday sale banner = banner change, flagged as a sale');
+ok(!bannerChangeFor('UP TO 40% OFF', 'UP TO 40% OFF 1M JARS SOLD'), 're-worded same bar (containment) → no change (rotation-safe)');
+ok(!bannerChangeFor('', 'Save 55%'), 'no earlier banner → no change verdict (nothing to compare)');
+
 console.log('\nFOUNDER WEBHOOK FALLBACK — no env var + no DB → honest reason, never a throw (19 Aug):');
 const { postText } = await import('../src/slack.js');
 const pt = await postText('ping');

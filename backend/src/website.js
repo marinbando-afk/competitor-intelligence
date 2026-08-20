@@ -7,7 +7,7 @@
 //     -> { after:{day,shot,summary}, before:{day,shot,summary}|null, changes:[...] }
 
 import { saveSnapshot, recentSnapshots, latestSnapshot, saveSnapshotDay } from './snapshots.js';
-import { cleanBannerText } from './occasions.js';
+import { cleanBannerText, sameBannerText, isSaleBanner } from './occasions.js';
 import { pool } from './db.js';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -529,17 +529,38 @@ function resolveShotRefs(rows) {
   }
   return rows;
 }
+// Pure banner-layer verdict for the compare panel, exported for tests: a change only when
+// BOTH days hold a real banner and the meaning-based identity test says they differ —
+// rotation/re-wording of the same bar never fires (same sameBannerText the sale machinery
+// uses), so this can never re-introduce the rotation false positives.
+export function bannerChangeFor(beforeBanner, afterBanner) {
+  const bb = cleanBannerText(beforeBanner);
+  const ab = cleanBannerText(afterBanner);
+  if (!bb || !ab || sameBannerText(bb, ab)) return null;
+  return { from: bb, to: ab, isSale: isSaleBanner(ab) };
+}
+
 export async function websiteCompare(host, url, day, force) {
   if (!host) { const e = new Error('Missing host.'); e.status = 400; throw e; }
   const shape = (s) => s ? { day: s.day, capturedAt: (s.data && s.data.capturedAt) || null, shot: (s.data && s.data.shot) || null, shotFrom: (s.data && s.data.shotFrom) || null, shotStale: !!(s.data && s.data.shotStale), banner: (s.data && s.data.banner) || '', summary: (s.data && s.data.summary) || null } : null;
-  const mk = (after, before, extra) => ({
-    host: cleanHost(host),
-    after: shape(after), before: shape(before),
-    changes: (before && after) ? diffWebsite(before.data && before.data.summary, after.data && after.data.summary) : [],
-    changedShots: (after && after.data && after.data.changedShots) || [],
-    ...(_capErr.has(cleanHost(host)) ? { capError: _capErr.get(cleanHost(host)) } : {}),
-    ...extra,
-  });
+  const mk = (after, before, extra) => {
+    // BANNER LAYER for the compare panel (founder, 20 Aug — Grüns: "New sale live" sat
+    // directly above "No changes since the last capture"): the panel diffs the product
+    // FEED only, but a banner swap IS a visible storefront change, and the bare no-change
+    // line beneath an announced sale reads as a contradiction. Computed server-side
+    // because sameBannerText/isSaleBanner live here; rotation-safe by the same identity
+    // test the sale machinery uses.
+    const bc = (before && after) ? bannerChangeFor(before.data && before.data.banner, after.data && after.data.banner) : null;
+    return {
+      host: cleanHost(host),
+      after: shape(after), before: shape(before),
+      changes: (before && after) ? diffWebsite(before.data && before.data.summary, after.data && after.data.summary) : [],
+      changedShots: (after && after.data && after.data.changedShots) || [],
+      bannerChange: bc,
+      ...(_capErr.has(cleanHost(host)) ? { capError: _capErr.get(cleanHost(host)) } : {}),
+      ...extra,
+    };
+  };
 
   // Historical view — the capture on `day` vs the most recent earlier capture (no live re-capture).
   if (day) {

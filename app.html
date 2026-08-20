@@ -2161,9 +2161,17 @@ function loadWeb(box){
         chg='<div class="wchg">'+d.changes.map(function(s){return '<div class="wchg-row"><span class="wchg-dot"></span><span>'+esc(s)+'</span></div>';}).join('')+'</div>';
       }else if(hist){
         chg='<div class="wbase"><b>'+esc(fmtShortDay((d.after&&d.after.day)||d.day))+'.</b> '+(d.before?'No price or product changes detected vs the previous capture.':'First website capture — no earlier day to compare against yet.')+'</div>';
+      }else if(d.bannerChange&&d.bannerChange.to){
+        // The FEED matched but the ANNOUNCEMENT BAR changed (Grüns, 20 Aug: "New sale
+        // live" sat right above a bare "No changes" — two true statements about
+        // different layers reading as a contradiction). Name both layers.
+        chg='<div class="wbase"><b>Announcement bar changed'+(d.bannerChange.isSale?' — new sale banner':'')+'.</b> Now: “'+esc(d.bannerChange.to)+'”'+(d.bannerChange.from?' (was: “'+esc(d.bannerChange.from)+'”)':'')+'. The product feed itself is unchanged — prices, products and sale scope steady vs '+esc(fmtShortDay(d.before.day))+'.</div>';
       }else if(d.before){
-        // Watched daily with history — today simply matched yesterday. Say THAT, not "baseline".
-        chg='<div class="wbase"><b>No changes since the last capture.</b> Compared '+esc(fmtShortDay(d.before.day))+' → '+esc(fmtShortDay(d.after.day))+': prices, products and sale scope are unchanged. Any move shows up here with a before/after slider.</div>';
+        // Watched daily with history — today simply matched yesterday. The bold lead NAMES
+        // what was compared (founder, 20 Aug: "if you are referring to new products, prices
+        // and sale scope — SAY IT") — a bare "No changes" under a sale callout reads as a
+        // contradiction; this panel only ever judges the product feed.
+        chg='<div class="wbase"><b>Product feed unchanged — same prices, products and sale scope.</b> Compared '+esc(fmtShortDay(d.before.day))+' → '+esc(fmtShortDay(d.after.day))+'. Banner and promo changes are reported above; any feed move shows up here with a before/after slider.</div>';
       }else{
         var day=(d.after&&d.after.day)?fmtShortDay(d.after.day):'today';
         chg='<div class="wbase"><b>Baseline captured ('+esc(day)+').</b> This storefront is now watched daily — the next time a price moves, a sale starts, or products change, it shows up here with a before/after slider. The first comparison appears on the next daily capture.</div>';
