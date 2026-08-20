@@ -38,6 +38,8 @@ const CHECKS = [
       // label-only survivors: the clip landed inside the quote, the balancer removed it,
       // and a sentence about nothing remained ("Latest email." — Ancestral, 14 Aug).
       || /^\s*(latest|new|newest)\s+(email|post|ad|item)s?\s*[.:]?\s*$/i.test(t.trim())
+      // "Storefront promo." with the quote stripped (Gruns, 20 Aug) — same corpse family.
+      || /^\s*storefront\s+(promo|banner)\s*[.:]?\s*$/i.test(t.trim())
       // a clip that ends on an article/conjunction ("…running from the." — Ancestral,
       // 19 Aug) is a truncation artifact whatever produced it. Only words that are
       // never sentence-final in real prose ("opt in." / "known for." stay legal).
