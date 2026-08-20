@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="facebook-domain-verification" content="s4bchjiwbg00g4eufhnkmc2vfv3res" />
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>WatchBack — Know what your competitors are doing. Automatically.</title>
+<meta name="description" content="Daily AI surveillance of your competitors' ads, emails, social and website — decoded into what it means for your brand, every morning."/>
+<meta property="og:title" content="WatchBack — Know what your competitors are doing. Automatically."/>
+<meta property="og:description" content="Every competitor. Every channel. Every day — decoded into a 30-second Slack brief."/>
+<meta property="og:image" content="https://watchback.ai/og.png"/>
+<meta property="og:url" content="https://watchback.ai/deck.html"/>
+<link rel="icon" href="favicon.svg"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<!-- Meta Pixel -->
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init','28423431670573533');fbq('track','PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none" alt=""
+src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/></noscript>
+<style>
+:root{
+  --bg:#080f10; --panel:#0d1318; --line:rgba(120,170,180,.14); --line2:rgba(120,170,180,.28);
+  --sage:#57d2cf; --sage-d:#3f9d9b; --sage-soft:rgba(87,210,207,.1);
+  --clay:#e2554f; --gold:#e3a92c; --quiet:#62bd7e;
+  --text:#cdd6da; --muted:#8a99a2; --faint:#5e6e76;
+  --mono:'JetBrains Mono',monospace; --disp:'Oswald',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:linear-gradient(135deg,#0a1416 0%,#0b1114 55%,#0d1017 100%);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.6;overflow-x:hidden}
+.wrap{max-width:1000px;margin:0 auto;padding:0 22px}
+a{color:var(--sage);text-decoration:none}
+h1,h2{font-family:'Inter',sans-serif;font-weight:700;line-height:1.14;letter-spacing:-.015em;color:#eef3f4}
+.k{font-family:var(--mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--sage)}
+.btn{display:inline-block;font-family:var(--mono);font-size:12.5px;letter-spacing:.09em;text-transform:uppercase;padding:15px 26px;border-radius:8px;cursor:pointer;font-weight:700;border:1px solid transparent}
+.btn-solid{background:var(--sage);color:#06282a}
+.btn-solid:hover{background:#7de4e1}
+.btn-red{background:var(--clay);color:#fff;margin-left:10px}
+.btn-red:hover{background:#ff6b5e}
+.btn-ghost{background:transparent;color:var(--sage);border-color:var(--line2)}
+.lbl-s{display:none}
+nav{display:flex;justify-content:space-between;align-items:center;padding:18px 0;gap:10px}
+nav .nbtns{display:flex;align-items:center;gap:9px}
+nav .btn{padding:10px 16px;font-size:11px;margin-left:0}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-size:19px;font-weight:700;letter-spacing:.04em;color:var(--text);white-space:nowrap}
+.logo b{color:var(--sage)}
+.crest{width:32px;height:32px;border-radius:50%;border:1px solid var(--sage-d);background:var(--sage-soft);display:flex;align-items:center;justify-content:center;flex:none}
+@media(max-width:640px){nav .btn-ghost{display:none}nav .btn{padding:7px 9px;font-size:10px;letter-spacing:.05em}.logo{font-size:17px}.crest{width:26px;height:26px}.lbl-l{display:none}.lbl-s{display:inline}}
+/* hero — slide 1 verbatim */
+.hero{padding:72px 0 30px}
+.hero h1{font-size:clamp(34px,5.8vw,58px);max-width:17ch}
+.hero h1 em{font-style:normal;color:var(--sage)}
+.hero .sub{color:var(--muted);font-size:17px;max-width:58ch;margin:18px 0 0}
+.cta-row{margin-top:28px;display:flex;gap:0;flex-wrap:wrap;align-items:center}
+.under{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:12px;letter-spacing:.03em}
+/* slide sections */
+section{padding:54px 0 8px}
+.sect h2{font-size:clamp(24px,3.6vw,34px);margin:10px 0 8px}
+.sect .line{color:var(--muted);font-size:15.5px;max-width:70ch}
+.bullets{margin:16px 0 0;list-style:none}
+.bullets li{position:relative;padding-left:22px;margin:9px 0;font-size:15.5px;color:#c4cfd4}
+.bullets li::before{content:'▶';position:absolute;left:0;top:3px;font-size:9px;color:var(--sage)}
+.bullets b{color:#eef3f4}
+.callout{border:1px solid var(--line2);border-left:2px solid var(--sage);border-radius:0 12px 12px 0;background:rgba(87,210,207,.05);padding:14px 18px;margin:18px 0 0;max-width:560px;font-size:14.5px}
+.callout.red{border-left-color:var(--clay);background:rgba(226,85,79,.06)}
+.callout.red b{color:#ff8a7e}
+.chips{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0 4px}
+.chip{font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--sage);border:1px solid var(--sage-d);border-radius:16px;padding:6px 13px}
+/* screenshot frames — the deck's card look */
+.shot{margin:24px 0 0;border:1px solid var(--line2);border-radius:14px;overflow:hidden;background:#0b0f13;box-shadow:0 26px 70px rgba(0,0,0,.45)}
+.shot img{display:block;width:100%;height:auto}
+.cap{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:10px;line-height:1.6}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+@media(max-width:760px){.duo{grid-template-columns:1fr}}
+/* pricing — slide 12 */
+.price-wrap{display:grid;grid-template-columns:auto 1fr;gap:34px;align-items:start;margin-top:22px}
+@media(max-width:760px){.price-wrap{grid-template-columns:1fr}}
+.price-card{border:1.5px solid var(--sage-d);border-radius:16px;background:linear-gradient(180deg,rgba(87,210,207,.10),var(--panel));padding:30px 40px;text-align:center;min-width:260px}
+.price-card .big{font-family:var(--disp);font-size:52px;font-weight:700;color:#eef3f4}
+.price-card .big span{font-size:18px;color:var(--muted);font-weight:400}
+.price-card .s1{font-size:14.5px;margin-top:4px}
+.price-card .s2{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:3px}
+/* closer — slide 13 */
+.closer{text-align:center;padding:70px 0 26px}
+.closer h2{font-size:clamp(30px,5vw,46px)}
+.closer h2 em{font-style:normal;color:var(--sage)}
+.closer p{color:var(--muted);margin:14px auto 0;max-width:52ch}
+.demolinks{display:flex;gap:11px;justify-content:center;flex-wrap:wrap;margin-top:22px}
+.demolinks a{font-family:var(--mono);font-size:12px;border:1px solid var(--line2);border-radius:9px;padding:10px 18px;color:var(--text)}
+.demolinks a:hover{border-color:var(--sage-d);color:var(--sage)}
+.demolinks span{color:var(--sage)}
+footer{font-family:var(--mono);font-size:10.5px;color:var(--faint);text-align:center;padding:36px 0 44px}
+@media(max-width:640px){.btn-red{margin-left:0;margin-top:10px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav>
+  <a class="logo" href="index.html">
+    <span class="crest"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 12C6.6 6.7 17.4 6.7 21 12C17.4 17.3 6.6 17.3 3 12Z" stroke="#57d2cf" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="3.5" stroke="#57d2cf" stroke-width="1.6"/><path d="M12 8.5v7M8.5 12h7" stroke="#57d2cf" stroke-width="1.1"/><circle cx="12" cy="12" r="1.1" fill="#e2554f"/></svg></span>
+    <span>WATCH<b>BACK</b></span>
+  </a>
+  <div class="nbtns">
+    <a class="btn btn-ghost" href="app.html?signin=1">Sign in</a>
+    <a class="btn btn-red" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}"><span class="lbl-l">Book a demo call</span><span class="lbl-s">Demo call</span></a>
+    <a class="btn btn-solid" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}"><span class="lbl-l">Create free account</span><span class="lbl-s">Free account</span></a>
+  </div>
+</nav>
+
+<header class="hero">
+  <span class="k">WATCHBACK</span>
+  <h1>Know what your <em>competitors</em> are doing — automatically.</h1>
+  <p class="sub">Daily AI surveillance of your competitors’ ads, emails, social and website — decoded into what it means for your brand, every morning.</p>
+  <div class="cta-row">
+    <a class="btn btn-solid" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Create free account →</a>
+    <a class="btn btn-red" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}">Book a demo call</a>
+  </div>
+  <div class="under">Free account: browse 3 live demo dossiers instantly · no card · your 30-day trial starts only when you add your own competitors</div>
+</header>
+
+<section class="sect">
+  <span class="k">THE PROBLEM</span>
+  <h2>By the time you notice a winning move, they’ve already scaled it.</h2>
+  <ul class="bullets">
+    <li>Your competitors ship changes <b>daily</b> — new creatives, funnels, prices, offers, emails.</li>
+    <li>Checking by hand takes <b>hours per day</b> and still misses the moves that matter: quiet funnel launches, whitelisted ad pages, price tests.</li>
+    <li>You find out <b>weeks late</b>, usually when it shows up in your ROAS.</li>
+  </ul>
+  <div class="callout red">The biggest brands in your category already run this playbook on you — manually, with teams. <b>Every brand loses to the same blind spot.</b></div>
+</section>
+
+<section class="sect">
+  <span class="k">WHAT WATCHBACK DOES</span>
+  <h2>Every competitor. Every channel. Every day.</h2>
+  <div class="chips">
+    <span class="chip">ADS — creatives, variants, funnels, whitelisting</span>
+    <span class="chip">EMAIL — every campaign, cadence, offers</span>
+    <span class="chip">ORGANIC SOCIAL — posts, reels, engagement</span>
+    <span class="chip">WEBSITE — prices, products, promos, banners</span>
+  </div>
+  <ul class="bullets">
+    <li><b>Captures</b> everything your competitors run, send and change — automatically, every day.</li>
+    <li><b>AI reads the changes</b> and explains what they mean: the strategy behind the move, not just the diff.</li>
+    <li><b>Delivers it your way:</b> a 30-second Slack digest every morning + a live dashboard when you want the detail.</li>
+  </ul>
+</section>
+
+<section class="sect">
+  <span class="k">THE DAILY DIGEST</span>
+  <h2>Your morning: 30 seconds in Slack.</h2>
+  <p class="line">One message per competitor. Every channel, one line. A red flag only when something is actually live.</p>
+  <div class="shot"><img src="deck/slack-digest.jpg" alt="A real WatchBack Slack digest: a competitor's new ad funnel caught the day it launched"/></div>
+  <div class="cap">Real daily update — a competitor’s new ad funnel caught the day it launched, plus website, email and social status.</div>
+</section>
+
+<section class="sect">
+  <span class="k">THE DASHBOARD</span>
+  <h2>One card per competitor. Everything at a glance.</h2>
+  <div class="shot"><img src="deck/dashboard-card.jpg" alt="WatchBack dashboard card: threat assessment, counter-op and four channels collapsed to one line each" loading="lazy"/></div>
+  <div class="cap">Threat assessment up top, recommended counter-op, and every channel collapsed to a single line. Click any row to expand.</div>
+</section>
+
+<section class="sect">
+  <span class="k">EXPANDED — ADS</span>
+  <h2>Every creative. Every variant. Plus the counter-move.</h2>
+  <div class="shot"><img src="deck/ads-expanded.jpg" alt="Ads expanded: AI read of the ad strategy, a counter-op, and all captured creatives per handle" loading="lazy"/></div>
+  <div class="cap">AI read of the ad strategy, a counter-op for your brand, and all 90 active creatives — tracked separately per handle: founder page and brand page.</div>
+</section>
+
+<section class="sect">
+  <span class="k">EXPANDED — EMAIL</span>
+  <h2>Their entire email strategy, decoded.</h2>
+  <div class="duo">
+    <div>
+      <div class="shot"><img src="deck/email-decoded.jpg" alt="Email channel decoded: cadence, angles and discount strategy across every captured email" loading="lazy"/></div>
+      <div class="cap">Cadence, angles and discount strategy across every captured email — with a counter-move for your list.</div>
+    </div>
+    <div>
+      <div class="shot"><img src="deck/email-creative.jpg" alt="A captured competitor email opened to the full creative" loading="lazy"/></div>
+      <div class="cap">Open any campaign to see the full creative.</div>
+    </div>
+  </div>
+</section>
+
+<section class="sect">
+  <span class="k">EXPANDED — ORGANIC SOCIAL</span>
+  <h2>Spot the outlier before they double down.</h2>
+  <p class="line">An influencer Reel doing <b style="color:#eef3f4">136K views</b> against branded posts averaging ~800 — flagged automatically, with the hooks it’s running.</p>
+  <div class="shot"><img src="deck/social-outlier.jpg" alt="Social expanded: an outlier influencer Reel flagged against the branded feed" loading="lazy"/></div>
+</section>
+
+<section class="sect">
+  <span class="k">EXPANDED — WEBSITE</span>
+  <h2>Every price, promo and banner change — before / after.</h2>
+  <div class="duo">
+    <div>
+      <div class="shot"><img src="deck/web-beforeafter.jpg" alt="Draggable before/after storefront comparison catching a quiet sale rename" loading="lazy"/></div>
+      <div class="cap">A “4th of July” sale quietly rolled into an evergreen Summer Sale — caught with a draggable before/after.</div>
+    </div>
+    <div>
+      <div class="shot"><img src="deck/web-banner.jpg" alt="Announcement bar swapped to a price-drop banner overnight — caught in the daily capture" loading="lazy"/></div>
+      <div class="cap">Announcement bar swapped to a price-drop banner overnight.</div>
+    </div>
+  </div>
+</section>
+
+<section class="sect">
+  <span class="k">YOUR WHOLE COMPETITIVE SET</span>
+  <h2>One message. Every competitor. Instant triage.</h2>
+  <p class="line">A red ❗ means something real happened. 🔹 routine activity means you can skip it. Ten seconds tells you if today matters.</p>
+  <div class="shot"><img src="deck/digest-multi.jpg" alt="One Slack message covering the whole competitive set with instant triage markers" loading="lazy"/></div>
+  <div class="cap">Doing this manually at this level — every ad account, inbox, feed and storefront, daily — costs multiple hours a week, or a full hire. WatchBack does it every morning, without fail.</div>
+</section>
+
+<section class="sect">
+  <span class="k">PRICING</span>
+  <h2>Costs a rounding error. Replaces multiple people and tools.</h2>
+  <div class="price-wrap">
+    <div class="price-card">
+      <div class="big">$297<span>/month</span></div>
+      <div class="s1">2 competitors included</div>
+      <div class="s2">+ $47/mo per additional competitor</div>
+    </div>
+    <ul class="bullets" style="margin-top:6px">
+      <li><b>1 month free trial</b> — full product, card required, cancel anytime.</li>
+      <li>Daily monitoring of all four channels, Slack digest + dashboard.</li>
+      <li>Personal onboarding: we set up your competitors together.</li>
+      <li>No integrations. Set up for you. Zero risk.</li>
+    </ul>
+  </div>
+</section>
+
+<div class="closer">
+  <span class="k">NEXT STEP</span>
+  <h2>Your competitors are watching you.<br/><em>Watch back.</em></h2>
+  <p>Start your free month — we’ll have your first competitor report in your Slack tomorrow morning.</p>
+  <div class="cta-row" style="justify-content:center">
+    <a class="btn btn-solid" href="app.html#signup" onclick="try{fbq('track','Lead',{content_name:'free-account'})}catch(e){}">Create free account →</a>
+    <a class="btn btn-red" href="https://cal.com/marin-bando/30min" onclick="try{fbq('track','Schedule')}catch(e){}">Book a demo call</a>
+  </div>
+  <div class="demolinks">
+    <a href="app.html?c=theoodie.com">The Oodie <span>↗</span></a>
+    <a href="app.html?c=liquiddeath.com">Liquid Death <span>↗</span></a>
+    <a href="app.html?c=smooche.com">Smooche <span>↗</span></a>
+  </div>
+  <div class="under" style="margin-top:16px">live demo dossiers · no sign-up needed · the exact product</div>
+</div>
+
+<footer>WATCHBACK © 2026 · <a href="index.html">watchback.ai</a> · <a href="privacy.html">privacy</a> · <a href="terms.html">terms</a></footer>
+</div>
+</body>
+</html>
