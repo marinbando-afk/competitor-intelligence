@@ -8,6 +8,13 @@
 //   POST /api/competitors      { name, host, url }  -> { competitor }
 //   DELETE /api/competitors/:id
 
+// LAST-RESORT CRASH GUARD (20 Aug, outage post-mortem): a Node18/undici stream-teardown
+// bug ("Invalid state: Controller is already closed") throws on a process tick OUTSIDE
+// any try/catch and killed the whole API mid-day — a live prospect saw "Network error"
+// at sign-in. A scrape hiccup must NEVER take the product down: log loudly, keep serving.
+process.on('uncaughtException', (e) => { console.error('UNCAUGHT (kept alive):', (e && e.stack) || e); });
+process.on('unhandledRejection', (e) => { console.error('UNHANDLED REJECTION (kept alive):', (e && (e.stack || e.message)) || e); });
+
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';

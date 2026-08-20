@@ -30,7 +30,9 @@ export async function resolveLandings(ads, cap = 6) {
     try {
       const res = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(12000), headers: { 'user-agent': UA, accept: 'text/html,application/xhtml+xml' } });
       out[d] = { url, finalUrl: res.url || url, status: res.status };
-      try { if (res.body && res.body.cancel) await res.body.cancel(); } catch (e) { /* stream cleanup only */ }
+      // Drain, never cancel: body.cancel() on undici can throw "Controller is already
+      // closed" asynchronously (uncatchable, crashed the process — 20 Aug outage).
+      try { await res.arrayBuffer(); } catch (e) { /* body discarded */ }
     } catch (e) {
       // A network failure (timeout, DNS, TLS) is NOT a dead page — record it as unknown
       // so findings.js stays silent rather than crying 404 on a transient error.
