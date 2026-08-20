@@ -43,7 +43,11 @@ const CHECKS = [
       // a clip that ends on an article/conjunction ("…running from the." — Ancestral,
       // 19 Aug) is a truncation artifact whatever produced it. Only words that are
       // never sentence-final in real prose ("opt in." / "known for." stay legal).
-      || /\s(the|a|an|and|or|of|their|its)[.…]?\s*$/i.test(t.replace(/["'”’)\]]+$/, '').trim()) },
+      || /\s(the|a|an|and|or|of|their|its)[.…]?\s*$/i.test(t.replace(/["'”’)\]]+$/, '').trim())
+      // a line OPENING with a beheaded quote ('This…" → smooche.com.' — Smooche, 20 Aug):
+      // ellipsis + closing quote in the first few words with no opening quote before it
+      // is a splice corpse, whatever produced it.
+      || /^[^"“”]{1,30}…\s*["”]/.test(t.trim()) },
 
   // R-TEXT-03: no template/JS junk ever reaches a user surface.
   { id: 'R-TEXT-03', why: 'placeholder junk (undefined/null/NaN/[object)',
@@ -91,7 +95,7 @@ const CHECKS = [
   // is a press quote, not a promotional offer/sale.)'. Model self-talk — disclaimers,
   // classifications of its own answer, AI-speak — must never reach a customer surface.
   { id: 'R-META-01', why: 'model meta-commentary shipped as if it were competitor copy',
-    test: (t) => /\(this is (?:a|not)\b[^)]*\)|\bpress quote, not a promo|\bas an ai\b|\bi cannot (?:see|access|verify)\b|\bbased on the (?:data|capture) provided\b/i.test(t) },
+    test: (t) => /\(this is (?:a|not)\b[^)]*\)|\bpress quote, not a promo|\bas an ai\b|\bi cannot (?:see|access|verify)\b|\bbased on the (?:data|capture) provided\b|\(meta start date/i.test(t) },
 ];
 
 // ISO dates in the SLACK BRIEF specifically: allowed only for genuine launch/check dates

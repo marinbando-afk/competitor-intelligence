@@ -309,6 +309,17 @@ ok(!!bcG && bcG.isSale, 'Minions banner → Birthday sale banner = banner change
 ok(!bannerChangeFor('UP TO 40% OFF', 'UP TO 40% OFF 1M JARS SOLD'), 're-worded same bar (containment) → no change (rotation-safe)');
 ok(!bannerChangeFor('', 'Save 55%'), 'no earlier banner → no change verdict (nothing to compare)');
 
+console.log('\nPROVENANCE JARGON + BEHEADED QUOTES (Smooche, 20 Aug):');
+ok(fires('New ad launched yesterday (Meta start date) — video from "Smooche".', 'R-META-01'), '"(Meta start date)" in customer text → gated');
+ok(clean('New ad launched 2026-08-19 — video from "Smooche", opening: "After decades of settling" → smooche.com.'), 'the clean launch line passes');
+ok(fires('This…" → smooche.com. New ad launched yesterday.', 'R-TEXT-02'), 'a row opening with a beheaded quote fragment → gated');
+ok(clean('"After decades of settling" — a shade-match angle → smooche.com.'), 'a row legitimately OPENING with a quote passes');
+const launchFix = adsFindings([
+  { day: '2026-08-20', data: { ads: [{ id: 'zz1', landing: 'https://smooche.com/p', page: 'Smooche', started: '2026-08-19', text: 'hook here' }] } },
+  { day: '2026-08-19', data: { ads: [{ id: 'zz0', landing: 'https://smooche.com/p', page: 'Smooche', started: '2026-06-01', text: 'old' }] } },
+], 100).find((f) => String(f.key).indexOf('ads.launch:') === 0);
+ok(!!launchFix && launchFix.text.indexOf('Meta start date') < 0, 'per-ad launch finding carries no provenance jargon');
+
 console.log('\nQALOG — every silent downgrade lands in the ledger (20 Aug, "never ask the same question again"):');
 const { qaLog, qaDrain, qaEvents } = await import('../src/qalog.js');
 qaDrain();   // clean slate

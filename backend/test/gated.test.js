@@ -16,7 +16,7 @@ const FINDS = [
   { type: 'context', key: 'ads.volume', text: '100 ads captured on 2026-08-10 (typical for this brand: 90)' },
   { type: 'state', key: 'ads.domains', text: 'Every captured ad runs to nolaninterior.com.' },
   { type: 'state', key: 'ads.pages', text: 'The captured ads run from "Nolan Interior".' },
-  { type: 'new', key: 'ads.launches', text: '6 new ads launched since 2026-08-08 (Meta start dates; 6 video, 0 image/carousel); newest opens: "🚨 BEST SELLER: Miracle Sofa Cover" → nolaninterior.com.', evidence: { hook: '🚨 BEST SELLER: Miracle Sofa Cover' } },
+  { type: 'new', key: 'ads.launches', text: '6 new ads launched since 2026-08-08 (6 video, 0 image/carousel); newest opens: "🚨 BEST SELLER: Miracle Sofa Cover" → nolaninterior.com.', evidence: { hook: '🚨 BEST SELLER: Miracle Sofa Cover' } },
   { type: 'state', key: 'ads.staleOffer:bf', text: '"Black Friday" offer is running 8.3 months out of season.' },
 ];
 

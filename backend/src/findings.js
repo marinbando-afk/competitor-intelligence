@@ -193,7 +193,9 @@ export function adsFindings(rows, capN) {
       const hook = String(a.text || a.title || '').replace(/\s+/g, ' ').trim().slice(0, 110);
       out.push({
         type: 'new', key: 'ads.launch:' + a.id,
-        text: 'New ad launched ' + a.started + ' (Meta start date) — ' + fmtOf2(a) + ' from "' + String(a.page || '').trim() + '"' + (hook ? ', opening: "' + hook + '"' : '') + (domOf(a.landing) ? ' → ' + domOf(a.landing) : '') + '.',
+        // Provenance stays in evidence, never prose (founder, 20 Aug — "what does mean
+        // Meta start date": the bookkeeping parenthetical shipped to a customer).
+        text: 'New ad launched ' + a.started + ' — ' + fmtOf2(a) + ' from "' + String(a.page || '').trim() + '"' + (hook ? ', opening: "' + hook + '"' : '') + (domOf(a.landing) ? ' → ' + domOf(a.landing) : '') + '.',
         evidence: { id: a.id, started: a.started, format: fmtOf2(a), page: a.page || '', landing: a.landing || '', link: a.link || '', cta: a.cta || '' },
       });
     }

@@ -199,8 +199,8 @@ t('change claim backed by a finding passes',
 t('new-ad claim passes when the engine established the launch',
   'Three new video ads launched 6 Aug from their Glov Beauty page, leading with a scalp-detox hook.',
   { hasEarlier: true, canAssertNew: true, comparable: true, knownEntities: ['Glov Beauty', 'glovbeauty.com'],
-    changeFindings: ['New ad launched 2026-08-06 (Meta start date) — video from "Glov Beauty", opening: "Scalp detox in 90 seconds — watch what comes out" → glovbeauty.com.',
-      '3 new ads launched since 2026-08-06 (Meta start dates; 3 video, 0 image/carousel).'] }, false);
+    changeFindings: ['New ad launched 2026-08-06 — video from "Glov Beauty", opening: "Scalp detox in 90 seconds — watch what comes out" → glovbeauty.com.',
+      '3 new ads launched since 2026-08-06 (3 video, 0 image/carousel).'] }, false);
 
 t('present-tense description needs no finding',
   'Ads run to casaandbeyond.com.au from their own Casa & Beyond page.',
