@@ -2804,8 +2804,10 @@ function patchComp(dbId,body){
 function normUrlHandle(p,val){
   val=String(val||'').trim();if(!val)return '';
   var v=val.replace(/^https?:\/\//i,'').replace(/^www\./i,''),m;
-  if(p==='instagram'){m=v.match(/instagram\.com\/([A-Za-z0-9_.]+)/i);return (m?m[1]:val.replace(/^@/,'')).replace(/[\/?].*$/,'');}
-  if(p==='tiktok'){m=v.match(/tiktok\.com\/@?([A-Za-z0-9_.]+)/i);return (m?m[1]:val.replace(/^@/,'')).replace(/[\/?].*$/,'');}
+  // A CONTENT link (post/reel/story/share) is not a profile — reject it so the field
+  // stays visibly empty instead of storing a junk handle like "p" (Pannonian Padel, 19 Aug).
+  if(p==='instagram'){if(/instagram\.com\/(p|reel|reels|tv|stories)\//i.test(v))return '';m=v.match(/instagram\.com\/([A-Za-z0-9_.]+)/i);return (m?m[1]:val.replace(/^@/,'')).replace(/[\/?].*$/,'');}
+  if(p==='tiktok'){if(/tiktok\.com\/(t|share|v|video|embed)\//i.test(v))return '';m=v.match(/tiktok\.com\/@?([A-Za-z0-9_.]+)/i);return (m?m[1]:val.replace(/^@/,'')).replace(/[\/?].*$/,'');}
   if(p==='facebook'){
     if((m=v.match(/facebook\.com\/profile\.php\?id=(\d+)/i)))return 'profile.php?id='+m[1];
     if((m=v.match(/facebook\.com\/p\/([A-Za-z0-9._-]*\d{6,})/i)))return 'p/'+m[1];

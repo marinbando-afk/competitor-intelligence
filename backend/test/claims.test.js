@@ -199,8 +199,8 @@ t('change claim backed by a finding passes',
 t('new-ad claim passes when the engine established the launch',
   'Three new video ads launched 6 Aug from their Glov Beauty page, leading with a scalp-detox hook.',
   { hasEarlier: true, canAssertNew: true, comparable: true, knownEntities: ['Glov Beauty', 'glovbeauty.com'],
-    changeFindings: ['New ad launched 2026-08-06 — video from "Glov Beauty", opening: "Scalp detox in 90 seconds — watch what comes out" → glovbeauty.com.',
-      '3 new ads launched since 2026-08-06 (3 video, 0 image/carousel).'] }, false);
+    changeFindings: ['New ad launched 2026-08-06 (Meta start date) — video from "Glov Beauty", opening: "Scalp detox in 90 seconds — watch what comes out" → glovbeauty.com.',
+      '3 new ads launched since 2026-08-06 (Meta start dates; 3 video, 0 image/carousel).'] }, false);
 
 t('present-tense description needs no finding',
   'Ads run to casaandbeyond.com.au from their own Casa & Beyond page.',
@@ -252,6 +252,11 @@ h('facebook.com/profile.php?id=100067470427617', 'profile.php?id=100067470427617
 h('facebook.com/p/Mars-Men-184711951390377/', 'p/Mars-Men-184711951390377');
 h('@the_oodie', 'the_oodie');
 h('the_oodie', 'the_oodie');
+// Pannonian Padel, 19 Aug: a pasted POST link stored the "handle" p — content links are
+// rejected outright now (the coverage audit heals, but junk must not enter at all).
+h('https://www.instagram.com/p/DZNFB8_NYJx/', '');
+h('instagram.com/reel/Cxy2z_abc/', '');
+h('https://www.tiktok.com/t/ZTshareX/', '');
 h('https://instagram.com/glovbeauty/', 'glovbeauty');
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed\n');

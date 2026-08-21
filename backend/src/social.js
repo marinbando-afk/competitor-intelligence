@@ -177,7 +177,13 @@ export function normHandle(v) {
   // "/p/Name-123456/" (modern Facebook page URLs) and "/pages/Name/123456"
   const p = h.match(/^p\/([A-Za-z0-9._-]*\d{6,})/i) || h.match(/^pages\/[^/]+\/(\d{6,})/i);
   if (p) return 'p/' + p[1];
-  return h.split('/')[0];
+  const seg = h.split('/')[0];
+  // A CONTENT link is not a profile: instagram.com/p/<post>, /reel/, /tv/, /stories/,
+  // tiktok /t/ share links. Storing the path segment as a "handle" scraped nothing
+  // (Pannonian Padel pasted a post URL on 19 Aug — the stored handle was literally "p"
+  // until the coverage audit healed it). Reject outright; empty is honest.
+  if (['p', 'reel', 'reels', 'tv', 'stories', 'story', 'share', 'video', 't'].includes(seg.toLowerCase())) return '';
+  return seg;
 }
 
 export async function fetchSocial(platform, handle, host, force, cacheOnly) {
