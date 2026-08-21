@@ -80,8 +80,8 @@ check('the launch carries date, format, page and the opening hook',
   !!l9 && l9.text.includes('2026-08-06') && l9.text.includes('video') && l9.text.includes('Glov Beauty') && l9.text.includes('Scalp detox'), l9 && l9.text);
 check('lag-tail: started days ago but NEVER seen before is still a launch (capped windows surface late)',
   launch.some((f) => f.key === 'ads.launch:a5'));
-check('aggregate launch line is a ONE-DAY window — stragglers never stretch it into ISO dates (R-LAUNCH-WINDOW, 15 Aug)',
-  launch.some((f) => f.key === 'ads.launches' && /1 new ad launched since yesterday \(video\)/.test(f.text)));
+check('an aggregate launches count is stated, dated from the oldest fresh ad',
+  launch.some((f) => f.key === 'ads.launches' && /2 new ads launched since 2026-08-03/.test(f.text)));
 check('an ad older than the 7-day window first sampled today is NOT a launch (date test)', !launch.some((f) => f.key === 'ads.launch:a0'));
 check('an id captured before is NOT a launch (id test)', !launch.some((f) => f.key === 'ads.launch:a1'));
 
@@ -250,6 +250,12 @@ const multiFoot = adsFindings([row('2026-08-12', { ads: [
   { id: 'b2', landing: 'https://b.com/2', page: 'Daily Discounts Online', started: '2026-08-11' },
 ] })], 500).find((f) => f.key === 'ads.footprint');
 check('multiple pages read as "handles"', !!multiFoot && /handles\.$/.test(multiFoot.text), multiFoot && multiFoot.text);
+
+// Bloom (21 Aug): a completed zero-ad scan is reportable state, not a silent void.
+const zscan = adsFindings([row('2026-08-21', { ads: [], scanned: true })], 500);
+check('zero-ad SCAN emits the noneActive state', zscan.some((f) => f.key === 'ads.noneActive' && /NO active Meta ads/.test(f.text)));
+const zfail = adsFindings([row('2026-08-21', { ads: [] })], 500);
+check('a plain empty day (no scan marker) stays silent', !zfail.some((f) => f.key === 'ads.noneActive'));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

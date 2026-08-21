@@ -67,6 +67,13 @@ export function adsFindings(rows, capN) {
     evidence: { count: ads.length, typical },
   });
 
+  // ZERO-AD SCAN IS A FACT, NOT A FAILURE (founder, 21 Aug — Bloom: "you didn't report
+  // anything under ads"): a completed Ad Library scan that returned no active ads is
+  // reportable state — the competitor is simply not running Meta ads right now.
+  if (!ads.length && today.data && today.data.scanned) {
+    out.push({ type: 'state', key: 'ads.noneActive', text: 'The Ad Library scan completed today and found NO active Meta ads for their page(s). Reportable as-is: they are not running Meta ads right now — never frame this as a capture error.', evidence: { scanned: true } });
+  }
+
   if (!earlier.length) {
     out.push({
       type: 'limit', key: 'ads.nohistory',
