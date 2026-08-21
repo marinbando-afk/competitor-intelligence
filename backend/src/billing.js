@@ -292,9 +292,17 @@ async function applySubscription(sub, fallbackUid) {
   }
 }
 
-export async function handleWebhook(rawBody, signature) {
+// Split so the route can FAST-ACK (21 Aug — Stripe disabled the endpoint after nine
+// days of restart-window delivery failures): verification is synchronous and cheap;
+// processing happens after the 200 is already on the wire.
+export async function verifyStripeEvent(rawBody, signature) {
   const s = await stripe();
-  const ev = s.webhooks.constructEvent(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET);
+  return s.webhooks.constructEvent(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET);
+}
+export async function handleWebhook(rawBody, signature) {
+  return processStripeEvent(await verifyStripeEvent(rawBody, signature));
+}
+export async function processStripeEvent(ev) {
   switch (ev.type) {
     case 'checkout.session.completed': {
       const sess = ev.data.object;

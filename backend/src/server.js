@@ -34,7 +34,7 @@ import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { systemStats } from './stats.js';
 import { getWeekly, generateWeekly, mondayOf } from './weekly.js';
-import { billingEnabled, billingStatus, checkoutSession, confirmCheckout, subscriptionAudit, portalSession, syncQuantity, handleWebhook } from './billing.js';
+import { billingEnabled, billingStatus, checkoutSession, confirmCheckout, subscriptionAudit, portalSession, syncQuantity, handleWebhook, verifyStripeEvent, processStripeEvent } from './billing.js';
 import { capiEnabled, capiTokenValid } from './metacapi.js';
 import { snapshotDays, snapshotForDay, recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost } from './snapshots.js';
 import { ALL_CHANNELS, normChannels } from './channels.js';
@@ -46,10 +46,17 @@ const app = express();
 app.set('trust proxy', 1);
 // Stripe webhook FIRST, on the RAW body — signature verification fails on parsed JSON.
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  try {
-    if (!billingEnabled()) return res.status(503).json({ error: 'Billing not configured.' });
-    res.json(await handleWebhook(req.body, req.headers['stripe-signature']));
-  } catch (e) { res.status(400).json({ error: 'Webhook verification failed.' }); }
+  // FAST-ACK (21 Aug — Stripe disabled the endpoint after nine days of restart-window
+  // delivery failures): verify the signature, put the 200 on the wire immediately, and
+  // process in the background. Delivery stats now measure only receipt — never our
+  // processing time or hiccups. Signature failures still 400 so a misconfigured secret
+  // stays loudly visible in Stripe's dashboard.
+  if (!billingEnabled()) return res.status(503).json({ error: 'Billing not configured.' });
+  let ev;
+  try { ev = await verifyStripeEvent(req.body, req.headers['stripe-signature']); }
+  catch (e) { return res.status(400).json({ error: 'Webhook verification failed.' }); }
+  res.json({ received: true, type: ev.type });
+  processStripeEvent(ev).catch((e) => console.warn('[stripe-webhook async]', ev.type, (e && e.message) || e));
 });
 // Emails can be large; also accept form-encoded posts from inbound-email services.
 app.use(express.json({ limit: '3mb' }));
