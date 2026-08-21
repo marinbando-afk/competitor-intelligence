@@ -80,8 +80,10 @@ check('the launch carries date, format, page and the opening hook',
   !!l9 && l9.text.includes('2026-08-06') && l9.text.includes('video') && l9.text.includes('Glov Beauty') && l9.text.includes('Scalp detox'), l9 && l9.text);
 check('lag-tail: started days ago but NEVER seen before is still a launch (capped windows surface late)',
   launch.some((f) => f.key === 'ads.launch:a5'));
-check('an aggregate launches count is stated, dated from the oldest fresh ad',
-  launch.some((f) => f.key === 'ads.launches' && /2 new ads launched since 2026-08-03/.test(f.text)));
+// R-LAUNCH-WINDOW (b02f900): the aggregate counts the ONE-day window in human words —
+// no ISO dates. (This pin was accidentally reverted by a cross-session test-file push.)
+check('the aggregate launches line uses the one-day window in human words',
+  launch.some((f) => f.key === 'ads.launches' && /1 new ad launched since yesterday \(video\)/.test(f.text) && !/\d{4}-\d{2}-\d{2}/.test(f.text)));
 check('an ad older than the 7-day window first sampled today is NOT a launch (date test)', !launch.some((f) => f.key === 'ads.launch:a0'));
 check('an id captured before is NOT a launch (id test)', !launch.some((f) => f.key === 'ads.launch:a1'));
 
