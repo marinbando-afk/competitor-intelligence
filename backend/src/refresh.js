@@ -97,7 +97,11 @@ export async function warmBrand(b, force) {
   // every account's row for this host, so social scraping starts without anyone noticing.
   if (!b.handles || !Object.keys(b.handles).length) {
     try {
-      const h = await resolveHandles(b.host);
+      // Confirmed account handles outrank site-resolve HERE too (26 Aug — this heal is
+      // what wrote a sponsor's handle into the warm list, the actual scrape source).
+      let h = null;
+      try { const cf = await pool.query(`SELECT handles FROM competitors WHERE host = $1 AND COALESCE(handles->>'confirmed','') = 'true' LIMIT 1`, [b.host]); h = cf.rows[0] && cf.rows[0].handles; } catch (e) { /* fall through to resolve */ }
+      if (!h || !Object.keys(h).filter((k) => k !== 'confirmed').length) h = await resolveHandles(b.host);
       if (h && Object.keys(h).length) {
         b.handles = h;
         if (process.env.DATABASE_URL) await pool.query(`UPDATE competitors SET handles = $2 WHERE host = $1 AND (handles IS NULL OR handles::text = '{}')`, [b.host, JSON.stringify(h)]);
@@ -394,11 +398,24 @@ export async function coverageAudit({ repair = true, day, host } = {}) {
     // for handles and persist them, so the gap can actually close (Pannonian Padel, 5 Aug).
     for (const r of rows.filter((x) => !x.social)) {
       try {
-        const { resolveHandles } = await import('./social.js');
-        const h = await resolveHandles(r.host);
-        if (h && Object.keys(h).length) {
-          await pool.query('UPDATE competitors SET handles = $2, updated_at = now() WHERE host = $1', [r.host, JSON.stringify(h)]);
-          r.handlesFound = Object.keys(h).join(',');
+        // CONFIRMED HANDLES ARE SACRED (founder, 26 Aug — Pannonian Padel: this heal
+        // overwrote the client's confirmed @pannonianpadel with @izos.hr, the SPONSOR
+        // whose Instagram link sits on the club's website, and a week of the sponsor's
+        // posts was captured as the club's). If any account row for this host carries
+        // confirmed handles, the heal adopts THOSE; site-resolve only ever fills
+        // unconfirmed rows, and no path overwrites a confirmed row.
+        const cf = await pool.query(`SELECT handles FROM competitors WHERE host = $1 AND COALESCE(handles->>'confirmed','') = 'true' LIMIT 1`, [r.host]);
+        const confirmed = cf.rows[0] && cf.rows[0].handles;
+        if (confirmed) {
+          await pool.query(`UPDATE competitors SET handles = $2, updated_at = now() WHERE host = $1 AND COALESCE(handles->>'confirmed','') <> 'true'`, [r.host, JSON.stringify(confirmed)]);
+          r.handlesFound = 'confirmed:' + Object.keys(confirmed).filter((k) => k !== 'confirmed').join(',');
+        } else {
+          const { resolveHandles } = await import('./social.js');
+          const h = await resolveHandles(r.host);
+          if (h && Object.keys(h).length) {
+            await pool.query(`UPDATE competitors SET handles = $2, updated_at = now() WHERE host = $1 AND COALESCE(handles->>'confirmed','') <> 'true'`, [r.host, JSON.stringify(h)]);
+            r.handlesFound = Object.keys(h).join(',');
+          }
         }
       } catch (e) { /* best-effort */ }
     }
