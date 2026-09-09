@@ -21,7 +21,7 @@ import cors from 'cors';
 import { initSchema, pool } from './db.js';
 import { signup, login, createUser, setPassword, changePassword, requireAuth, optionalUid, JWT_IS_DEFAULT, ensureJwtSecret } from './auth.js';
 import { randomBytes } from 'crypto';
-import { fetchAds, adsChanges, ownPageIdsFor } from './ads.js';
+import { fetchAds, adsChanges, ownPageIdsFor, resolvePageRef, forgetTrackedPages } from './ads.js';
 import { fetchSocial, resolveHandles } from './social.js';
 import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, coverageAudit, coverageAuditAndAlert, qualityAudit, TRACKED, warmErrors } from './refresh.js';
 import { qaEvents } from './qalog.js';
@@ -30,7 +30,6 @@ import { storeInbound, getEmails, recentEmails, getEmailHtml, reviveSilent } fro
 import { chat } from './chat.js';
 import { websiteCompare, mshotsShot, scrubWebsiteHistory, shotDiag } from './website.js';
 import { getInsights, generateInsights, quickAngle, creditStatus, enrichCreativeHooks, backfillWebsiteReads, readErrors } from './insights.js';
-import { getMyBrand, setMyBrand, clearMyBrand } from './brand.js';
 import { storeFeedback, listFeedback } from './feedback.js';
 import { systemStats } from './stats.js';
 import { getWeekly, generateWeekly, mondayOf } from './weekly.js';
@@ -488,7 +487,7 @@ app.get('/api/insights', aiLimit, async (req, res) => {
   }
 });
 
-// One-line marketing angle (+ how YOUR brand could apply it) for a single ad/post.
+// One-line marketing angle for a single ad/post.
 // Quick Anthropic balance probe (cached ~5 min) — so I can check if AI credits ran dry.
 app.get('/api/credits', async (req, res) => { res.json(await creditStatus(req.query.fresh === '1')); });
 // Screenshot quota probe — numbers only, the key never leaves the server. Answers "how many
@@ -541,34 +540,15 @@ app.post('/api/angle', aiLimit, async (req, res) => {
     const uid = await viewUid(req);
     if (!uid) return res.status(401).json({ error: 'Sign in to use the AI analyst.' });
     const { text, kind, image, video } = req.body || {};
-    const r = await quickAngle(text, kind, image, video, uid);
-    res.json({ angle: r.angle, hook: r.hook, creative: r.creative, apply: r.apply, script: r.script });
+    const r = await quickAngle(text, kind, image, video);
+    res.json({ angle: r.angle, hook: r.hook, creative: r.creative, script: r.script });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// "Your brand" knowledge base — PER ACCOUNT: each customer scans their own brand once,
-// used to tailor every competitor insight into a realistic "apply to your brand" tip.
-app.get('/api/my-brand', async (req, res) => {
-  try {
-    const uid = await viewUid(req);   // signed-in user, or the client behind a read-only share link
-    res.json({ brand: uid ? await getMyBrand(uid) : null });   // anonymous visitors see no brand — never someone else's
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-app.post('/api/my-brand', requireAuth, async (req, res) => {
-  try {
-    const { name, website, mainProduct } = req.body || {};
-    const brand = await setMyBrand(req.user.uid, name, website, mainProduct);
-    res.json({ brand });
-  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
-});
-app.delete('/api/my-brand', requireAuth, async (req, res) => {
-  try {
-    await clearMyBrand(req.user.uid);
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
+// "Your brand" / apply-to-you was removed on 9 Sep 2026 (founder: "remove AI suggestions —
+// those are not needed"). No per-account brand profile is read or written anymore.
 
 // Register a user-added competitor for the daily warm + kick off its first capture now.
 app.post('/api/track', async (req, res) => {
@@ -1307,8 +1287,7 @@ app.get('/api/shared/:token', async (req, res) => {
     if (!u.rows[0]) return res.status(404).json({ error: 'This shared link is no longer active.' });
     const uid = u.rows[0].id;
     const cs = await pool.query('SELECT id, name, host, url, country, status, handles, created_at, updated_at FROM competitors WHERE user_id = $1 ORDER BY created_at ASC', [uid]);
-    let brand = null;
-    try { const b = await getMyBrand(uid); if (b && b.name) brand = { name: b.name }; } catch (e) { /* optional */ }
+    const brand = null;   // no per-account brand since 9 Sep 2026
     // A teammate on the share link sees exactly what the account holder sees — including
     // their channel restriction, or the link would be a way around it.
     res.json({ readonly: true, brand, competitors: cs.rows, channels: normChannels(u.rows[0].channels) });
@@ -1439,10 +1418,48 @@ app.get('/api/competitors', requireAuth, async (req, res) => {
   }
 });
 
+// TRACKED WHITELISTING PAGES (founder, 9 Sep 2026). handles.fbPages arrives from the app as
+// whatever the client pasted — page URLs, Ad Library URLs, ids, handles. Normalise to
+// [{ id, label }] with NUMERIC ids only (a vanity handle is resolved through the page's
+// public HTML; unresolvable entries are reported back, never silently dropped), capped at
+// 10, de-duplicated. Anything else in `handles` passes through untouched.
+async function normHandlesPages(handles) {
+  const h = Object.assign({}, handles || {});
+  const rejected = [];
+  if (!Array.isArray(h.fbPages)) { delete h.fbPages; return { handles: h, rejected }; }
+  const out = [];
+  for (const p of h.fbPages.slice(0, 20)) {
+    const raw = (p && typeof p === 'object') ? String(p.id || p.url || p.handle || p.label || '') : String(p || '');
+    if (!raw.trim()) continue;
+    const r = await resolvePageRef(raw);
+    if (!r) { rejected.push(raw.slice(0, 120)); continue; }
+    if (!out.some((x) => x.id === r.id)) out.push({ id: r.id, label: String((p && typeof p === 'object' && p.label) || r.label || r.id).slice(0, 80) });
+    if (out.length >= 10) break;
+  }
+  h.fbPages = out;
+  return { handles: h, rejected };
+}
+const pageIds = (h) => (h && Array.isArray(h.fbPages) ? h.fbPages.map((p) => String(p && p.id || '')).filter(Boolean).sort().join(',') : '');
+// The tracked set changed → re-scan ads now so the new page's ads appear within minutes,
+// not after the next nightly warm. Ads-only, fire-and-forget, one run per save.
+function refreshAdsForTracked(row) {
+  const h = row && row.host; if (!h) return;
+  forgetTrackedPages(h);
+  (async () => {
+    try {
+      const a = await fetchAds(row.name, row.country || 'ALL', true, false, h);
+      if (a && a.ads) { try { await enrichCreativeHooks(h, 'ads', 'ad', a.ads, { left: 0 }); } catch (e) { /* hooks optional */ } await saveSnapshot(h, 'ads', a); }
+      console.log('✓ tracked-pages ads refresh: ' + h + ' → ' + ((a && a.ads) || []).length + ' ads');
+    } catch (e) { console.warn('tracked-pages ads refresh ' + h + ':', (e && e.message) || e); }
+  })();
+}
+
 app.post('/api/competitors', requireAuth, async (req, res) => {
   try {
-    const { name, host, url, country, handles, status } = req.body || {};
+    const { name, host, url, country, status } = req.body || {};
     if (!name || !host || !url) return res.status(400).json({ error: 'Missing name, host, or url.' });
+    const np = await normHandlesPages((req.body || {}).handles);
+    const handles = np.handles, pagesRejected = np.rejected;
     const h = String(host).replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase().slice(0, 200);
     // Per-account competitor limit, enforced server-side (the UI gate alone is bypassable).
     // Editing/re-saving a competitor they already track never counts against it.
@@ -1478,8 +1495,9 @@ app.post('/api/competitors', requireAuth, async (req, res) => {
     // Best-effort and AFTER the client's own row is saved — the founder seeing his mirror
     // must never be able to fail the client's actual add.
     await mirrorToAdmins(req.user.uid, r.rows[0]);
-    res.json({ competitor: r.rows[0] });
+    res.json({ competitor: r.rows[0], pagesRejected });
     syncQuantity(req.user.uid);   // $47 addon follows the competitor count (prorated)
+    if (pageIds(handles)) refreshAdsForTracked(r.rows[0]);
     // FULL CAPTURE AT ADD TIME (founder, 19 Aug: "2 definitely, run it right away").
     // A new dossier used to sit empty until the next scheduled warm — up to a day of
     // "is this broken?". Now ads/social/email are captured within minutes of the add and
@@ -1520,6 +1538,11 @@ app.patch('/api/competitors/:id', requireAuth, async (req, res) => {
     }
     // Full edit: name / url / country / handles. Host (identity) is NOT changed here —
     // a different domain is a different competitor (the app deletes + re-adds for that).
+    let pagesRejected = [], pagesBefore = '';
+    if (b.handles != null) {
+      const np = await normHandlesPages(b.handles); b.handles = np.handles; pagesRejected = np.rejected;
+      try { const prev = await pool.query('SELECT handles FROM competitors WHERE id = $1 AND user_id = $2', [req.params.id, req.user.uid]); pagesBefore = pageIds(prev.rows[0] && prev.rows[0].handles); } catch (e) { /* treat as changed */ }
+    }
     const r = await pool.query(
       `UPDATE competitors SET
          name = COALESCE($1, name), url = COALESCE($2, url), country = COALESCE($3, country),
@@ -1532,7 +1555,8 @@ app.patch('/api/competitors/:id', requireAuth, async (req, res) => {
        b.handles != null ? JSON.stringify(b.handles) : null,
        req.params.id, req.user.uid]);
     if (!r.rows[0]) return res.status(404).json({ error: 'Not found.' });
-    res.json({ competitor: r.rows[0] });
+    res.json({ competitor: r.rows[0], pagesRejected });
+    if (b.handles != null && pageIds(r.rows[0].handles) !== pagesBefore) refreshAdsForTracked(r.rows[0]);
   } catch (e) {
     res.status(500).json({ error: 'Could not update competitor.' });
   }

@@ -89,7 +89,6 @@ button{font-family:inherit;cursor:pointer}
    The brand chip STAYS visible — a teammate needs to see whose brand the "apply to"
    advice is written for — but it's inert: no click, no edit. */
 .ro .add-btn,.ro #bugFab,.ro #fbFab,.ro .row-x{display:none!important}
-.ro #myBrandChip{pointer-events:none;cursor:default}
 .ro-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line2);border-radius:20px;padding:6px 12px;white-space:nowrap}
 .ro-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--sage);flex:none}
 .rail-list{padding:4px 0}
@@ -142,7 +141,7 @@ button{font-family:inherit;cursor:pointer}
 @keyframes lp{0%,100%{opacity:1}50%{opacity:.4}}
 /* quick "live" pulse for glowing status dots — opacity only, size stays fixed */
 @keyframes dotpulse{0%,100%{opacity:1}50%{opacity:.3}}
-@media(prefers-reduced-motion:reduce){.livedot,.mb-dot,.intel-dot{animation:none}}
+@media(prefers-reduced-motion:reduce){.livedot,.intel-dot{animation:none}}
 .lr{color:var(--faint)}
 
 .assess{margin-bottom:34px;position:relative;z-index:1}
@@ -150,25 +149,13 @@ button{font-family:inherit;cursor:pointer}
 .verdict{font-family:'Inter',sans-serif;font-weight:400;font-size:18.5px;line-height:1.62;letter-spacing:0;color:#dde6e9;margin:0;max-width:760px}
 .verdict::first-letter{font-size:1.1em;font-weight:500}
 
-.move{border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);padding:22px 0 22px 24px;position:relative;margin-bottom:42px;z-index:1}
-.move::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--sage)}
-.move .lbl{display:block;margin-bottom:12px;color:var(--sage-d)}
-.move-t{font-size:15.5px;line-height:1.62;color:var(--text);margin:0;max-width:760px}
 /* Counter-op collapsed by default (founder, 10 Aug): the intel stays scannable; the
    advice expands on click. The label itself is the toggle. */
-.move .lbl{cursor:pointer;user-select:none;margin-bottom:0}
-.move .lbl::before{content:'▸ ';color:var(--sage)}
-.move.open .lbl::before{content:'▾ '}
-.move.open .lbl{margin-bottom:12px}
-.move .brief-l,.move .move-t{display:none}
-.move.open .brief-l{display:flex}
-.move.open .move-t{display:block}
-/* Threat assessment / counter-op as readable bullet points */
+/* Threat assessment as readable bullet points */
 .brief-l{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:11px;max-width:760px}
 .brief-l li{position:relative;padding-left:20px;line-height:1.5;font-family:'Inter',sans-serif}
 .brief-l li::before{content:'';position:absolute;left:1px;top:8px;width:6px;height:6px;border-radius:50%;background:var(--sage)}
 .assess .brief-l li{font-size:16px;color:#dde6e9}
-.move .brief-l li{font-size:15px;color:var(--text)}
 /* Phone: stack + centre the report header — the side-by-side layout leaves a cramped,
    ragged text column next to the avatar. (Placed AFTER the base rules so it wins.) */
 @media(max-width:560px){
@@ -329,13 +316,6 @@ a.adrow-v{color:var(--sage);text-decoration:none}
 a.adrow-v:hover{text-decoration:underline}
 .adrow-angle .adrow-v{color:var(--sage);font-weight:500}
 .angle-load{color:var(--muted);font-weight:400;font-style:italic}
-.adrow-apply .adrow-k{color:var(--gold)}
-.adrow-apply .adrow-v{color:var(--text)}
-.mybrand{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--muted);background:none;border:1px solid var(--line2);border-radius:20px;padding:5px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:.15s}
-.mybrand:hover{border-color:var(--sage-d);color:var(--text)}
-.mybrand.set{color:var(--text);border-color:var(--sage-d)}
-.mb-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);box-shadow:0 0 6px var(--sage);animation:dotpulse 1.3s ease-in-out infinite}
-.mb-lbl{color:var(--muted);font-weight:400}
 .datenav .dlabel{cursor:pointer}
 .dcar{font-size:9px;color:var(--muted)}
 .calwrap{position:fixed;top:56px;right:18px;z-index:70;width:262px;background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.55);padding:12px;display:none}
@@ -352,8 +332,6 @@ a.adrow-v:hover{text-decoration:underline}
 .cal-cell.today{box-shadow:inset 0 0 0 1px var(--sage-d)}
 .cal-cell.sel{background:var(--sage);color:#06231f;font-weight:700}
 .cal-foot{margin-top:9px;font-family:var(--mono);font-size:9px;color:var(--muted);text-align:center;line-height:1.45}
-.intel-apply{margin:2px 0 13px;padding:9px 12px;border-radius:8px;background:rgba(227,169,44,.08);border:1px solid rgba(227,169,44,.22);font-size:12.5px;line-height:1.5;color:var(--text)}
-.ia-h{display:block;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
 .adlink{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage);text-decoration:none;margin-top:15px}
 .adlink:hover{color:var(--quiet)}
 .adsbox{margin-bottom:2px}
@@ -702,6 +680,15 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .asoflbl.stale{color:var(--gold)}
 .confirm-h{font-size:12.5px;color:var(--muted);margin:14px 0 11px;line-height:1.55}
 .cf-row{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+.cf-sub{margin:14px 0 6px;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.cf-note{font-size:12px;color:var(--muted);margin:0 0 8px;line-height:1.45}
+.cf-page{display:flex;align-items:center;gap:8px;padding:6px 9px;margin-bottom:6px;border:1px solid var(--line2);border-radius:7px;font-size:12.5px}
+.cf-page b{font-family:var(--mono);font-weight:500;color:var(--text)}
+.cf-page .x{margin-left:auto;background:none;border:0;color:var(--muted);cursor:pointer;font-size:14px}
+.cf-page .x:hover{color:var(--red)}
+.adsig .pin{margin-left:6px;opacity:.55;cursor:pointer}
+.adsig .pin:hover{opacity:1}
+.adsig .pinned{margin-left:6px;color:var(--gold)}
 .cf-l{width:72px;flex-shrink:0;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
 .cf-row input{flex:1;min-width:0;padding:9px 10px;border-radius:7px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font-size:12.5px;font-family:var(--mono)}
 .cf-act{flex-shrink:0;font-family:var(--mono);font-size:10.5px;padding:7px 8px;border-radius:6px;border:1px solid var(--line2);background:none;color:var(--text);cursor:pointer;text-decoration:none;white-space:nowrap}
@@ -754,7 +741,6 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
     <span class="bn">WatchBack</span>
   </a>
   <div class="topmeta">
-    <button class="mybrand" id="myBrandChip" onclick="openBrand()" title="Your brand — powers the ‘apply to you’ suggestions">+ Add your brand</button>
     <span class="top-date" id="topDate"></span>
     <div id="dateNavWrap"></div>
     <div class="calwrap" id="calWrap" onclick="event.stopPropagation()"></div>
@@ -786,6 +772,11 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
       <div class="cf-row"><span class="cf-l">Facebook</span><input id="cfFb" type="text" placeholder="paste their Facebook URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('facebook')">Check ↗</button><a class="cf-act find" id="cfFbFind" target="_blank" rel="noopener">Find ↗</a></div>
       <div class="cf-row"><span class="cf-l">Instagram</span><input id="cfIg" type="text" placeholder="paste their Instagram URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('instagram')">Check ↗</button><a class="cf-act find" id="cfIgFind" target="_blank" rel="noopener">Find ↗</a></div>
       <div class="cf-row"><span class="cf-l">TikTok</span><input id="cfTt" type="text" placeholder="paste their TikTok URL" autocomplete="off"/><button type="button" class="cf-act" onclick="cfCheck('tiktok')">Check ↗</button><a class="cf-act find" id="cfTtFind" target="_blank" rel="noopener">Find ↗</a></div>
+      <div class="cf-sub">Whitelisting pages we also track</div>
+      <p class="cf-note">Other Facebook pages that run this brand’s ads — creators, personas, advertorial pages. Paste the page (or its Ad Library link) and we scan it every day alongside their own page. Their ads show as <b>whitelisting</b>, never as the brand’s own.</p>
+      <div id="cfPagesList"></div>
+      <div class="cf-row"><input id="cfPageAdd" type="text" placeholder="paste a Facebook page or Ad Library URL, or a page id" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();cfAddPage();}"/><button type="button" class="cf-act" onclick="cfAddPage()">Add page</button></div>
+      <div class="er" id="cfPageErr" style="display:none"></div>
       </div>
       <div class="cf-email" id="cfEmail">📧 <b>Email tracking needs one manual step from you:</b> after you add them, you'll paste our capture address into their newsletter sign-up. We'll show you exactly how — but their emails won't come through until you do it yourself.</div>
     </div>
@@ -810,16 +801,6 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
   </div>
 </div>
 
-<div class="ov" id="brandOv" onclick="if(event.target===this)closeBrand()">
-  <div class="modal">
-    <h2>Your brand</h2>
-    <p>Add your store, and every competitor insight comes with a realistic <b>“here’s how you’d apply it to your brand.”</b> I’ll scan your site to learn what you sell.</p>
-    <div class="fld"><label for="bN">Brand name</label><input id="bN" type="text" placeholder="e.g. Acme Co" autocomplete="off"/></div>
-    <div class="fld"><label for="bU">Your website</label><input id="bU" type="text" placeholder="e.g. acme.com" autocomplete="off"/><div class="er" id="bErr"></div></div>
-    <div class="fld"><label for="bP">Main product <span style="color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400">— optional, sharpens the tips</span></label><input id="bP" type="text" placeholder="e.g. Weighted blankets" autocomplete="off"/></div>
-    <div class="m-act"><button class="btn btn-g" id="bRemove" onclick="removeBrand()" style="margin-right:auto;display:none">Remove</button><button class="btn btn-g" onclick="closeBrand()">Cancel</button><button class="btn btn-p" id="bSave" onclick="saveBrand()">Scan &amp; save</button></div>
-  </div>
-</div>
 
 <div class="ov" id="pwOv" onclick="if(event.target===this)closePw()">
   <div class="modal">
@@ -1266,13 +1247,12 @@ function loadSharedComps(cb){
 }
 // Signing out also drops the cached ?admin= owner key — it must never outlive the session
 // and greet the next account that signs in on this browser.
-function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');localStorage.removeItem('adminKey');}catch(e){}clearMyBrandLocal();insightsCache={};angleCache={};paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
+function doSignout(silent){TOKEN='';USER=null;USERCOMPS=[];try{localStorage.removeItem('ci_token');localStorage.removeItem('ci_user');localStorage.removeItem('adminKey');}catch(e){}insightsCache={};angleCache={};paintAuth();if(state.sel&&String(state.sel).charAt(0)==='u'){state.sel=null;document.getElementById('app').dataset.view='list';}render();}
 function paintAuth(){refreshAdmin();syncPlan();var s=document.getElementById('authSlot');if(!s)return;
   if(RO){s.innerHTML='<span class="ro-badge"><span class="dot"></span>Shared view · read-only</span>';return;}
   if(loggedIn()){var em=(USER&&USER.email)||'';s.innerHTML=(ADMIN?'<button class="authbtn" onclick="openAdmin()" title="Admin panel">⚙ Admin</button>':'')+'<button class="authbtn" onclick="openShare()" title="Share a read-only view with your team">⇗ Share</button><button class="authbtn" onclick="openSlack()" title="Get your daily brief in Slack">⚡ Slack'+((USER&&USER.slack)?' ✓':'')+'</button>'+((BILLING&&(BILLING.status==='active'||BILLING.status==='past_due'))?'<button class="authbtn" onclick="openPortal(this)" title="Invoices, card, cancel — Stripe billing portal">💳 Billing</button>':'')+'<span class="authuser" onclick="openPw()" style="cursor:pointer" title="'+esc(em)+' — click to change your password">'+esc(em.split('@')[0])+(ADMIN?' · admin':'')+'</span><button class="authbtn" onclick="doSignout()">Sign out</button>';}
   else{s.innerHTML='<button class="authbtn primary" onclick="openAuth(\'signin\')">Sign in</button>';}
   var ab=document.querySelector('.add-btn');if(ab)ab.title=loggedIn()?'Add a competitor to your watchlist':'Add your own competitor — sign in required';
-  paintBrandChip();
 }
 function openAuth(mode,after){authMode=(mode==='signin')?'login':'signup';pendingAfterAuth=after||null;paintAuthMode();var er=document.getElementById('aErr');if(er)er.style.display='none';document.getElementById('authOv').classList.add('open');setTimeout(function(){document.getElementById('aE').focus();},40);}
 function closeAuth(){var o=document.getElementById('authOv');if(o)o.classList.remove('open');}
@@ -1390,7 +1370,7 @@ function submitAuth(){
       if(authMode==='signup'){fbTrack('CompleteRegistration',{content_name:'free-account',status:true});}
       paintAuth();closeAuth();document.getElementById('aP').value='';
       loadBilling();   // trial banner / paywall on THIS sign-in — boot's call ran before we had a token
-      insightsCache={};angleCache={};clearMyBrandLocal();loadMyBrand();   // this account's own brand + tailored tips, never a previous session's
+      insightsCache={};angleCache={};   // never a previous session's reads
       var cp=document.getElementById('chatPanel');if(cp&&cp.classList.contains('open')){var cc=currentComp();if(cc)renderChat(cc);}   // clear the sign-in gate on an already-open chat
       // Signing in is a CONTEXT SWITCH: always land on YOUR first competitor, even if you
       // clicked around the demos before logging in (a pre-login click used to cancel the
@@ -1679,13 +1659,14 @@ function adsHTML(d){
   // EVERY page gets a filter chip when more than one page is in the mix — own-brand pages
   // included (founder, 19 Aug — Ancestral: the "Mihael Sanko Founder of…" handle had no
   // chip because its name contains the brand, so its ads couldn't be filtered at all).
-  var pgN={},pgK={};all.forEach(function(a){if(!a.page)return;var k=adPageKind(a,brand);pgN[a.page]=(pgN[a.page]||0)+1;pgK[a.page]=k;});
+  var pgN={},pgK={},pgId={},pgTr={};all.forEach(function(a){if(!a.page)return;var k=adPageKind(a,brand);pgN[a.page]=(pgN[a.page]||0)+1;pgK[a.page]=k;if(a.pageId&&!pgId[a.page])pgId[a.page]=String(a.pageId);if(a.tracked)pgTr[a.page]=true;});
+  var cc=currentComp();var canPin=!!(cc&&cc.account&&!RO);
   var multiPg=Object.keys(pgN).length>1;
   Object.keys(pgN).sort(function(x,y){return pgN[y]-pgN[x];}).forEach(function(p){
     if((d.signals&&(d.signals.pages||[]).indexOf(p)>=0))return;   // already chipped as NEW above
     var k=pgK[p];
     if(k==='own'&&!multiPg)return;   // a single own-brand page needs no filter
-    sig.push('<span class="adsig pg click'+(k==='partner'?' pt':'')+(ADS_PGF===p?' on':'')+'" data-pg="'+esc(p)+'" onclick="pgFilter(this.dataset.pg)" title="'+esc(PG_KIND_TITLE[k]||'')+' — click to show only this Facebook page’s ads">'+PG_KIND_ICON[k]+' '+esc(PG_KIND_LBL[k])+' · '+esc(p)+' ads</span>');
+    sig.push('<span class="adsig pg click'+(k==='partner'?' pt':'')+(ADS_PGF===p?' on':'')+'" data-pg="'+esc(p)+'" onclick="pgFilter(this.dataset.pg)" title="'+esc(PG_KIND_TITLE[k]||'')+' — click to show only this Facebook page’s ads">'+PG_KIND_ICON[k]+' '+esc(PG_KIND_LBL[k])+' · '+esc(p)+' ads'+(pgTr[p]?'<span class="pinned" title="You track this page — scanned daily">📌</span>':(canPin&&k!=='own'&&pgId[p]?'<span class="pin" title="Track this page daily (it becomes part of this competitor\u2019s ad scan)" onclick="trackPage(event,\''+esc(pgId[p])+'\',\''+esc(p).replace(/'/g,'')+'\')">＋📌</span>':''))+'</span>');
   });
   // Variant tests: same footage (via our vision read) or same copy → group ADJACENT + chip.
   var vg=adVariantGroups(all),vtSets=0;Object.keys(vg).forEach(function(k){if(vg[k].pos===1)vtSets++;});
@@ -2269,10 +2250,9 @@ function refreshDateFloat(){
     paintAsOf(c);checkEmailBanner(c);
     if(state.day){
       // Historical day → show THAT day's AI reads (captured that day) instead of today's, so
-      // e.g. the 5 Jul website read calls out the 4th of July sale that was live then. Strip
-      // the 'apply' tip — it's a live per-you suggestion, meaningless for a past date.
+      // e.g. the 5 Jul website read calls out the 4th of July sale that was live then.
       var di=(viewSnap&&viewSnap.insights)||{},hist={};
-      ['ads','social','website','email'].forEach(function(k){var o=di[k];if(o)hist[k]={summary:o.summary,bullets:o.bullets,apply:''};});
+      ['ads','social','website','email'].forEach(function(k){var o=di[k];if(o)hist[k]={summary:o.summary,bullets:o.bullets};});
       paintInsights(c,hist);
     } else { loadInsights(c); }
   }
@@ -2340,19 +2320,16 @@ function asBullets(v){
   if(typeof v==='string'&&v.trim())return v.split(/(?<=[.!?])\s+/).map(function(s){return s.trim();}).filter(Boolean);
   return [];
 }
-// AI-generated Threat assessment + Counter-op for user-added competitors
-// (demos keep their curated versions rendered directly in report()).
+// AI-generated Threat assessment. No counter-op / advice since 9 Sep 2026 (founder:
+// "remove AI suggestions — those are not needed").
 function briefHTML(b){
   if(!b)return '';
-  var v=asBullets(b.verdict),m=asBullets(b.move);
+  var v=asBullets(b.verdict);
   if(!v.length)return '';
   var li=function(x){return '<li>'+linkify(x)+'</li>';};
-  return '<div class="assess"><span class="lbl">Threat assessment</span><ul class="brief-l">'+v.map(li).join('')+'</ul></div>'
-    +(m.length?'<div class="move"><span class="lbl">Recommended counter-op</span><ul class="brief-l">'+m.map(li).join('')+'</ul></div>':'');
+  return '<div class="assess"><span class="lbl">Threat assessment</span><ul class="brief-l">'+v.map(li).join('')+'</ul></div>';
 }
-// Counter-op collapsed by default (founder, 10 Aug): one click on the label expands it.
-document.addEventListener('click',function(e){var l=e.target&&e.target.closest&&e.target.closest('.move .lbl');if(l&&l.closest('.move')){l.closest('.move').classList.toggle('open');}});
-// The Threat assessment + counter-op take a few seconds to generate on first load — show a
+// The Threat assessment takes a few seconds to generate on first load — show a
 // clear loading state (labelled, with a spinner) instead of a blank gap that just vanishes.
 function briefLoadingHTML(){return '<div class="assess"><span class="lbl">Threat assessment</span><div class="adsload" style="padding:2px 0 6px"><span class="spin"></span>Reading the latest capture…</div></div>';}
 // The stored Threat assessment reads ACROSS all four channels, so on a restricted account it
@@ -2361,14 +2338,13 @@ function briefLoadingHTML(){return '<div class="assess"><span class="lbl">Threat
 // account's assessment is built from the allowed channels' own reads instead. Those are
 // generated per channel and never cross over, so nothing can leak.
 function restrictedBrief(ins,a){
-  var v=[],m=[];
+  var v=[];
   a.forEach(function(k){
     var o=ins&&ins[k];if(!o)return;
     if(o.summary)v.push(o.summary);
     (o.bullets||[]).forEach(function(b){v.push(b);});
-    if(o.apply)m.push(o.apply);
   });
-  return v.length?{verdict:v,move:m}:null;
+  return v.length?{verdict:v}:null;
 }
 function briefFinalHTML(ins){
   var a=chanAllowed();
@@ -2393,10 +2369,9 @@ function paintInsights(c,ins){
     var box=document.getElementById('intel-'+k+'-'+c.id);
     if(box){
       // The summary already shows in the collapsed row — don't repeat it here. The
-      // expanded AI box adds only the detail bullets + the tailored apply move.
+      // expanded AI box adds only the detail bullets.
       var bl=(o.bullets&&o.bullets.length)?'<ul class="intel-l">'+o.bullets.map(function(b){return '<li>'+linkify(b)+'</li>';}).join('')+'</ul>':'';
-      var ap=o.apply?'<div class="intel-apply"><span class="ia-h">↳ Apply to '+esc((myBrand&&myBrand.name)||'your brand')+'</span>'+linkify(o.apply)+'</div>':'';
-      box.innerHTML=(bl||ap)?('<div class="intel-h"><span class="intel-dot"></span>AI read</div>'+bl+ap):'';
+      box.innerHTML=bl?('<div class="intel-h"><span class="intel-dot"></span>AI read</div>'+bl):'';
     }
   });
 }
@@ -2410,7 +2385,7 @@ function loadInsights(c){
     if(c.demo||cached.brief)return;
   }
   // About to (re)fetch and we don't have a brief yet → show a loading state so the Threat
-  // assessment / counter-op area doesn't just vanish while it generates.
+  // assessment area doesn't just vanish while it generates.
   var ub=document.getElementById('ubrief-'+c.id);if(ub)ub.innerHTML=briefLoadingHTML();
   fetch(API+'/api/insights?host='+encodeURIComponent(c.host)+'&name='+encodeURIComponent(c.name||'')+shareQ(),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
     var ins=(d&&d.insights)||{};insightsCache[c.host]=ins;paintInsights(c,ins);
@@ -2521,7 +2496,7 @@ function angleRowHTML(){return ''
   +'<div class="adrow" id="angleHookRow" style="display:none"><span class="adrow-k">Hook</span><span class="adrow-v" id="angleHook"></span></div>'
   +'<div class="adrow" id="angleScriptRow" style="display:none"><span class="adrow-k">Script</span><span class="adrow-v" id="angleScript"></span></div>'
   +'<div class="adrow" id="angleCreativeRow" style="display:none"><span class="adrow-k">Creative</span><span class="adrow-v" id="angleCreative"></span></div>'
-  +'<div class="adrow adrow-apply" id="angleApplyRow" style="display:none"><span class="adrow-k">For you</span><span class="adrow-v" id="angleApply"></span></div>';}
+;}
 function fillAngle(key,o){
   var el=document.getElementById('angleVal');if(!el||el.dataset.k!==key)return;
   el.textContent=o.angle||'—';
@@ -2529,29 +2504,19 @@ function fillAngle(key,o){
   row('angleHookRow','angleHook',o.hook);
   row('angleScriptRow','angleScript',o.script?('“'+o.script+'…”'):'');
   row('angleCreativeRow','angleCreative',o.creative);
-  row('angleApplyRow','angleApply',o.apply);
-}
-// Show the "For you" row up front with a spinner while its tip is being generated, so the
-// customer knows a tailored move is coming (instead of it silently popping in later).
-function applyLoading(key){
-  var el=document.getElementById('angleVal');if(!el||el.dataset.k!==key)return;
-  var r=document.getElementById('angleApplyRow'),v=document.getElementById('angleApply');
-  if(r&&v){v.innerHTML='<span class="spin" style="display:inline-block;vertical-align:middle;margin-right:8px"></span><span class="angle-load">generating your move…</span>';r.style.display='';}
 }
 function loadAngle(text,kind,image,video,item){
   var el=document.getElementById('angleVal');if(!el)return;
   var key=kind+'|'+String(image||'').slice(0,80)+'|'+String(video||'').slice(0,50)+'|'+String(text||'').slice(0,100);el.dataset.k=key;
   if(angleCache[key]!==undefined){fillAngle(key,angleCache[key]);return;}
   // INSTANT: the creative was already analysed during the daily warm (hook/angle/creative
-  // stored on the ad/post) — show it immediately instead of the "analyzing…" wait. We only
-  // still call /api/angle to add the per-brand "For you" tip; with no brand set, we're done.
-  var hasBrand=(typeof myBrand!=='undefined'&&myBrand&&myBrand.name);
-  var pre=item&&(item.angle||item.hook||item.creative)?{angle:item.angle||'',hook:item.hook||'',creative:item.creative||'',apply:'',script:''}:null;
-  if(pre){fillAngle(key,pre);if(!hasBrand){angleCache[key]=pre;return;}}
-  if(hasBrand)applyLoading(key);   // "For you" appears immediately with a spinner so the user knows a tailored move is coming
+  // stored on the ad/post) — show it immediately instead of the "analyzing…" wait, and
+  // that's the whole read: nothing per-viewer is generated anymore (9 Sep 2026).
+  var pre=item&&(item.angle||item.hook||item.creative)?{angle:item.angle||'',hook:item.hook||'',creative:item.creative||'',script:''}:null;
+  if(pre){fillAngle(key,pre);angleCache[key]=pre;return;}
   fetch(API+'/api/angle',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify(shareBody({text:text,kind:kind,image:image||'',video:video||''}))})
-    .then(function(r){return r.json();}).then(function(d){var o={angle:(d&&d.angle)||(pre&&pre.angle)||'',hook:(d&&d.hook)||(pre&&pre.hook)||'',creative:(d&&d.creative)||(pre&&pre.creative)||'',apply:(d&&d.apply)||'',script:(d&&d.script)||''};angleCache[key]=o;fillAngle(key,o);})
-    .catch(function(){fillAngle(key,{angle:'—',hook:'',creative:'',apply:'',script:''});});
+    .then(function(r){return r.json();}).then(function(d){var o={angle:(d&&d.angle)||(pre&&pre.angle)||'',hook:(d&&d.hook)||(pre&&pre.hook)||'',creative:(d&&d.creative)||(pre&&pre.creative)||'',script:(d&&d.script)||''};angleCache[key]=o;fillAngle(key,o);})
+    .catch(function(){fillAngle(key,{angle:'—',hook:'',creative:'',script:''});});
 }
 function openSoc(el){
   var url=(el&&el.dataset)?el.dataset.url:el;var rec=SOC_SHOWN[url];if(!rec)return;
@@ -2651,7 +2616,7 @@ function report(c){
       +'<span class="lbl sec-l">Intercepted signals</span><div class="chans">'+chList().map(function(d){return channel(d.k,c);}).join('')+'</div></div>';
   }
 
-  // Demos are REAL examples — their threat assessment + counter-op are the same
+  // Demos are REAL examples — their threat assessment is the same
   // daily AI brief customers get, never hand-written showcase text.
   var dBrief=state.day?'':'<div id="ubrief-'+c.id+'">'+briefSlotHTML(c)+'</div>';
   return '<div class="report'+(state.day?' hist':'')+'">'+head+ewb+hwb
@@ -2718,6 +2683,7 @@ function continueAdd(){
   document.getElementById('cfIgFind').href='https://www.google.com/search?q='+q('site:instagram.com '+n);
   document.getElementById('cfTtFind').href='https://www.google.com/search?q='+q('site:tiktok.com '+n);
   var btn=document.getElementById('cfDetect');btn.disabled=true;btn.textContent='Detecting…';
+  if(!editingComp){CF_PAGES=[];cfRenderPages();var _pa=document.getElementById('cfPageAdd');if(_pa)_pa.value='';var _pe=document.getElementById('cfPageErr');if(_pe)_pe.style.display='none';}
   fetch(API+'/api/resolve-handles?host='+q(host)).then(function(r){return r.json();}).then(function(d){
     var h=(d&&d.handles)||{};
     document.getElementById('cfFb').value=h.fb?('facebook.com/'+h.fb):'';
@@ -2778,7 +2744,7 @@ function confirmAdd(){
   var n=document.getElementById('fN').value.trim(),u=normUrl(document.getElementById('fU').value);
   if(!n||!u){continueAdd();return;}
   var newHost=u.hostname.replace(/^www\./,'');
-  var handles={fb:normUrlHandle('facebook',document.getElementById('cfFb').value),ig:normUrlHandle('instagram',document.getElementById('cfIg').value),tt:normUrlHandle('tiktok',document.getElementById('cfTt').value),confirmed:true};
+  var handles={fb:normUrlHandle('facebook',document.getElementById('cfFb').value),ig:normUrlHandle('instagram',document.getElementById('cfIg').value),tt:normUrlHandle('tiktok',document.getElementById('cfTt').value),confirmed:true,fbPages:CF_PAGES.slice()};
   if(editingComp){
     if(newHost===editingComp.host){patchComp(editingComp.dbId,{name:n,url:u.href,handles:handles});return;}   // same site → update in place (keeps its history)
     // Guard: replacing with a site you ALREADY track would silently overwrite that OTHER
@@ -2796,9 +2762,51 @@ function patchComp(dbId,body){
   fetch(API+'/api/competitors/'+dbId,{method:'PATCH',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify(body)})
     .then(function(r){if(r.status===401){doSignout(true);throw 0;}if(r.status===402){closeModal();openPaywall();throw 0;}return r.json();})
     .then(function(d){
+      if(d&&d.pagesRejected&&d.pagesRejected.length)alert('Couldn\u2019t resolve '+d.pagesRejected.length+' page'+(d.pagesRejected.length===1?'':'s')+' to a Facebook page id, so '+(d.pagesRejected.length===1?'it was':'they were')+' not added: '+d.pagesRejected.join(', ')+'\n\nTip: open the page in the Meta Ad Library and paste that link — it carries the page id.');
       if(d&&d.competitor){var c=mapServerComp(d.competitor);USERCOMPS=USERCOMPS.map(function(x){return x.dbId===c.dbId?c:x;});trackComp(c);editingComp=null;closeModal();state.sel=c.id;document.getElementById('app').dataset.view='detail';delete insightsCache[c.host];render();}
       else{var eU=document.getElementById('eU');eU.textContent=(d&&d.error)||'Could not save — please try again.';eU.style.display='block';}
     }).catch(function(){var eU=document.getElementById('eU');if(eU){eU.textContent='Couldn’t reach the server — check your connection and try again.';eU.style.display='block';}});
+}
+// TRACKED WHITELISTING PAGES (founder, 9 Sep 2026) — extra Facebook pages the client knows
+// run this brand's ads. Client-side parse mirrors backend parsePageRef; the server resolves
+// vanity handles to numeric ids and reports anything it couldn't resolve.
+var CF_PAGES=[];
+function normPageRef(val){
+  var raw=String(val||'').trim(),m;if(!raw)return null;
+  if(/^\d{6,}$/.test(raw))return {id:raw,label:raw};
+  if((m=/view_all_page_id=(\d{6,})/i.exec(raw)))return {id:m[1],label:m[1]};
+  if((m=/facebook\.com\/profile\.php\?id=(\d{6,})/i.exec(raw)))return {id:m[1],label:m[1]};
+  if((m=/facebook\.com\/p\/([A-Za-z0-9._-]*?)(\d{6,})\/?/i.exec(raw)))return {id:m[2],label:(m[1]||'').replace(/-$/,'')||m[2]};
+  if(/facebook\.com\/ads\/library/i.test(raw))return null;
+  if((m=/facebook\.com\/([A-Za-z0-9._-]{3,})/i.exec(raw))){var h=m[1].replace(/[\/?#].*$/,'');if(/^(posts?|photos?|videos?|reels?|watch|groups?|events?|marketplace|share|stories|people|pages)$/i.test(h))return null;return {handle:h,label:h};}
+  if(/^https?:\/\//i.test(raw))return null;
+  var h2=raw.replace(/^@/,'');if(/^\d+$/.test(h2))return null;return /^[A-Za-z0-9._-]{3,60}$/.test(h2)?{handle:h2,label:h2}:null;
+}
+function cfRenderPages(){
+  var el=document.getElementById('cfPagesList');if(!el)return;
+  el.innerHTML=CF_PAGES.length?CF_PAGES.map(function(p,i){
+    var lbl=p.label||p.id||p.handle||'';var sub=p.id?(p.id!==lbl?' <span style="color:var(--muted)">· page id '+esc(p.id)+'</span>':''):' <span style="color:var(--muted)">· resolves on save</span>';
+    return '<div class="cf-page">📄 <b>'+esc(lbl)+'</b>'+sub+'<button type="button" class="x" title="Stop tracking this page" onclick="cfRemovePage('+i+')">×</button></div>';
+  }).join(''):'';
+}
+function cfAddPage(){
+  var inp=document.getElementById('cfPageAdd'),er=document.getElementById('cfPageErr');
+  var r=normPageRef(inp.value);
+  if(!r){er.textContent='Paste a Facebook page link, an Ad Library link with the page id, or the numeric page id.';er.style.display='block';return;}
+  er.style.display='none';
+  if(CF_PAGES.some(function(p){return (r.id&&p.id===r.id)||(r.handle&&p.handle&&p.handle.toLowerCase()===r.handle.toLowerCase());})){inp.value='';return;}
+  if(CF_PAGES.length>=10){er.textContent='Up to 10 tracked pages per competitor.';er.style.display='block';return;}
+  CF_PAGES.push(r);inp.value='';cfRenderPages();
+}
+function cfRemovePage(i){CF_PAGES.splice(i,1);cfRenderPages();}
+// One-click from the ads panel: a whitelisting page chip → track it (account competitors only).
+function trackPage(ev,pid,label){
+  if(ev){ev.stopPropagation();ev.preventDefault();}
+  var c=currentComp();if(!c||!c.account||RO||!pid)return;
+  var h=Object.assign({},c.handles||{});var list=(h.fbPages||[]).slice();
+  if(list.some(function(p){return String(p.id)===String(pid);})){return;}
+  list.push({id:String(pid),label:label||String(pid)});h.fbPages=list;
+  patchComp(c.dbId,{handles:h});
 }
 // Accept a pasted URL or a bare handle and reduce it to the stored handle form.
 function normUrlHandle(p,val){
@@ -2841,6 +2849,7 @@ function openConfirmPages(id){
   document.getElementById('cfFb').value=h.fb?('facebook.com/'+h.fb):'';
   document.getElementById('cfIg').value=h.ig?('instagram.com/'+h.ig):'';
   document.getElementById('cfTt').value=h.tt?('tiktok.com/@'+h.tt):'';
+  CF_PAGES=(h.fbPages||[]).map(function(p){return {id:p.id,label:p.label||p.id};});cfRenderPages();var _pe=document.getElementById('cfPageErr');if(_pe)_pe.style.display='none';var _pa=document.getElementById('cfPageAdd');if(_pa)_pa.value='';
   // A tracked brand already has CONFIRMED handles driving its scrapes — surface them
   // (founder, 19 Aug: "if the brand has been tracked the social media handles should
   // populate here"). Fills only the fields this user's own record left empty.
@@ -2868,71 +2877,14 @@ function saveComp(body,after){
   fetch(API+'/api/competitors',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify(body)})
     .then(function(r){if(r.status===401){doSignout(true);throw 0;}if(r.status===402){closeModal();openPaywall();throw 0;}return r.json();})
     .then(function(d){
+      if(d&&d.pagesRejected&&d.pagesRejected.length)alert('Couldn\u2019t resolve '+d.pagesRejected.length+' page'+(d.pagesRejected.length===1?'':'s')+' to a Facebook page id, so '+(d.pagesRejected.length===1?'it was':'they were')+' not added: '+d.pagesRejected.join(', ')+'\n\nTip: open the page in the Meta Ad Library and paste that link — it carries the page id.');
       if(d&&d.competitor){var c=mapServerComp(d.competitor);USERCOMPS=USERCOMPS.filter(function(x){return x.dbId!==c.dbId;});USERCOMPS.unshift(c);trackComp(c);editingComp=null;state.sel=c.id;closeModal();document.getElementById('app').dataset.view='detail';delete insightsCache[c.host];render();if(after)after();}
       else{var eU=document.getElementById('eU');eU.textContent=(d&&d.error)||'Could not save — please try again.';eU.style.display='block';}
     })
     .catch(function(){var eU=document.getElementById('eU');if(eU){eU.textContent='Couldn’t reach the server — check your connection and try again.';eU.style.display='block';}});
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeBrand();closeUpgrade();closeFeedback();closeCal();closeAuth();closeShare();closePw();closePaywall();paintDemoBar();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open')){var _cp=document.getElementById('confirmPanel');(_cp&&_cp.style.display!=='none')?confirmAdd():continueAdd();}if(e.key==='Enter'&&document.getElementById('authOv')&&document.getElementById('authOv').classList.contains('open'))submitAuth();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeChat();closeEml();closeAd();closeUpgrade();closeFeedback();closeCal();closeAuth();closeShare();closePw();closePaywall();paintDemoBar();}if(e.key==='Enter'&&document.getElementById('ov').classList.contains('open')){var _cp=document.getElementById('confirmPanel');(_cp&&_cp.style.display!=='none')?confirmAdd():continueAdd();}if(e.key==='Enter'&&document.getElementById('authOv')&&document.getElementById('authOv').classList.contains('open'))submitAuth();});
 document.addEventListener('click',function(){closeCal();});
-/* ── your brand (apply-to-me knowledge base) ── */
-var myBrand=null;
-function paintBrandChip(){var el=document.getElementById('myBrandChip');if(!el)return;
-  if(RO){
-    // Shared view: name WHOSE brand this dashboard (and every "apply to" tip) is for —
-    // "My brand" is meaningless to a teammate who isn't the owner. Inert, and hidden
-    // outright when the client set no brand: never invite a viewer to sign up.
-    if(myBrand&&myBrand.name){el.style.display='';el.innerHTML='<span class="mb-dot"></span><span class="mb-lbl">Brand:</span> '+esc(myBrand.name);el.className='mybrand set';el.title='This dashboard and its suggestions are tailored to '+myBrand.name;}
-    else{el.style.display='none';}
-    return;
-  }
-  el.style.display='';
-  el.innerHTML=(myBrand&&myBrand.name)?('<span class="mb-dot"></span><span class="mb-lbl">My brand:</span> '+esc(myBrand.name)):('+ Add your brand'+(loggedIn()?'':' <span style="color:var(--faint)">· sign in</span>'));el.className='mybrand'+((myBrand&&myBrand.name)?' set':'');el.title=loggedIn()?'Your brand — powers the “apply to you” suggestions':'Sign in to add your brand — it powers the “apply to you” suggestions';}
-// "My brand" is per-account — never trust the local cache across a sign-in/out, always
-// reconcile with what the server says THIS session's account actually owns.
-function clearMyBrandLocal(){myBrand=null;try{localStorage.removeItem('myBrand');}catch(e){}paintBrandChip();}
-function loadMyBrand(){
-  // Read-only shared view: the "apply to your brand" context is the CLIENT's brand,
-  // fetched via the share token (never cached locally — it isn't the viewer's own).
-  if(RO){fetch(API+'/api/my-brand?share='+encodeURIComponent(SHARE)).then(function(r){return r.json();}).then(function(d){if(d&&d.brand){myBrand=d.brand;paintBrandChip();}}).catch(function(){});return;}
-  if(!loggedIn()){clearMyBrandLocal();return;}
-  try{var s=localStorage.getItem('myBrand');if(s)myBrand=JSON.parse(s);}catch(e){}
-  paintBrandChip();
-  fetch(API+'/api/my-brand',{headers:authH()}).then(function(r){return r.json();}).then(function(d){
-    if(d&&d.brand){myBrand=d.brand;try{localStorage.setItem('myBrand',JSON.stringify({name:d.brand.name,host:d.brand.host,url:d.brand.url,mainProduct:d.brand.mainProduct}));}catch(e){}}
-    else clearMyBrandLocal();
-    paintBrandChip();
-  }).catch(function(){});
-}
-function openBrand(){
-  if(RO)return;
-  if(!loggedIn()){openAuth('signup',openBrand);return;}   // your brand is saved to your account
-  document.getElementById('bN').value=(myBrand&&myBrand.name)||'';document.getElementById('bU').value=(myBrand&&(myBrand.url||myBrand.host))||'';document.getElementById('bP').value=(myBrand&&myBrand.mainProduct)||'';document.getElementById('bErr').style.display='none';var rm=document.getElementById('bRemove');if(rm)rm.style.display=(myBrand&&myBrand.name)?'':'none';document.getElementById('brandOv').classList.add('open');setTimeout(function(){document.getElementById('bN').focus();},40);}
-function removeBrand(){fetch(API+'/api/my-brand',{method:'DELETE',headers:authH()}).then(function(r){return r.json();}).catch(function(){});clearMyBrandLocal();closeBrand();insightsCache={};angleCache={};var c=currentComp();if(c){delete insightsCache[c.host];loadInsights(c);}}
-function closeBrand(){var o=document.getElementById('brandOv');if(o)o.classList.remove('open');}
-function saveBrand(){
-  var name=document.getElementById('bN').value.trim(),web=document.getElementById('bU').value.trim(),prod=document.getElementById('bP').value.trim(),er=document.getElementById('bErr');
-  if(!web||web.indexOf('.')<0){er.textContent='Enter a valid website (e.g. acme.com).';er.style.display='block';return;}
-  var btn=document.getElementById('bSave');btn.disabled=true;btn.textContent='Scanning your site…';er.style.display='none';
-  fetch(API+'/api/my-brand',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH()),body:JSON.stringify({name:name,website:web,mainProduct:prod})})
-    .then(function(r){return r.json();}).then(function(d){
-      btn.disabled=false;btn.textContent='Scan & save';
-      if(!d||d.error){er.textContent=(d&&d.error)||'Couldn’t scan that site.';er.style.display='block';return;}
-      myBrand=d.brand;try{localStorage.setItem('myBrand',JSON.stringify({name:d.brand.name,host:d.brand.host,url:d.brand.url,mainProduct:d.brand.mainProduct}));}catch(e){}
-      paintBrandChip();closeBrand();insightsCache={};angleCache={};
-      pollPersonalize(0);
-    })
-    .catch(function(){btn.disabled=false;btn.textContent='Scan & save';er.textContent='Couldn’t reach the server — try again.';er.style.display='block';});
-}
-function pollPersonalize(tries){
-  var c=currentComp();if(!c)return;delete insightsCache[c.host];
-  fetch(API+'/api/insights?host='+encodeURIComponent(c.host)+'&name='+encodeURIComponent(c.name||'')+'&refresh=1'+shareQ(),{headers:authH()}).then(function(r){return r.json();}).then(function(d){
-    var ins=(d&&d.insights)||{};insightsCache[c.host]=ins;var cur=currentComp();if(cur&&cur.id===c.id)paintInsights(c,ins);
-    var hasApply=['ads','social','website','email'].some(function(k){return ins[k]&&ins[k].apply;});
-    if(!hasApply&&tries<6)setTimeout(function(){pollPersonalize(tries+1);},12000);
-  }).catch(function(){if(tries<6)setTimeout(function(){pollPersonalize(tries+1);},12000);});
-}
-
 /* ── AI chat (answers grounded in the captured data) ── */
 var chatThreads={};
 var CHAT_CHIPS=['When did they launch their current sale?','What offer are they pushing hardest?','How often do they email — and about what?','What angle do their top posts use?'];
@@ -3085,7 +3037,7 @@ function sendFeedback(){
   if(!msg){er.textContent='Write something first.';er.style.display='block';return;}
   var btn=document.getElementById('fbSend');btn.disabled=true;btn.textContent='Sending…';
   var tagged=(fbKind==='bug'?'🐞 BUG: ':'💡 FEATURE: ')+msg;
-  fetch(API+'/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:tagged,email:email,image:fbImage,name:(typeof myBrand!=='undefined'&&myBrand&&myBrand.name)||''})})
+  fetch(API+'/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:tagged,email:email,image:fbImage,name:''})})
     .then(function(r){return r.json();}).then(function(d){
       btn.disabled=false;btn.textContent='Send';
       if(d&&d.error){er.textContent=d.error;er.style.display='block';return;}
@@ -3590,7 +3542,6 @@ function deleteUser(btn,email){
   }).catch(function(){btn.disabled=false;btn.textContent='Reject';});
 }
 render();
-loadMyBrand();
 paintAuth();
 // Deep link: app.html#admin reopens Mission Control (survives reloads mid-session).
 if(location.hash==='#admin'&&isAdmin())openAdmin();

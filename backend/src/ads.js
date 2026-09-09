@@ -6,6 +6,7 @@
 //   APIFY_ADS_ACTOR   the actor you pick from the Apify Store, e.g. "curious_coder~facebook-ads-library-scraper"
 
 import { recentSnapshots, latestSnapshot } from './snapshots.js';
+import { pool } from './db.js';
 import { apifyResidentialProxy } from './website.js';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -90,6 +91,63 @@ async function fbPageIdFromHandle(handle) {
   return id;
 }
 
+// USER-TRACKED WHITELISTING PAGES (founder, 9 Sep 2026: "add option to add more FB pages to
+// track (for whitelisting pages)"). A creator/persona/advertorial page that runs the brand's
+// ads is found only if the keyword lottery happens to surface it; a client who KNOWS the
+// page can now name it. Stored on competitors.handles.fbPages = [{ id, label }] (numeric
+// Ad Library page ids), unioned across every account tracking the host (one competitor =
+// one dataset), scanned page-first every day, and their ads are kept UNCONDITIONALLY — the
+// client said this page runs their ads, so no attribution heuristic may drop them. They
+// are never treated as the brand's OWN page: they stay WHITELISTING in every read.
+// Accepts: a numeric id, an Ad Library URL (view_all_page_id=…), facebook.com/profile.php?id=…,
+// facebook.com/p/Name-123…, a vanity page URL, or a bare handle (resolved to an id later).
+export function parsePageRef(v) {
+  const raw = String(v || '').trim();
+  if (!raw) return null;
+  let m;
+  if (/^\d{6,}$/.test(raw)) return { id: raw };
+  if ((m = /view_all_page_id=(\d{6,})/i.exec(raw))) return { id: m[1] };
+  if ((m = /facebook\.com\/profile\.php\?id=(\d{6,})/i.exec(raw))) return { id: m[1] };
+  if ((m = /facebook\.com\/p\/[A-Za-z0-9._-]*?(\d{6,})\/?/i.exec(raw))) return { id: m[1] };
+  if (/facebook\.com\/ads\/library/i.test(raw)) return null;              // library URL with no page id = a search, not a page
+  if ((m = /facebook\.com\/([A-Za-z0-9._-]{3,})/i.exec(raw))) {
+    const h = m[1].replace(/[/?#].*$/, '');
+    if (/^(posts?|photos?|videos?|reels?|watch|groups?|events?|marketplace|share|stories|profile\.php|people|pages)$/i.test(h)) return null;
+    return { handle: h };
+  }
+  if (/^https?:\/\//i.test(raw)) return null;                               // some other site
+  const h = raw.replace(/^@/, '');
+  if (/^\d+$/.test(h)) return null;                                          // digits that are too short for a page id are nothing
+  return /^[A-Za-z0-9._-]{3,60}$/.test(h) ? { handle: h } : null;
+}
+export async function resolvePageRef(v) {
+  const r = parsePageRef(v);
+  if (!r) return null;
+  if (r.id) return { id: r.id, label: r.id };
+  const id = await fbPageIdFromHandle(r.handle);
+  return id ? { id, label: r.handle } : null;
+}
+const _tracked = new Map();   // host -> { day, ids }
+export async function trackedPagesFor(host) {
+  const h = cleanAdsHost(host);
+  if (!h || !process.env.DATABASE_URL) return [];
+  const day = new Date().toISOString().slice(0, 10);
+  const c = _tracked.get(h);
+  if (c && c.day === day) return c.ids;
+  let ids = [];
+  try {
+    const r = await pool.query('SELECT handles FROM competitors WHERE host = $1', [h]);
+    for (const row of r.rows) {
+      const list = row.handles && Array.isArray(row.handles.fbPages) ? row.handles.fbPages : [];
+      for (const p of list) { const id = String((p && p.id) || p || '').replace(/\D/g, ''); if (id.length >= 6 && !ids.includes(id)) ids.push(id); }
+    }
+  } catch (e) { /* no DB → nothing tracked */ }
+  ids = ids.slice(0, 10);
+  _tracked.set(h, { day, ids });
+  return ids;
+}
+export function forgetTrackedPages(host) { _tracked.delete(cleanAdsHost(host)); _ownPages.delete(cleanAdsHost(host)); }
+
 const _ownPages = new Map();   // host -> { day, ids }
 export async function ownPageIdsFor(host) {
   const h = cleanAdsHost(host);
@@ -147,6 +205,7 @@ export async function ownPageIdsFor(host) {
       if (fbHandle) { const pid = await fbPageIdFromHandle(fbHandle); if (pid) ids.push(pid); }
     } catch (e) { /* keyword ladder still covers us */ }
   }
+  try { const tr = await trackedPagesFor(h); ids = ids.filter((id) => !tr.includes(id)); } catch (e) { /* optional */ }
   ids = ids.slice(0, 2);
   _ownPages.set(h, { day, ids });
   return ids;
@@ -252,6 +311,18 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
         catch (e) { console.warn('fetchAds page-scan ' + host + ' [' + pid + ']:', e.message); }
       }
       if (items.length) console.log('✓ fetchAds ' + host + ': page-first scan captured ' + items.length + ' item(s) from the brand\'s own page(s)');
+      // 1b) USER-TRACKED whitelisting pages — scanned directly, like the brand's own page,
+      //     so a named creator/persona page never depends on the keyword lottery.
+      try {
+        const own = await ownPageIdsFor(host);
+        for (const pid of (await trackedPagesFor(host)).filter((id) => !own.includes(id))) {
+          try {
+            const got = await runOne('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&view_all_page_id=' + pid + '&search_type=page&media_type=all', '', 'active', pid);
+            items = items.concat(got);
+            console.log('✓ fetchAds ' + host + ': tracked page ' + pid + ' → ' + got.length + ' item(s)');
+          } catch (e) { console.warn('fetchAds tracked-page ' + host + ' [' + pid + ']:', e.message); }
+        }
+      } catch (e) { /* tracked pages are optional */ }
     }
     // 2) KEYWORD ladder — its job is the WHITELISTING/partnership ads other pages run.
     let kw = [];
@@ -394,8 +465,10 @@ async function sameBrandVerdicts(brand, hint, distinct, desc) {
 
 // Keep only the ads that really belong to `brand`. The AI decides per distinct
 // advertiser; whole-word string rules are the fallback when no key / on error.
-async function filterToBrand(brand, ads, hostDom, desc) {
+async function filterToBrand(brand, ads, hostDom, desc, tracked) {
   if (!ads.length) return ads;
+  tracked = tracked || new Set();
+  const onTracked = (a) => !!(a.pageId && tracked.has(String(a.pageId)));
   const keys = brandKeys(brand);
   if (hostDom) brandTokens(hostDom).forEach((k) => keys.add(k));   // the brand's OWN domain label is a strong identity key
   // An ad landing on the brand's OWN domain (or a subdomain, e.g. drink.brodo.com for
@@ -466,7 +539,7 @@ async function filterToBrand(brand, ads, hostDom, desc) {
   // it has no landing (Page-Like); a FOREIGN landing from a shared page faces the AI judge.
   const brandPageSafe = (a) => onBrandPage(a) && (!adDomain(a.landing) || onOwnDomain(a) || onAliasDomain(a));
   const stringKeep = (a) => onOwnDomain(a) || brandPageSafe(a) || onBrandedContent(a) || onAliasDomain(a) || (hostDom ? false : (!keys.size ? true : adMatchesBrand(a, keys)));
-  if (!process.env.ANTHROPIC_API_KEY) return ads.filter(stringKeep);
+  if (!process.env.ANTHROPIC_API_KEY) return ads.filter((a) => onTracked(a) || stringKeep(a));
   const idOf = (a) => (a.advertiser || '') + '|' + (adDomain(a.landing) || '');
   // Attach a sample of each distinct advertiser's ad copy so the AI can sanity-check the
   // ADS against the brand's website business (not just match the name/domain).
@@ -510,6 +583,7 @@ async function filterToBrand(brand, ads, hostDom, desc) {
     // sells and fails closed) outranks it. Pairing breaks the tie only when the judge
     // returned no verdict for that advertiser.
     return ads.filter((a) => {
+      if (onTracked(a)) return true;   // the client named this page: no heuristic may drop it
       if (onOwnDomain(a) || brandPageSafe(a) || onAliasDomain(a)) return true;
       if (nameTwin(a)) return false;
       const v = verdict.get(idOf(a));
@@ -520,7 +594,7 @@ async function filterToBrand(brand, ads, hostDom, desc) {
     // AI error → be CONSERVATIVE when we know the brand's domain: keep only its own-domain
     // ads + ads from its own pages (whole-word name matching is unreliable for a generic name
     // like "Brodo", which matches BRODO Footwear, brodo.ma, etc.). No known domain → names.
-    return ads.filter((a) => hostDom ? (onOwnDomain(a) || brandPageSafe(a) || onBrandedContent(a) || onAliasDomain(a)) : stringKeep(a));
+    return ads.filter((a) => onTracked(a) || (hostDom ? (onOwnDomain(a) || brandPageSafe(a) || onBrandedContent(a) || onAliasDomain(a)) : stringKeep(a)));
   }
 }
 
@@ -607,13 +681,15 @@ async function normalize(items, brand, country, host, debug) {
   // has to make sense with the site). String rules are the fallback inside filterToBrand.
   const hostDom = hostToDomain(host);
   const desc = hostDom ? await siteDescriptor(hostDom) : '';
-  let kept = await filterToBrand(brand, ads, hostDom, desc);
+  const trackedSet = new Set(host ? await trackedPagesFor(host) : []);
+  let kept = await filterToBrand(brand, ads, hostDom, desc, trackedSet);
   if (!kept.length) {
     // Attribution kept nothing. Rather than resurface unrelated advertisers a keyword
     // search dragged in (e.g. "Campbells of Deal" for campbells.com), keep ONLY ads that
     // land on the brand's OWN domain when we know it; with no known domain, keep all.
     kept = hostDom ? ads.filter((a) => { const d = adDomain(a.landing); return d && (d === hostDom || d.endsWith('.' + hostDom)); }) : ads;
   }
+  if (trackedSet.size) kept = kept.concat(ads.filter((a) => trackedSet.has(String(a.pageId || '')) && !kept.includes(a)));
   // DROP INACTIVE ADS (founder, 24 Jul: "why the fuck are you showing inactive ads"). A
   // page-scoped scan used to ask Meta for the page's ENTIRE history, so long-dead creatives
   // showed as current — and worse, fed the stale-sale findings ("Black Friday still live"
@@ -621,6 +697,7 @@ async function normalize(items, brand, country, host, debug) {
   // enters a capture; ads that go inactive AFTER capture keep their honest INACTIVE badge
   // in older stored days.
   const live = kept.filter((a) => a.active !== false);
+  for (const a of live) if (trackedSet.has(String(a.pageId || ''))) a.tracked = true;   // the app labels the chip, the read names the tactic
   // NEWEST FIRST (founder, 29 Jul — "are you searching by recency?"). Meta/the actor SELECT
   // by recency (a Glov capture holds only the last ~2 weeks), but the returned array is not
   // ordered, so every downstream "first N" — the AI's ad sample, the app's default view —

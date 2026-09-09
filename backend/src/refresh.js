@@ -134,7 +134,6 @@ export async function warmBrand(b, force) {
   try { await captureWebsiteFull(b.host, b.url || ('https://' + b.host)); ok++; } catch (e) { fail++; console.warn('warm website ' + b.name + ':', e.message); warmError(b.host, 'website', e.message); }
   // Insights live in ONE shared per-host snapshot that every co-watching account (and
   // anonymous demo/report visitors) reads, so they're generated tenant-neutral — the
-  // "apply" tips use the default illustrative brand, never a customer's private one.
   try { await generateInsights(b.name, b.host); ok++; } catch (e) { fail++; console.warn('warm insights ' + b.name + ':', e.message); }
   // Advance every customer's row for this host: fresh capture = status 'watching' and
   // updated_at = capture time, so the app's "scanned X ago" reflects DATA freshness,
@@ -327,18 +326,14 @@ export async function qualityAudit({ day, alert = false } = {}) {
       // the audit read only the summaries, so a bad bullet could sit in a stored report for
       // days with the nightly pass reporting "no unsupported claims".
       (Array.isArray(sec.bullets) ? sec.bullets : []).forEach((t, i) => { if (t) texts.push([ch + '.bullet' + i, t]); });
-      if (sec.apply) texts.push([ch + '.apply', sec.apply]);
     }
-    for (const k of ['verdict', 'move']) {
+    for (const k of ['verdict']) {
       const arr = ins.brief && ins.brief[k];
       if (Array.isArray(arr)) arr.forEach((t, i) => texts.push(['brief.' + k + i, t]));
     }
     for (const [where, text] of texts) {
-      // Advice lines (counter-op "move" + per-channel "apply") may talk price moves; the
-      // website read and its bullets are the only ones judged against the diff invariant.
-      const isAdvice = where.startsWith('brief.move') || where.endsWith('.apply');
-      const f = isAdvice ? { ...facts, noChanges: false, advice: true }
-        : (where === 'website' || where.startsWith('website.') ? facts : { ...facts, noChanges: false });
+      // The website read and its bullets are the only ones judged against the diff invariant.
+      const f = (where === 'website' || where.startsWith('website.') ? facts : { ...facts, noChanges: false });
       for (const v of checkClaims(text, f)) {
         findings.push({ brand: b.name || b.host, where, rule: v.rule, sentence: v.sentence.slice(0, 160) });
       }

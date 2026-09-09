@@ -15,7 +15,6 @@ import { urlAlive, foldTxt } from './ads.js';
 import { recentSnapshots, saveSnapshot, latestSnapshot, isPublicHost, allSnapshots, saveSnapshotDay, snapshotForDay } from './snapshots.js';
 import { getEmails } from './email.js';
 import { diffWebsite, siteShot, siteBannerFromShot } from './website.js';
-import { getMyBrand } from './brand.js';
 import { transcribeVideo } from './transcribe.js';
 import { offerFlags, offerFacts, bannerFacts, todayLine, isSaleBanner, sameBannerText } from './occasions.js';
 import { resolveCapture } from './capture.js';
@@ -114,7 +113,7 @@ export function gated(g, findList) {
 
 // ── FULL-SECTION GATE (7 Aug) ─────────────────────────────────────────────────
 // Until now only the SUMMARY passed the claim gate and sense check; the BULLETS — where the
-// specific claims actually live — and the "apply" tip skipped every layer. Every field now
+// specific claims actually live — skipped every layer. Every field now
 // takes the same path: deterministic gate → sense check → deterministic re-gate (validation
 // runs LAST, so anything the sense check leaves standing is re-checked). One sense-check call
 // covers summary + bullets together, so the nightly cost barely moves.
@@ -132,9 +131,6 @@ async function gateSection(section, f, findList, factsText, label) {
   };
   if (section.summary) section.summary = gated(det(section.summary, label, f), findList);
   if (Array.isArray(section.bullets)) section.bullets = section.bullets.map((b, i) => det(b, label + '.bullet' + i, f).text).filter(Boolean);
-  // 'apply' is counter-op ADVICE about our own customer's next move — price talk is allowed
-  // there (advice: true), but any claim it makes about the competitor still has to hold.
-  if (section.apply) section.apply = det(section.apply, label + '.apply', { ...f, advice: true }).text;
   if (factsText) {
     // The COMPUTED FINDINGS are facts too. The model WRITES from findingsBlock + facts,
     // but the sense check used to verify against the facts alone — so any claim
@@ -168,7 +164,6 @@ async function gateSection(section, f, findList, factsText, label) {
   const scrub = (t) => stripUrlParams(stripAdTotals(t));
   if (section.summary) section.summary = scrub(section.summary);
   if (Array.isArray(section.bullets)) section.bullets = section.bullets.map(scrub).filter(Boolean);
-  if (section.apply) section.apply = scrub(section.apply);
   if (rules.length) section.blocked = [...new Set(rules)];
   return section;
 }
@@ -247,6 +242,9 @@ export function funnelFacts(ads, brand) {
   const partnerPages = pages.filter(([p]) => kindByPage[p] === 'partner');
   const whitePages = pages.filter(([p]) => kindByPage[p] === 'white');
   const creatorPages = pages.filter(([p]) => kindByPage[p] === 'creator');
+  // Client-TRACKED pages (R-ADS-TRACKED-PAGES): the client named these as pages running the
+  // brand's ads. Say so — and they are whitelisting by definition, never the brand's own page.
+  const trackedPages = pages.filter(([p]) => ads.some((a) => oneLine(a.page) === p && a.tracked));
   const thirdDoms = doms.filter(([dm]) => !own(dm));
   const ownDoms = doms.filter(([dm]) => own(dm));
   // INTERNATIONAL ADVERTISING (founder, 22 Jul — bonafide.com.ar): a brand's own-name domain
@@ -270,6 +268,7 @@ export function funnelFacts(ads, brand) {
     `  Advertiser FACEBOOK PAGES (most-used first): ${pages.slice(0, 8).map(([p]) => `"${p}"`).join(', ')}.`,
     partnerPages.length ? `  >> PARTNERSHIP Facebook pages (Meta's official "X with ${brand}" branded-content pairing — call these PARTNERSHIP ads): ${partnerPages.map(([p]) => `"${p}"`).join(', ')}.` : '',
     whitePages.length ? `  >> WHITELISTED Facebook pages (3rd-party pages running the brand's ads with NO partnership label — call these WHITELISTING ads, a deliberate creator/persona whitelisting a.k.a. dark-posting tactic; ${shareWord} of their ad mix runs off the brand page): ${whitePages.map(([p]) => `"${p}"`).join(', ')}.` : '',
+    trackedPages.length ? `  >> CLIENT-TRACKED whitelisting pages (the client told us these pages run the brand's ads; we scan them daily — describe their ads as WHITELISTING ads from a tracked page, never as the brand's own page): ${trackedPages.map(([p]) => `"${p}"`).join(', ')}.` : '',
     creatorPages.length ? `  >> FOUNDER-HANDLE Facebook pages (a PERSON's page — the founder/creator — running the brand's ads; whitelisting through a personal identity, so NEVER claim "no whitelisting pages" while one of these is active): ${creatorPages.map(([p]) => `"${p}"`).join(', ')}.` : '',
     (!partnerPages.length && !whitePages.length && !creatorPages.length) ? `  All ads run from the brand's own Facebook page(s) — BRANDED ads only.` : '',
     `  LANDING-PAGE domains (most-used first): ${doms.slice(0, 10).map(([dm]) => dm).join(', ')}.`,
@@ -570,7 +569,6 @@ function parseOut(txt) {
     return {
       summary: stripUrlParams(stripAdTotals(clip(o.summary, 240))),
       bullets: Array.isArray(o.bullets) ? o.bullets.map((b) => stripUrlParams(stripAdTotals(clip(b, 230)))).filter(Boolean).slice(0, 5) : [],
-      apply: stripUrlParams(clip(o.apply, 260)),
     };
   }
   // Malformed/truncated JSON (e.g. hit the token limit) — salvage the fields by regex
@@ -584,10 +582,10 @@ function parseOut(txt) {
     if (!bm) bm = raw.match(/"bullets"\s*:\s*\[([\s\S]*)/);
     const bullets = bm ? (bm[1].match(/"((?:[^"\\]|\\.)*)"/g) || []).map((s) => oneLine(s.slice(1, -1).replace(/\\"/g, '"'))).filter(Boolean).slice(0, 5) : [];
     const summary = grab('summary');
-    if (summary || bullets.length) return { summary: stripUrlParams(clip(summary, 240)), bullets: bullets.map((b) => stripUrlParams(clip(b, 230))), apply: stripUrlParams(clip(grab('apply'), 260)) };
+    if (summary || bullets.length) return { summary: stripUrlParams(clip(summary, 240)), bullets: bullets.map((b) => stripUrlParams(clip(b, 230))) };
   }
   // Genuinely plain text — use it as the summary.
-  return { summary: clip(raw, 240), bullets: [], apply: '' };
+  return { summary: clip(raw, 240), bullets: [] };
 }
 
 // Normalize a field that should be a short bullet LIST into a clean array — accepts an
@@ -647,15 +645,10 @@ async function ask(channel, brand, todayBlock, prevBlock, me, today) {
     // Write in ENGLISH: nothing here said so, and a stray non-English word once surfaced in a
     // brief with no foreign text anywhere in the source data ("честный" under Glov, 17 Jul).
     // Quoting the competitor's own copy verbatim is still fine — that IS the evidence.
-    `If something isn't supported by the data, leave it out — never invent. Write for a busy marketer, and write in ENGLISH — the only non-English text allowed is a verbatim quote of the competitor's own copy. Keep every bullet and the apply SHORT and COMPLETE — a finished thought that never trails off mid-sentence; if a point won't fit concisely, drop detail rather than cut the ending.\n\n`;
-  if (me && me.profile) {
-    system +=
-      `Also add an "apply" field. Act as ${me.name}'s DIRECTOR OF GROWTH: turn this channel's single most important takeaway into ONE realistic, specific move THEY could actually make — grounded in their ACTUAL products, prices and bundles below, and naming a real product, price point or bundle of theirs where you can. It should be doable without heavy resources; if it genuinely needs real effort or spend (new creative, a UGC budget, building a bundle, a price test, an email flow), name that cost briefly so it's clear you know what it takes. Be honest — if the tactic doesn't fit their catalogue or positioning, say so in one line instead of forcing it. Start with a verb, ≤ 34 words, finish the sentence.\n` +
-      `ADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}${me.catalog ? '\nTHEIR CATALOGUE (real products, prices, bundles): ' + me.catalog : ''}\n\n` +
-      `Return ONLY minified JSON, no markdown: {"summary":"<=16 words","bullets":["<one complete, self-contained point, ≤ 16 words — tight, no filler>", ...up to 3 — only the genuinely notable ones, fewer is better],"apply":"<the tailored growth move, one finished sentence>"}.`;
-  } else {
-    system += `Return ONLY minified JSON, no markdown: {"summary":"<one tight sentence (<=16 words): the single most important or most-new takeaway>","bullets":["<one complete, self-contained point, ≤ 16 words — tight, no filler>", ...]} with 0–3 bullets (only the genuinely notable ones — fewer is better). If nothing changed and nothing notable, return a 1-sentence summary and an empty bullets array.`;
-  }
+    `If something isn't supported by the data, leave it out — never invent. Write for a busy marketer, and write in ENGLISH — the only non-English text allowed is a verbatim quote of the competitor's own copy. Keep every bullet SHORT and COMPLETE — a finished thought that never trails off mid-sentence; if a point won't fit concisely, drop detail rather than cut the ending.\n\n`;
+  // NO SUGGESTIONS (founder, 9 Sep 2026: "remove AI suggestions — those are not needed").
+  // The read states what the competitor is doing; it never advises the client.
+  system += `Return ONLY minified JSON, no markdown: {"summary":"<one tight sentence (<=16 words): the single most important or most-new takeaway>","bullets":["<one complete, self-contained point, ≤ 16 words — tight, no filler>", ...]} with 0–3 bullets (only the genuinely notable ones — fewer is better). If nothing changed and nothing notable, return a 1-sentence summary and an empty bullets array.`;
   const user = `=== TODAY ===\n${todayBlock}\n\n=== PREVIOUS CAPTURE ===\n${prevBlock && prevBlock.trim() ? prevBlock : '(no earlier capture to compare against yet)'}`;
   // ONE retry after a 20s pause (8 Aug): Nolan Interior's ads read vanished from the 7 Aug
   // report because a single transient API failure threw here and the channel's best-effort
@@ -688,11 +681,9 @@ export async function generateInsights(brand, host) {
   const out = {};
   // The insights snapshot is a SINGLE shared row per host (snapshots key on host+channel,
   // no uid) read by every co-watching account AND by anonymous demo/report visitors — so
-  // it MUST be tenant-neutral. Always tailor the "apply"/counter-op to the DEFAULT
-  // illustrative brand, NEVER a real customer's (that would leak one client's brand name,
-  // catalogue and prices to every other viewer). Per-viewer "apply to you" is done live in
-  // /api/angle, which is returned to the caller and never cached to a shared snapshot.
-  const me = await getMyBrand(null);
+  // it MUST be tenant-neutral. Since 9 Sep 2026 there is no per-brand tailoring at all
+  // (AI suggestions removed at the founder's request), so nothing viewer-specific exists.
+  const me = null;
 
   try {
     const r = await recentSnapshots(host, 'ads', 2);
@@ -1016,8 +1007,7 @@ async function makeBrief(brand, out, me, today, find) {
     `⛔ AD-vs-SITE SALE (hard rule): an offer you see only in AD COPY (e.g. a "Mother's Day 64%-off code") is NOT the brand's sale. Do NOT put it in the verdict as a current/site-wide sale, and do NOT compute how many weeks "stale" its occasion is. The verdict's only "sale" is a LIVE WEBSITE sale from the website read. If an ad's offer must be referenced at all, write it explicitly as "in an ad" — never as a plain site-wide offer.\n` +
     `⛔ NEVER state a number or total of ads ("19 ads", "10 of 19 ads", "10 active ads") — our capture is an incomplete sample. Describe prevalence qualitatively (most / about half / a few). Counts of NEW ads launched in a period are fine; totals are not.\n` +
     `R-CAMPAIGN (founder, 19 Aug): also produce "campaign" — ONE sentence ONLY when the COMPUTED FINDINGS show 2 OR MORE channels moving on the SAME theme within the last couple of days (e.g. a new ad funnel + a launch batch + a discount email all pushing one product/offer): name the connected move plainly, with the channels ("Coordinated push on the tallow balm: new advertorial funnel, a fresh ad batch and a 15%-off email inside 48h"). This is the single most valuable line in the report WHEN REAL — and pure damage when manufactured: if the channels are not clearly telling one story, return "" (empty string), never a stretch. ` +
-    `Return ONLY minified JSON, no markdown, as SHORT, SCANNABLE BULLET POINTS (not paragraphs): {"campaign":"<one cross-channel sentence or empty string>","verdict":["<THREAT ASSESSMENT — 2 to 3 bullets, each ONE point of UP TO 20 words: LEAD with the key fact, then the plain-English reason. Write each as a sentence a marketer would say out loud — NEVER compress evidence into data-speak ('at 4-of-6-email frequency', '240-day runtime'). If you assert a conclusion (e.g. 'the discount is their real price'), the SAME bullet must carry the plain evidence for it ('4 of their last 6 emails pushed 50% off, so nobody pays full price'). Concrete, specific, self-explanatory to someone who reads only this line>", ...],"move":["<RECOMMENDED COUNTER-OP — 2 to 3 bullets, each ONE concrete ${me && me.profile ? `move for ${me.name} grounded in their profile below` : 'move for a brand competing with them'}, ≤ 13 words, start with a verb, cut filler>", ...]}` +
-    (me && me.profile ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}` : '');
+    `Return ONLY minified JSON, no markdown, as SHORT, SCANNABLE BULLET POINTS (not paragraphs): {"campaign":"<one cross-channel sentence or empty string>","verdict":["<THREAT ASSESSMENT — 2 to 3 bullets, each ONE point of UP TO 20 words: LEAD with the key fact, then the plain-English reason. Write each as a sentence a marketer would say out loud — NEVER compress evidence into data-speak ('at 4-of-6-email frequency', '240-day runtime'). If you assert a conclusion (e.g. 'the discount is their real price'), the SAME bullet must carry the plain evidence for it ('4 of their last 6 emails pushed 50% off, so nobody pays full price'). Concrete, specific, self-explanatory to someone who reads only this line>", ...]}`;
   const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 500, system, messages: [{ role: 'user', content: parts.join('\n') }] });
   const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
   // Robust parse: try clean JSON, then salvage the first {...} object if the model wrapped
@@ -1027,7 +1017,7 @@ async function makeBrief(brand, out, me, today, find) {
   try { j = JSON.parse(txt.replace(/^```json?\s*/i, '').replace(/\s*```$/, '')); }
   catch (e) { const m = txt.match(/\{[\s\S]*\}/); if (m) { try { j = JSON.parse(m[0]); } catch (_) { /* give up */ } } }
   const verdict = toBullets(j && j.verdict, 3).map(stripAdTotals);
-  if (verdict.length) return { verdict, move: toBullets(j && j.move, 3).map(stripAdTotals) };
+  if (verdict.length) return { verdict };
   return null;
 }
 
@@ -1062,27 +1052,21 @@ async function fetchImageB64(url) {
 }
 
 // Vision-powered analysis of a single ad/post — sees the actual CREATIVE (image,
-// or a video ad's cover frame) plus the copy → angle, hook, creative read, apply.
-export async function quickAngle(text, kind, image, video, uid) {
+// or a video ad's cover frame) plus the copy → angle, hook, creative read.
+export async function quickAngle(text, kind, image, video) {
   const t = oneLine(text).slice(0, 1400);
-  if (!process.env.ANTHROPIC_API_KEY) return { angle: '', hook: '', creative: '', apply: '' };
-  const me = await getMyBrand(uid);
+  if (!process.env.ANTHROPIC_API_KEY) return { angle: '', hook: '', creative: '' };
   const img = image ? await fetchImageB64(image) : null;
   const script = video ? await transcribeVideo(video) : '';   // spoken hook of a video ad (needs OPENAI_API_KEY)
-  // Key MUST include the viewer's uid: the "apply" field is tailored to THIS account's own
-  // brand/catalogue, so two accounts that happen to share a brand host must not read each
-  // other's cached result. (angle/hook/creative are creative-specific, but apply is not.)
-  const key = (kind || 'ad') + '|' + (uid || '') + '|' + ((me && me.host) || '') + '|' + (img ? 'V' : 'T') + (script ? 'S' : '') + '|' + String(image || '').slice(0, 70) + '|' + String(video || '').slice(0, 50) + '|' + t.slice(0, 100);
+  // The read is creative-specific only (no per-viewer field since 9 Sep 2026), so one cached
+  // result serves every account that opens the same creative.
+  const key = (kind || 'ad') + '|' + (img ? 'V' : 'T') + (script ? 'S' : '') + '|' + String(image || '').slice(0, 70) + '|' + String(video || '').slice(0, 50) + '|' + t.slice(0, 100);
   if (_angleCache.has(key)) return _angleCache.get(key);
   const what = kind === 'post' ? 'organic social post' : 'ad';
   const visual = (img
     ? (kind === 'post' ? 'You are shown the post CREATIVE (image).' : 'You are shown the ad CREATIVE — for a video ad this is its cover frame.')
     : 'No creative image is available — analyze from the copy only and leave "creative" brief.')
     + (script ? ' A transcription of the video\'s SPOKEN audio is also provided — base the HOOK on the actual opening line(s) of that script.' : '');
-  const applyField = (me && me.profile)
-    ? `,"apply":"<as ${me.name}'s director of growth: ONE realistic, doable move using the SAME approach, grounded in their real products/prices/bundles and naming one where you can; if it needs real spend/effort, name it; if it doesn't fit, say so briefly. Start with a verb, <=32 words>"`
-    : `,"apply":""`;
-  const brandLine = (me && me.profile) ? `\nADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}${me.catalog ? '\nTHEIR CATALOGUE: ' + me.catalog : ''}` : '';
   // For a video ad the spoken opening IS the hook — lead with it when we have the script.
   const hookField = script
     ? `"hook":"<the opening hook — LEAD with the first spoken line(s) from the VIDEO SCRIPT, then the opening visual/on-screen text, <=22 words>",`
@@ -1092,8 +1076,7 @@ export async function quickAngle(text, kind, image, video, uid) {
     `Be specific and concrete — describe what you actually see, don't generalize. Return ONLY minified JSON, no markdown: {` +
     `"angle":"<core marketing angle / persuasion strategy, <=12 words>",` +
     hookField +
-    `"creative":"<read of the creative: format/style (UGC, studio, lifestyle, before/after, text-heavy, meme, product demo, founder...), what is shown, key on-screen text, <=26 words>"` +
-    applyField + `}.` + brandLine;
+    `"creative":"<read of the creative: format/style (UGC, studio, lifestyle, before/after, text-heavy, meme, product demo, founder...), what is shown, key on-screen text, <=26 words>"}.`;
   const run = async (withImg) => {
     const content = [];
     if (withImg && img) content.push({ type: 'image', source: img });
@@ -1113,7 +1096,6 @@ export async function quickAngle(text, kind, image, video, uid) {
       angle: oneLine(o.angle).replace(/^["'\s]+|["'\s.]+$/g, '').slice(0, 100) || raw.replace(/[{}"]/g, '').slice(0, 100),
       hook: oneLine(o.hook).slice(0, 170),
       creative: (withImg && img) ? oneLine(o.creative).slice(0, 220) : '',
-      apply: oneLine(o.apply).slice(0, 220),
       script: script ? script.slice(0, 340) : '',
     };
   };
@@ -1124,7 +1106,7 @@ export async function quickAngle(text, kind, image, video, uid) {
   } catch (e) {
     console.warn('quickAngle vision failed (' + e.message + ') — retrying copy-only');
     if (img) { try { const out = await run(false); _angleSet(key, out); return out; } catch (e2) { /* fall through */ } }
-    return { angle: '', hook: '', creative: '', apply: '' };
+    return { angle: '', hook: '', creative: '' };
   }
 }
 
@@ -1171,50 +1153,8 @@ export async function enrichCreativeHooks(host, channel, kind, items, budget) {
   }
 }
 
-// Per-VIEWER "apply to your brand" overlay. The shared per-host insights snapshot is
-// tenant-neutral (see generateInsights). When a SIGNED-IN client who has set up their own
-// brand reads a competitor, we layer THEIR tailored apply-moves + counter-op on top —
-// generated from the neutral summaries + their brand profile, and cached under a PRIVATE
-// per-user key ('applyov:<uid>:<host>'). That key contains ':' so isPublicHost rejects it,
-// and it is read only via latestSnapshot — it is NEVER written to the shared host snapshot
-// nor returned by the public /api/snapshot|/api/history routes, so nothing crosses tenants.
-async function applyOverlay(host, uid, neutral) {
-  if (!uid || !neutral || !process.env.ANTHROPIC_API_KEY) return null;
-  const me = await getMyBrand(uid);
-  if (!me || !me.profile) return null;   // no brand set → nothing to tailor; show the neutral read
-  const key = 'applyov:' + uid + ':' + host;
-  const base = neutral.generatedAt || '';   // regenerate whenever the underlying neutral read changes
-  const brandAt = me.builtAt || '';         // …or whenever the client re-scans / changes their own brand
-  try { const cached = await latestSnapshot(key, 'overlay'); if (cached && cached.base === base && cached.brandAt === brandAt && cached.channels) return cached; }
-  catch (e) { /* regenerate */ }
-
-  const parts = [];
-  for (const [k, label] of [['ads', 'ADS'], ['social', 'SOCIAL'], ['website', 'WEBSITE'], ['email', 'EMAIL']]) {
-    const c = neutral[k];
-    if (c && (c.summary || (c.bullets && c.bullets.length))) parts.push(`${k} | ${label}: ${c.summary || ''}${(c.bullets && c.bullets.length) ? ' — ' + c.bullets.join(' · ') : ''}`);
-  }
-  const verdict = toBullets(neutral.brief && neutral.brief.verdict, 3).join('; ');
-  if (!parts.length && !verdict) return null;
-  const system =
-    `You are ${me.name}'s DIRECTOR OF GROWTH. Below are per-channel intelligence reads on a COMPETITOR (with the top-line THREAT). For EACH channel present, turn its most important takeaway into ONE realistic, specific move ${me.name} could actually make — grounded in their REAL products/prices/bundles below, naming a real one where you can; if a move needs real spend/effort, name it briefly; if a channel's takeaway genuinely doesn't fit their catalogue, give a one-line honest note instead of forcing it. Start each with a verb, ≤ 34 words, finish the sentence. Also write "move": 2 to 3 SHORT, SCANNABLE BULLET POINTS, each ONE concrete counter-op for ${me.name} against this competitor (each ≤ 13 words, telegraphic, start with a verb, cut filler), grounded in their profile.\n` +
-    `ADVISING BRAND — ${me.name}${me.mainProduct ? ' (main product: ' + me.mainProduct + ')' : ''}: ${me.profile}${me.catalog ? '\nTHEIR CATALOGUE (real products, prices, bundles): ' + me.catalog : ''}\n` +
-    `Return ONLY minified JSON, no markdown: {"channels":{"ads":"<move or ''>","social":"...","website":"...","email":"..."},"move":["<counter-op bullet>", ...]}. Include ONLY the channel keys that appear in the input.`;
-  try {
-    const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 700, system, messages: [{ role: 'user', content: (verdict ? 'THREAT: ' + verdict + '\n' : '') + parts.join('\n') }] });
-    const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
-    let o; try { o = JSON.parse(txt.replace(/^```json?\s*/i, '').replace(/\s*```$/, '')); } catch (e) { return null; }
-    if (!o || typeof o !== 'object') return null;
-    const channels = {};
-    for (const k of ['ads', 'social', 'website', 'email']) if (o.channels && o.channels[k]) channels[k] = clip(o.channels[k], 260);
-    const result = { channels, move: toBullets(o.move, 3), base, brandAt, builtAt: new Date().toISOString() };
-    await saveSnapshot(key, 'overlay', result);
-    return result;
-  } catch (e) { return null; }
-}
-
-// Read the latest cached insights; generate on demand if missing. When a signed-in client
-// (uid) has their own brand, layer their per-viewer apply-moves on top of the tenant-neutral
-// shared read — without ever mutating or re-saving the shared snapshot.
+// Read the latest cached insights; generate on demand if missing. `uid` is accepted for
+// call-site compatibility only — per-viewer tailoring was removed on 9 Sep 2026.
 const _briefHeal = new Map();          // host -> last repair attempt, so a hard failure can't hammer the API
 const _chanHeal = new Map();           // host -> last missing-CHANNEL repair attempt (same discipline)
 const BRIEF_HEAL_COOLDOWN = 15 * 60 * 1000;
@@ -1252,14 +1192,14 @@ export async function getInsights(host, name, refresh, uid) {
   // the nightly warm saves the report with channels but no THREAT ASSESSMENT — and because
   // the cold-gen above only fires at ZERO channels, that gap used to be permanent for the
   // day (found on Ancestral, 17 Jul). Rebuild just the brief from the channels already
-  // captured: one call, no re-scrape, and it stays tenant-neutral (getMyBrand(null)).
+  // captured: one call, no re-scrape, tenant-neutral.
   const hasRead = ['ads', 'social', 'website', 'email'].some((k) => ins[k]);
   if (!ins.brief && hasRead && process.env.ANTHROPIC_API_KEY) {
     const last = _briefHeal.get(host) || 0;
     if (Date.now() - last > BRIEF_HEAL_COOLDOWN) {
       _briefHeal.set(host, Date.now());
       try {
-        const b = await makeBrief(name || host, ins, await getMyBrand(null), new Date());
+        const b = await makeBrief(name || host, ins, null, new Date());
         if (b) {
           ins.brief = b;
           const save = Object.assign({}, ins); delete save.__day;   // __day is a read-time marker, not data
@@ -1268,18 +1208,6 @@ export async function getInsights(host, name, refresh, uid) {
         }
       } catch (e) { console.warn('brief heal ' + host + ':', e.message); }
     }
-  }
-  if (uid && isPublicHost(host)) {
-    try {
-      const ov = await applyOverlay(host, uid, ins);
-      if (ov) {
-        ins = Object.assign({}, ins);   // shallow copy — NEVER mutate the shared cached object
-        for (const k of ['ads', 'social', 'website', 'email']) {
-          if (ins[k] && ov.channels[k]) ins[k] = Object.assign({}, ins[k], { apply: ov.channels[k] });
-        }
-        if (ov.move && ov.move.length && ins.brief) ins.brief = Object.assign({}, ins.brief, { move: ov.move });
-      }
-    } catch (e) { /* fall back to the neutral read */ }
   }
   return ins || {};
 }

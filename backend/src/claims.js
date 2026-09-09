@@ -135,7 +135,7 @@ const RULES = [
   {
     id: 'priceMove',
     re: /(?:\brais(?:ed|ing)\b[^.]{0,14}\bprice\b|\bprice[sd]?\b[^.]{0,14}\b(?:rais(?:ed|ing)|increase[sd]?|rise|jump(?:ed)?|cut|drop(?:ped)?)\b|\bincreased to \$|\bnow costs? \$|\bdropped to \$|[+-]\$\d)/i,
-    allow: (f) => f.priceComparable === true || f.advice === true,
+    allow: (f) => f.priceComparable === true,
     why: 'claims a PRICE MOVE without two different-day captures that both carry the product feed',
   },
   {

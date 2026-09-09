@@ -173,10 +173,6 @@ t('release sense of "dropped" is not an ending',
   'Harry Potter x The Oodie dropped today on TikTok and Facebook — their biggest IP collab signal yet.',
   { canJudgeAbsence: false, hasEarlier: true, comparable: true }, false);
 
-t('counter-op advice may talk about price cuts',
-  'Test a time-limited genuine offer to contrast against their always-on compare-at discount — make your price cut feel real.',
-  { priceComparable: false, advice: true, hasEarlier: true }, false);
-
 t('quiet is reportable when the account IS connected',
   'No new posts on Instagram since 28 Jul — their last post was the lash tutorial.',
   { channelConnected: true, canJudgeAbsence: true, hasEarlier: true, comparable: true }, false);
