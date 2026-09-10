@@ -320,6 +320,32 @@ const launchFix = adsFindings([
 ], 100).find((f) => String(f.key).indexOf('ads.launch:') === 0);
 ok(!!launchFix && launchFix.text.indexOf('Meta start date') < 0, 'per-ad launch finding carries no provenance jargon');
 
+console.log('\nLABOR DAY AUDIT (10 Sep) — occasion renames are announced, on every layer:');
+const { sameBannerText, saleOccasionKey } = await import('../src/occasions.js');
+ok(!sameBannerText('Labor Day Sale — Up to 50% OFF', 'Back to School Sale — Up to 50% Off'), 'Back to School → Labor Day at the same % is a DIFFERENT banner (Nolan)');
+ok(!sameBannerText('Labor Day Sale — Save 67% plus free gifts', 'Anniversary Sale — Save 67% plus free gifts'), 'Anniversary → Labor Day is a different banner (Mengo)');
+ok(!sameBannerText('Labor Day Sale: 60% OFF + FREE Mystery Gift', 'Summer Sale: 60% OFF + FREE Mystery Gift'), 'Summer → Labor Day is a different banner (Smooche)');
+ok(sameBannerText('UP TO 40% OFF', 'UP TO 40% OFF 1M JARS SOLD'), 'rewording of the SAME bar stays the same (UKLASH/Frøya rotation safety)');
+ok(sameBannerText('Labor Day Sale: up to 58% off', 'Labor Day Sale: up to 58% off — ends tonight'), 'timer/urgency variance of the same occasion stays the same');
+ok(saleOccasionKey('Back to School | Up to 50% Off') === 'backtoschool', 'generic named-sale occasions recognised beyond the calendar list');
+const cdF = { noChanges: true, hasEarlier: true, canAssertNew: true, knownEntities: [], changeFindings: ['Storefront promo: "Labor Day sale up to 46% off with code SALEDAY" — first seen today; earlier captures showed a different banner.'] };
+const { enforceClaims: ec2 } = await import('../src/claims.js');
+ok(ec2('New sale live: "Labor Day sale up to 46% off with code SALEDAY" — first seen today.', cdF, 't').text.length > 0, 'a finding-backed sale announcement survives contradictsDiff on a feed-unchanged day (Froya/DRM day-one strip)');
+ok(ec2('New subscription-discount sale live today.', { noChanges: true, hasEarlier: true, canAssertNew: true, knownEntities: [], changeFindings: ['Storefront: 2 products removed — X, Y'] }, 't').text === '', 'an INVENTED sale with no supporting finding is still stripped (UKLASH stays fixed)');
+const s3block = '*X*\n   *Website:* Storefront unchanged — same prices, products and sale.';
+const s3read = { website: { summary: 'Storefront unchanged — same prices, products and sale.' } };
+ok(checkCongruence(s3block, s3read, { name: 'X', sale: '*New sale live* — "Labor Day Sale"' }).some((v) => v.rule === 'R-SYNC-03'), 'R-SYNC-03 no longer fooled by the word "sale" inside the canonical no-change line');
+const rnRows = [
+  { day: '2026-09-04', data: { banner: 'Labor Day Sale: 60% OFF + FREE Mystery Gift', summary: { items: {}, count: 0, saleCount: 0 } } },
+  { day: '2026-09-03', data: { banner: 'Labor Day Sale: 60% OFF + FREE Mystery Gift', summary: { items: {}, count: 0, saleCount: 0 } } },
+  { day: '2026-09-02', data: { banner: 'Summer Sale: 60% OFF + FREE Mystery Gift', summary: { items: {}, count: 0, saleCount: 0 } } },
+  { day: '2026-09-01', data: { banner: 'Summer Sale: 60% OFF + FREE Mystery Gift', summary: { items: {}, count: 0, saleCount: 0 } } },
+  { day: '2026-08-31', data: { banner: 'Summer Sale: 60% OFF + FREE Mystery Gift', summary: { items: {}, count: 0, saleCount: 0 } } },
+];
+const rn = websiteFindings(rnRows).find((x) => x.key === 'web.banner');
+ok(!!rn && /NEW SALE|first seen/i.test(rn.text), 'a clean occasion rename still announces');
+ok(!rn || rn.text.indexOf('We know when we first SAW it') < 0, 'the rename dating is a clause, never an orphanable standalone sentence (Smooche 4 Sep corpse)');
+
 console.log('\nQALOG — every silent downgrade lands in the ledger (20 Aug, "never ask the same question again"):');
 const { qaLog, qaDrain, qaEvents } = await import('../src/qalog.js');
 qaDrain();   // clean slate

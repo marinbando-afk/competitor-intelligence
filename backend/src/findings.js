@@ -497,14 +497,17 @@ export function websiteFindings(rows) {
     let when;
     if (isNew && swapped) when = ' — first seen in today\'s capture, replacing "' + prevBanner.text + '" (last seen ' + prevBanner.day + ').';
     else if (isNew) when = ' — first seen today; earlier captures showed a different banner.';
-    else if (recentSwap) when = ' — replaced "' + prevBanner.text + '" and was first seen in our ' + since + ' capture'
+    else if (recentSwap) when = ' — a NEW SALE: it replaced "' + prevBanner.text + '" and was first seen in our ' + since + ' capture'
       + (sameDiscount ? '. Same headline discount, new occasion name: the offer did not change, only its pretext' : '') + '.';
     // A RENAMED SALE IS A NEW SALE (founder, 12 Aug: "it's a new sale if it was renamed from
     // Summer Sale to Back To School sale, the discount % is the same but it's a different
     // sale and this is the way how it should be treated"). The occasion IS the sale — the
     // matching discount is context, not grounds for calling it unchanged.
     else if (renamed) when = ' — a NEW SALE: it replaced "' + renamed.from + '" (last captured '
-      + renamed.lastSeen + ') and was first captured ' + renamed.since + '. Same headline discount under a new occasion, so the economics are unchanged, but this is a distinct sale. We know when we first SAW it, not when they published it.';
+      // ONE clause, not a standalone sentence — Smooche's 4 Sep read opened with the
+      // orphaned "We know when we first SAW it, not when they published it." after the
+      // model excerpted the finding's tail (founder audit, 10 Sep).
+      + renamed.lastSeen + ') and was first captured ' + renamed.since + ' — dated to our first sighting, not their publish date. Same headline discount under a new occasion, so the economics are unchanged, but this is a distinct sale.';
     else when = ' — unchanged across recent captures.';
     // R-BANNER-OPS (founder, 13 Aug — Bonafide: "this is fucking standard in ecomm, don't
     // report free shipping offers"): an operational banner (free shipping/returns/new

@@ -67,7 +67,13 @@ const RULES = [
     // prices, products and sale scope are unchanged." The diff is computed from the data; a
     // read may not contradict it.
     re: /\b(new|launch(ed|es|ing)?|now live|live (today|now)|started (today|on |\d)|just (added|dropped|introduced)|first (appearance|time))\b/i,
-    allow: (f) => f.noChanges !== true,
+    // The FEED diff owns prices/products/sale-scope — NOT the announcement bar. A "new"
+    // sentence that traces to a computed change/new FINDING (the banner swap) is the
+    // ENGINE's claim, not the model contradicting the panel (founder, 10 Sep — Labor Day
+    // audit: four day-one sale announcements were stripped to "Storefront unchanged" by
+    // this rule because the feed hadn't moved). An INVENTED sale still dies: with no
+    // supporting finding, tracesToFinding fails and the sentence is stripped (UKLASH).
+    allow: (f, sentence) => f.noChanges !== true || (Array.isArray(f.changeFindings) && f.changeFindings.length > 0 && tracesToFinding(sentence, f)),
     why: 'claims something changed/launched while the computed diff for the same two days found NO changes — the read must not contradict the data panel beneath it',
   },
   {

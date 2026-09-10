@@ -207,7 +207,7 @@ check('a renamed sale IS treated as a new sale (founder, 12 Aug)', !!sb && /NEW 
 check('the rename names what it replaced', !!sb && sb.text.includes('SUMMER SALE: UP TO 58% OFF'));
 check('the rename is dated to the capture that first saw it', !!sb && sb.text.includes('2026-08-11'));
 check('the matching discount is context, not a reason to call it unchanged', !!sb && /economics are unchanged|Same headline discount/i.test(sb.text));
-check('claims first-SEEN, never a publish date', !!sb && /first SAW/i.test(sb.text));
+check('claims first-SEEN, never a publish date', !!sb && /first (SAW|seen in our|sighting)/i.test(sb.text));
 check('rename counts as news', !!sb && sb.type === 'new');
 
 // It must go quiet again — a rename is news for a few days, not forever.

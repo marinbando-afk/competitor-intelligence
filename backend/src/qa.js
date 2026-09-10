@@ -66,7 +66,11 @@ export function checkCongruence(block, appRead, f) {
     if (shows[ch] && !inBrief) out.push({ brand: f.name, rule: 'R-SYNC-01', why: 'app shows a ' + ch + ' read but the brief has no ' + ch + ' row' });
     if (!shows[ch] && inBrief) out.push({ brand: f.name, rule: 'R-SYNC-02', why: 'brief has a ' + ch + ' row but the app shows no ' + ch + ' read or capture' });
   }
-  if (f.sale && appRead.website && appRead.website.summary && !/sale|%\s*off|discount|bogo|clearance/i.test(appRead.website.summary)) {
+  // The canonical no-change line contains the word "sale" ("same prices, products and
+  // sale"), which satisfied this test and blinded the audit to every Labor Day miss
+  // (10 Sep) — strip it before judging whether the read actually names the sale.
+  const appWsale = String((appRead.website && appRead.website.summary) || '').replace(/same prices?,? products? and sale( scope)?/i, '');
+  if (f.sale && appRead.website && appRead.website.summary && !/sale|%\s*off|discount|bogo|clearance/i.test(appWsale)) {
     out.push({ brand: f.name, rule: 'R-SYNC-03', why: 'sale signal fired but the app website read does not mention it' });
   }
   // R-SYNC-04 (Bare Bones, 13 Aug): Slack called a standing volume discount "New sale live"

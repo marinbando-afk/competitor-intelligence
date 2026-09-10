@@ -281,7 +281,26 @@ export function bannerParts(s) {
   const words = new Set(t.replace(/[^a-z0-9% ]+/g, ' ').split(/\s+/).filter((w) => w.length >= 3 && !BSTOP.has(w)));
   return { nums, words };
 }
+// R-SALE-RENAME at the IDENTITY ROOT (founder, 10 Sep — the Labor Day audit: 7 brands
+// switched to Labor Day sales, only 2 were announced on day one). "Back to School — 50%"
+// vs "Labor Day — 50%" passed the same-discount + word-overlap test as "the same promo
+// re-worded", so the rename was invisible to the Slack signal, the announce state and
+// the rotation timeline. The occasion IS the sale (founder, 12 Aug): two banners naming
+// DIFFERENT occasions are NEVER the same banner, whatever the discount overlap. One-sided
+// absence (a partial read that dropped the occasion word) keeps the old behavior —
+// rotation/re-wording safety (UKLASH, Frøya) is untouched.
+const NAMED_SALE_RE = /\b(back[\s-]?to[\s-]?school|anniversary|birthday|summer|winter|spring|fall|autumn|holiday)\b/i;
+export function saleOccasionKey(text) {
+  const t = String(text || '');
+  const parts = occasionsIn(t).map((l) => l.toLowerCase());
+  const m = t.match(NAMED_SALE_RE);
+  if (m) parts.push(m[1].toLowerCase().replace(/[\s-]+/g, ''));
+  return parts.sort().join('|');
+}
+
 export function sameBannerText(a, b) {
+  const ka = saleOccasionKey(a), kb = saleOccasionKey(b);
+  if (ka && kb && ka !== kb) return false;
   const x = String(a || '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
   const y = String(b || '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
   if (!x || !y) return false;
