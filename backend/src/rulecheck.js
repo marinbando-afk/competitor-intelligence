@@ -34,7 +34,11 @@ const CHECKS = [
   // R-TEXT-02 (founder, 12 Aug): no dangling clause labels from truncation
   // ("…; newest opens." with the payload gone, a trailing colon, an orphan dash).
   { id: 'R-TEXT-02', why: 'dangling clause label / truncation artifact',
-    test: (t) => /(opens|opening|reads|hook|latest|newest)[:.]?\s*$/i.test(t.replace(/["'”’)\]]+$/, '').trim()) || /[;:—–]\s*$/.test(t.trim()) || /\bthe\s+\d+…$/.test(t.trim())
+    // "hook"/"latest"/"newest" as ordinary NOUNS at sentence end are legal ("…their
+    // dominant organic hook.") — the label corpse is the word WITH a colon, or a clipped
+    // introducer verb (16 Sep digest: two complete sentences downgraded for ending in
+    // the noun "hook").
+    test: (t) => /(opens|opening|reads)[:.]?\s*$/i.test(t.replace(/["'”’)\]]+$/, '').trim()) || /\b(hook|latest|newest)\s*:\s*$/i.test(t.replace(/["'”’)\]]+$/, '').trim()) || /[;:—–]\s*$/.test(t.trim()) || /\bthe\s+\d+…$/.test(t.trim())
       // label-only survivors: the clip landed inside the quote, the balancer removed it,
       // and a sentence about nothing remained ("Latest email." — Ancestral, 14 Aug).
       || /^\s*(latest|new|newest)\s+(email|post|ad|item)s?\s*[.:]?\s*$/i.test(t.trim())
@@ -112,7 +116,10 @@ function isoDateViolation(t) {
     // Tightened again 15 Aug (R-LAUNCH-WINDOW): the launch line is a ONE-DAY window
     // ("since yesterday"), so "launched since <ISO>" is itself a violation now. Only a
     // bare launch date ("launched 2026-08-05") and check/monitoring anchors keep dates.
-    if (/launch(ed)?\s*$|checked on\s*$|began on\s*$/i.test(before)) continue;
+    // Sighting anchors are the founder-mandated honest dating language (16 Sep digest:
+    // the Seranova rename announcement itself was downgraded for "first seen in our
+    // 2026-09-15 capture", and Bloom's absence duration for "monitoring since <date>").
+    if (/launch(ed)?\s*$|checked on\s*$|began on\s*$|first captured\s*$|seen in our\s*$|monitoring since\s*$/i.test(before)) continue;
     return true;
   }
   return false;

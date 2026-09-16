@@ -346,6 +346,21 @@ const rn = websiteFindings(rnRows).find((x) => x.key === 'web.banner');
 ok(!!rn && /NEW SALE|first seen/i.test(rn.text), 'a clean occasion rename still announces');
 ok(!rn || rn.text.indexOf('We know when we first SAW it') < 0, 'the rename dating is a clause, never an orphanable standalone sentence (Smooche 4 Sep corpse)');
 
+console.log('\n16 SEP DIGEST — over-stripping classes closed, real news survives:');
+ok(clean('New Instagram Reel yesterday on grocery label reading — nutrition-education content remains their dominant organic hook.'), 'a sentence ENDING in the noun "hook" is legal');
+ok(clean('20 new ads launched yesterday — 16 video, 4 image — split across a debut and a problem-agitate hook.'), 'launch line ending in "hook" is legal');
+ok(fires('24 new ads launched; newest opens.', 'R-TEXT-02'), 'clipped introducer verb still fires');
+ok(fires('The strongest performer by hook:', 'R-TEXT-02'), '"hook:" label corpse still fires');
+ok(clean('Storefront promo: "Warehouse Clearance: up to 58% off" — a NEW SALE: it replaced "Labor Day Sale: up to 58% off" and was first seen in our 2026-09-15 capture.'), 'the rename announcement itself is gate-clean (sighting anchor exempt)');
+ok(clean('Bloom is not running any Meta ads — confirmed across monitoring since 2026-08-21.'), '"monitoring since <date>" absence duration is exempt');
+ok(fires('New email item since 2026-08-11: "x".', 'R-DATE-01'), 'the bare "since <date>" ban still holds');
+const ncF = { noChanges: true, hasEarlier: true, canAssertNew: true, knownEntities: [], changeFindings: [] };
+ok(ec2("No changes on the storefront today — prices and products unchanged.", ncF, 't').text.length > 0, 'a no-change statement is never an untraceable CHANGE claim (negation blindness)');
+ok(ec2('They switched their landing domain to a new funnel today.', ncF, 't').text === '', 'a genuine unsupported change claim still dies');
+const lb = { noChanges: false, hasEarlier: true, canAssertNew: true, knownEntities: [], changeFindings: ['38 new ads launched today — all driving to the NEW funnel gruns.co/pages/womens-hair-loss.'] };
+ok(ec2('38 new ads launched today — 18 video, 20 image — all driving to the NEW funnel gruns.co/pages/womens-hair-loss.', lb, 't').text.length > 0, 'a numbered launch batch with "all driving" is a complete delta, not a census');
+ok(ec2('They run all ads exclusively from their own branded page.', { noChanges: false, hasEarlier: true, canAssertNew: true, knownEntities: [], changeFindings: [] }, 't').text === '', 'true universal census claims still stripped');
+
 console.log('\nQALOG — every silent downgrade lands in the ledger (20 Aug, "never ask the same question again"):');
 const { qaLog, qaDrain, qaEvents } = await import('../src/qalog.js');
 qaDrain();   // clean slate

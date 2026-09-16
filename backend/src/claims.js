@@ -153,7 +153,10 @@ const RULES = [
     re: /\b(all|every|entire|exclusively|only|none of|no other)\b[^.]{0,40}\b(ads?|creatives?|pages?|funnels?|listings?|posts?)\b|\b(ads?|creatives?|pages?)\b[^.]{0,25}\b(all|exclusively|only)\b/i,
     allow: (f, sentence) => {
       // Scoped statements are fine — the sample must be named in the same sentence.
-      return /(captur|sample|we (see|hold|have)|in view|so far|of the \d+|\b\d+ ads?\b)/i.test(String(sentence || ''));
+      // A NUMBERED LAUNCH BATCH is a complete delta, not a census — "38 new ads launched
+      // today — all driving to the NEW funnel…" is the R-FUNNEL-LEAD template itself and
+      // was being stripped by this rule (16 Sep digest, Gruns).
+      return /(captur|sample|we (see|hold|have)|in view|so far|of the \d+|\b\d+ ads?\b|\b\d+\s+new\s+ads?\b)/i.test(String(sentence || ''));
     },
     why: 'states a UNIVERSAL fact ("all ads", "every page", "only") from a capture that is a sample, not a proven-complete inventory — scope it to what was captured',
   },
@@ -221,7 +224,14 @@ const CHANGE_VERB = /\b(new|newly|first|launch(ed|es|ing)?|start(ed|s|ing)?|swit
 function tracesToFinding(sentence, facts) {
   const changeFindings = Array.isArray(facts.changeFindings) ? facts.changeFindings : null;
   if (!changeFindings) return true;             // caller didn't supply findings → rule inert
-  if (!CHANGE_VERB.test(sentence)) return true; // not a change claim → nothing to trace
+  // NEGATION BLINDNESS (16 Sep digest — 114 claim-strips in a day): "No changes on the
+  // storefront today — prices and products unchanged" was stripped as an untraceable
+  // CHANGE claim because 'changes' matched the verb list. Neutralise negated phrasing
+  // and "unchanged" before testing — a no-change statement asserts nothing to trace.
+  const sn = String(sentence || '')
+    .replace(/\b(?:no|not|without|never|zero)\s+(?:\w+\s+){0,2}?(?:new|changes?|changed|launch\w*|additions?)\b/gi, '')
+    .replace(/\bunchanged\b/gi, '');
+  if (!CHANGE_VERB.test(sn)) return true;       // not a change claim → nothing to trace
   if (!changeFindings.length) return false;     // nothing changed today, yet this claims it did
   const t = sentence.toLowerCase();
   // The sentence must share a distinctive token with at least one change finding.
