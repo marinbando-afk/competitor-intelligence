@@ -41,7 +41,7 @@ const RULES = [
     // only question that matters: is THIS THING new? Callers pass knownEntities, the domains,
     // pages and products already seen in earlier captures. Calling any of them new is banned
     // outright, regardless of how healthy today's capture is.
-    re: /\b(new|newly|first|launch(ed|es|ing)?|just (added|started|introduced)|now (running|live|using)|started (using|running))\b/i,
+    re: /\b(new|newly|first|launch(ed|es|ing)|just (added|started|introduced)|now (running|live|using)|started (using|running))\b/i,
     allow: (f, sentence) => {
       const known = f.knownEntities;
       if (!Array.isArray(known) || !known.length) return true;
@@ -66,7 +66,7 @@ const RULES = [
     // above our own panel saying "No changes since the last capture. Compared 2 Aug -> 3 Aug:
     // prices, products and sale scope are unchanged." The diff is computed from the data; a
     // read may not contradict it.
-    re: /\b(new|launch(ed|es|ing)?|now live|live (today|now)|started (today|on |\d)|just (added|dropped|introduced)|first (appearance|time))\b/i,
+    re: /\b(new|launch(ed|es|ing)|now live|live (today|now)|started (today|on |\d)|just (added|dropped|introduced)|first (appearance|time))\b/i,
     // The FEED diff owns prices/products/sale-scope — NOT the announcement bar. A "new"
     // sentence that traces to a computed change/new FINDING (the banner swap) is the
     // ENGINE's claim, not the model contradicting the panel (founder, 10 Sep — Labor Day
@@ -93,7 +93,10 @@ const RULES = [
     id: 'bareQuiet',
     re: /\bno new (ads?|posts?|emails?|creatives?|launches?|content|activity)\b/i,
     allow: (f, sentence) => {
-      if (/\b(most recent|latest|last (new|one|post|ad|email|launch))\b/i.test(String(sentence || ''))) return true;
+      // A quiet line that carries the AGE or WHAT STILL STANDS is exactly the sanctioned
+      // format — "No new ad since 1 Sept (26 days), still running a 20%-off code" was
+      // being stripped (28 Sep canary).
+      if (/\b(most recent|latest|last (new|one|post|ad|email|launch))\b|\bstill\s+\w+|\(\d+\s*days?\)|\bsince\s+\d{1,2}\s+\w+|\bsince\s+(?:the|their|a)\s+\S+/i.test(String(sentence || ''))) return true;
       return f.daysSinceNew != null && f.daysSinceNew > 7;
     },
     why: 'bare "no new X" is only allowed after 7+ quiet days; within a week write "no new X yesterday — most recent: …" (founder hard rule, 13 Aug)',
@@ -110,7 +113,7 @@ const RULES = [
   },
   {
     id: 'launched',
-    re: /\b(launch(ed|es|ing)?|debut(ed)?|introduc(ed|ing)|rolled out|went live|now live|live (today|now)|just added|newly added|started (today|on |\d))\b/i,
+    re: /\b(launch(ed|es|ing)|debut(ed)?|introduc(ed|ing)|rolled out|went live|now live|live (today|now)|just added|newly added|started (today|on |\d))\b/i,
     // genuineNewProduct === false means the "new" items are variants/re-listings of something
     // already on the site (Tallowed Truth) — that can never be a launch.
     allow: (f) => f.hasEarlier === true && f.canAssertNew !== false && f.genuineNewProduct !== false,
@@ -220,7 +223,7 @@ const SAFE = /\b(not seen in|already running when monitoring began|no earlier ca
 // correspond to something the engine actually established? A sentence asserting new/changed/
 // ended must name an entity that appears in a finding of that kind, or it is not reportable.
 // Present-tense description ("ads run to X") is untouched — only assertions of change.
-const CHANGE_VERB = /\b(new|newly|first|launch(ed|es|ing)?|start(ed|s|ing)?|switch(ed|es|ing)?|shift(ed|s|ing)?|replac(ed|es|ing)|drop(ped)?|retir(ed|es)|stopp?(ed)?|add(ed)?|remov(ed)|introduc(ed|ing)|chang(ed|es))\b/i;
+const CHANGE_VERB = /\b(new|newly|first|launch(ed|es|ing)|start(ed|s|ing)|switch(ed|es|ing)|shift(ed|s|ing)|replac(ed|es|ing)|drop(ped)?|retir(ed|es)|stopp?(ed)?|add(ed)?|remov(ed)|introduc(ed|ing)|chang(ed|es))\b/i;
 function tracesToFinding(sentence, facts) {
   const changeFindings = Array.isArray(facts.changeFindings) ? facts.changeFindings : null;
   if (!changeFindings) return true;             // caller didn't supply findings → rule inert
@@ -228,10 +231,7 @@ function tracesToFinding(sentence, facts) {
   // storefront today — prices and products unchanged" was stripped as an untraceable
   // CHANGE claim because 'changes' matched the verb list. Neutralise negated phrasing
   // and "unchanged" before testing — a no-change statement asserts nothing to trace.
-  const sn = String(sentence || '')
-    .replace(/\b(?:no|not|without|never|zero)\s+(?:\w+\s+){0,2}?(?:new|changes?|changed|launch\w*|additions?)\b/gi, '')
-    .replace(/\bunchanged\b/gi, '');
-  if (!CHANGE_VERB.test(sn)) return true;       // not a change claim → nothing to trace
+  if (!CHANGE_VERB.test(assertiveText(sentence))) return true; // not a change claim → nothing to trace
   if (!changeFindings.length) return false;     // nothing changed today, yet this claims it did
   const t = sentence.toLowerCase();
   // The sentence must share a distinctive token with at least one change finding.
@@ -241,15 +241,32 @@ function tracesToFinding(sentence, facts) {
   });
 }
 
+// What the sentence ASSERTS, with negated and standing-state phrasing neutralised — the
+// change-assertion rules test this instead of the raw sentence, so a quiet line can never
+// trip a "new/launched" regex through its own negation (16 + 28 Sep: "No changes on the
+// storefront", "no product, price or promo changes", "most recent launched 2026-09-01"
+// were all stripped as change claims). Rules whose TARGET is the negation itself
+// (bareQuiet, quietWithoutData, ended, completeness) keep the raw sentence.
+function assertiveText(sentence) {
+  return String(sentence || '')
+    .replace(/\b(?:no|not|without|never|zero)\s+(?:[\w']+,?\s+){0,4}?(?:new|newly|changes?|changed|launch\w*|additions?|live\b|started)\b/gi, '')
+    .replace(/\b(?:most recent|latest|last (?:new|one|post|ad|email|launch|item|creative))\b[^.!?]{0,70}/gi, '')
+    .replace(/\bunchanged\b/gi, '');
+}
+// Change-assertion rules: their regex hunts claims of newness/launch/change, so negated
+// mentions of those words are false positives — test the assertive text.
+const ASSERTIVE_RULES = new Set(['staleNew', 'contradictsDiff', 'launched', 'firstNew', 'newProduct', 'replaced', 'priceMove']);
+
 export function checkClaims(text, facts = {}) {
   const out = [];
   const sentences = sentencesOf(text);
   for (const raw of sentences) {
     const s = raw.trim();
     if (!s || SAFE.test(s)) continue;
+    const sa = assertiveText(s);
     let flagged = false;
     for (const r of RULES) {
-      if (!r.re.test(s)) continue;
+      if (!r.re.test(ASSERTIVE_RULES.has(r.id) ? sa : s)) continue;
       if (r.allow(facts, s)) continue;
       out.push({ rule: r.id, why: r.why, sentence: s });
       flagged = true;

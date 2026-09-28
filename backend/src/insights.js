@@ -753,7 +753,11 @@ export async function generateInsights(brand, host) {
       const socialFacts = today.join('\n\n') + windowNote;
       out.social = await ask('social', brand, ((FIND && FIND.social) ? findingsBlock(FIND.social) + '\n\nSUPPORTING DATA (for detail and quotes only — never for new claims):\n' : '') + socialFacts, prev.join('\n\n'), me, capDay);
       try {
-        const f = { canJudgeAbsence: false, comparable: false, hasEarlier: !!prev.length, canAssertNew: !!prev.length, priceComparable: false, changeFindings: ((FIND && FIND.social) || []).filter((x) => x.type === 'new').map((x) => x.text) };
+        // channelConnected: true by construction — this section only generates when posts
+        // were captured, yet the quietWithoutData rule (built for UNMONITORED channels)
+        // was stripping every honest "no new posts …" line from social reads because the
+        // flag was never set (28 Sep canary; likely a long-standing silent stripper).
+        const f = { canJudgeAbsence: false, comparable: false, hasEarlier: !!prev.length, canAssertNew: !!prev.length, priceComparable: false, channelConnected: true, changeFindings: ((FIND && FIND.social) || []).filter((x) => x.type === 'new').map((x) => x.text) };
         out.social = await gateSection(out.social, f, FIND && FIND.social, socialFacts, brand + '/social');
       } catch (e) { /* best-effort */ }
     }

@@ -361,6 +361,14 @@ const lb = { noChanges: false, hasEarlier: true, canAssertNew: true, knownEntiti
 ok(ec2('38 new ads launched today — 18 video, 20 image — all driving to the NEW funnel gruns.co/pages/womens-hair-loss.', lb, 't').text.length > 0, 'a numbered launch batch with "all driving" is a complete delta, not a census');
 ok(ec2('They run all ads exclusively from their own branded page.', { noChanges: false, hasEarlier: true, canAssertNew: true, knownEntities: [], changeFindings: [] }, 't').text === '', 'true universal census claims still stripped');
 
+console.log('\n28 SEP CANARY — quiet-row phrasings survive the claims gate:');
+const qf = { noChanges: true, hasEarlier: true, canAssertNew: true, knownEntities: [], changeFindings: [], channelConnected: true, daysSinceNew: 2 };
+ok(ec2('No product, price or promo changes since yesterday.', qf, 't').text.length > 0, 'multi-word negation ("no product, price or promo changes") is not a change claim');
+ok(ec2('No new ads yesterday — most recent launched 2026-09-01 with a 20%-off code offer.', qf, 't').text.length > 0, 'dating the standing latest item is state, not a change claim');
+ok(ec2("No new ad since 1 Sept (26 days), still running a 20%-off code on their own page.", qf, 't').text.length > 0, 'quiet line carrying age + what stands passes bareQuiet');
+ok(ec2('No new posts since the Series 3 carousel; launch content still dominates.', qf, 't').text.length > 0, 'quiet social line passes when the channel is connected');
+ok(ec2('They launched a new quiz funnel on typeform.com today.', { ...qf, channelConnected: true }, 't').text === '', 'genuine unsupported launch claims still die');
+
 console.log('\nQALOG — every silent downgrade lands in the ledger (20 Aug, "never ask the same question again"):');
 const { qaLog, qaDrain, qaEvents } = await import('../src/qalog.js');
 qaDrain();   // clean slate
