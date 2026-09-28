@@ -27,7 +27,7 @@ async function founderShareUrl() {
   } catch (e) { return 'https://watchback.ai/app.html'; }
 }
 
-const BRIEF_MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';
+const BRIEF_MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-5';
 let _bc;
 function briefClient() { if (!_bc) _bc = new Anthropic(); return _bc; }
 

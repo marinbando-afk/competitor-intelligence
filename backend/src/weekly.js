@@ -14,7 +14,7 @@ import { NEWS_RULE } from './insights.js';
 import { computeFindings, findingsBlock } from './findings.js';
 import { enforceClaims } from './claims.js';
 
-const MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';
+const MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-5';
 let _client;
 function client() { if (!_client) _client = new Anthropic(); return _client; }
 
@@ -161,7 +161,7 @@ export async function generateWeekly(host, name, weekStart) {
     ? findingsBlock([].concat(weekFind.ads || [], weekFind.website || [], weekFind.social || [], weekFind.email || []))
     : '';
   const userContent = (findBlock ? findBlock + '\n\nSUPPORTING DATA (detail and quotes only — never grounds for a new claim):\n' : '') + digest.text;
-  const resp = await client().messages.create({ model: MODEL, max_tokens: 1600, system, messages: [{ role: 'user', content: userContent }] });
+  const resp = await client().messages.create({ model: MODEL, max_tokens: 2200, thinking: { type: 'disabled' }, system, messages: [{ role: 'user', content: userContent }] });
   const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
   let report;
   try { report = JSON.parse(txt.replace(/^```json?\s*/i, '').replace(/\s*```$/, '')); } catch (e) { return null; }

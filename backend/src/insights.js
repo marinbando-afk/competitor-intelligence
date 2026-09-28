@@ -33,7 +33,7 @@ export async function creditStatus(force) {
   if (!process.env.ANTHROPIC_API_KEY) return { ok: false, empty: false, reason: 'no-key' };
   let val;
   try {
-    await client().messages.create({ model: MODEL, max_tokens: 4, messages: [{ role: 'user', content: 'ping' }] });
+    await client().messages.create({ model: MODEL, max_tokens: 4, thinking: { type: 'disabled' }, messages: [{ role: 'user', content: 'ping' }] });
     val = { ok: true };
   } catch (e) {
     val = { ok: false, empty: isCreditError(e), status: (e && e.status) || null, error: String((e && e.message) || e).slice(0, 200) };
@@ -43,7 +43,7 @@ export async function creditStatus(force) {
 }
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';           // the credit ping only (a balance probe needs the CHEAPEST model, not Opus — audit cost fix); creative/angle reads are in creativeRead
-const INSIGHTS_MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-4-6';  // daily per-channel summaries — Sonnet is plenty for summarizing, ~40% cheaper
+const INSIGHTS_MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-5';  // daily per-channel summaries — Sonnet is plenty for summarizing, ~40% cheaper
 let _client;
 function client() { if (!_client) _client = new Anthropic(); return _client; }
 
@@ -57,7 +57,7 @@ function client() { if (!_client) _client = new Anthropic(); return _client; }
 // On Sonnet since 7 Aug (founder: "use Sonnet for everything, abandon Haiku") — the checker
 // must be at least as sharp as the writer it is checking. Runs only at nightly generation —
 // the app serves stored reads, so no user ever waits on it.
-const VERIFY_MODEL = process.env.VERIFY_MODEL || 'claude-sonnet-4-6';
+const VERIFY_MODEL = process.env.VERIFY_MODEL || 'claude-sonnet-5';
 // What the sense check verifies AGAINST: the computed findings first (they are the very
 // facts the writer was instructed to lead with), then the raw capture facts. Exported so
 // tests can pin that findings are never absent from the checker's view again.
@@ -72,7 +72,8 @@ async function senseCheckUnsupported(body, factsText, label) {
   try {
     const r = await client().messages.create({
       model: VERIFY_MODEL,
-      max_tokens: 500,
+      max_tokens: 650,
+      thinking: { type: 'disabled' },
       system:
         'You verify a competitor-intelligence report against the FACTS it was written from. ' +
         'Return ONLY minified JSON: {"unsupported":["<exact sentence copied verbatim>", ...]}.\n' +
@@ -168,7 +169,7 @@ async function gateSection(section, f, findList, factsText, label) {
   return section;
 }
 
-const LAND_MODEL = process.env.LAND_MODEL || 'claude-sonnet-4-6';   // landing-page format classifier — Sonnet since 7 Aug (a mis-read format becomes a wrong insight)
+const LAND_MODEL = process.env.LAND_MODEL || 'claude-sonnet-5';   // landing-page format classifier — Sonnet since 7 Aug (a mis-read format becomes a wrong insight)
 const FETCH_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 const _landCache = new Map();   // host -> { at, val:{format,note} } — analyzed landing-page formats, cached 24h
 function htmlToText(html) {
@@ -447,7 +448,7 @@ async function visionClassifyLanding(host, url, adText) {
       '"listicle", "advertorial", "third-party review", "sales page", "product page", "quiz/survey funnel", "home/category page", "other". ' +
       'An ADVERTORIAL or LISTICLE is a PRE-SELL page framed as EDITORIAL content — a personal story, a "why I switched" / "after decades of…" / "in [country] women do X" narrative, numbered reasons/tips, or a native-news article — that soft-sells before the buy; classify it as advertorial/listicle EVEN IF it also shows reviews, benefit tabs or a buy button. A plain PRODUCT PAGE is a direct product listing (price/variants/add-to-cart) with NO editorial story pre-sell. The AD COPY that drives traffic here is a STRONG hint to the funnel\'s intent. ' +
       'Add a note of <=12 words. Return ONLY minified JSON: {"format":"...","note":"..."}.';
-    const resp = await client().messages.create({ model: process.env.LAND_VISION_MODEL || INSIGHTS_MODEL, max_tokens: 200, system, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } }, { type: 'text', text: 'host=' + host + '\nAD COPY THAT SENDS TRAFFIC HERE: ' + (adText || '(n/a)') }] }] });
+    const resp = await client().messages.create({ model: process.env.LAND_VISION_MODEL || INSIGHTS_MODEL, max_tokens: 280, thinking: { type: 'disabled' }, system, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } }, { type: 'text', text: 'host=' + host + '\nAD COPY THAT SENDS TRAFFIC HERE: ' + (adText || '(n/a)') }] }] });
     const raw = oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''));
     let o = null; try { o = JSON.parse(raw); } catch (e) { const mm = raw.match(/\{[\s\S]*\}/); if (mm) { try { o = JSON.parse(mm[0]); } catch (_) { /* noop */ } } }
     o = o || {};
@@ -498,7 +499,7 @@ async function classifyUrls(items) {   // items: [{ host, url }]
       'Add a note of <=12 words on the angle/hook. Return ONLY minified JSON: {"v":[{"i":1,"format":"...","note":"..."}]}.';
     let arr = [];
     try {
-      const resp = await client().messages.create({ model: LAND_MODEL, max_tokens: 700, system, messages: [{ role: 'user', content: list }] });
+      const resp = await client().messages.create({ model: LAND_MODEL, max_tokens: 950, thinking: { type: 'disabled' }, system, messages: [{ role: 'user', content: list }] });
       const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim().replace(/^```(?:json)?|```$/g, '').trim();
       const p = JSON.parse(txt); if (Array.isArray(p.v)) arr = p.v;
     } catch (e) { arr = []; }
@@ -657,11 +658,11 @@ async function ask(channel, brand, todayBlock, prevBlock, me, today) {
   // The pause also absorbs rate-limit bursts now that every judge runs on Sonnet.
   let resp;
   try {
-    resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 1200, system, messages: [{ role: 'user', content: user }] });
+    resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 1600, thinking: { type: 'disabled' }, system, messages: [{ role: 'user', content: user }] });
   } catch (e) {
     console.warn('ask(' + channel + ') failed for ' + brand + ' — retrying in 20s:', e.message);
     await new Promise((r) => setTimeout(r, 20000));
-    resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 1200, system, messages: [{ role: 'user', content: user }] });
+    resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 1600, thinking: { type: 'disabled' }, system, messages: [{ role: 'user', content: user }] });
   }
   const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
   return parseOut(txt);
@@ -925,7 +926,10 @@ export async function generateInsights(brand, host) {
 
   // Drop empty channels.
   Object.keys(out).forEach((k) => { if (!out[k]) delete out[k]; });
-  if (Object.keys(out).length) { out.generatedAt = new Date().toISOString(); await saveSnapshot(host, 'insights', out); }
+  // __model: which model actually served this read — migration observability (28 Sep,
+  // Sonnet 5 move): a Railway env override (INSIGHTS_MODEL) would silently outrank the
+  // code default, and nothing else records which model produced a stored read.
+  if (Object.keys(out).length) { out.generatedAt = new Date().toISOString(); out.__model = INSIGHTS_MODEL; await saveSnapshot(host, 'insights', out); }
   return out;
 }
 
@@ -1008,7 +1012,7 @@ async function makeBrief(brand, out, me, today, find) {
     `⛔ NEVER state a number or total of ads ("19 ads", "10 of 19 ads", "10 active ads") — our capture is an incomplete sample. Describe prevalence qualitatively (most / about half / a few). Counts of NEW ads launched in a period are fine; totals are not.\n` +
     `R-CAMPAIGN (founder, 19 Aug): also produce "campaign" — ONE sentence ONLY when the COMPUTED FINDINGS show 2 OR MORE channels moving on the SAME theme within the last couple of days (e.g. a new ad funnel + a launch batch + a discount email all pushing one product/offer): name the connected move plainly, with the channels ("Coordinated push on the tallow balm: new advertorial funnel, a fresh ad batch and a 15%-off email inside 48h"). This is the single most valuable line in the report WHEN REAL — and pure damage when manufactured: if the channels are not clearly telling one story, return "" (empty string), never a stretch. ` +
     `Return ONLY minified JSON, no markdown, as SHORT, SCANNABLE BULLET POINTS (not paragraphs): {"campaign":"<one cross-channel sentence or empty string>","verdict":["<THREAT ASSESSMENT — 2 to 3 bullets, each ONE point of UP TO 20 words: LEAD with the key fact, then the plain-English reason. Write each as a sentence a marketer would say out loud — NEVER compress evidence into data-speak ('at 4-of-6-email frequency', '240-day runtime'). If you assert a conclusion (e.g. 'the discount is their real price'), the SAME bullet must carry the plain evidence for it ('4 of their last 6 emails pushed 50% off, so nobody pays full price'). Concrete, specific, self-explanatory to someone who reads only this line>", ...]}`;
-  const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 500, system, messages: [{ role: 'user', content: parts.join('\n') }] });
+  const resp = await client().messages.create({ model: INSIGHTS_MODEL, max_tokens: 700, thinking: { type: 'disabled' }, system, messages: [{ role: 'user', content: parts.join('\n') }] });
   const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
   // Robust parse: try clean JSON, then salvage the first {...} object if the model wrapped
   // it in any preamble/markdown — otherwise a stray word silently drops the whole brief
@@ -1087,7 +1091,7 @@ export async function quickAngle(text, kind, image, video) {
     // the per-token rate is ~40% lower than Opus AND Sonnet caps images at 1568px (~1.6k
     // image tokens) where Opus 4.7+ accepts 2576px (~4.8k), so a full-res creative bills
     // ~3x less. Override with ANGLE_MODEL to go back to Opus for quality.
-    const resp = await client().messages.create({ model: process.env.ANGLE_MODEL || INSIGHTS_MODEL, max_tokens: 400, system, messages: [{ role: 'user', content }] });
+    const resp = await client().messages.create({ model: process.env.ANGLE_MODEL || INSIGHTS_MODEL, max_tokens: 550, thinking: { type: 'disabled' }, system, messages: [{ role: 'user', content }] });
     const raw = oneLine((resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''));
     let o = null;
     try { o = JSON.parse(raw); } catch (e) { const m = raw.match(/\{[\s\S]*\}/); if (m) { try { o = JSON.parse(m[0]); } catch (_) { /* noop */ } } }

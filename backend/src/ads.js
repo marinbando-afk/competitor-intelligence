@@ -15,7 +15,7 @@ const ACTOR = process.env.APIFY_ADS_ACTOR || 'curious_coder~facebook-ads-library
 const TTL = 26 * 60 * 60 * 1000; // 26h — a daily 5am pre-warm keeps this hot so users never wait
 const cache = new Map();
 
-const BRAND_MATCH_MODEL = process.env.BRAND_MODEL || 'claude-sonnet-4-6';   // founder, 7 Aug: wrong-brand ads cost more trust than the judge costs money — Sonnet on every row, Haiku abandoned
+const BRAND_MATCH_MODEL = process.env.BRAND_MODEL || 'claude-sonnet-5';   // founder, 7 Aug: wrong-brand ads cost more trust than the judge costs money — Sonnet on every row, Haiku abandoned
 let _ac;
 function aiClient() { if (!_ac) _ac = new Anthropic(); return _ac; }
 const _verdict = new Map();   // 'brand|advertiser|domain' -> { at, val } — cached AI brand-identity verdicts
@@ -442,7 +442,7 @@ async function sameBrandVerdicts(brand, hint, distinct, desc) {
       `Return ONLY minified JSON: {"v":[{"i":1,"same":true|false}, ...]}, one entry per row.`;
     // 3000 tokens: a deep scrape can surface 50+ distinct advertisers; a tight budget made
     // the model silently return a PARTIAL verdict list (the 18 Jul leak's other half).
-    const resp = await aiClient().messages.create({ model: BRAND_MATCH_MODEL, max_tokens: 3000, system, messages: [{ role: 'user', content: rows }] });
+    const resp = await aiClient().messages.create({ model: BRAND_MATCH_MODEL, max_tokens: 4000, thinking: { type: 'disabled' }, system, messages: [{ role: 'user', content: rows }] });
     const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim().replace(/^```(?:json)?|```$/g, '').trim();
     const parsed = JSON.parse(txt);
     const arr = Array.isArray(parsed.v) ? parsed.v : [];

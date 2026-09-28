@@ -15,7 +15,7 @@ import { offerFacts, offerFlags } from './occasions.js';
 import { userChannels } from './channels.js';
 import { pool } from './db.js';
 
-const MODEL = process.env.CHAT_MODEL || 'claude-sonnet-4-6';
+const MODEL = process.env.CHAT_MODEL || 'claude-sonnet-5';
 
 // Lazy so the server still boots when ANTHROPIC_API_KEY isn't set yet.
 let _client;
@@ -184,7 +184,8 @@ export async function chat(body, uid) {
   // cache breakpoint makes follow-up turns read it at ~10% of the normal input price.
   const resp = await client().messages.create({
     model: MODEL,
-    max_tokens: 1024,
+    max_tokens: 1400,
+    thinking: { type: 'disabled' },
     system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
     messages: buildMessages(body.messages, question),
   });

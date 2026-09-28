@@ -15,7 +15,7 @@ const INBOX = process.env.INBOX_ADDRESS || 'b76eccaaa8ce3a2923a9@cloudmailin.net
 
 // Same judge the ad pipeline uses for "same brand or different company?" — Sonnet since
 // 7 Aug (a wrong verdict here binned 16 real Glov emails; Haiku abandoned).
-const ALIAS_MODEL = process.env.BRAND_MODEL || 'claude-sonnet-4-6';
+const ALIAS_MODEL = process.env.BRAND_MODEL || 'claude-sonnet-5';
 let _ai; function aiClient() { if (!_ai) _ai = new Anthropic(); return _ai; }
 
 function clean(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
@@ -302,7 +302,7 @@ export async function aliasDomains(root, name) {
           `DIFFERENT = any separate company: a competitor, a retailer that stocks the brand, a PARENT or SIBLING company (a parent's own corporate newsletter is NOT the target's — e.g. "Campbell's" <campbells.com> is NOT "Pacific Foods"), an affiliate, or an unrelated business that merely SHARES A WORD with the target. Do NOT call it the same just because the brand's letters appear inside another word (e.g. "glov" also appears in "gloves.com"; "Foodie" is not "The Oodie"). ` +
           `PRECISION FIRST: it is far better to MISS one of the brand's newsletters than to attribute a DIFFERENT company's email to it. If you are not confident, answer DIFFERENT. ` +
           `Return ONLY minified JSON: {"v":[{"i":1,"same":true|false}, ...]}, one entry per row.`;
-        const resp = await aiClient().messages.create({ model: ALIAS_MODEL, max_tokens: 600, system, messages: [{ role: 'user', content: rows }] });
+        const resp = await aiClient().messages.create({ model: ALIAS_MODEL, max_tokens: 800, thinking: { type: 'disabled' }, system, messages: [{ role: 'user', content: rows }] });
         const txt = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim().replace(/^```(?:json)?|```$/g, '').trim();
         const arr = (JSON.parse(txt).v || []);
         cands.forEach((x, i) => { const v = arr.find((y) => Number(y.i) === i + 1); if (v && v.same) confirmed.add(x.sender_domain); });

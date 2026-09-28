@@ -12,7 +12,7 @@ import { pool } from './db.js';
 import Anthropic from '@anthropic-ai/sdk';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
-const BANNER_MODEL = process.env.BANNER_MODEL || 'claude-sonnet-4-6';   // banner read feeds sale detection + promo timeline — Sonnet since 7 Aug (Haiku abandoned)
+const BANNER_MODEL = process.env.BANNER_MODEL || 'claude-sonnet-5';   // banner read feeds sale detection + promo timeline — Sonnet since 7 Aug (Haiku abandoned)
 let _bc;
 function bannerClient() { if (!_bc) _bc = new Anthropic(); return _bc; }
 const oneLine = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
@@ -76,7 +76,7 @@ async function bannerRawFromText(homeText) {
       'You are shown the top of a storefront homepage\'s visible text. If there is an ACTIVE promotion, sale, or offer being advertised (a banner, hero headline, or announcement bar — e.g. a percent-off sale, a free-gift offer, a discount code), state it in <=14 words, plain text. ' +
       'If the promotion has a NAMED OCCASION (e.g. "4th of July Sale", "Black Friday", "Anniversary Sale", "Back to School") — always keep that exact name in what you return; it is the most useful part (it tells us WHEN they run their biggest pushes), so never drop it in favour of just the discount percentage. ' +
       'If there is clearly no active promotion in the text, return an empty string. Only report what is actually stated — never guess or invent one.';
-    const resp = await bannerClient().messages.create({ model: BANNER_MODEL, max_tokens: 60, system, messages: [{ role: 'user', content: homeText }] });
+    const resp = await bannerClient().messages.create({ model: BANNER_MODEL, max_tokens: 90, thinking: { type: 'disabled' }, system, messages: [{ role: 'user', content: homeText }] });
     return (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
   } catch (e) { return ''; }
 }
@@ -95,7 +95,7 @@ async function bannerRawFromShot(shot, homeText) {
         'You are shown a screenshot that SHOULD be a storefront homepage. FIRST check it is actually a webpage: if it is instead an error/placeholder image — a rate-limit or error message (e.g. "too many requests", "local_rate_limited"), a service logo on an empty frame, a browser/CDN error, or a blank/near-blank page with no real page content — reply exactly ERRORPAGE and nothing else. ' +
         'Otherwise: if an ACTIVE promotion/sale/offer is VISIBLY displayed (an announcement bar, banner or hero headline — e.g. a %-off sale, free-gift, or discount code), state it in <=14 words, plain text, keeping any NAMED OCCASION exactly ("4th of July Sale", "Black Friday", "Summer Sale"). ' +
         'If NO promotion is visibly shown, return an empty string. Report ONLY what is actually VISIBLE in the image — never guess, and never report a banner that is not shown.';
-      const resp = await bannerClient().messages.create({ model: BANNER_MODEL, max_tokens: 60, system, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } }, { type: 'text', text: 'What promotion is visibly displayed at the top of this storefront?' }] }] });
+      const resp = await bannerClient().messages.create({ model: BANNER_MODEL, max_tokens: 90, thinking: { type: 'disabled' }, system, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } }, { type: 'text', text: 'What promotion is visibly displayed at the top of this storefront?' }] }] });
       return (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
     } catch (e) { /* vision error → fall back to the HTML-text read */ }
   }

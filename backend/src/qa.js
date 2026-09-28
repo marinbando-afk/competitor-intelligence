@@ -17,7 +17,7 @@ import { latestSnapshot } from './snapshots.js';
 import { checkText } from './rulecheck.js';
 import { qaDrain } from './qalog.js';
 
-const JUDGE_MODEL = process.env.QA_MODEL || 'claude-sonnet-4-6';
+const JUDGE_MODEL = process.env.QA_MODEL || 'claude-sonnet-5';
 let _ai; function ai() { if (!_ai) _ai = new Anthropic(); return _ai; }
 
 // The brand's block in the brief: from its *Name* header to the next header or end.
@@ -111,7 +111,7 @@ async function judgeText(text, factsByBrand) {
   if (!process.env.ANTHROPIC_API_KEY) return [];
   try {
     const r = await ai().messages.create({
-      model: JUDGE_MODEL, max_tokens: 800, temperature: 0,
+      model: JUDGE_MODEL, max_tokens: 1100, thinking: { type: 'disabled' },
       system: JUDGE_RULES,
       messages: [{ role: 'user', content: 'FACTS (computed from captures):\n' + JSON.stringify(factsByBrand) + '\n\nDELIVERED BRIEF:\n' + String(text || '').slice(0, 9000) + '\n\nReturn a JSON array of violations: [{"brand":"","rule":"judge","why":"","quote":""}]. Return [] if clean.' }],
     });
