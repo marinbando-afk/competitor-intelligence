@@ -233,10 +233,17 @@ export async function dailySignals(host, commit) {
         //  • the SAME sale seen on some days and not others (rotation) must not re-fire.
         // So: only a genuine SALE banner, and only if it hasn't shown in the recent capture
         // window (i.e. it's actually new, not just the sale slide coming back around).
-        // R-BANNER-SLIDES: the sale trigger scans EVERY slide the capture holds, not
-        // just the displayed frame (Bloom, 30 Sep — rotating bar made sales a lottery).
-        const saleB = saleBannerOf(cur);
-        if (saleB && !(await saleBannerSeenRecently(host, saleB, todayStr))) {
+        // R-BANNER-SLIDES: EVERY sale slide the capture holds is an announce candidate —
+        // a standing offer in the displayed frame must not shadow a genuinely new sale
+        // slide sitting in the same DOM (Bloom, 30 Sep). First never-seen candidate wins;
+        // when all are known, the preferred one takes the catch-up path as before.
+        const saleCands = bannerTextsOf(cur).filter((t) => isSaleBanner(t));
+        let saleB = '', saleBNew = false;
+        for (const cand of saleCands) {
+          if (!(await saleBannerSeenRecently(host, cand, todayStr))) { saleB = cand; saleBNew = true; break; }
+        }
+        if (!saleB) saleB = saleBannerOf(cur);
+        if (saleB && saleBNew) {
           out.sale = saleAnnouncement(saleB);
         } else if (saleB) {
           // CATCH-UP (founder, 12 Aug: Seranova's Back-to-School sale started between the

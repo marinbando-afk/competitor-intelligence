@@ -23,7 +23,7 @@
 import { pool } from './db.js';
 import { latestSnapshot, saveSnapshot } from './snapshots.js';
 import { diffWebsite } from './website.js';
-import { sameBannerText, isSaleBanner, cleanBannerText, bannerTextsOf, saleBannerOf, offerFlags, timerIn, TIMER_RE } from './occasions.js';
+import { sameBannerText, isSaleBanner, cleanBannerText, bannerTextsOf, saleBannerOf, saleOccasionKey, offerFlags, timerIn, TIMER_RE } from './occasions.js';
 
 const dOf = (v) => String(v instanceof Date ? v.toISOString() : v || '').slice(0, 10);
 const domOf = (u) => String(u || '').replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '').toLowerCase();
@@ -361,9 +361,28 @@ export function websiteFindings(rows) {
   // R-BANNER-VERBATIM: strip any model commentary a past capture baked into the field —
   // history holds poisoned rows (CurrentBody, 18 Aug) and quoting them verbatim ships the
   // model's own caveat as if it were the competitor's storefront copy.
-  // R-BANNER-SLIDES: the promo path anchors on the capture's SALE slide when the
-  // displayed frame happens to be a non-sale slide of a rotating bar (Bloom, 30 Sep).
-  const bannerNow = saleBannerOf(cur) || cleanBannerText(cur.banner || '');
+  // R-BANNER-SLIDES: the promo path anchors on the capture's NEWEST sale slide — the
+  // news — not the displayed frame and not a standing offer that happens to sit first
+  // (Bloom, 30 Sep: the evergreen "15% off for life" frame shadowed a "SAVE UP TO 30%
+  // on Bundles" slide the sampling lottery had never shown).
+  // Oldest sighting of a promo within the 14-day window, ROTATION-TOLERANT: no break on
+  // a day whose bar showed a different slide (the old contiguous scan re-dated every
+  // rotating slide to "first seen today" each time it cycled back — Bloom's daily churn).
+  const sliceSince = (txt) => {
+    let s2 = today.day;
+    for (const r of rows.slice(0, 14)) {
+      if (bannerTextsOf(r.data || {}).some((b) => sameBannerText(b, txt))) s2 = r.day;   // newest→oldest ⇒ ends at oldest sighting
+    }
+    return s2;
+  };
+  const saleCands = bannerTextsOf(cur).filter((t) => isSaleBanner(t));
+  let pickSale = '';
+  for (const c of saleCands) {
+    if (!pickSale) { pickSale = c; continue; }
+    const a2 = sliceSince(c), b2 = sliceSince(pickSale);
+    if (a2 > b2 || (a2 === b2 && saleOccasionKey(c) && !saleOccasionKey(pickSale))) pickSale = c;
+  }
+  const bannerNow = pickSale || cleanBannerText(cur.banner || '');
 
   // ROTATION IS THE NORM (founder, 6 Aug — Glov). Announcement bars cycle sale + social
   // proof + USP slides, so one capture is a SAMPLE of the bar, not the bar. Surface the other
@@ -409,15 +428,9 @@ export function websiteFindings(rows) {
   }
 
   if (bannerNow && bannerNow.trim().length > 2) {
-    // Date the banner from its own history, tolerant of re-wording and rotation — and
-    // slide-aware (R-BANNER-SLIDES): a day whose DISPLAYED frame differed still counts
-    // when the same promo sat in that day's DOM slides.
-    let since = today.day;
-    for (const r of rows.slice(1)) {
-      const texts = bannerTextsOf(r.data || {});
-      if (!texts.length) continue;
-      if (texts.some((b) => sameBannerText(b, bannerNow))) since = r.day; else break;
-    }
+    // Date the banner from its own history — slide-aware and rotation-tolerant (the
+    // shared window scan above).
+    const since = sliceSince(bannerNow);
     const isNew = since === today.day && rows.length > 1 && rows.slice(1).some((r) => r.data);
     // WHAT IT REPLACED, and when we first saw the swap (Seranova, 12 Aug: "Back to School
     // Sale … active and unchanged" — it had replaced "SUMMER SALE: UP TO 58% OFF" the day
