@@ -23,7 +23,7 @@
 import { pool } from './db.js';
 import { latestSnapshot, saveSnapshot } from './snapshots.js';
 import { diffWebsite } from './website.js';
-import { sameBannerText, isSaleBanner, cleanBannerText, offerFlags, timerIn, TIMER_RE } from './occasions.js';
+import { sameBannerText, isSaleBanner, cleanBannerText, bannerTextsOf, saleBannerOf, offerFlags, timerIn, TIMER_RE } from './occasions.js';
 
 const dOf = (v) => String(v instanceof Date ? v.toISOString() : v || '').slice(0, 10);
 const domOf = (u) => String(u || '').replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '').toLowerCase();
@@ -361,7 +361,9 @@ export function websiteFindings(rows) {
   // R-BANNER-VERBATIM: strip any model commentary a past capture baked into the field —
   // history holds poisoned rows (CurrentBody, 18 Aug) and quoting them verbatim ships the
   // model's own caveat as if it were the competitor's storefront copy.
-  const bannerNow = cleanBannerText(cur.banner || '');
+  // R-BANNER-SLIDES: the promo path anchors on the capture's SALE slide when the
+  // displayed frame happens to be a non-sale slide of a rotating bar (Bloom, 30 Sep).
+  const bannerNow = saleBannerOf(cur) || cleanBannerText(cur.banner || '');
 
   // ROTATION IS THE NORM (founder, 6 Aug — Glov). Announcement bars cycle sale + social
   // proof + USP slides, so one capture is a SAMPLE of the bar, not the bar. Surface the other
@@ -374,11 +376,14 @@ export function websiteFindings(rows) {
   // sighting of the old text strictly before every sighting of the new one.
   const slides = [];
   for (const r of rows.slice(0, 14)) {
-    const b2 = r.data && r.data.banner;
-    if (!b2) continue;
-    const hit = slides.find((x) => sameBannerText(x.text, b2));
-    if (hit) { hit.days.push(r.day); hit.day = r.day; }               // r.day is older each step
-    else slides.push({ text: b2, day: r.day, days: [r.day], sale: isSaleBanner(b2) });
+    // Every text the capture holds — displayed frame + DOM slides (R-BANNER-SLIDES) — so
+    // a sale slide's first-seen day is when it entered the DOM, not when the sampling
+    // lottery happened to display it.
+    for (const b2 of bannerTextsOf(r.data || {})) {
+      const hit = slides.find((x) => sameBannerText(x.text, b2));
+      if (hit) { hit.days.push(r.day); hit.day = r.day; }             // r.day is older each step
+      else slides.push({ text: b2, day: r.day, days: [r.day], sale: isSaleBanner(b2) });
+    }
   }
   const spanOf = (sl) => ({ first: sl.days[sl.days.length - 1], last: sl.days[0] });
   // Overlapping runs mean the texts alternate — that is a rotating bar, never a swap.
@@ -404,11 +409,14 @@ export function websiteFindings(rows) {
   }
 
   if (bannerNow && bannerNow.trim().length > 2) {
-    // Date the banner from its own history, tolerant of re-wording and rotation.
+    // Date the banner from its own history, tolerant of re-wording and rotation — and
+    // slide-aware (R-BANNER-SLIDES): a day whose DISPLAYED frame differed still counts
+    // when the same promo sat in that day's DOM slides.
     let since = today.day;
     for (const r of rows.slice(1)) {
-      const b = r.data && r.data.banner;
-      if (b && sameBannerText(b, bannerNow)) since = r.day; else if (b) break;
+      const texts = bannerTextsOf(r.data || {});
+      if (!texts.length) continue;
+      if (texts.some((b) => sameBannerText(b, bannerNow))) since = r.day; else break;
     }
     const isNew = since === today.day && rows.length > 1 && rows.slice(1).some((r) => r.data);
     // WHAT IT REPLACED, and when we first saw the swap (Seranova, 12 Aug: "Back to School

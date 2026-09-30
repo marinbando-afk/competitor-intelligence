@@ -81,6 +81,22 @@ async function bannerRawFromText(homeText) {
   } catch (e) { return ''; }
 }
 
+// R-BANNER-SLIDES (founder, 30 Sep — Bloom): the DOM carries EVERY rotation slide even
+// though the screenshot shows one. List them all, so a sale slide is captured the day it
+// appears regardless of rotation phase — single-frame sampling made sales a lottery.
+async function bannerSlidesFromText(homeText) {
+  if (!process.env.ANTHROPIC_API_KEY || !homeText) return [];
+  try {
+    const system =
+      'You are shown the top of a storefront homepage\'s visible text, which may contain SEVERAL rotating announcement-bar slides and hero offers. ' +
+      'List EVERY distinct promotion, sale, offer or announcement stated in the text — one per line, each <=14 words, verbatim wording, keep named occasions exactly. ' +
+      'Max 5 lines. No commentary, no numbering. If none, return an empty string.';
+    const resp = await bannerClient().messages.create({ model: BANNER_MODEL, max_tokens: 200, thinking: { type: 'disabled' }, system, messages: [{ role: 'user', content: homeText }] });
+    const raw = (resp.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+    return raw.split('\n').map((l) => cleanBanner(l)).filter(Boolean).slice(0, 5);
+  } catch (e) { return []; }
+}
+
 // Read the promo banner from the SCREENSHOT (what's actually DISPLAYED) rather than the raw
 // HTML — a plain fetch runs no JS, so it can pick up an UPCOMING banner sitting in the page
 // code behind a countdown and report a sale switch a DAY before it's visibly shown. Reading
@@ -289,6 +305,9 @@ export async function captureWebsite(host, url) {
   // rotation (the sale slide cycling out of the HTML slice) doesn't fire a shot every day.
   const bnorm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
   const htmlBanner = cleanBanner(await bannerRawFromText(homeText));
+  // Every rotation slide in the DOM, captured daily (R-BANNER-SLIDES) — sale detection
+  // scans these, so the displayed frame no longer decides what we see.
+  const bannerSlides = await bannerSlidesFromText(homeText);
   const bannerChanged = !!htmlBanner && bnorm(htmlBanner) !== bnorm(prev && prev.banner);
   const summaryChanged = !!(prev && prev.summary && summary && diffWebsite(prev.summary, summary).length) || (!!summary !== !!(prev && prev.summary));
   const changed = !prev || !lastFrameDay || frameAgeDays >= 7 || summaryChanged || bannerChanged || stalePending;
@@ -297,8 +316,8 @@ export async function captureWebsite(host, url) {
     // Quiet: keep today's own frame if we have one, else a dated pointer to the last real
     // frame — no screenshot spent, and the UI says "unchanged since <day>" honestly.
     const data = sameDayFrame
-      ? { summary, shot: sameDayFrame, banner: (prev && prev.banner) || '', capturedAt: new Date().toISOString() }
-      : { summary, shot: null, shotFrom: lastFrameDay, banner: (prev && prev.banner) || '', capturedAt: new Date().toISOString() };
+      ? { summary, shot: sameDayFrame, banner: (prev && prev.banner) || '', bannerSlides, capturedAt: new Date().toISOString() }
+      : { summary, shot: null, shotFrom: lastFrameDay, banner: (prev && prev.banner) || '', bannerSlides, capturedAt: new Date().toISOString() };
     await saveSnapshot(host, 'website', data);
     return data;
   }
@@ -317,12 +336,12 @@ export async function captureWebsite(host, url) {
     // it keeps both the capture gate and the view-time self-heal retrying until a real
     // frame replaces it (a successful shot stores no flag, clearing it naturally).
     const data = sameDayFrame
-      ? { summary, shot: sameDayFrame, banner: (prev && prev.banner) || banner || '', capturedAt: new Date().toISOString() }
-      : { summary, shot: null, ...(refDay ? { shotFrom: refDay } : {}), banner, shotStale: true, capturedAt: new Date().toISOString() };
+      ? { summary, shot: sameDayFrame, banner: (prev && prev.banner) || banner || '', bannerSlides, capturedAt: new Date().toISOString() }
+      : { summary, shot: null, ...(refDay ? { shotFrom: refDay } : {}), banner, bannerSlides, shotStale: true, capturedAt: new Date().toISOString() };
     await saveSnapshot(host, 'website', data);
     return data;
   }
-  const data = { summary, shot, banner, capturedAt: new Date().toISOString() };
+  const data = { summary, shot, banner, bannerSlides, capturedAt: new Date().toISOString() };
   await saveSnapshot(host, 'website', data);
   return data;
 }

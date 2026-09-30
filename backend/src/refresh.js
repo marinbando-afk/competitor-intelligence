@@ -367,13 +367,19 @@ export async function coverageAudit({ repair = true, day, host } = {}) {
   const brands = (await allBrands()).filter((b) => !host || b.host === host);
   const rows = [];
   for (const b of brands) {
-    let web = false, shot = false, ads = false;
+    let web = false, shot = false, ads = false, feed = false;
     try {
       const r = await pool.query(
         `SELECT channel, data FROM snapshots WHERE host = $1 AND day = $2 AND channel IN ('website','ads')`,
         [b.host, today]);
       for (const x of r.rows) {
-        if (x.channel === 'website') { web = true; shot = !!(x.data && (x.data.shot || x.data.shotFrom)); }
+        if (x.channel === 'website') {
+          web = true; shot = !!(x.data && (x.data.shot || x.data.shotFrom));
+          // R-FEED-VISIBLE (Bloom, 30 Sep): a brand can capture fine yet have NO product
+          // feed — the primary sale trigger (saleCount transitions) is then silently
+          // blind for that brand, and nothing ever said so.
+          feed = !!(x.data && x.data.summary && x.data.summary.items && Object.keys(x.data.summary.items).length);
+        }
         if (x.channel === 'ads') ads = true;
       }
     } catch (e) { /* treat as missing */ }
@@ -385,7 +391,7 @@ export async function coverageAudit({ repair = true, day, host } = {}) {
         `SELECT channel, data FROM snapshots WHERE host = $1 AND channel IN ('instagram','tiktok','facebook') ORDER BY day DESC LIMIT 6`, [b.host]);
       social = r2.rows.some((x) => x.data && Array.isArray(x.data.posts) && x.data.posts.length > 0);
     } catch (e) { /* treat as missing */ }
-    rows.push({ host: b.host, name: b.name, web, shot, ads, social });
+    rows.push({ host: b.host, name: b.name, web, shot, ads, social, feed });
   }
   let repaired = 0;
   if (repair) {
@@ -431,7 +437,8 @@ export async function coverageAudit({ repair = true, day, host } = {}) {
   }
   const missing = rows.filter((r) => !r.web || !r.shot);
   const noSocial = rows.filter((r) => !r.social);
-  return { day: today, total: rows.length, ok: rows.length - missing.length, repaired, missing, noSocial, rows };
+  const noFeed = rows.filter((r) => r.web && !r.feed);
+  return { day: today, total: rows.length, ok: rows.length - missing.length, repaired, missing, noSocial, noFeed, rows };
 }
 
 // Report the audit to the founder's Slack — silence is only acceptable when everything landed.
@@ -443,15 +450,22 @@ export async function coverageAuditAndAlert() {
         a.noSocial.slice(0, 10).map((m) => '   • ' + (m.name || m.host)).join('\n') +
         ((a.noSocial.length > 10) ? '\n   …and ' + (a.noSocial.length - 10) + ' more' : '')
       : '';
+    // R-FEED-VISIBLE (Bloom, 30 Sep): brands whose storefront yields no product feed —
+    // price/sale-scope detection is BANNER-ONLY there, and the founder must know which.
+    const feedGap = (a.noFeed || []).length
+      ? '\n\n🧾 *No product feed* — sale-scope and price detection are banner-only for these brands (the storefront blocks or lacks a readable product feed):\n' +
+        a.noFeed.slice(0, 10).map((m) => '   • ' + (m.name || m.host)).join('\n') +
+        ((a.noFeed.length > 10) ? '\n   …and ' + (a.noFeed.length - 10) + ' more' : '')
+      : '';
     if (!a.missing.length) {
       console.log('✓ coverage audit: all ' + a.total + ' brands captured' + (a.repaired ? ' (' + a.repaired + ' repaired)' : ''));
-      if (socialGap) { try { const { postText } = await import('./slack.js'); await postText('🔎 *WatchBack coverage — ' + a.day + '*' + socialGap); } catch (e) { /* best-effort */ } }
+      if (socialGap || feedGap) { try { const { postText } = await import('./slack.js'); await postText('🔎 *WatchBack coverage — ' + a.day + '*' + socialGap + feedGap); } catch (e) { /* best-effort */ } }
       return a;
     }
     const lines = a.missing.map((m) => '   • ' + (m.name || m.host) + ' — ' + (!m.web ? 'no website capture' : 'no screenshot') + (m.error ? ' (' + String(m.error).slice(0, 80) + ')' : ''));
     const msg = '⚠️ *WatchBack capture gap — ' + a.day + '*\n' + a.missing.length + ' of ' + a.total +
       ' brand(s) could not be captured even after a retry' + (a.repaired ? ' (' + a.repaired + ' others were repaired)' : '') +
-      '. Their reads will say the data is missing rather than guess:\n' + lines.join('\n') + socialGap;
+      '. Their reads will say the data is missing rather than guess:\n' + lines.join('\n') + socialGap + feedGap;
     console.warn(msg.replace(/\*/g, ''));
     try { const { postText } = await import('./slack.js'); await postText(msg); } catch (e) { /* alert best-effort */ }
     return a;

@@ -369,6 +369,26 @@ ok(ec2("No new ad since 1 Sept (26 days), still running a 20%-off code on their 
 ok(ec2('No new posts since the Series 3 carousel; launch content still dominates.', qf, 't').text.length > 0, 'quiet social line passes when the channel is connected');
 ok(ec2('They launched a new quiz funnel on typeform.com today.', { ...qf, channelConnected: true }, 't').text === '', 'genuine unsupported launch claims still die');
 
+console.log('\nBANNER SLIDES — a rotating bar\'s sale slide is caught whichever frame displayed (Bloom, 30 Sep):');
+const { saleBannerOf, bannerTextsOf } = await import('../src/occasions.js');
+const capBloom = { banner: '15% off for life when you Subscribe & Save', bannerSlides: ['FREE sample on all orders', 'Fall Sale — 25% off sitewide'] };
+ok(saleBannerOf(capBloom) === 'Fall Sale — 25% off sitewide', 'saleBannerOf finds the sale slide behind a non-sale displayed frame');
+ok(bannerTextsOf(capBloom).length === 3, 'bannerTextsOf returns every distinct slide');
+ok(saleBannerOf({ banner: 'Free shipping on all orders', bannerSlides: ['New arrivals just dropped'] }) === '', 'operational slides never produce a sale');
+const mkW = (day, banner, slides) => ({ day, data: { banner, bannerSlides: slides || [], summary: { items: { p1: { title: 'Greens', price: 40 } }, count: 1, saleCount: 0, min: 40 } } });
+const wfS = websiteFindings([
+  mkW('2026-09-30', 'Subscribe & Save 15%', ['Fall Sale — 25% off sitewide']),
+  mkW('2026-09-29', 'FREE sample on all orders', []),
+  mkW('2026-09-28', 'Subscribe & Save 15%', []),
+]).find((f) => f.key === 'web.banner');
+ok(!!wfS && /Fall Sale/.test(wfS.text) && /first seen today/.test(wfS.text), 'promo path anchors on the DOM sale slide, first-seen day-of');
+const wfS2 = websiteFindings([
+  mkW('2026-09-30', 'Subscribe & Save 15%', ['Fall Sale — 25% off sitewide']),
+  mkW('2026-09-29', 'FREE sample on all orders', ['Fall Sale — 25% off sitewide']),
+  mkW('2026-09-28', 'Subscribe & Save 15%', ['Fall Sale — 25% off sitewide']),
+]).find((f) => f.key === 'web.banner');
+ok(!!wfS2 && /Fall Sale/.test(wfS2.text) && !/first seen today/.test(wfS2.text), 'a sale slide already in the DOM for days is not "first seen today"');
+
 console.log('\nQALOG — every silent downgrade lands in the ledger (20 Aug, "never ask the same question again"):');
 const { qaLog, qaDrain, qaEvents } = await import('../src/qalog.js');
 qaDrain();   // clean slate

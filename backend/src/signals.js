@@ -14,7 +14,7 @@
 import { recentSnapshots, allSnapshots, latestSnapshot, saveSnapshot } from './snapshots.js';
 import { diffWebsite } from './website.js';
 import { adsChanges, adDomain, isFunnelUrl } from './ads.js';
-import { offerFlags, isSaleBanner, cleanBannerText, sameBannerText, TIMER_RE } from './occasions.js';
+import { offerFlags, isSaleBanner, cleanBannerText, sameBannerText, bannerTextsOf, saleBannerOf, TIMER_RE } from './occasions.js';
 import { resolveCapture } from './capture.js';
 import { computeFindings } from './findings.js';
 
@@ -183,13 +183,13 @@ async function saleBannerSeenRecently(host, banner, todayStr) {
     const snaps = await allSnapshots(host, 'website');   // oldest → newest
     const prior = snaps.filter((s) => s.day && s.day < todayStr).slice(-SALE_LOOKBACK);
     for (const s of prior) {
-      const b = s.data && s.data.banner;
+      const cands = bannerTextsOf(s.data || {});
       // Containment counts as the SAME sale: the vision read of one bar varies run to run
       // ("UP TO 40% OFF" vs "UP TO 40% OFF 1M JARS SOLD" — Froya, 27 Jul), and an exact-match
       // test re-announced a weeks-old banner as a new sale on the day the fuller read landed.
       // Shared sameness test (occasions.js): survives re-ordering and re-wording of the
       // same bar — UKLASH's one subscription offer was read four different ways in four days.
-      if (b && isSaleBanner(b) && sameBannerText(b, banner)) return true;
+      if (cands.some((b) => isSaleBanner(b) && sameBannerText(b, banner))) return true;
     }
     return false;
   } catch (e) { return true; }   // on any doubt, stay quiet (precision-first)
@@ -233,7 +233,9 @@ export async function dailySignals(host, commit) {
         //  • the SAME sale seen on some days and not others (rotation) must not re-fire.
         // So: only a genuine SALE banner, and only if it hasn't shown in the recent capture
         // window (i.e. it's actually new, not just the sale slide coming back around).
-        const saleB = bannerOk(cur.banner) && isSaleBanner(cur.banner) ? cleanBannerText(cur.banner) : '';
+        // R-BANNER-SLIDES: the sale trigger scans EVERY slide the capture holds, not
+        // just the displayed frame (Bloom, 30 Sep — rotating bar made sales a lottery).
+        const saleB = saleBannerOf(cur);
         if (saleB && !(await saleBannerSeenRecently(host, saleB, todayStr))) {
           out.sale = saleAnnouncement(saleB);
         } else if (saleB) {
@@ -250,8 +252,7 @@ export async function dailySignals(host, commit) {
             try {
               const hist = await allSnapshots(host, 'website');   // oldest → newest
               for (const sn of hist) {
-                const bb = sn.data && sn.data.banner;
-                if (sn.day && bb && isSaleBanner(bb) && sameBannerText(bb, saleB)) { firstSeen = sn.day; break; }
+                if (sn.day && bannerTextsOf(sn.data || {}).some((bb) => isSaleBanner(bb) && sameBannerText(bb, saleB))) { firstSeen = sn.day; break; }
               }
             } catch (e) { /* default: treat as recent */ }
             const recent = (Date.parse(todayStr) - Date.parse(firstSeen)) <= 2 * 864e5;
@@ -269,7 +270,7 @@ export async function dailySignals(host, commit) {
           const cutS = new Date(Date.parse(todayStr) - 180 * 864e5).toISOString().slice(0, 10);
           const nextS = {};
           for (const [fp, day] of Object.entries(seenS)) if (typeof day === 'string' && day >= cutS) nextS[fp] = day;
-          const bStrS = stripTimer((bannerOk(cur.banner) && isSaleBanner(cur.banner) ? cur.banner : '') || out.sale);
+          const bStrS = stripTimer(saleBannerOf(cur) || out.sale);
           const fpS = normBanner(bStrS);
           if (fpS && !nextS[fpS]) nextS[fpS] = todayStr;
           const listS = ((stS && Array.isArray(stS.banners)) ? stS.banners : []).filter((x) => x && typeof x.day === 'string' && x.day >= cutS);

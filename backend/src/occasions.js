@@ -147,6 +147,31 @@ export function isPressQuoteBanner(s) {
   return /["“”'’][.\s]*[-–—]\s*[A-Z][\w&.'’ ]{1,30}$/.test(cleanBannerText(raw));
 }
 
+// R-BANNER-SLIDES (founder, 30 Sep — Bloom: "today Bloom sale wasn't captured"): one
+// captured frame per night samples ONE slide of a rotating bar, so catching a sale slide
+// was a lottery. The capture now stores every announcement/promo line found in the DOM
+// (data.bannerSlides); these helpers give every consumer the full set.
+export function bannerTextsOf(d) {
+  const out = [];
+  for (const t of [d && d.banner, ...((d && d.bannerSlides) || [])]) {
+    const c = cleanBannerText(t);
+    if (c && !out.some((x) => sameBannerText(x, c))) out.push(c);
+  }
+  return out;
+}
+
+// The sale banner a capture actually holds. An OCCASION-NAMED sale slide outranks a
+// generic evergreen discount slide (the occasion IS the sale — R-SALE-RENAME doctrine):
+// Bloom's standing "15% off for life Subscribe & Save" frame must not shadow a "Fall
+// Sale — 25% off" slide sitting in the same DOM. '' when no slide is a sale.
+export function saleBannerOf(d) {
+  const texts = bannerTextsOf(d);
+  const occ = texts.find((c) => isSaleBanner(c) && saleOccasionKey(c));
+  if (occ) return occ;
+  for (const c of texts) if (isSaleBanner(c)) return c;
+  return '';
+}
+
 export function isSaleBanner(text) {
   const t = cleanBannerText(text);
   if (!t) return false;
