@@ -381,13 +381,19 @@ const wfS = websiteFindings([
   mkW('2026-09-29', 'FREE sample on all orders', []),
   mkW('2026-09-28', 'Subscribe & Save 15%', []),
 ]).find((f) => f.key === 'web.banner');
-ok(!!wfS && /Fall Sale/.test(wfS.text) && /first seen today/.test(wfS.text), 'promo path anchors on the DOM sale slide, first-seen day-of');
+ok(!!wfS && /Fall Sale/.test(wfS.text) && /captured today; full-rotation capture began today/.test(wfS.text), 'promo path anchors on the DOM sale slide, honestly dated (no prior slide history)');
 const wfS2 = websiteFindings([
   mkW('2026-09-30', 'Subscribe & Save 15%', ['Fall Sale — 25% off sitewide']),
   mkW('2026-09-29', 'FREE sample on all orders', ['Fall Sale — 25% off sitewide']),
   mkW('2026-09-28', 'Subscribe & Save 15%', ['Fall Sale — 25% off sitewide']),
 ]).find((f) => f.key === 'web.banner');
 ok(!!wfS2 && /Fall Sale/.test(wfS2.text) && !/first seen today/.test(wfS2.text), 'a sale slide already in the DOM for days is not "first seen today"');
+const wfS3 = websiteFindings([
+  mkW('2026-09-30', 'Subscribe & Save 15%', ['SAVE UP TO 30% on Bundles']),
+  mkW('2026-09-29', 'FREE sample on all orders', []),
+  mkW('2026-09-28', 'Subscribe & Save 15%', []),
+]).find((f) => f.key === 'web.banner');
+ok(!!wfS3 && /SAVE UP TO 30% on Bundles/.test(wfS3.text) && /full-rotation capture began today/.test(wfS3.text), 'slide-discovered promo with no prior slide history says so honestly (transition wording)');
 
 console.log('\nQALOG — every silent downgrade lands in the ledger (20 Aug, "never ask the same question again"):');
 const { qaLog, qaDrain, qaEvents } = await import('../src/qalog.js');

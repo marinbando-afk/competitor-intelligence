@@ -422,7 +422,7 @@ export function websiteFindings(rows) {
     out.push({
       type: 'context', key: 'web.rotation',
       text: 'Their announcement bar ROTATES — slides seen recently: ' + slides.slice(0, 4).map((x) => '"' + x.text + '" (' + x.day + ')').join(', ') +
-        '. Today\'s captured slide is one of several; the others are almost certainly still running. Never treat a slide missing today as removed, or a slide seen today as newly added.',
+        '. Today\'s captured slide is one of several; the others are almost certainly still running. Never treat a slide missing today as removed. The separate Storefront promo finding is SLIDE-AWARE and rotation-tolerant — trust its dating; never contradict it with rotation caution.',
       evidence: { slides: slides.slice(0, 5) },
     });
   }
@@ -515,8 +515,15 @@ export function websiteFindings(rows) {
     const quote = tm ? bannerNow.replace(TIMER_RE, '').replace(/\s{2,}/g, ' ').trim().replace(/[\s—–\-:,;]+$/, '') : bannerNow;
     // The dating clause, in time order: what replaced what, then how settled it is. Never
     // "launched"/"live since" — we know when we FIRST SAW it, not when they published it.
+    // TRANSITION HONESTY (R-BANNER-SLIDES rollout): a promo discovered via a DOM slide,
+    // with no prior day carrying slide data, has no provable start — full-rotation
+    // capture just began, so it may have been running earlier. Once prior days hold
+    // slides, absence is meaningful again and plain "first seen today" returns.
+    const priorSlidesEra = rows.slice(1).some((r) => Array.isArray(r.data && r.data.bannerSlides) && r.data.bannerSlides.length);
+    const viaSlide = !!pickSale && !sameBannerText(pickSale, cleanBannerText(cur.banner || ''));
     let when;
-    if (isNew && swapped) when = ' — first seen in today\'s capture, replacing "' + prevBanner.text + '" (last seen ' + prevBanner.day + ').';
+    if (isNew && viaSlide && !priorSlidesEra) when = ' — captured today; full-rotation capture began today, so it may already have been running.';
+    else if (isNew && swapped) when = ' — first seen in today\'s capture, replacing "' + prevBanner.text + '" (last seen ' + prevBanner.day + ').';
     else if (isNew) when = ' — first seen today; earlier captures showed a different banner.';
     else if (recentSwap) when = ' — a NEW SALE: it replaced "' + prevBanner.text + '" and was first seen in our ' + since + ' capture'
       + (sameDiscount ? '. Same headline discount, new occasion name: the offer did not change, only its pretext' : '') + '.';
