@@ -451,6 +451,7 @@ export async function buildDailyBrief(brands, viewUrl, commit, channels) {
 export async function postDailyBrief(brands, viewUrl, webhook) {
   const dest = process.env.SLACK_WEBHOOK_URL || webhook || (await founderWebhook()) || '';
   if (!dest) return { sent: false, reason: 'no Slack destination — set SLACK_WEBHOOK_URL or connect Slack on your account' };
+  try { await preflightDailyBriefs(brands); } catch (e) { /* the gate must never block the send */ }
   const text = await buildDailyBrief(brands, viewUrl, true);   // real delivery → commit announce-once state
   return postBrief(dest, text);
 }
@@ -547,10 +548,48 @@ export async function postTo(webhook, text, blocks) {
 
 // Per-account daily briefs: every user who connected Slack gets THEIR OWN competitors'
 // brief in THEIR channel. (The env webhook, if set, still gets the founder's roll-up.)
+// R-PREFLIGHT (founder, 1 Oct: "can you draft report -> spot issues -> send updated
+// report with no issues?"): the audit used to run AFTER delivery — a safety net that
+// told the founder what already shipped broken. Now it is a GATE: draft the brief over
+// the union of brands, run the deterministic audit (misses + congruence + hard gate; the
+// model judge stays post-send — advisory, not auto-repairable), REGENERATE the offending
+// brands' reads, and only then send. One repair pass; whatever survives it ships anyway
+// (a late brief is worse than a flagged one) and is pinged as unresolved.
+export async function preflightDailyBriefs(brands) {
+  try {
+    if (!(brands || []).length) return { clean: true, issues: [] };
+    const qa = await import('./qa.js');
+    const { generateInsights } = await import('./insights.js');
+    for (let pass = 0; pass < 2; pass++) {
+      const draft = await buildDailyBrief(brands);   // preview semantics — never consumes announce-once state
+      const { issues } = await qa.auditBriefText(draft, brands, { judge: false });
+      if (!issues.length) { console.log('✓ preflight: brief clean' + (pass ? ' after repair' : '')); return { clean: true, issues: [], repaired: pass }; }
+      const hosts = [...new Set(issues.map((v) => ((brands.find((b) => b.name === v.brand) || {}).host)).filter(Boolean))].slice(0, 10);
+      console.log('preflight pass ' + (pass + 1) + ': ' + issues.length + ' issue(s)' + (hosts.length ? ' — regenerating ' + hosts.join(', ') : ''));
+      if (pass === 1 || !hosts.length) {
+        postText('🧯 *Pre-send audit — ' + issues.length + ' issue(s) remain after repair; sending anyway:*\n'
+          + issues.slice(0, 8).map((v) => '• ' + (v.brand || '') + ' — ' + v.rule + ': ' + String(v.why).slice(0, 130)).join('\n')).catch(() => {});
+        return { clean: false, issues };
+      }
+      for (const h of hosts) {
+        const b = brands.find((x) => x.host === h);
+        try { await generateInsights((b && b.name) || h, h); } catch (e) { console.warn('preflight regen ' + h + ':', e.message); }
+      }
+    }
+  } catch (e) { console.warn('preflight:', e.message); }
+  return { clean: false, issues: [] };
+}
+
 export async function sendUserDailyBriefs(pool) {
   if (!pool) return { sent: 0, total: 0 };
   let sent = 0, total = 0, lastText = '';
   const auditBrands = new Map();
+  // PRE-SEND GATE over the union of every recipient's brands — their briefs quote the
+  // same per-host stored reads, so repairing the union repairs every brief at once.
+  try {
+    const uni = await pool.query(`SELECT DISTINCT ON (c.host) c.name, c.host FROM competitors c JOIN users u ON u.id = c.user_id WHERE u.slack_webhook IS NOT NULL AND u.slack_webhook <> '' ORDER BY c.host, c.created_at ASC`);
+    if (uni.rows.length) await preflightDailyBriefs(uni.rows);
+  } catch (e) { console.warn('preflight skipped:', e.message); }
   try {
     const us = await pool.query(`SELECT id, slack_webhook, share_token, demo_brands, channels FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
     for (const u of us.rows) {

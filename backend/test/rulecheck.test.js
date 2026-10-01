@@ -395,6 +395,14 @@ const wfS3 = websiteFindings([
 ]).find((f) => f.key === 'web.banner');
 ok(!!wfS3 && /SAVE UP TO 30% on Bundles/.test(wfS3.text) && /full-rotation capture began today/.test(wfS3.text), 'slide-discovered promo with no prior slide history says so honestly (transition wording)');
 
+console.log('\nCONGRUENCE vs CHANNEL-ROW GUARANTEES — sanctioned fallback rows never ping (1 Oct):');
+const fDet = { name: 'Luxe', emailsSeen: 12, postsSeen: 0, sale: '', webComparable: true, webBanner: '' };
+const blockDet = '*Luxe*\n   *Website:* Storefront unchanged — same prices, products and sale.\n   *Email:* No new emails — latest: “subject”.';
+const arEmpty = { ads: {}, social: {}, website: {}, email: {} };
+ok(!checkCongruence(blockDet, arEmpty, fDet).some((v) => v.rule === 'R-SYNC-02'), 'deterministic Email + Website rows with captures behind them → no R-SYNC-02');
+ok(checkCongruence('*Luxe*\n   *Website:* Storefront unchanged — same prices, products and sale.', arEmpty, fDet).some((v) => v.rule === 'R-SYNC-01' && /email/.test(v.why)), 'captured emails with NO Email row still pings R-SYNC-01');
+ok(checkCongruence('*Luxe*\n   *Ads:* Recent ads run from "X" handle.', arEmpty, { name: 'Luxe', emailsSeen: 0, postsSeen: 0, sale: '', webComparable: false, webBanner: '' }).some((v) => v.rule === 'R-SYNC-02' && /ads/.test(v.why)), 'a row with no read AND no capture behind it still pings R-SYNC-02');
+
 console.log('\nQALOG — every silent downgrade lands in the ledger (20 Aug, "never ask the same question again"):');
 const { qaLog, qaDrain, qaEvents } = await import('../src/qalog.js');
 qaDrain();   // clean slate

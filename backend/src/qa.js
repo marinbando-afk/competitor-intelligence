@@ -55,11 +55,17 @@ export function checkCongruence(block, appRead, f) {
   const out = [];
   if (!block || !appRead) return out;
   const rowFor = { ads: 'Ads:', social: 'Social:', website: 'Website:', email: 'Email:' };
+  // `shows` = what the APP legitimately displays for the channel — including the
+  // deterministic channel-row guarantees (R-CHANNEL-ROW / R-SOCIAL-ROW / website tiers):
+  // captured emails justify an Email row even when the AI read gated to empty, and a
+  // comparable capture or captured banner justifies a Website row. Without these, the
+  // audit pinged its OWN sanctioned fallback rows as R-SYNC-02 incongruence (five false
+  // positives in the 1 Oct digest — Luxe/Seranova/Tallowed Truth/Pacific/AG1).
   const shows = {
     ads: !!(appRead.ads && appRead.ads.summary),
     social: !!((appRead.social && appRead.social.summary) || (f.postsSeen || 0) > 0),
-    website: !!((appRead.website && appRead.website.summary) || f.sale),
-    email: !!(appRead.email && appRead.email.summary),
+    website: !!((appRead.website && appRead.website.summary) || f.sale || f.webComparable || f.webBanner),
+    email: !!((appRead.email && appRead.email.summary) || (f.emailsSeen || 0) > 0),
   };
   for (const ch of Object.keys(rowFor)) {
     const inBrief = block.indexOf(rowFor[ch]) >= 0;
@@ -124,8 +130,12 @@ async function judgeText(text, factsByBrand) {
 
 // Entry point — fire-and-forget after a real delivery. postText is injected so this
 // module never imports slack.js (avoids a cycle).
-export async function auditDaily({ text, brands, postText }) {
-  try {
+// Deterministic audit of a brief TEXT against the computed facts — shared by the
+// PRE-SEND gate (draft -> audit -> repair -> send; founder, 1 Oct: "I don't understand
+// how come you report these issues after the report is being sent") and the post-send
+// digest. Returns { issues, factsByBrand }; the model judge is opt-in (post-send only —
+// its verdicts are advisory, not auto-repairable).
+export async function auditBriefText(text, brands, { judge = false } = {}) {
     const factsByBrand = [];
     const appReads = new Map();
     for (const b of brands || []) {
@@ -143,7 +153,7 @@ export async function auditDaily({ text, brands, postText }) {
             .filter((x) => x.type === 'new' || x.type === 'change' || x.type === 'state')
             .map((x) => String(x.text || '').slice(0, 160)).slice(0, 10);
         } catch (e) { /* judge falls back to counters alone */ }
-        factsByBrand.push({ name: b.name, host: b.host, sale: s.sale || '', products: n(s.products), staleOffers: n(s.staleOffer), funnels: n(s.funnel), newAds: n(s.activity && s.activity.ads), newEmails: n(s.activity && s.activity.emails), postsSeen: s.postsSeen || 0, emailsSeen: s.emailsSeen || 0, findings });
+        factsByBrand.push({ name: b.name, host: b.host, sale: s.sale || '', products: n(s.products), staleOffers: n(s.staleOffer), funnels: n(s.funnel), newAds: n(s.activity && s.activity.ads), newEmails: n(s.activity && s.activity.emails), postsSeen: s.postsSeen || 0, emailsSeen: s.emailsSeen || 0, webComparable: !!s.webComparable, webBanner: s.webBanner || '', findings });
         // The same stored read the app renders — congruence is only judged against a FRESH
         // read (a stale one means the brief used deterministic lines, a different, honest path).
         try {
@@ -158,8 +168,14 @@ export async function auditDaily({ text, brands, postText }) {
       if (ar) misses.push(...checkCongruence(blockFor(text, f.name), ar, f));
     }
     const hard = checkText(text, { surface: 'slack' }).map((v) => ({ brand: '(brief)', rule: v.id, why: v.why }));
-    const judged = await judgeText(text, factsByBrand);
+    const judged = judge ? await judgeText(text, factsByBrand) : [];
     const all = misses.concat(hard, judged);
+    return { issues: all, factsByBrand, counts: { misses: misses.length, hard: hard.length, judged: judged.length } };
+}
+
+export async function auditDaily({ text, brands, postText }) {
+  try {
+    const { issues: all, counts } = await auditBriefText(text, brands, { judge: true });
     // SYSTEM-HEALTH DIGEST (founder, 20 Aug — "how can we fix all of these so I never ask
     // the same question again"): every silent downgrade anywhere in the pipeline (claim
     // strips, sense-check removals, Block Kit fallbacks) drains into this one daily
@@ -177,7 +193,7 @@ export async function auditDaily({ text, brands, postText }) {
       }
       await postText(msg);
     }
-    console.log('✓ qa audit: ' + all.length + ' issue(s) (' + misses.length + ' misses, ' + hard.length + ' hard, ' + judged.length + ' judged), ' + dq.total + ' pipeline downgrade(s)');
+    console.log('✓ qa audit: ' + all.length + ' issue(s) (' + counts.misses + ' misses, ' + counts.hard + ' hard, ' + counts.judged + ' judged), ' + dq.total + ' pipeline downgrade(s)');
     return all;
   } catch (e) { console.warn('qa audit:', e.message); return []; }
 }
