@@ -45,7 +45,9 @@ misses to the founder's Slack.
 - [qa.js R-SYNC-02] [ENFORCED] The brief carries a row for a channel the app shows no read or capture for → audit ping
 - [qa.js R-SYNC-03] [ENFORCED] A sale signal fired but the app's website read doesn't mention the sale → audit ping (the app-side twin of R-MISS-01)
 - [qa.js R-SYNC-04] [ENFORCED] Newness claims must AGREE across surfaces: the brief saying "New sale live" while the app read says unchanged/already running is a contradiction → audit ping (Bare Bones, 13 Aug)
-- [qa.js] [ENFORCED] The full audit (miss-checks R-MISS-00..04, hard rulecheck, congruence R-SYNC-01..03, model judge) runs automatically after every real daily delivery; findings arrive as 🧯 messages in the founder's Slack
+- [slack.js + qa.js R-PREFLIGHT] [ENFORCED] **The audit is a GATE, not a post-mortem: draft → audit → repair → send** (founder, 1 Oct — "I don't understand how come you report these issues after the report is being sent"). Before every daily send (cron and admin buttons alike), the brief is drafted over the union of recipients' brands, the deterministic audit runs (misses R-MISS-00..06 + congruence R-SYNC-01..05 + hard gate), offending brands' reads are REGENERATED and the brief rebuilds; one repair pass, then it ships regardless (a late brief is worse than a flagged one) with survivors pinged as unresolved
+- [qa.js R-SYNC-02] [ENFORCED] **Congruence knows the channel-row guarantees**: a deterministic row backed by captures (emailsSeen → Email row, webComparable/captured banner → Website row) is the DESIGN, not incongruence — the audit was pinging its own sanctioned fallbacks (five false positives, 1 Oct digest)
+- [qa.js] [ENFORCED] The POST-send audit still runs after every real delivery — the model judge (advisory, not auto-repairable) plus the pipeline-downgrade digest; after the preflight gate its deterministic section should be near-empty, so anything there is signal
 
 ## Ads
 
