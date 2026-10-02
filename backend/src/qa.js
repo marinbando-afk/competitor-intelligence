@@ -110,6 +110,7 @@ const JUDGE_RULES = `You are auditing a competitor-intelligence daily brief agai
 - PROSE QUALITY — flag anything that reads like a broken tool: tense clashes ("is running ... yesterday"), the same fact stated twice in one line ("No change — ... unchanged"), dangling fragments, robotic repetition of an identical sentence pattern across many brands, orphaned punctuation.
 - A "Campaign:" line is a cross-channel synthesis — it is only legitimate when AT LEAST TWO channel rows in the SAME brand block tell the same story; flag any campaign line whose theme is supported by fewer than two rows (a manufactured synthesis is the worst possible over-claim).
 - Each brand's "findings" list is CODE-ESTABLISHED ground truth from the captures — a brief line matching a finding is GROUNDED even when the numeric counters (newAds/newEmails) read 0; the counters use a narrower window than the findings.
+- Each brand's latestPost / latestEmail fields are the CAPTURED most-recent items — a quiet row quoting them ("most recent: ...", "Latest email: ...") is grounded by definition.
 - FOUNDER CONVENTIONS you must never flag: (1) ad launches are ROUTINE by decree — "routine activity" beside ❗-marked launch rows in one block is CORRECT, whatever the batch size; (2) QUIET rows quote the LATEST STANDING item ("Latest email (Mon): …", "Newest ad still running opens: …", "No new posts — latest is still …") — they claim no newness and are never hallucinations just because nothing new arrived; (3) a STANDING/unchanged sale does not require the priority badge.
 Report ONLY real violations — an empty list is the expected outcome. Be precise and quote the offending text.`;
 
@@ -150,10 +151,13 @@ export async function auditBriefText(text, brands, { judge = false } = {}) {
           const { computeFindings } = await import('./findings.js');
           const F = await computeFindings(b.host);
           findings = [].concat(F.ads || [], F.website || [], F.social || [], F.email || [])
-            .filter((x) => x.type === 'new' || x.type === 'change' || x.type === 'state')
-            .map((x) => String(x.text || '').slice(0, 160)).slice(0, 10);
+            // context findings INCLUDED (2 Oct digest): the .lastNew entries carry the
+            // latest captured post/email quotes that quiet rows cite — excluding them
+            // made the judge call every honest "most recent: ..." row fabricated.
+            .filter((x) => x.type === 'new' || x.type === 'change' || x.type === 'state' || x.type === 'context')
+            .map((x) => String(x.text || '').slice(0, 160)).slice(0, 14);
         } catch (e) { /* judge falls back to counters alone */ }
-        factsByBrand.push({ name: b.name, host: b.host, sale: s.sale || '', products: n(s.products), staleOffers: n(s.staleOffer), funnels: n(s.funnel), newAds: n(s.activity && s.activity.ads), newEmails: n(s.activity && s.activity.emails), postsSeen: s.postsSeen || 0, emailsSeen: s.emailsSeen || 0, webComparable: !!s.webComparable, webBanner: s.webBanner || '', findings });
+        factsByBrand.push({ name: b.name, host: b.host, sale: s.sale || '', products: n(s.products), staleOffers: n(s.staleOffer), funnels: n(s.funnel), newAds: n(s.activity && s.activity.ads), newEmails: n(s.activity && s.activity.emails), postsSeen: s.postsSeen || 0, emailsSeen: s.emailsSeen || 0, webComparable: !!s.webComparable, webBanner: s.webBanner || '', latestPost: (s.latestPostAbout || '').slice(0, 120), latestEmail: (s.latestEmailSubject || '').slice(0, 120), findings });
         // The same stored read the app renders — congruence is only judged against a FRESH
         // read (a stale one means the brief used deterministic lines, a different, honest path).
         try {
@@ -173,9 +177,20 @@ export async function auditBriefText(text, brands, { judge = false } = {}) {
     return { issues: all, factsByBrand, counts: { misses: misses.length, hard: hard.length, judged: judged.length } };
 }
 
-export async function auditDaily({ text, brands, postText }) {
+// briefs: [{ text, brands }] — ONE audit per recipient brief against ITS OWN brands
+// (2 Oct digest: auditing the last recipient's text against the UNION of every
+// recipient's brands reported other clients' brands as R-MISS-00 "missing blocks").
+// Legacy single-pair callers can still pass { text, brands }.
+export async function auditDaily({ text, brands, briefs, postText }) {
   try {
-    const { issues: all, counts } = await auditBriefText(text, brands, { judge: true });
+    const pairs = Array.isArray(briefs) && briefs.length ? briefs : [{ text, brands }];
+    const all = []; const counts = { misses: 0, hard: 0, judged: 0 };
+    for (const pr of pairs) {
+      if (!pr || !pr.text) continue;
+      const r = await auditBriefText(pr.text, pr.brands || [], { judge: true });
+      all.push(...r.issues);
+      counts.misses += r.counts.misses; counts.hard += r.counts.hard; counts.judged += r.counts.judged;
+    }
     // SYSTEM-HEALTH DIGEST (founder, 20 Aug — "how can we fix all of these so I never ask
     // the same question again"): every silent downgrade anywhere in the pipeline (claim
     // strips, sense-check removals, Block Kit fallbacks) drains into this one daily

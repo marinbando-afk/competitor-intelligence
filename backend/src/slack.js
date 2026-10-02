@@ -582,8 +582,8 @@ export async function preflightDailyBriefs(brands) {
 
 export async function sendUserDailyBriefs(pool) {
   if (!pool) return { sent: 0, total: 0 };
-  let sent = 0, total = 0, lastText = '';
-  const auditBrands = new Map();
+  let sent = 0, total = 0;
+  const sentBriefs = [];   // one {text, brands} per recipient — audited against ITS OWN brands
   // PRE-SEND GATE over the union of every recipient's brands — their briefs quote the
   // same per-host stored reads, so repairing the union repairs every brief at once.
   try {
@@ -605,7 +605,7 @@ export async function sendUserDailyBriefs(pool) {
         const viewUrl = u.share_token ? ('https://watchback.ai/app.html?share=' + encodeURIComponent(u.share_token)) : 'https://watchback.ai/app.html';
         const text = await buildDailyBrief(cs.rows.concat(demoRows), viewUrl, true, normChannels(u.channels));   // real delivery → commit announce-once state
         const r = await postBrief(u.slack_webhook, text);
-        if (r.sent) { sent++; lastText = text; for (const c of cs.rows) auditBrands.set(c.host, c); }
+        if (r.sent) { sent++; sentBriefs.push({ text, brands: cs.rows }); }
       } catch (e) { /* skip this user */ }
     }
   } catch (e) { console.warn('sendUserDailyBriefs:', e.message); }
@@ -613,8 +613,8 @@ export async function sendUserDailyBriefs(pool) {
   // SELF-AUDIT (founder, 12 Aug): after the real send, re-check what was delivered against
   // what the captures actually contain — misses and nonsense ping the founder's Slack
   // instead of waiting for the founder to catch them. Fire-and-forget, never blocks sends.
-  if (sent && lastText) {
-    import('./qa.js').then((qa) => qa.auditDaily({ text: lastText, brands: [...auditBrands.values()], postText })).catch((e) => console.warn('qa launch:', e.message));
+  if (sentBriefs.length) {
+    import('./qa.js').then((qa) => qa.auditDaily({ briefs: sentBriefs, postText })).catch((e) => console.warn('qa launch:', e.message));
   }
   return { sent, total };
 }
