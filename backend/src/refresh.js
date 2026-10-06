@@ -14,7 +14,7 @@ import { fetchSocial, resolveHandles } from './social.js';
 import { getEmails } from './email.js';
 import { captureWebsiteFull } from './website.js';
 import { generateInsights, enrichCreativeHooks, creditStatus } from './insights.js';
-import { saveSnapshot, latestSnapshot, setNightlyAuthoritative } from './snapshots.js';
+import { saveSnapshot, latestSnapshot, setNightlyAuthoritative, recordAdLedger } from './snapshots.js';
 import { resolveLandings } from './landcheck.js';
 import { pool } from './db.js';
 import { ensureWeeklies } from './weekly.js';
@@ -118,7 +118,7 @@ export async function warmBrand(b, force) {
   const adBudget = { left: Number(process.env.AD_HOOK_CAP) || 40 };
   const socialBudget = { left: Number(process.env.SOCIAL_HOOK_CAP) || 18 };
   const POST_PER = Number(process.env.SOCIAL_HOOK_PER) || 6;
-  try { const a = await fetchAds(b.name, b.country, force, false, b.host); ok++; if (a && a.ads && a.ads.length) { await enrichCreativeHooks(b.host, 'ads', 'ad', a.ads, adBudget); try { const L = await resolveLandings(a.ads); if (L) a.landings = L; } catch (e) { console.warn('[landcheck]', b.host, (e && e.message) || e); } await saveSnapshot(b.host, 'ads', a); } else { try { await saveSnapshot(b.host, 'ads', { ads: [], scanned: true }); } catch (e2) { /* state save is best-effort */ } warmError(b.host, 'ads', 'scan returned 0 active ads — saved as reportable state'); } }
+  try { const a = await fetchAds(b.name, b.country, force, false, b.host); ok++; if (a && a.ads && a.ads.length) { await enrichCreativeHooks(b.host, 'ads', 'ad', a.ads, adBudget); try { const L = await resolveLandings(a.ads); if (L) a.landings = L; } catch (e) { console.warn('[landcheck]', b.host, (e && e.message) || e); } await saveSnapshot(b.host, 'ads', a); await recordAdLedger(b.host, a.ads); } else { try { await saveSnapshot(b.host, 'ads', { ads: [], scanned: true }); } catch (e2) { /* state save is best-effort */ } warmError(b.host, 'ads', 'scan returned 0 active ads — saved as reportable state'); } }
   catch (e) { fail++; console.warn('warm ads ' + b.name + ':', e.message); warmError(b.host, 'ads', e.message); }
   for (const [pf, hk] of PLATFORMS) {
     try {

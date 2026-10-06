@@ -77,6 +77,18 @@ async function weekDigest(host, name, start, end) {
     // headline/URL are usually identical across a batch; the CREATIVE is the test, so each
     // video/image is a distinct ad and the TOTAL is the real number of new launches).
     const fresh = [...seenA.values()].filter((a) => a.started && a.started >= start && a.started <= end).sort((a, b) => String(a.started).localeCompare(String(b.started)));
+    // R-LAUNCH-LEDGER (founder, 6 Oct: "I want to make sure we report all of them"): the
+    // week's daily rows can lose a short-lived ad to retention or a capped window — the
+    // ledger remembers every id ever captured with Meta's start date. Union, dedup by id.
+    try {
+      const { latestSnapshot } = await import('./snapshots.js');
+      const led = ((await latestSnapshot(host, '_adledger')) || {}).ads || {};
+      const haveIds = new Set([...seenA.values()].map((a) => String(a.id || '')));
+      for (const [id, e] of Object.entries(led)) {
+        if (e && e.s >= start && e.s <= end && !haveIds.has(id)) fresh.push({ id, started: e.s, page: e.p || '', text: e.h || '', hasVideo: false });
+      }
+      fresh.sort((a, b) => String(a.started).localeCompare(String(b.started)));
+    } catch (e) { /* ledger optional — the union of daily rows stands */ }
     stats.newAds = fresh.length;
     // R-WEEKLY-LAUNCHES (founder, 6 Oct): the weekly launch count is a FLOOR, not a
     // census — when any day's capture filled the collection window, launches can have

@@ -403,6 +403,19 @@ ok(!checkCongruence(blockDet, arEmpty, fDet).some((v) => v.rule === 'R-SYNC-02')
 ok(checkCongruence('*Luxe*\n   *Website:* Storefront unchanged — same prices, products and sale.', arEmpty, fDet).some((v) => v.rule === 'R-SYNC-01' && /email/.test(v.why)), 'captured emails with NO Email row still pings R-SYNC-01');
 ok(checkCongruence('*Luxe*\n   *Ads:* Recent ads run from "X" handle.', arEmpty, { name: 'Luxe', emailsSeen: 0, postsSeen: 0, sale: '', webComparable: false, webBanner: '' }).some((v) => v.rule === 'R-SYNC-02' && /ads/.test(v.why)), 'a row with no read AND no capture behind it still pings R-SYNC-02');
 
+console.log('\nLAUNCH LEDGER + BURST SATURATION — every launch counted once seen (6 Oct):');
+const { mergeAdLedger } = await import('../src/snapshots.js');
+const m1 = mergeAdLedger({}, [{ id: 'a1', started: '2026-10-05', page: 'Nolan', text: 'hook one' }, { id: 'a2', started: '2026-10-06', page: 'Nolan', text: 'hook two' }, { id: 'bad', started: 'not-a-date' }], '2026-10-06');
+ok(m1.dirty && Object.keys(m1.led).length === 2 && m1.led.a1.s === '2026-10-05', 'ledger records id + Meta start date; junk dates skipped');
+const m2 = mergeAdLedger(m1.led, [{ id: 'a1', started: '2026-10-05' }], '2026-10-06');
+ok(!m2.dirty, 'already-known ids never rewrite the ledger');
+const m3 = mergeAdLedger({ old1: { s: '2026-05-01', f: '2026-05-01' } }, [{ id: 'a9', started: '2026-10-06' }], '2026-10-06');
+ok(m3.dirty && !m3.led.old1 && m3.led.a9, '140-day retention prunes on write');
+const { adsWindowSaturated } = await import('../src/ads.js');
+const today2 = new Date().toISOString().slice(0, 10);
+ok(adsWindowSaturated(Array.from({ length: 46 }, (x, i) => ({ id: 'x' + i, started: today2 })), 50), 'window ~full of same-day launches → saturated (deepen)');
+ok(!adsWindowSaturated(Array.from({ length: 46 }, (x, i) => ({ id: 'x' + i, started: i < 20 ? today2 : '2026-09-01' })), 50), 'mixed-age window → not saturated');
+
 console.log('\nQALOG — every silent downgrade lands in the ledger (20 Aug, "never ask the same question again"):');
 const { qaLog, qaDrain, qaEvents } = await import('../src/qalog.js');
 qaDrain();   // clean slate

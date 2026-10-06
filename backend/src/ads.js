@@ -211,7 +211,7 @@ export async function ownPageIdsFor(host) {
   return ids;
 }
 
-export async function fetchAds(brand, country, force, cacheOnly, host, pageId, debug) {
+export async function fetchAds(brand, country, force, cacheOnly, host, pageId, debug, adsNOverride) {
   brand = String(brand || '').trim();
   country = String(country || 'ALL').trim().toUpperCase();
   pageId = String(pageId || '').replace(/\D/g, '');   // numeric FB page id only (page-scoped scan)
@@ -238,7 +238,7 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
     ? ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&view_all_page_id=' + pageId + '&search_type=page&media_type=all')
     : ('https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(brand) + sortQ + '&media_type=all');
 
-  const ADS_N = Number(process.env.ADS_COUNT) || 50;   // founder-set (20 Jul): newest-first sorting means 50 always contains the new launches; deeper pulls were pure Apify cost
+  const ADS_N = Number(adsNOverride) || Number(process.env.ADS_COUNT) || 50;   // founder-set (20 Jul): newest-first sorting means 50 always contains the new launches; deeper pulls were pure Apify cost — except same-day bursts, see the saturation re-pull below
   const endpoint =
     'https://api.apify.com/v2/acts/' + ACTOR +
     '/run-sync-get-dataset-items?token=' + encodeURIComponent(TOKEN) + '&timeout=300';
@@ -705,6 +705,16 @@ async function normalize(items, brand, country, host, debug) {
   const unique = dedupeAds(live).sort((a, b) =>
     String(b.started || '').localeCompare(String(a.started || '')));
 
+  // SAME-DAY BURST: window saturated by today's launches → the tail may be cut, and a
+  // killed ad is unrecoverable from the library later. One immediate deeper pull (2x),
+  // once (the override marks the deepened pass).
+  if (!adsNOverride && adsWindowSaturated(unique, ADS_N)) {
+    try {
+      console.log('[ads] ' + (host || brand) + ': window saturated by same-day launches — deepening to ' + (ADS_N * 2));
+      return await fetchAds(brand, country, true, false, host, pageId, debug, ADS_N * 2);
+    } catch (e) { /* the normal capture stands */ }
+  }
+
   const platforms = [...new Set(unique.flatMap((a) => a.platforms))];
   const newest = unique.map((a) => a.started).filter(Boolean).sort().slice(-1)[0] || '';
   const dbg = debug ? {
@@ -729,6 +739,16 @@ async function normalize(items, brand, country, host, debug) {
 // ── "What's new" detection — compare today's ads to the most recent earlier
 // capture and surface ONLY the new ones, tagged by why they're notable
 // (new landing page / domain, new Facebook page, new creative format). ──
+// R-LAUNCH-LEDGER (founder, 6 Oct: "I want to make sure we report ALL of them"): the
+// window is newest-first, so the one way a launch escapes capture entirely is a SAME-DAY
+// burst bigger than the window before the nightly scrape. Saturated = the window is
+// (almost) all today's launches — the tail may be truncated; pull deeper immediately.
+export function adsWindowSaturated(ads, capN) {
+  const today = new Date().toISOString().slice(0, 10);
+  const todayN = (ads || []).filter((a) => String(a.started || '') === today).length;
+  return todayN >= Math.floor((Number(capN) || 50) * 0.9);
+}
+
 function adKey(a) { return a.id || a.link || a.image || ((a.page || '') + '|' + String(a.text || '').slice(0, 40)); }
 function startedRecently(started, tStr, days) {
   const s = String(started || '').slice(0, 10);

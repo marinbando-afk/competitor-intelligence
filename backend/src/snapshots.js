@@ -48,6 +48,36 @@ export function hasSubstantiveData(channel, data) {
 let _nightlyAuthoritative = false;
 export function setNightlyAuthoritative(on) { _nightlyAuthoritative = !!on; }
 
+// R-LAUNCH-LEDGER (founder, 6 Oct): permanent memory of every ad id ever captured, with
+// Meta's own start date — so a launch captured ONCE (on its launch day, when newest-first
+// ordering guarantees it a window slot) stays countable forever, even after it is killed,
+// rotates out of later windows, and vanishes from the Ad Library. Pure merge exported for
+// tests; 140-day retention.
+export function mergeAdLedger(led, ads, today) {
+  const next = (led && typeof led === 'object') ? led : {};
+  let dirty = false;
+  for (const a of ads || []) {
+    const id = String((a && a.id) || '').trim();
+    if (!id || next[id]) continue;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String((a && a.started) || ''))) continue;
+    next[id] = { s: a.started, f: today, p: String(a.page || '').slice(0, 60), h: String(a.text || a.title || '').replace(/\s+/g, ' ').slice(0, 90) };
+    dirty = true;
+  }
+  if (dirty) {
+    const cutoff = new Date(Date.parse(today + 'T00:00:00Z') - 140 * 864e5).toISOString().slice(0, 10);
+    for (const k of Object.keys(next)) if ((next[k].s || '') < cutoff) { delete next[k]; }
+  }
+  return { led: next, dirty };
+}
+
+export async function recordAdLedger(host, ads) {
+  try {
+    const st = (await latestSnapshot(host, '_adledger')) || {};
+    const r = mergeAdLedger((st && st.ads) || {}, ads, new Date().toISOString().slice(0, 10));
+    if (r.dirty) await saveSnapshot(host, '_adledger', { ads: r.led });
+  } catch (e) { /* the ledger is insurance — never blocks a capture */ }
+}
+
 export async function saveSnapshot(host, channel, data) {
   if (!ok() || !host || !data) return;
   try {
