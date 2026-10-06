@@ -148,11 +148,14 @@ function render(d){
   var r = d.report || {};
   document.title = d.brand + ' — Weekly report · WatchBack';
   var s = d.stats || {};
+  // Launch count is a floor when the capture window was full on some days — "N+" says
+  // so without burying the reader in capture bookkeeping.
+  var adsN = s.newAds == null ? null : (String(s.newAds) + (s.adsCapped ? '+' : ''));
   var stats = [
-    [s.newAds, 'new ads launched'],
-    [s.posts, 'posts published'],
-    [s.emails, 'email campaigns'],
-  ].map(function(p){ return '<div class="stat"><div class="n">' + esc(p[0] == null ? '—' : p[0]) + '</div><div class="l">' + p[1] + '</div></div>'; }).join('');
+    [adsN, 'new ads launched', s.adsCapped ? 'The ad-capture window was full on some days this week — the true launch count may be higher.' : ''],
+    [s.posts, 'posts published', ''],
+    [s.emails, 'email campaigns', ''],
+  ].map(function(p){ return '<div class="stat"' + (p[2] ? ' title="' + esc(p[2]) + '"' : '') + '><div class="n">' + esc(p[0] == null ? '—' : p[0]) + '</div><div class="l">' + p[1] + '</div></div>'; }).join('');
   var tl = (r.timeline || []).map(function(t){
     return '<li><span class="d">' + esc(t.day || '') + '</span><span class="c">' + esc(t.channel || '') + '</span><span class="e">' + esc(t.event || '') + '</span></li>';
   }).join('');

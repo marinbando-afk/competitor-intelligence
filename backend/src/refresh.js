@@ -257,7 +257,7 @@ export async function sendDailyDigest() {
     if (isMonday && made.length) {
       const label = made[0].week.label;
       postText('📊 *Weekly competitor reports are ready* (' + label + '):\n' +
-        made.map((m) => '• ' + m.brand + ' — https://watchback.ai/report.html?host=' + m.host).join('\n')).catch(() => {});
+        made.map((m) => '• ' + m.brand + ((m.stats && m.stats.newAds != null) ? ' — ' + m.stats.newAds + (m.stats.adsCapped ? '+' : '') + ' ads launched' : '') + ' — https://watchback.ai/report.html?host=' + m.host).join('\n')).catch(() => {});
       sendUserWeeklyLinks(pool, label).catch(() => {});   // each customer's own report links → their own Slack
     }
   } catch (e) { console.warn('weeklies:', e.message); }

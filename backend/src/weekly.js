@@ -78,6 +78,11 @@ async function weekDigest(host, name, start, end) {
     // video/image is a distinct ad and the TOTAL is the real number of new launches).
     const fresh = [...seenA.values()].filter((a) => a.started && a.started >= start && a.started <= end).sort((a, b) => String(a.started).localeCompare(String(b.started)));
     stats.newAds = fresh.length;
+    // R-WEEKLY-LAUNCHES (founder, 6 Oct): the weekly launch count is a FLOOR, not a
+    // census — when any day's capture filled the collection window, launches can have
+    // rotated past us. The report then shows "N+" instead of implying precision.
+    const CAPN = Number(process.env.ADS_COUNT) || 50;
+    stats.adsCapped = caps.some((cap) => (((cap && cap.ads) || []).length) >= Math.floor(CAPN * 0.95));
     if (fresh.length) {
       parts.push('Ads LAUNCHED this week (' + fresh.length + ' new ad' + (fresh.length === 1 ? '' : 's') + '):');
       fresh.slice(0, 12).forEach((a) => parts.push(`  • [${a.started}] ${a.hasVideo ? 'VIDEO' : 'IMAGE'}${a.page ? ' fb-page:"' + a.page + '"' : ''}: ${oneLine(a.text).slice(0, 120)}`));

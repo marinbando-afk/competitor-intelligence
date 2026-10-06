@@ -623,6 +623,14 @@ export async function sendUserDailyBriefs(pool) {
 export async function sendUserWeeklyLinks(pool, weekLabel) {
   if (!pool) return;
   try {
+    // R-WEEKLY-LAUNCHES (founder, 6 Oct): each link line carries the week's launch count
+    // — "N+ ads launched" when the capture window was full on some days (a floor, never
+    // implied precision). One query for every host's latest stored weekly stats.
+    const launches = new Map();
+    try {
+      const w = await pool.query(`SELECT DISTINCT ON (host) host, data->'stats'->>'newAds' AS n, data->'stats'->>'adsCapped' AS capped FROM snapshots WHERE channel = 'weekly' ORDER BY host, day DESC`);
+      for (const r2 of w.rows) if (r2.n != null) launches.set(r2.host, r2.n + (String(r2.capped) === 'true' ? '+' : ''));
+    } catch (e) { /* counts are decoration — links still go out */ }
     const us = await pool.query(`SELECT id, slack_webhook, demo_brands, channels FROM users WHERE slack_webhook IS NOT NULL AND slack_webhook <> ''`);
     for (const u of us.rows) {
       try {
@@ -636,7 +644,7 @@ export async function sendUserWeeklyLinks(pool, weekLabel) {
         let demoRows = [];
         if (u.demo_brands) { try { const { TRACKED } = await import('./refresh.js'); demoRows = TRACKED.map((t) => ({ name: t.name, host: t.host, __demo: true })); } catch (e) { /* optional */ } }
         const text = '📊 *Weekly competitor reports are ready* (' + weekLabel + '):\n' +
-          cs.rows.map((c) => '• ' + c.name + ' — https://watchback.ai/report.html?host=' + c.host).join('\n');
+          cs.rows.map((c) => '• ' + c.name + (launches.has(c.host) ? ' — ' + launches.get(c.host) + ' ads launched' : '') + ' — https://watchback.ai/report.html?host=' + c.host).join('\n');
         await postTo(u.slack_webhook, text);
       } catch (e) { /* skip this user */ }
     }
