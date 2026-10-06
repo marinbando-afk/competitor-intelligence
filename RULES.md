@@ -271,6 +271,8 @@ happens' spill-life hook.
 
 ## Weekly report
 
+- [weekly.js + report.html + slack.js R-WEEKLY-LAUNCHES] [ENFORCED] **The weekly launch count is a FLOOR, stated as one** (founder, 6 Oct): computed as the union of the week's DAILY captures deduped by ad id, filtered by Meta's own start date — which counts ads that launched and went inactive during the week (the Ad Library alone cannot: it drops inactive commercial ads). When any day's capture filled the collection window the number renders "N+" (report stat tile with tooltip, Monday Slack link lines) — never implied precision. Launch counts are sanctioned news; capture bookkeeping stays out of prose
+
 - [weekly.js] [ENFORCED] Findings-first; headline/summary/channel text passes the claims gate; no active-ad or product totals; only genuinely-launched ads and this-week posts/emails cited
 - [weekly.js] [ENFORCED] Every launched ad counts, no dedup (founder, 20 Jul); sale STATUS never discounted-product counts
 - [weekly.js] [PROMPT] Channel inactivity only when data explicitly says nothing was published; engagement is lifetime; materiality filter; output-shape limits (headline ≤14 words, etc.)
