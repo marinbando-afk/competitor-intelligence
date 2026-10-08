@@ -503,6 +503,27 @@ a.adsig.ld:hover{border-color:var(--sage);background:rgba(87,210,207,.08)}
 .ap-nav:hover{background:var(--raised);color:var(--text)}
 .ap-nav.on{border-color:var(--sage-d);color:var(--sage);background:var(--sage-soft)}
 .ap-main{flex:1;overflow-y:auto;padding:22px 26px 60px}
+/* Mission Control status strip — the panel's one-line answer to "what's happening?"
+   (founder, 8 Oct). Lives above every section, polls while the panel is open. */
+.ap-status{max-width:920px;margin:0 auto 20px;display:flex;align-items:center;gap:11px;flex-wrap:wrap;border:1px solid var(--line2);border-radius:11px;padding:11px 16px;background:var(--panel2,rgba(255,255,255,.02));font-size:12.5px;line-height:1.5}
+.ap-status .dot{width:9px;height:9px;border-radius:50%;background:var(--quiet,#62bd7e);box-shadow:0 0 8px var(--quiet,#62bd7e);flex:none}
+.ap-status.busy .dot{background:var(--gold,#e3a92c);box-shadow:0 0 8px var(--gold,#e3a92c);animation:appulse 1.2s ease-in-out infinite}
+@keyframes appulse{0%,100%{opacity:1}50%{opacity:.3}}
+.ap-status b{color:#eef3f4}
+.ap-status .st-fact{color:var(--muted)}
+.ap-status .st-sep{color:var(--faint)}
+.ap-status .st-warn{color:var(--gold,#e3a92c)}
+.ap-status a{color:var(--sage);cursor:pointer;text-decoration:none}
+/* Recent-activity feed (Health section) */
+.ap-act{border:1px solid var(--line2);border-radius:11px;overflow:hidden;margin-top:10px}
+.ap-act-row{display:flex;gap:12px;align-items:baseline;padding:9px 14px;border-top:1px solid var(--line);font-size:12.5px}
+.ap-act-row:first-child{border-top:0}
+.ap-act-row .t{flex:none;width:78px;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.ap-act-row .tag{flex:none;font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:2px 7px}
+.ap-act-row .tag.cap{color:#ff8a7e;border:1px solid rgba(226,85,79,.4)}
+.ap-act-row .tag.qa{color:var(--gold,#e3a92c);border:1px solid rgba(227,169,44,.4)}
+.ap-act-row .tag.read{color:var(--muted);border:1px solid var(--line2)}
+.ap-act-row .m{color:var(--text);min-width:0;overflow-wrap:anywhere}
 .ap-sec{display:none;max-width:920px;margin:0 auto}
 .ap-sec.on{display:block}
 .ap-h{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
@@ -902,6 +923,7 @@ src="https://www.facebook.com/tr?id=28423431670573533&ev=PageView&noscript=1"/><
       <button class="ap-nav" data-sec="health" onclick="apSection('health')">🩺 HEALTH</button>
     </nav>
     <main class="ap-main">
+      <div class="ap-status" id="apStatus"><span class="dot"></span><span><b>Checking what’s happening…</b></span></div>
       <section class="ap-sec" id="apsec-ops">
         <div class="ap-h">Operations — reports &amp; briefs</div>
         <div class="ap-cards">
@@ -3059,8 +3081,36 @@ function loadFeedbackInto(targetId){
 function loadFeedback(){loadFeedbackInto('fbAdmin');}
 /* ── Admin panel: signups (approve) + submissions ── */
 var APSEC='clients';   // last-visited section survives close/reopen
-function openAdmin(sec){if(!ADMIN)return;document.getElementById('adminPage').classList.add('open');document.body.style.overflow='hidden';try{if(location.hash!=='#admin')history.replaceState(null,'',location.pathname+location.search+'#admin');}catch(e){}apSection(sec||APSEC);}
-function closeAdmin(){document.getElementById('adminPage').classList.remove('open');document.body.style.overflow='';try{if(location.hash==='#admin')history.replaceState(null,'',location.pathname+location.search);}catch(e){}}
+function openAdmin(sec){if(!ADMIN)return;document.getElementById('adminPage').classList.add('open');document.body.style.overflow='hidden';try{if(location.hash!=='#admin')history.replaceState(null,'',location.pathname+location.search+'#admin');}catch(e){}apSection(sec||APSEC);loadApStatus();if(apStTimer)clearInterval(apStTimer);apStTimer=setInterval(loadApStatus,20000);}
+/* ── Status strip (founder, 8 Oct: "hard to understand what's happening") ──
+   One plain sentence narrating the pipeline + the key facts, refreshed every 20s. */
+var apStTimer=null;
+function relAgo(t){if(!t)return '';var ms=Date.now()-(typeof t==='number'?t:Date.parse(t));if(!isFinite(ms))return '';if(ms<0)ms=0;var m=Math.round(ms/60000);if(m<1)return 'just now';if(m<60)return m+' min ago';var h=Math.round(m/60);if(h<24)return h+' h ago';return Math.round(h/24)+' day'+(Math.round(h/24)===1?'':'s')+' ago';}
+function loadApStatus(){
+  var el=document.getElementById('apStatus');if(!el||!ADMIN)return;
+  var yday=new Date(Date.now()-864e5).toISOString().slice(0,10);
+  Promise.all([
+    fetch(API+'/api/health').then(function(r){return r.json();}).catch(function(){return null;}),
+    fetch(API+'/api/coverage?day='+yday).then(function(r){return r.json();}).catch(function(){return null;})
+  ]).then(function(res){
+    var hl=res[0],cov=res[1];
+    if(!hl){el.className='ap-status busy';el.innerHTML='<span class="dot"></span><span><b>Can’t reach the server</b> — the backend may be restarting; this updates itself.</span>';return;}
+    var busy=!!hl.running;
+    var facts=[];
+    facts.push('<span class="st-fact">Last capture: <b>'+(hl.warmedAt?relAgo(hl.warmedAt):'before last restart')+'</b>'+(hl.last&&(hl.last.ok||hl.last.fail)?' · '+hl.last.ok+' ok'+(hl.last.fail?', <span class="st-warn">'+hl.last.fail+' failed</span>':''):'')+'</span>');
+    if(hl.briefs&&hl.briefs.at)facts.push('<span class="st-fact">Client briefs: <b>sent '+relAgo(hl.briefs.at)+'</b> to '+hl.briefs.sent+' client'+(hl.briefs.sent===1?'':'s')+'</span>');
+    var gaps=(cov&&cov.missing||[]).length;
+    if(gaps)facts.push('<span class="st-fact st-warn">'+gaps+' brand'+(gaps===1?'':'s')+' with capture gaps — <a onclick="apSection(\'health\')">view</a></span>');
+    var warns=(cov&&cov.warmErrors||[]).length+(cov&&cov.qaEvents||[]).length+(cov&&cov.readErrors||[]).length;
+    if(warns)facts.push('<span class="st-fact">'+warns+' recent event'+(warns===1?'':'s')+' flagged — <a onclick="apSection(\'health\')">activity</a></span>');
+    var main=busy
+      ? '<b>Report rebuild running'+(hl.runningSince?' — started '+relAgo(hl.runningSince):'')+'.</b> Reports are regenerating; hold off on sending briefs. This flips back automatically when it finishes.'
+      : '<b>All systems normal.</b> Captures run nightly at 23:00, briefs go out at 08:00.';
+    el.className='ap-status'+(busy?' busy':'');
+    el.innerHTML='<span class="dot"></span><span>'+main+'</span>'+(facts.length?'<span class="st-sep">·</span>':'')+facts.join('<span class="st-sep">·</span>');
+  });
+}
+function closeAdmin(){if(apStTimer){clearInterval(apStTimer);apStTimer=null;}document.getElementById('adminPage').classList.remove('open');document.body.style.overflow='';try{if(location.hash==='#admin')history.replaceState(null,'',location.pathname+location.search);}catch(e){}}
 function apSection(t){
   APSEC=t;
   Array.prototype.forEach.call(document.querySelectorAll('#apRail .ap-nav'),function(x){x.classList.toggle('on',x.getAttribute('data-sec')===t);});
@@ -3129,7 +3179,7 @@ function loadAdminHealth(){
     t+='<div class="ap-tile"><div class="k">Clients</div><div class="v">'+cs.length+'</div><div class="s">'+slackN+' with Slack connected</div></div>';
     var miss=(cov&&cov.missing)||[];
     t+='<div class="ap-tile '+(cov?(miss.length?'warn':'ok'):'')+'"><div class="k">Yesterday’s captures</div><div class="v">'+(cov?(cov.ok+' / '+cov.total):'?')+'</div><div class="s">'+(cov&&cov.repairRunning?'repair running now…':(miss.length?miss.length+' brand'+(miss.length===1?' has':'s have')+' gaps — listed below':'every channel landed'))+'</div></div>';
-    t+='<div class="ap-tile '+(hl&&hl.running?'warn':'ok')+'"><div class="k">Rebuild</div><div class="v">'+(hl&&hl.running?'RUNNING':'idle')+'</div><div class="s">'+(hl&&hl.running?'reports are regenerating — wait before sending briefs':'no refresh in progress')+'</div></div>';
+    t+='<div class="ap-tile '+(hl&&hl.running?'warn':'ok')+'"><div class="k">Report rebuild</div><div class="v">'+(hl&&hl.running?'RUNNING':'idle')+'</div><div class="s">'+(hl&&hl.running?'reports are regenerating — wait before sending briefs':'no rebuild in progress')+'</div></div>';
     var html='<div class="ap-tiles">'+t+'</div>';
     if(miss.length){
       html+='<div class="ap-h">Capture gaps — '+esc(yday)+'</div><div class="ap-gaps">'+miss.map(function(m){
@@ -3140,6 +3190,25 @@ function loadAdminHealth(){
         if(!m.social)chips+='<span class="cl-chip warn">social ✗</span>';
         return '<div class="ap-gap"><span class="gh">'+esc(m.name||m.host)+'</span>'+chips+'</div>';
       }).join('')+'</div><div class="ap-st">Gaps fill during the nightly capture; a channel missing for a finished day means that scrape failed — tell Claude if one keeps appearing.</div>';
+    }
+    // RECENT ACTIVITY (founder, 8 Oct: "hard to understand what's happening") — every
+    // warning the pipeline flagged, one chronological list in plain words. A quiet list
+    // IS the signal that everything is running clean.
+    var acts=[];
+    ((cov&&cov.warmErrors)||[]).forEach(function(e){acts.push({at:e.at||'',tag:'capture',cls:'cap',m:'Capture issue — '+esc(e.host||'?')+' / '+esc(e.channel||'?')+': '+esc(e.msg||'')});});
+    ((cov&&cov.qaEvents)||[]).forEach(function(e){acts.push({at:e.at||'',tag:'quality',cls:'qa',m:'Quality gate — '+esc(e.kind||'')+(e.label?' · '+esc(e.label):'')+(e.detail?': '+esc(e.detail):'')});});
+    ((cov&&cov.readErrors)||[]).forEach(function(e){acts.push({at:e.at||'',tag:'AI read',cls:'read',m:'Read failed — '+esc(e.host||'?')+' / '+esc(e.channel||'?')+': '+esc(e.error||'')});});
+    acts.sort(function(a,b){return String(b.at).localeCompare(String(a.at));});
+    acts=acts.slice(0,25);
+    html+='<div class="ap-h" style="margin-top:26px">Recent activity — what the system flagged</div>';
+    if(acts.length){
+      html+='<div class="ap-act">'+acts.map(function(a){
+        var d=a.at?String(a.at).replace('T',' ').slice(5,16):'';
+        return '<div class="ap-act-row"><span class="t">'+esc(d)+'</span><span class="tag '+a.cls+'">'+a.tag+'</span><span class="m">'+a.m+'</span></div>';
+      }).join('')+'</div>';
+      html+='<div class="ap-st">capture = a scrape didn’t land (usually retried automatically) · quality gate = a line was caught and replaced before a client saw it (the system working, not breaking) · AI read = a report generation failed and will self-heal.</div>';
+    } else {
+      html+='<div class="ap-st">Nothing flagged recently — captures, quality gates and reads are all running clean.</div>';
     }
     b.innerHTML=html;
   });
@@ -3181,7 +3250,7 @@ function refreshReports(force){
     .then(function(d){
       if(d&&d.already){if(st)st.textContent='Already rebuilding — give it a minute, then reload.';}
       else if(d&&(d.started||d.ok)){
-        var msg='✓ Rebuilding in the background — reports refresh over the next '+(rs?'10–15 minutes (ads re-scan first)':'1–2 minutes')+'.';
+        var msg='✓ Rebuilding in the background — reports refresh over the next '+(rs?'10–15 minutes (ads re-scan first)':'1–2 minutes')+'. Watch the status bar at the top — it flips back to “All systems normal” when done.';
         if(slk){ if(d.slackRecipients===0){ st.style.color='#d66'; msg+=' ⚠ But NO client has Slack connected, so no links will post — connect Slack per client first.'; } else { msg+=' Then report links post to '+(d.slackRecipients||'')+' client Slack channel(s).'; } }
         else { msg+=' Reload the page to see them.'; }
         if(st)st.textContent=msg;

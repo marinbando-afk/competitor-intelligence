@@ -25,7 +25,7 @@ import { fetchAds, adsChanges, ownPageIdsFor, resolvePageRef, forgetTrackedPages
 import { fetchSocial, resolveHandles } from './social.js';
 import { startScheduler, warmStatus, addTracked, removeTracked, getTracked, warmBrand, allBrands, warmUsage, coverageAudit, coverageAuditAndAlert, qualityAudit, TRACKED, warmErrors } from './refresh.js';
 import { qaEvents } from './qalog.js';
-import { postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, sendUserWeeklyLinks, sendUserDailyBriefs } from './slack.js';
+import { briefSendStatus, postText, postDailyBrief, buildDailyBrief, isSlackWebhook, postTo, sendUserWeeklyLinks, sendUserDailyBriefs } from './slack.js';
 import { storeInbound, getEmails, recentEmails, getEmailHtml, reviveSilent } from './email.js';
 import { chat } from './chat.js';
 import { websiteCompare, mshotsShot, scrubWebsiteHistory, shotDiag } from './website.js';
@@ -227,7 +227,7 @@ app.get('/api/health', async (req, res) => {
   // mode says whether real cards are charged (live) or 4242-test cards (test).
   const _sk = String(process.env.STRIPE_SECRET_KEY || '');
   const stripeReady = { key: !!_sk, webhook: !!process.env.STRIPE_WEBHOOK_SECRET, mode: _sk ? (_sk.indexOf('sk_live_') === 0 ? 'live' : 'test') : null, prices: (process.env.STRIPE_PRICE_BASE && process.env.STRIPE_PRICE_ADDON) ? 'env' : 'auto' };
-  res.json({ ok: true, v: String(process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7) || 'dev', ...warmStatus(), userTracked, stripe: stripeReady });   // v = deployed commit, so 'which build am I talking to' is never a guess
+  res.json({ ok: true, v: String(process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7) || 'dev', ...warmStatus(), userTracked, stripe: stripeReady, briefs: briefSendStatus() });   // v = deployed commit, so 'which build am I talking to' is never a guess
 });
 
 // Real capture counts for the landing page's proof band (never invented — see stats.js).

@@ -35,6 +35,9 @@ const ICON = { ads: '📣', social: '📱', website: '🌐', email: '✉️' };
 const LBL = { ads: 'Ads', social: 'Social', website: 'Website', email: 'Email' };
 
 export function slackEnabled() { return !!process.env.SLACK_WEBHOOK_URL; }
+// When the per-client morning briefs last went out — the admin status strip narrates it.
+let _lastBriefSend = null;
+export function briefSendStatus() { return _lastBriefSend; }
 
 // The founder's channel: SLACK_WEBHOOK_URL when set, else the oldest admin account's
 // connected Slack (the nav's SLACK ✓ pipe). SLACK_WEBHOOK_URL was never set on this
@@ -609,7 +612,7 @@ export async function sendUserDailyBriefs(pool) {
       } catch (e) { /* skip this user */ }
     }
   } catch (e) { console.warn('sendUserDailyBriefs:', e.message); }
-  if (sent) console.log('✓ per-user Slack daily briefs sent: ' + sent);
+  if (sent) { _lastBriefSend = { at: new Date().toISOString(), sent, total }; console.log('✓ per-user Slack daily briefs sent: ' + sent); }
   // SELF-AUDIT (founder, 12 Aug): after the real send, re-check what was delivered against
   // what the captures actually contain — misses and nonsense ping the founder's Slack
   // instead of waiting for the founder to catch them. Fire-and-forget, never blocks sends.

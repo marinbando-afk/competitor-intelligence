@@ -85,9 +85,9 @@ export async function allBrands() {
   return TRACKED.concat((await getTracked()).filter((t) => t && t.host && !seen.has(t.host)));
 }
 
-let running = false;
+let running = false, runningSince = null;
 let lastWarm = null, lastResult = null;
-export function warmStatus() { return { warmedAt: lastWarm, last: lastResult, running, tracked: TRACKED.length }; }
+export function warmStatus() { return { warmedAt: lastWarm, last: lastResult, running, runningSince: running ? runningSince : null, tracked: TRACKED.length }; }
 
 // One brand's full capture: ads + social + email + website + insights.
 export async function warmBrand(b, force) {
@@ -182,7 +182,7 @@ function warmError(host, channel, msg) {
 
 export async function refreshAll(force) {
   if (running) { console.log('refresh already in progress — skipping'); return { skipped: true }; }
-  running = true;
+  running = true; runningSince = Date.now();
   const t0 = Date.now();
   let ok = 0, fail = 0, skipped = 0, brands = [];
   try {
