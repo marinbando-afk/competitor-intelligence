@@ -3427,7 +3427,7 @@ function clientCard(c){
     +'<div class="cl-share-row" style="flex-wrap:wrap;margin-bottom:4px"><span class="cl-none" style="align-self:center">Plan: '+(c.comp?'free access':(c.plan_status==='active'?'paying ✓':(c.plan_status?c.plan_status:((c.trial_ends_at&&new Date(c.trial_ends_at)>new Date())?'trial':'no plan'))))+'</span><button class="cl-mini" onclick="toggleComp('+c.id+','+(c.comp?'false':'true')+',this)">'+(c.comp?'Revoke free access':'Grant free access')+'</button></div>'
     +'<div class="cl-share-row" style="flex-wrap:wrap"><input class="cl-in cl-nm" id="cllim-'+c.id+'" type="number" min="0" max="500" value="'+(c.max_competitors==null?'':c.max_competitors)+'" placeholder="limit — default ('+CLIENT_DFLT+')"><button class="cl-mini" onclick="setClientLimit('+c.id+',this)">Save limit</button><button class="cl-mini" onclick="resetClientPass('+c.id+',\''+esc(c.email)+'\')">Reset password…</button></div>'
     // Destructive action in its own red zone — never beside routine buttons (founder, 8 Aug).
-    +'<div class="cl-danger"><span class="cl-none">Deletes this client’s login, competitors, share link and data — cannot be undone.</span><button class="cl-del" title="Delete this client and their data" onclick="deleteClient('+c.id+',\''+esc(c.email)+'\')">Delete client…</button></div>'
+    +'<div class="cl-danger"><span class="cl-none">Deletes this client’s login, competitors, share link and data — and stops monitoring any of their brands no other client tracks. Cannot be undone.</span><button class="cl-del" title="Delete this client and their data" onclick="deleteClient('+c.id+',\''+esc(c.email)+'\')">Delete client…</button></div>'
     +'</div></div>';
 }
 var ADM_OPEN={};   // client-id -> card expanded (survives panel re-renders)
@@ -3535,9 +3535,9 @@ function createClient(btn){
   }).catch(function(){btn.disabled=false;btn.textContent='Create';er.textContent='Couldn’t create — try again.';});
 }
 function deleteClient(id,email){
-  if(!confirm('Delete '+email+'?\n\nThis permanently removes their login, their competitors and their share link.'))return;
+  if(!confirm('Delete '+email+'?\n\nThis permanently removes their login, their competitors and their share link — and stops monitoring any of their brands no other client tracks.'))return;
   fetch(adminUrl('/api/admin/clients/'+id),{method:'DELETE',headers:adminHeaders(false)}).then(function(r){return r.json();}).then(function(d){
-    if(d&&d.ok){var el=document.getElementById('cl-'+id);if(el){el.style.transition='opacity .2s';el.style.opacity='.35';el.style.pointerEvents='none';}}
+    if(d&&d.ok){var el=document.getElementById('cl-'+id);if(el){el.style.transition='opacity .2s';el.style.opacity='.35';el.style.pointerEvents='none';}if(d.stopped&&d.stopped.length)alert('Client deleted. Monitoring stopped for: '+d.stopped.join(', ')+'\n(no other client tracks these — nightly scraping for them ends tonight)');}
     else alert((d&&d.error)||'Couldn’t delete.');
   }).catch(function(){alert('Couldn’t delete.');});
 }

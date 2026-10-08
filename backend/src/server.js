@@ -1188,11 +1188,24 @@ app.delete('/api/admin/clients/:id', async (req, res) => {
     const hosts = await pool.query('SELECT host FROM competitors WHERE user_id = $1', [id]);
     const del = await pool.query('DELETE FROM users WHERE id = $1 AND admin = FALSE RETURNING id', [id]);
     if (!del.rows[0]) return res.status(404).json({ error: 'No such client.' });
-    res.json({ ok: true });
+    // ORPHAN SWEEP (founder, 8 Oct: "when I remove the client, also remove the competitors
+    // he monitored from admin user, so we don't monitor them for nothing"). Every client
+    // add was mirrored onto the admin dashboard, and that mirror kept each host "tracked
+    // by someone" forever — so deleted clients' brands scraped nightly for nobody. Per
+    // host: if no OTHER client still monitors it, drop the admin mirror rows and unenrol
+    // it from the nightly warm. Re-adding a brand the founder wants personally is one
+    // click — cheaper than silently paying to scrape orphans.
+    const stopped = [];
     for (const row of hosts.rows) {
-      try { const s = await pool.query('SELECT 1 FROM competitors WHERE host = $1 LIMIT 1', [row.host]); if (!s.rowCount) await removeTracked(row.host); }
-      catch (e) { /* best-effort */ }
+      try {
+        const live = await pool.query('SELECT 1 FROM competitors c JOIN users u ON u.id = c.user_id WHERE c.host = $1 AND u.admin = FALSE LIMIT 1', [row.host]);
+        if (live.rowCount) continue;   // another client still pays for this brand
+        await pool.query('DELETE FROM competitors WHERE host = $1 AND user_id IN (SELECT id FROM users WHERE admin = TRUE)', [row.host]);
+        const any = await pool.query('SELECT 1 FROM competitors WHERE host = $1 LIMIT 1', [row.host]);
+        if (!any.rowCount) { await removeTracked(row.host); stopped.push(row.host); }
+      } catch (e) { /* best-effort per host */ }
     }
+    res.json({ ok: true, stopped });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
