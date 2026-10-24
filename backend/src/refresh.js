@@ -120,7 +120,20 @@ export async function warmBrand(b, force) {
   const POST_PER = Number(process.env.SOCIAL_HOOK_PER) || 6;
   try { const a = await fetchAds(b.name, b.country, force, false, b.host); ok++; if (a && a.ads && a.ads.length) { await enrichCreativeHooks(b.host, 'ads', 'ad', a.ads, adBudget); try { const L = await resolveLandings(a.ads); if (L) a.landings = L; } catch (e) { console.warn('[landcheck]', b.host, (e && e.message) || e); } await saveSnapshot(b.host, 'ads', a); await recordAdLedger(b.host, a.ads); } else { try { await saveSnapshot(b.host, 'ads', { ads: [], scanned: true }); } catch (e2) { /* state save is best-effort */ } warmError(b.host, 'ads', 'scan returned 0 active ads — saved as reportable state'); } }
   catch (e) { fail++; console.warn('warm ads ' + b.name + ':', e.message); warmError(b.host, 'ads', e.message); }
-  for (const [pf, hk] of PLATFORMS) {
+  // R-SCRAPE-BUDGET: dormant social accounts (no post in 14 days) scrape on alternate
+  // days — ~90 social actor runs/day was a real slice of the Apify bill, much of it
+  // against accounts whose newest post is from 2024.
+  let lastPostDay = '';
+  try {
+    const lp = await pool.query(`SELECT data FROM snapshots WHERE host = $1 AND channel IN ('instagram','tiktok','facebook') ORDER BY day DESC LIMIT 3`, [b.host]);
+    for (const row of lp.rows) for (const pzz of ((row.data && row.data.posts) || [])) {
+      const dd = String(pzz.date || '').slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dd) && dd > lastPostDay) lastPostDay = dd;
+    }
+  } catch (e) { /* unknown recency → scrape */ }
+  const socialDue = socialScrapeDue(lastPostDay, new Date().toISOString().slice(0, 10));
+  if (!socialDue) console.log('[budget] ' + b.host + ': social dormant (last post ' + (lastPostDay || '?') + ') — alternate-day cadence, skipping today');
+  for (const [pf, hk] of (socialDue ? PLATFORMS : [])) {
     try {
       const s = await fetchSocial(pf, b.handles && b.handles[hk], b.host, force); ok++;
       if (s && s.posts && s.posts.length) {
@@ -174,6 +187,24 @@ async function syncTracked() {
 // returned nothing while the accounts were clearly active, and the only evidence lived in
 // Railway logs nobody can reach from chat). Every warm failure and every empty-result
 // scrape lands here, served by /api/coverage — a failed capture must be diagnosable.
+// R-SCRAPE-BUDGET cadence decisions (founder, 24 Oct — Apify plan downgraded; usage must
+// fit). Pure, exported for tests.
+// Demo brands (marketing examples, not client competitors) warm on alternate days — a
+// one-day-old demo read sells fine; a daily full pipeline for 3 demo brands does not.
+export function demoWarmToday(todayIso) {
+  const doy = Math.floor((Date.parse(todayIso + 'T00:00:00Z') - Date.parse(todayIso.slice(0, 4) + '-01-01T00:00:00Z')) / 864e5);
+  return doy % 2 === 0;
+}
+// Social scrapes run daily while an account is ALIVE (posted within 14 days) and drop to
+// alternate days when dormant — posts are cumulative windows, nothing is lost, and the
+// zero-posts self-heal (coverage audit) keeps owning never-captured accounts daily.
+export function socialScrapeDue(lastPostDay, todayIso) {
+  if (!lastPostDay) return true;   // never captured → the self-heal path decides, scrape
+  const age = (Date.parse(todayIso + 'T00:00:00Z') - Date.parse(String(lastPostDay).slice(0, 10) + 'T00:00:00Z')) / 864e5;
+  if (age <= 14) return true;
+  return demoWarmToday(todayIso);   // dormant → alternate days (same parity clock)
+}
+
 export const warmErrors = [];
 function warmError(host, channel, msg) {
   warmErrors.push({ at: new Date().toISOString().slice(0, 16), host, channel, msg: String(msg || '').slice(0, 200) });
@@ -206,6 +237,8 @@ export async function refreshAll(force) {
           if (r0.rows[0]) { skipped++; continue; }
         } catch (e) { /* no DB → warm as before */ }
       }
+      // R-SCRAPE-BUDGET: demo brands warm on alternate days (clients' competitors never skip).
+      if (TRACKED.some((t) => t.host === b.host) && !demoWarmToday(today)) { skipped++; continue; }
       const r = await warmBrand(b, force); ok += r.ok; fail += r.fail;
     }
     if (skipped) console.log('✓ warm: skipped ' + skipped + ' brand(s) already captured today (deploy re-warm guard)');

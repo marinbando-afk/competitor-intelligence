@@ -403,6 +403,14 @@ ok(!checkCongruence(blockDet, arEmpty, fDet).some((v) => v.rule === 'R-SYNC-02')
 ok(checkCongruence('*Luxe*\n   *Website:* Storefront unchanged — same prices, products and sale.', arEmpty, fDet).some((v) => v.rule === 'R-SYNC-01' && /email/.test(v.why)), 'captured emails with NO Email row still pings R-SYNC-01');
 ok(checkCongruence('*Luxe*\n   *Ads:* Recent ads run from "X" handle.', arEmpty, { name: 'Luxe', emailsSeen: 0, postsSeen: 0, sale: '', webComparable: false, webBanner: '' }).some((v) => v.rule === 'R-SYNC-02' && /ads/.test(v.why)), 'a row with no read AND no capture behind it still pings R-SYNC-02');
 
+console.log('\nSCRAPE BUDGET — cadence decisions (24 Oct, Apify downgrade):');
+const { demoWarmToday, socialScrapeDue } = await import('../src/refresh.js');
+ok(demoWarmToday('2026-10-24') !== demoWarmToday('2026-10-25'), 'demo warm alternates day to day');
+ok(socialScrapeDue('2026-10-20', '2026-10-24'), 'alive account (posted 4 days ago) → scrape daily');
+ok(socialScrapeDue('', '2026-10-24'), 'never-captured account → scrape (self-heal owns it)');
+const dormA = socialScrapeDue('2024-01-25', '2026-10-24'), dormB = socialScrapeDue('2024-01-25', '2026-10-25');
+ok(dormA !== dormB, 'dormant account (2024 posts) → alternate days');
+
 console.log('\nLAUNCH LEDGER + BURST SATURATION — every launch counted once seen (6 Oct):');
 const { mergeAdLedger } = await import('../src/snapshots.js');
 const m1 = mergeAdLedger({}, [{ id: 'a1', started: '2026-10-05', page: 'Nolan', text: 'hook one' }, { id: 'a2', started: '2026-10-06', page: 'Nolan', text: 'hook two' }, { id: 'bad', started: 'not-a-date' }], '2026-10-06');

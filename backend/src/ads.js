@@ -277,13 +277,14 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
     pushV(brand, 'keyword_unordered');
   }
 
-  async function runOne(qUrl, qTerm, activeSt, pid) {
+  async function runOne(qUrl, qTerm, activeSt, pid, cnt) {
+    const N = Number(cnt) || ADS_N;
     const input = {
       urls: [{ url: qUrl }],
       startUrls: [{ url: qUrl }],
       searchTerms: qTerm ? [qTerm] : [],
-      count: ADS_N,
-      maxItems: ADS_N,
+      count: N,
+      maxItems: N,
       country,
       activeStatus: activeSt,
       scrapePageAds: true,
@@ -330,7 +331,11 @@ export async function fetchAds(brand, country, force, cacheOnly, host, pageId, d
       const q = v.q;
       const sortQv = '&search_type=' + v.st + '&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped';
       const qUrl = 'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=' + encodeURIComponent(country) + '&q=' + encodeURIComponent(q) + sortQv + '&media_type=all';
-      try { kw = await runOne(qUrl, q, 'active'); } catch (e) { if (!items.length) throw e; console.warn('fetchAds keyword ' + (host || brand) + ':', e.message); break; }
+      // R-SCRAPE-BUDGET (founder, 24 Oct — Apify downgrade): when the page inventory
+      // already landed, the keyword run's unique contribution is whitelisting/partner
+      // pages the page scan cannot see — and their fresh ads sit newest-first in the top
+      // of the list. Half depth there halves the paid duplicates on heavy brands.
+      try { kw = await runOne(qUrl, q, 'active', undefined, items.length ? Math.max(20, Math.floor(ADS_N / 2)) : ADS_N); } catch (e) { if (!items.length) throw e; console.warn('fetchAds keyword ' + (host || brand) + ':', e.message); break; }
       usedQuery = q + (v.st === 'keyword_unordered' ? ' (unordered)' : '');
       if (kw.length) break;
       if (v !== variants[variants.length - 1]) console.log('fetchAds ' + (host || brand) + ': query "' + q + '" [' + v.st + '] returned 0 — retrying with the next variant');
